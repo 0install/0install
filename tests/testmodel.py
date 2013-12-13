@@ -17,15 +17,6 @@ class TestModel(BaseTest):
 		assert model.network_minimal in model.network_levels
 		assert model.network_full in model.network_levels
 
-	def testStabilities(self):
-		assert 'insecure' in model.stability_levels
-		assert 'buggy' in model.stability_levels
-		assert 'developer' in model.stability_levels
-		assert 'testing' in model.stability_levels
-		assert 'stable' in model.stability_levels
-		assert 'preferred' in model.stability_levels
-		str(model.insecure)
-	
 	def testBadInterface(self):
 		try:
 			model.Interface('foo')
@@ -49,54 +40,6 @@ class TestModel(BaseTest):
 		assert main_feed.get_metadata('b', 'b') == []
 		assert main_feed.get_metadata('a', 'a') == []
 		assert e.getAttribute('foo') == 'bar'
-
-	def testVersions(self):
-		def pv(v):
-			parsed = model.parse_version(v)
-			assert model.format_version(parsed) == v
-			return parsed
-
-		assert pv('1.0') > pv('0.9')
-		assert pv('1.0') > pv('1')
-		assert pv('1.0') == pv('1.0')
-		assert pv('0.9.9') < pv('1.0')
-		assert pv('10') > pv('2')
-
-		def invalid(v):
-			try:
-				pv(v)
-				assert False
-			except model.SafeException:
-				pass
-		invalid('.')
-		invalid('hello')
-		invalid('2./1')
-		invalid('.1')
-		invalid('')
-
-		# Check parsing
-		assert pv('1') == [[1], 0]
-		assert pv('1.0') == [[1,0], 0]
-		assert pv('1.0-pre5') == [[1,0], -2, [5], 0]
-		assert pv('1.0-rc5') == [[1,0], -1, [5], 0]
-		assert pv('1.0-5') == [[1,0], 0, [5], 0]
-		assert pv('1.0-post5') == [[1,0], 1, [5], 0]
-		assert pv('1.0-post') == [[1,0], 1]
-		assert pv('1-rc2.0-pre2-post') == [[1], -1, [2,0], -2, [2], 1]
-		assert pv('1-rc2.0-pre-post') == [[1], -1, [2,0], -2, [], 1]
-
-		assert pv('1.0-0') > pv('1.0')
-		assert pv('1.0-1') > pv('1.0-0')
-		assert pv('1.0-0') < pv('1.0-1')
-
-		assert pv('1.0-pre99') > pv('1.0-pre1')
-		assert pv('1.0-pre99') < pv('1.0-rc1')
-		assert pv('1.0-rc1') < pv('1.0')
-		assert pv('1.0') < pv('1.0-0')
-		assert pv('1.0-0') < pv('1.0-post')
-		assert pv('2.1.9-pre-1') > pv('2.1.9-pre')
-
-		assert pv('2-post999') < pv('3-pre1')
 
 if __name__ == '__main__':
 	unittest.main()

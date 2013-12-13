@@ -20,8 +20,8 @@ os.environ['LANG'] = 'C'
 if 'ZEROINSTALL_CRASH_LOGS' in os.environ: del os.environ['ZEROINSTALL_CRASH_LOGS']
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import qdom, namespaces
-from zeroinstall.injector import iface_cache, download, model, handler, reader
+from zeroinstall.injector import qdom
+from zeroinstall.injector import iface_cache, model
 from zeroinstall import support, cmd
 from zeroinstall.support import basedir
 
@@ -81,14 +81,6 @@ class TestLocale:
 		return test_locale
 model.locale = TestLocale()
 
-class DummyHandler(handler.Handler):
-	__slots__ = ['ex', 'tb', 'allow_downloads']
-
-	def __init__(self):
-		handler.Handler.__init__(self)
-		self.ex = None
-		self.allow_downloads = False
-
 class TestConfig:
 	freshness = 0
 	help_with_testing = False
@@ -99,7 +91,6 @@ class TestConfig:
 
 	def __init__(self):
 		self.iface_cache = iface_cache.IfaceCache()
-		self.handler = DummyHandler()
 
 class BaseTest(unittest.TestCase):
 	def setUp(self):
@@ -135,17 +126,12 @@ class BaseTest(unittest.TestCase):
 
 		logging.getLogger().setLevel(logging.WARN)
 
-		download._downloads = {}
-
 		self.old_path = os.environ['PATH']
 		os.environ['PATH'] = self.config_home + ':' + dpkgdir + ':' + self.old_path
 
 		my_dbus.system_services = {}
 
 	def tearDown(self):
-		if self.config.handler.ex:
-			support.raise_with_traceback(self.config.handler.ex, self.config.handler.tb)
-
 		shutil.rmtree(self.config_home)
 		support.ro_rmtree(self.cache_home)
 		shutil.rmtree(self.cache_system)
@@ -165,26 +151,6 @@ class BaseTest(unittest.TestCase):
 				msg = msg.encode('utf-8')
 			err += msg
 		return out, err
-
-	def import_feed(self, url, contents):
-		"""contents can be a path or an Element."""
-		iface_cache = self.config.iface_cache
-		iface_cache.get_interface(url)
-
-		if isinstance(contents, qdom.Element):
-			feed = model.ZeroInstallFeed(contents)
-		else:
-			feed = reader.load_feed(contents)
-
-		iface_cache._feeds[url] = feed
-
-		xml = qdom.to_UTF8(feed.feed_element)
-		upstream_dir = basedir.save_cache_path(namespaces.config_site, 'interfaces')
-		cached = os.path.join(upstream_dir, model.escape(url))
-		with open(cached, 'wb') as stream:
-			stream.write(xml)
-
-		return feed
 
 	def run_0install(self, args):
 		old_stdout = sys.stdout

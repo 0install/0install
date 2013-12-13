@@ -53,25 +53,6 @@ class Element(object):
 		@rtype: str"""
 		return self.attrs.get(name, None)
 
-	def toDOM(self, doc, prefixes):
-		"""Create a DOM Element for this qdom.Element.
-		@param doc: document to use to create the element
-		@type prefixes: L{Prefixes}
-		@return: the new element"""
-		elem = prefixes.createElementNS(doc, self.uri, self.name)
-
-		for fullname, value in self.attrs.items():
-			if ' ' in fullname:
-				ns, localName = fullname.split(' ', 1)
-			else:
-				ns, localName = None, fullname
-			prefixes.setAttributeNS(elem, ns, localName, value)
-		for child in self.childNodes:
-			elem.appendChild(child.toDOM(doc, prefixes))
-		if self.content:
-			elem.appendChild(doc.createTextNode(self.content))
-		return elem
-
 class QSAXhandler(object):
 	"""SAXHandler that builds a tree of L{Element}s"""
 	def __init__(self, filter_for_version = False):
@@ -130,55 +111,3 @@ def parse(source, filter_for_version = False):
 
 	parser.ParseFile(source)
 	return handler.doc
-
-class Prefixes(object):
-	"""Keep track of namespace prefixes. Used when serialising a document.
-	@since: 0.54
-	"""
-	def __init__(self, default_ns):
-		"""@type default_ns: str"""
-		self.prefixes = {}
-		self.default_ns = default_ns
-
-	def get(self, ns):
-		"""@type ns: str
-		@rtype: str"""
-		prefix = self.prefixes.get(ns, None)
-		if prefix:
-			return prefix
-		if ns == "http://www.w3.org/XML/1998/namespace":
-			return "xml"
-		prefix = 'ns%d' % len(self.prefixes)
-		self.prefixes[ns] = prefix
-		return prefix
-
-	def setAttributeNS(self, elem, uri, localName, value):
-		"""@type uri: str
-		@type localName: str
-		@type value: str"""
-		if uri is None:
-			elem.setAttributeNS(None, localName, value)
-		else:
-			elem.setAttributeNS(uri, self.get(uri) + ':' + localName, value)
-	
-	def createElementNS(self, doc, uri, localName):
-		"""@type uri: str
-		@type localName: str"""
-		if uri == self.default_ns:
-			return doc.createElementNS(uri, localName)
-		else:
-			return doc.createElementNS(uri, self.get(uri) + ':' + localName)
-
-def to_DOM(root):
-	from xml.dom import minidom, XMLNS_NAMESPACE
-	default_ns = root.uri
-	doc = minidom.getDOMImplementation().createDocument(default_ns, "unused", None)
-	p = Prefixes(default_ns)
-	dom = root.toDOM(doc, p)
-	dom.setAttributeNS(XMLNS_NAMESPACE, 'xmlns', default_ns)
-	for uri, prefix in p.prefixes.items():
-		dom.setAttributeNS(XMLNS_NAMESPACE, 'xmlns:' + prefix, uri)
-	return dom
-
-def to_UTF8(root):
-	return to_DOM(root).toxml(encoding = 'utf-8')

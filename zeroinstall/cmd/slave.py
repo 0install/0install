@@ -217,9 +217,6 @@ def handle(config, options, args):
 	if options.offline:
 		config.network_use = model.network_offline
 
-	if options.dry_run:
-		config.handler.dry_run = True
-
 	@tasks.async
 	def handle_events():
 		while True:

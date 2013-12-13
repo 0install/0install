@@ -24,8 +24,6 @@ class Config(object):
 	"""
 	@ivar auto_approve_keys: whether to approve known keys automatically
 	@type auto_approve_keys: bool
-	@ivar handler: handler for main-loop integration
-	@type handler: L{handler.Handler}
 	@ivar key_info_server: the base URL of a key information server
 	@type key_info_server: str
 	@ivar mirror: the base URL of a mirror site for feeds, keys and implementations (since 1.10)
@@ -35,14 +33,13 @@ class Config(object):
 	"""
 
 	__slots__ = ['help_with_testing', 'freshness', 'network_use', 'mirror', 'key_info_server', 'auto_approve_keys',
-		     '_iface_cache', '_handler']
+		     '_iface_cache']
 
 	def __init__(self, handler = None):
 		"""@type handler: L{zeroinstall.injector.handler.Handler} | None"""
 		self.help_with_testing = False
 		self.freshness = 60 * 60 * 24 * 30
 		self.network_use = network_full
-		self._handler = handler
 		self._iface_cache = None
 		self.mirror = DEFAULT_MIRROR
 		self.key_info_server = DEFAULT_KEY_LOOKUP_SERVER
@@ -57,13 +54,6 @@ class Config(object):
 			self._iface_cache = iface_cache.iface_cache
 			#self._iface_cache = iface_cache.IfaceCache()
 		return self._iface_cache
-
-	@property
-	def handler(self):
-		if not self._handler:
-			from zeroinstall.injector import handler
-			self._handler = handler.Handler()
-		return self._handler
 
 def load_config(handler = None):
 	"""@type handler: L{zeroinstall.injector.handler.Handler} | None

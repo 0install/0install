@@ -56,21 +56,6 @@ def parse_version(version_string):
 	except KeyError as ex:
 		raise SafeException(_("Invalid version modifier in '%(version_string)s': %(exception)s") % {'version_string': version_string, 'exception': str(ex).strip("u")})
 
-def format_version(version):
-	"""Format a parsed version for display. Undoes the effect of L{parse_version}.
-	@rtype: str
-	@see: L{model.Implementation.get_version}
-	@since: 0.24"""
-	version = version[:]
-	l = len(version)
-	for x in range(0, l, 2):
-		version[x] = '.'.join(map(str, version[x]))
-	for x in range(1, l, 2):
-		version[x] = '-' + _version_value_to_mod[version[x]]
-	if version[-1] == '-': del version[-1]
-	return ''.join(version)
-
-
 def parse_version_range(r):
 	"""Parse a range expression.
 	@param r: the range expression

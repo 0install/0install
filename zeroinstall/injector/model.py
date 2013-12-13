@@ -17,15 +17,13 @@ from zeroinstall import _
 import os, re, locale, sys
 from zeroinstall import SafeException, version
 from zeroinstall.injector.namespaces import XMLNS_IFACE
-from zeroinstall.injector.versions import parse_version, format_version
+from zeroinstall.injector.versions import parse_version
 from zeroinstall import support
 
 network_offline = 'off-line'
 network_minimal = 'minimal'
 network_full = 'full'
 network_levels = (network_offline, network_minimal, network_full)
-
-stability_levels = {}	# Name -> Stability
 
 class InvalidInterface(SafeException):
 	"""Raised when parsing an invalid feed."""
@@ -71,60 +69,6 @@ def _best_language_match(options):
 	return (options.get(language, None) or			# Exact match (language+region)
 		options.get(language.split('-', 1)[0], None) or	# Matching language
 		options.get('en', None))			# English
-
-class Stability(object):
-	"""A stability rating. Each implementation has an upstream stability rating and,
-	optionally, a user-set rating."""
-	__slots__ = ['level', 'name', 'description']
-	def __init__(self, level, name, description):
-		"""@type level: int
-		@type name: str
-		@type description: str"""
-		self.level = level
-		self.name = name
-		self.description = description
-		assert name not in stability_levels
-		stability_levels[name] = self
-
-	def __cmp__(self, other):
-		"""@type other: L{Stability}
-		@rtype: int"""
-		return cmp(self.level, other.level)
-
-	def __lt__(self, other):
-		"""@type other: L{Stability}
-		@rtype: bool"""
-		if isinstance(other, Stability):
-			return self.level < other.level
-		else:
-			return NotImplemented
-
-	def __eq__(self, other):
-		"""@type other: L{Stability}
-		@rtype: bool"""
-		if isinstance(other, Stability):
-			return self.level == other.level
-		else:
-			return NotImplemented
-
-	def __str__(self):
-		"""@rtype: str"""
-		return self.name
-
-	def __repr__(self):
-		return _("<Stability: %s>") % self.description
-
-def N_(message): return message
-
-insecure = Stability(0, N_('insecure'), _('This is a security risk'))
-buggy = Stability(5, N_('buggy'), _('Known to have serious bugs'))
-developer = Stability(10, N_('developer'), _('Work-in-progress - bugs likely'))
-testing = Stability(20, N_('testing'), _('Stability unknown - please test!'))
-stable = Stability(30, N_('stable'), _('Tested - no serious problems found'))
-packaged = Stability(35, N_('packaged'), _('Supplied by the local package manager'))
-preferred = Stability(40, N_('preferred'), _('Best of all - must be set manually'))
-
-del N_
 
 class Interface(object):
 	"""An Interface represents some contract of behaviour.
@@ -249,9 +193,6 @@ class ZeroInstallFeed(object):
 	def __repr__(self):
 		return _("<Feed %s>") % self.url
 
-	def add_metadata(self, elem):
-		self.metadata.append(elem)
-
 	def get_metadata(self, uri, name):
 		"""Return a list of interface metadata elements with this name and namespace URI.
 		@type uri: str
@@ -264,22 +205,6 @@ class ZeroInstallFeed(object):
 
 if sys.version_info[0] > 2:
 	# Python 3
-
-	from functools import total_ordering
-	# (note: delete these two lines when generating epydoc)
-	Stability = total_ordering(Stability)
-
-	# These could be replaced by urllib.parse.quote, except that
-	# it uses upper-case escapes and we use lower-case ones...
-	def unescape(uri):
-		"""Convert each %20 to a space, etc.
-		@type uri: str
-		@rtype: str"""
-		uri = uri.replace('#', '/')
-		if '%' not in uri: return uri
-		return re.sub(b'%[0-9a-fA-F][0-9a-fA-F]',
-			lambda match: bytes([int(match.group(0)[1:], 16)]),
-			uri.encode('ascii')).decode('utf-8')
 
 	def escape(uri):
 		"""Convert each space to %20, etc
@@ -306,16 +231,6 @@ if sys.version_info[0] > 2:
 			uri.encode('utf-8')).decode('ascii').replace('/', '#')
 else:
 	# Python 2
-
-	def unescape(uri):
-		"""Convert each %20 to a space, etc.
-		@type uri: str
-		@rtype: str"""
-		uri = uri.replace('#', '/')
-		if '%' not in uri: return uri
-		return re.sub('%[0-9a-fA-F][0-9a-fA-F]',
-			lambda match: chr(int(match.group(0)[1:], 16)),
-			uri).decode('utf-8')
 
 	def escape(uri):
 		"""Convert each space to %20, etc

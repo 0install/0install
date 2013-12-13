@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-from basetest import BaseTest, StringIO
+from basetest import BaseTest
 import sys, os, subprocess, shlex
 import unittest
 
 sys.path.insert(0, '..')
-from zeroinstall import cmd, support
-from zeroinstall.injector import model, handler, config
+from zeroinstall import support
 
 mydir = os.path.dirname(__file__)
 

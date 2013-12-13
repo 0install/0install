@@ -34,6 +34,19 @@ let suite = "versions">::: [
     invalid ".1";
     invalid "";
 
+    begin
+      let open Versions in
+      assert_equal [([1L], Dash)] @@ pv "1";
+      assert_equal [([1L; 0L], Dash)] @@ pv("1.0");
+      assert_equal [([1L; 0L], Pre); ([5L], Dash)] @@ pv("1.0-pre5");
+      assert_equal [([1L; 0L], Rc); ([5L], Dash)] @@ pv("1.0-rc5");
+      assert_equal [([1L; 0L], Dash); ([5L], Dash)] @@ pv("1.0-5");
+      assert_equal [([1L; 0L], Post); ([5L], Dash)] @@ pv("1.0-post5");
+      assert_equal [([1L; 0L], Post)] @@ pv("1.0-post");
+      assert_equal [([1L], Rc); ([2L; 0L], Pre); ([2L], Post)] @@ pv("1-rc2.0-pre2-post");
+      assert_equal [([1L], Rc); ([2L; 0L], Pre); ([], Post)] @@ pv("1-rc2.0-pre-post");
+    end;
+
     assert_order "1.0" "1.0-0";
     assert_order "1.0-0" "1.0-1";
     assert_order "1.0-0" "1.0-1";

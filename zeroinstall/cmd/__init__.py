@@ -105,12 +105,6 @@ def main(command_args, config = None):
 			import zeroinstall
 			logger.info(_("Running 0install %(version)s %(args)s; Python %(python_version)s"), {'version': zeroinstall.version, 'args': repr(command_args), 'python_version': sys.version})
 
-		config.handler.dry_run = bool(options.dry_run)
-		if config.handler.dry_run:
-			if options.gui is True:
-				raise SafeException(_("Can't use --gui with --dry-run"))
-			options.gui = False
-
 		cmd.handle(config, options, args)
 	except KeyboardInterrupt:
 		logger.info("KeyboardInterrupt")

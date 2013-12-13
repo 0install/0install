@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from basetest import BaseTest, empty_feed
-import sys, os, tempfile, imp
+import sys, os, imp
 from io import BytesIO
 import unittest
 
