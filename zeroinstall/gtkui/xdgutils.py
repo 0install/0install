@@ -51,29 +51,3 @@ def add_to_menu(feed, icon_path, category, zlaunch=None):
 
 	if status:
 		raise SafeException(_('Failed to run xdg-desktop-menu (error code %d)') % status)
-
-def discover_existing_apps():
-	"""Search through the configured XDG datadirs looking for .desktop files created by L{add_to_menu}.
-	@return: a map from application URIs to .desktop filenames"""
-	already_installed = {}
-	for d in basedir.load_data_paths('applications'):
-		for desktop_file in os.listdir(d):
-			if desktop_file.startswith('zeroinstall-') and desktop_file.endswith('.desktop'):
-				full = os.path.join(d, desktop_file)
-				try:
-					with open(full, 'rt') as stream:
-						for line in stream:
-							line = line.strip()
-							if line.startswith('Exec=0launch '):
-								bits = line.split(' -- ', 1)
-								if ' ' in bits[0]:
-									uri = bits[0].split(' ', 1)[1]		# 0launch URI -- %u
-								else:
-									uri = bits[1].split(' ', 1)[0].strip()	# 0launch -- URI %u
-								already_installed[uri] = full
-								break
-						else:
-							logger.info(_("Failed to find Exec line in %s"), full)
-				except Exception as ex:
-					logger.warning(_("Failed to load .desktop file %(filename)s: %(exceptions"), {'filename': full, 'exception': ex})
-	return already_installed

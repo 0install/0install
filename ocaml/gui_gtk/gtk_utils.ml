@@ -54,3 +54,42 @@ let default_cursor = lazy (Gdk.Cursor.create `LEFT_PTR)
  * point (even in the Python).
  * See: http://mail.gnome.org/archives/gtk-list/2007-May/msg00100.html *)
 let busy_cursor = lazy (Gdk.Cursor.create `WATCH)
+
+let pango_escape s =
+  s |> Str.global_substitute (Str.regexp "[&<]") (fun s ->
+    match Str.matched_string s with
+    | "&" -> "&amp;"
+    | "<" -> "&lt;"
+    | _ -> assert false
+  )
+
+(** When a URI is dropped on 'window', call on_success(uri).
+    If it returns True, accept the drop. *)
+let make_iface_uri_drop_target (window:#GWindow.window_skel) on_success =
+  let drag_ops = window#drag in
+  drag_ops#dest_set
+    ~flags:[`MOTION; `DROP; `HIGHLIGHT]
+    ~actions:[`COPY]
+    [ Gtk.({ target = "text/uri-list"; flags = []; info = 0 }) ];
+  drag_ops#connect#data_received ~callback:(fun drag_context ~x:_ ~y:_ data ~info:_ ~time ->
+    try
+      let data = data#data in
+      match Str.split (Str.regexp "[\n\r]+") data with
+      | [] -> log_warning "Empty list of URIs dropped!"
+      | [uri] ->
+          if on_success uri then
+            drag_context#finish ~success:true ~del:false ~time
+      | uris -> log_warning "Multiple URIs dropped: %s" (String.concat "," uris)
+    with ex ->
+      Alert_box.report_error ~parent:window ex
+  )
+
+let sanity_check_iface uri =
+  if U.ends_with uri ".tar.bz2" ||
+     U.ends_with uri ".tar.gz" ||
+     U.ends_with uri ".exe" ||
+     U.ends_with uri ".rpm" ||
+     U.ends_with uri ".deb" ||
+     U.ends_with uri ".tgz" then (
+   raise_safe "This URI (%s) looks like an archive, not a 0install feed. Make sure you're using the feed link!" uri
+  )

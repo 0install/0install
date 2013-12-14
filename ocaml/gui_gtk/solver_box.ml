@@ -280,6 +280,8 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
     watcher#abort_all_downloads;
     Lwt.cancel refresh_loop;
 
+    dialog#destroy ();
+
     match response with
     | `ok ->
         let (ready, results) = watcher#results in

@@ -49,45 +49,6 @@ let size_of_impl (system:system) path : Int64.t =
       );
       !size
 
-(* We have two models: the underlying model (CacheModel) and a sorted view of it, which is
- * what the TreeView displays. It's very important not to confuse the iterators of one model
- * with those of the other, or you may act on the wrong data.
- *
- * For example, to delete a row you need to call the delete operation on the underlying model,
- * using an underlying iterator. But the TreeView's get_selected_rows returns iterators in the
- * sorted model.
- *
- * This module isolates the underlying model and its iterators from the rest of the code, so
- * mixups aren't possible.
- *)
-module CacheModel :
-  sig
-    type t
-    type iter
-    val list_store : GTree.column_list -> t
-    val model_sort : t -> GTree.model_sort
-    val get_iter_first : t -> iter option
-    val set : t -> row:iter -> column:'a GTree.column -> 'a -> unit
-    val get : t -> row:iter -> column:'a GTree.column -> 'a
-    val remove : t -> iter -> bool
-    val convert_iter_to_child_iter : GTree.model_sort -> Gtk.tree_iter -> iter
-    val append : t -> iter
-    val iter_next : t -> iter -> bool
-  end = struct
-    type t = GTree.list_store
-    type iter = Gtk.tree_iter
-
-    let list_store cols = GTree.list_store cols
-    let model_sort model = GTree.model_sort model
-    let get_iter_first (model:t) = model#get_iter_first
-    let set (model:t) ~(row:iter) ~column value = model#set ~row ~column value
-    let get (model:t) ~(row:iter) ~column = model#get ~row ~column
-    let remove (model:t) (row:iter) = model#remove row
-    let convert_iter_to_child_iter (model:GTree.model_sort) (iter:Gtk.tree_iter) = model#convert_iter_to_child_iter iter
-    let append (model:t) = model#append ()
-    let iter_next (model:t) (row:iter) = model#iter_next row
-  end
-
 let cache_help = Help_box.create "Cache Explorer Help" [
 ("Overview",
 "When you run a program using 0install, it downloads a suitable implementation (version) of the program and of \
@@ -242,8 +203,8 @@ let open_cache_explorer config =
   let size_col = cols#add Gobject.Data.int64 in
   let size_str_col = cols#add Gobject.Data.string in
 
-  let model = CacheModel.list_store cols in
-  let sorted_model = CacheModel.model_sort model in
+  let model = Unsorted_list.list_store cols in
+  let sorted_model = Unsorted_list.model_sort model in
 
   (* View *)
   let view = GTree.view
@@ -295,7 +256,7 @@ let open_cache_explorer config =
   let delete = GButton.button ~packing:(table#attach ~top:0 ~left:2) ~stock:`DELETE () in
   delete#connect#clicked ~callback:(fun () ->
     let iters = selection#get_selected_rows |> List.map (fun sorted_path ->
-      sorted_model#get_iter sorted_path |> CacheModel.convert_iter_to_child_iter sorted_model
+      sorted_model#get_iter sorted_path |> Unsorted_list.convert_iter_to_child_iter sorted_model
     ) in
     dialog#misc#set_sensitive false;
     Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.busy_cursor);
@@ -304,10 +265,9 @@ let open_cache_explorer config =
         let rec loop = function
           | [] -> Lwt.return ()
           | x::xs ->
-              let dir = CacheModel.get model ~row:x ~column:impl_dir_col in
+              let dir = Unsorted_list.get model ~row:x ~column:impl_dir_col in
               lwt () = Lwt_preemptive.detach (U.rmtree ~even_if_locked:true config.system) dir in
-              let removed = CacheModel.remove model x in
-              assert removed;
+              Unsorted_list.remove model x |> ignore;
               loop xs in
         match_lwt confirm_deletion ~parent:dialog (List.length iters) with
         | `delete -> loop iters
@@ -355,6 +315,7 @@ let open_cache_explorer config =
   dialog#show ();
 
   (* Make sure the GUI appears before we start the (slow) scan *)
+  Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.busy_cursor);
   Gdk.X.flush ();
 
   (* Populate model *)
@@ -392,36 +353,37 @@ let open_cache_explorer config =
 
   (* Add each cached implementation to the model *)
   all_digests |> Hashtbl.iter (fun digest dir ->
-    let row = CacheModel.append model in
-    CacheModel.set model ~row ~column:impl_dir_col @@ dir +/ digest;
+    let row = Unsorted_list.append model in
+    Unsorted_list.set model ~row ~column:impl_dir_col @@ dir +/ digest;
     try
       let feed, impl = Hashtbl.find impl_of_digest digest in
-      CacheModel.set model ~row ~column:owner_col feed.F.name;
-      CacheModel.set model ~row ~column:version_str_col @@ F.get_attr_ex FeedAttr.version impl;
+      Unsorted_list.set model ~row ~column:owner_col feed.F.name;
+      Unsorted_list.set model ~row ~column:version_str_col @@ F.get_attr_ex FeedAttr.version impl;
     with Not_found ->
       try
         Manifest.parse_digest digest |> ignore;
-        CacheModel.set model ~row ~column:owner_col "(unowned)";
+        Unsorted_list.set model ~row ~column:owner_col "(unowned)";
       with _ ->
-        CacheModel.set model ~row ~column:owner_col "(temporary)";
+        Unsorted_list.set model ~row ~column:owner_col "(temporary)";
   );
 
   (* Now go back and fill in the sizes *)
   lwt () =
-    match CacheModel.get_iter_first model with
+    match Unsorted_list.get_iter_first model with
     | Some row ->
         let rec loop () =
-          let dir = CacheModel.get model ~row ~column:impl_dir_col in
+          let dir = Unsorted_list.get model ~row ~column:impl_dir_col in
           lwt size = Lwt_preemptive.detach (size_of_impl config.system) dir in
-          CacheModel.set model ~row ~column:size_col size;
-          CacheModel.set model ~row ~column:size_str_col (U.format_size size);
-          if CacheModel.iter_next model row then loop ()
+          Unsorted_list.set model ~row ~column:size_col size;
+          Unsorted_list.set model ~row ~column:size_str_col (U.format_size size);
+          if Unsorted_list.iter_next model row then loop ()
           else Lwt.return () in
         loop ()
     | None -> Lwt.return () in
 
   (* Sort by size initially *)
   sorted_model#set_sort_column_id size_col.GTree.index `DESCENDING;
+  Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.default_cursor);
 
   (* Update the details panel when the selection changes *)
   selection#set_mode `MULTIPLE;

@@ -50,7 +50,7 @@ let make_gtk_ui (slave:Python.slave) =
         Lwt.return ()
 
     method open_app_list_box =
-      slave#invoke "open-app-list-box" [] Zeroinstall.Python.expect_null
+      App_list_box.create config ~gui:self ~trust_db ~add_app:self#open_add_box
 
     method open_add_box url =
       slave#invoke "open-add-box" [`String url] Zeroinstall.Python.expect_null
