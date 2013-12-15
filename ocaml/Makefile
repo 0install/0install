@@ -3,6 +3,7 @@ TYPE=native
 DEBUG=-cflags -g
 OCAMLBUILD=ocamlbuild -j 0 ${DEBUG} -use-ocamlfind -build-dir "${OCAML_BUILDDIR}"
 ifeq ($(OS), Windows_NT)
+  WINDOWS_LIBS = $(shell dirname $(shell which ocamlc))
   OCAMLBUILDFLAGS = -lflag -cclib -lflag -lshell32
 endif
 MS_SDK:="/cygdrive/c/Program Files/Microsoft SDKs/Windows/v7.0/Bin"
@@ -32,6 +33,7 @@ ocaml_windows:
 	${MS_SDK}/mt.exe -nologo -manifest 0install.exe.manifest -outputresource:"${OCAML_BUILDDIR}/0install.exe;#1"
 	${MS_SDK}/mt.exe -nologo -manifest 0install.exe.manifest -outputresource:"${OCAML_BUILDDIR}/0install-runenv.exe;#1"
 	ln -f "${OCAML_BUILDDIR}/0install.exe" "${OCAML_BUILDDIR}/0launch.exe"
+	cp "${WINDOWS_LIBS}/libeay32.dll" "${WINDOWS_LIBS}/ssleay32.dll" "${OCAML_BUILDDIR}"
 
 ocaml_posix:
 	cp ${OCAML_BUILDDIR}/static_0install.$(TYPE) ${OCAML_BUILDDIR}/0install
