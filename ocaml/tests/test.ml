@@ -14,21 +14,8 @@ open Fake_system
 let () =
   Unix.putenv "http_proxy" "localhost:8000";    (* Prevent accidents *)
   Unix.putenv "https_proxy" "localhost:1112";
-  Unix.putenv "ZEROINSTALL_UNITTESTS" "true"
-
-(** Read all input from a channel. *)
-let input_all ch =
-  let b = Buffer.create 100 in
-  let buf = String.create 256 in
-  try
-    while true do
-      let got = input ch buf 0 256 in
-      if got = 0 then
-        raise End_of_file;
-      Buffer.add_substring b buf 0 got
-    done;
-    failwith "!"
-  with End_of_file -> Buffer.contents b
+  Unix.putenv "ZEROINSTALL_UNITTESTS" "true";
+  Unix.putenv "ZEROINSTALL_CRASH_LOGS" ""
 
 let test_basedir () =
   skip_if (Sys.os_type = "Win32") "Don't work on Windows";
@@ -233,6 +220,7 @@ let suite =
   Test_archive.suite;
   Test_manifest.suite;
   Test_packagekit.suite;
+  Test_gui.suite;
  "test_basedir">:: test_basedir;
  "test_option_parsing">:: (fun () -> collect_logging test_option_parsing);
  "test_run_real">:: (fun () -> collect_logging (with_tmpdir test_run_real));

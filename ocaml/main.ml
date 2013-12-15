@@ -37,7 +37,10 @@ let () =
 ENDIF
 
 let main (system:system) : unit =
-  system#getenv "ZEROINSTALL_CRASH_LOGS" |> if_some (fun dir -> Support.Logging.set_crash_logs_handler (crash_handler system dir));
+  begin match system#getenv "ZEROINSTALL_CRASH_LOGS" with
+  | Some dir when dir <> "" -> Support.Logging.set_crash_logs_handler (crash_handler system dir)
+  | _ -> () end;
+
   match Array.to_list system#argv with
   | [] -> assert false
   | prog :: args ->
