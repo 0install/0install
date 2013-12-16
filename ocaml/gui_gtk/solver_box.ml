@@ -91,7 +91,7 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
     let thread, waker = !need_recalculate in
     if Lwt.state thread = Lwt.Sleep then Lwt.wakeup waker () in
 
-  let show_component ~driver iface ~select_versions_tab =
+  let show_component iface ~select_versions_tab =
     match StringMap.find iface !component_boxes with
     | Some box -> box#dialog#present ()
     | None ->
@@ -113,8 +113,9 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
   );
 
   (* The component tree view *)
+  let icon_cache = Icon_cache.create ~downloader:driver#fetcher#downloader config in
   let component_tree = Component_tree.build_tree_view config ~parent:dialog ~packing:(vbox#pack ~expand:true)
-    ~driver ~show_component ~report_bug ~recalculate ~feed_provider ~original_selections ~results in
+    ~icon_cache ~show_component ~report_bug ~recalculate ~feed_provider ~original_selections ~results in
   component_tree#set_update_icons !refresh;
 
   (* The Refresh / Stop bar *)

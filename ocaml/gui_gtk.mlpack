@@ -6,6 +6,7 @@ Component_tree
 Gtk_utils
 Gui_gtk_plugin
 Help_box
+Icon_cache
 Limiter
 Preferences_box
 Solver_box
