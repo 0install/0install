@@ -19,6 +19,7 @@ Exec
 Feed
 Feed_cache
 Feed_provider
+Feed_provider_impl
 Feed_url
 Fetch
 General

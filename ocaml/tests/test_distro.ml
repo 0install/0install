@@ -300,11 +300,11 @@ let suite = "distro">::: [
     let requirements = Zeroinstall.Requirements.default_requirements "http://example.com/bittorrent" in
     let feed_provider =
       object
-        inherit Zeroinstall.Feed_provider.feed_provider config deb
+        inherit Zeroinstall.Feed_provider_impl.feed_provider config deb
         method! get_feed = function
           | (`remote_feed "http://example.com/bittorrent") as url ->
               let result = Some (feed, F.({ last_checked = None; user_stability = StringMap.empty })) in
-              cache <- Zeroinstall.Feed_provider.FeedMap.add url result cache;
+              cache <- Zeroinstall.Feed_url.FeedMap.add url result cache;
               result
           | _ -> assert false
       end in

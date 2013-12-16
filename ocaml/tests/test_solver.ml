@@ -68,7 +68,7 @@ let xml_diff exp actual =
 
 let make_impl_provider config scope_filter =
   let distro = Distro_impls.generic_distribution config in
-  let feed_provider = new Feed_provider.feed_provider config distro in
+  let feed_provider = new Feed_provider_impl.feed_provider config distro in
   let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_provider.feed_provider) scope_filter in
   (impl_provider :> Impl_provider.impl_provider)
 
@@ -316,7 +316,7 @@ let suite = "solver">::: [
     let open Feed_cache in
     let (config, fake_system) = Fake_system.get_fake_config None in
     let distro = Distro_impls.generic_distribution config in
-    let feed_provider = new Feed_provider.feed_provider config distro in
+    let feed_provider = new Feed_provider_impl.feed_provider config distro in
     let uri = "http://example.com/prog" in
     let iface_config = feed_provider#get_iface_config uri in
     assert (iface_config.stability_policy = None);
@@ -507,7 +507,7 @@ let suite = "solver">::: [
     import "Source.xml";
 
     let distro = Distro_impls.generic_distribution config in
-    let feed_provider = new Feed_provider.feed_provider config distro in
+    let feed_provider = new Feed_provider_impl.feed_provider config distro in
 
     let scope_filter = Impl_provider.({
       extra_restrictions = StringMap.empty;
@@ -575,7 +575,7 @@ let suite = "solver">::: [
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let r = Requirements.default_requirements (Test_0install.feed_dir +/ "command-dep.xml") in
     let distro = Distro_impls.generic_distribution config in
-    let feed_provider = new Feed_provider.feed_provider config distro in
+    let feed_provider = new Feed_provider_impl.feed_provider config distro in
     match Solver.solve_for config (feed_provider :> Feed_provider.feed_provider) r with
     | (false, _) -> assert false
     | (true, results) ->
@@ -635,7 +635,7 @@ let suite = "solver">::: [
 
     (* Selects 0.2 as the highest version, applying the restriction to versions < 4. *)
     let distro = Distro_impls.generic_distribution config in
-    let feed_provider = new Feed_provider.feed_provider config distro in
+    let feed_provider = new Feed_provider_impl.feed_provider config distro in
 
     let do_solve r =
       match Solver.solve_for config feed_provider r with
@@ -661,7 +661,7 @@ let suite = "solver">::: [
   "langs">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let distro = Distro_impls.generic_distribution config in
-    let feed_provider = new Feed_provider.feed_provider config distro in
+    let feed_provider = new Feed_provider_impl.feed_provider config distro in
     let solve expected ?(lang="en_US.UTF-8") machine =
       let scope_filter = Impl_provider.({
         extra_restrictions = StringMap.empty;

@@ -152,7 +152,7 @@ let get_selections options ~refresh ?test_callback reqs mode =
   if refresh || options.gui = Yes then (
     select_with_refresh refresh
   ) else (
-    let feed_provider = new Zeroinstall.Feed_provider.feed_provider config driver#distro in
+    let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config driver#distro in
     match Zeroinstall.Solver.solve_for config feed_provider reqs with
     | (false, _results) ->
         log_info "Quick solve failed; can't select without updating feeds";
@@ -271,7 +271,7 @@ let handle options flags arg ?test_callback for_op =
         if for_op = `Select_only then old_sels else (
           (* Download if missing. Ignore distribution packages, because the version probably won't match exactly. *)
           let driver = Lazy.force options.driver in
-          let feed_provider = new Zeroinstall.Feed_provider.feed_provider config driver#distro in
+          let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config driver#distro in
           Zeroinstall.Helpers.download_selections ~feed_provider ~include_packages:false driver old_sels |> Lwt_main.run;
           old_sels
         )

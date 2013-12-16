@@ -65,7 +65,7 @@ let check_for_updates options reqs old_sels =
       let config = options.config in
       let system = config.system in
       let print fmt = Support.Utils.print system fmt in
-      let feed_provider = new Zeroinstall.Feed_provider.feed_provider options.config driver#distro in
+      let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider options.config driver#distro in
       check_replacement system @@ feed_provider#get_feed (Zeroinstall.Feed_url.master_feed_of_iface reqs.R.interface_uri);
       let root_sel = get_root_sel new_sels in
       let root_version = ZI.get_attribute FeedAttr.version root_sel in
@@ -118,7 +118,7 @@ let handle options flags args =
     | (G.Interface, reqs) ->
         (* Select once without downloading to get the old values *)
         let driver = Lazy.force options.driver in
-        let feed_provider = new Zeroinstall.Feed_provider.feed_provider config driver#distro in
+        let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config driver#distro in
         let (ready, result) = Zeroinstall.Solver.solve_for config feed_provider reqs in
         let old_sels = result#get_selections in
         if not ready then old_sels.Q.child_nodes <- [];

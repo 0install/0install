@@ -7,16 +7,6 @@
     We download any missing feeds and update any out-of-date ones, resolving each time
     we have more information. *)
 
-(** Used to report progress during a solve (for GUIs) *)
-type watcher = <
-  (* Updates the latest solution. If the first argument is [true] then the solve is
-   * usable (although it may improve if you wait). *)
-  update : (bool * Solver.result) * Feed_provider.feed_provider -> unit;
-
-  (* An error ocurred (probably a failure to download something). *)
-  report : 'a. ([<Feed_url.parsed_feed_url] as 'a) -> string -> unit;
->
-
 class driver : General.config -> Fetch.fetcher -> Distro.distribution ->
   object
     method config : General.config
@@ -41,7 +31,7 @@ class driver : General.config -> Fetch.fetcher -> Distro.distribution ->
                 provider used (which will have cached all the feeds used in the solve).
         *)
     method solve_with_downloads :
-      ?watcher:watcher ->
+      ?watcher:Ui.watcher ->
       Requirements.requirements ->
       force:bool ->
       update_local:bool ->

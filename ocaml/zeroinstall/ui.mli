@@ -16,6 +16,17 @@ type download = {
   hint : string option;
 }
 
+(** Used to report progress during a solve *)
+class type watcher =
+  object
+    (* An error ocurred (probably a failure to download something). *)
+    method report : 'a. ([<Feed_url.parsed_feed_url] as 'a) -> string -> unit
+
+    (* Updates the latest solution. If the first argument is [true] then the solve is
+     * usable (although it may improve if you wait). *)
+    method update : (bool * Solver.result) * Feed_provider.feed_provider -> unit
+  end
+
 class type ui_handler =
   object
     (** A new download has been added (may still be queued).

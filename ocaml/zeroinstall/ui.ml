@@ -22,6 +22,12 @@ type download = {
   hint : string option;
 }
 
+class type watcher =
+  object
+    method report : 'a. ([<Feed_url.parsed_feed_url] as 'a) -> string -> unit
+    method update : (bool * Solver.result) * Feed_provider.feed_provider -> unit
+  end
+
 class type ui_handler =
   object
     method start_monitoring : id:string -> download -> unit Lwt.t

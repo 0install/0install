@@ -11,11 +11,6 @@ let (>|=) = Lwt.(>|=)
 
 exception Aborted_by_user
 
-type watcher = <
-  report : 'a. ([<Feed_url.parsed_feed_url] as 'a) -> string -> unit;
-  update : (bool * Solver.result) * Feed_provider.feed_provider -> unit;
->
-
 (* Turn a list of tasks into a list of their resolutions.
  * If any failed, we throw the first one's exception. *)
 let rec collect_ex = function
@@ -48,7 +43,7 @@ let get_values map = DownloadMap.fold (fun _key value xs -> value :: xs) map []
 
 class driver config (fetcher:Fetch.fetcher) distro =
   object (self)
-    method solve_with_downloads ?(watcher:watcher option) requirements
+    method solve_with_downloads ?(watcher:Ui.watcher option) requirements
                                 ~force ~update_local : (bool * Solver.result * Feed_provider.feed_provider) Lwt.t =
       let force = ref force in
       let seen = ref DownloadSet.empty in
@@ -71,7 +66,7 @@ class driver config (fetcher:Fetch.fetcher) distro =
          3. The user explicitly asked us to refresh everything.
             (force = True) *)
 
-      let feed_provider = new Feed_provider.feed_provider config distro in
+      let feed_provider = new Feed_provider_impl.feed_provider config distro in
 
       (* Add [url] to [downloads_in_progress]. When [download] resolves (to a function),
          call it in the main thread. *)
@@ -174,7 +169,7 @@ class driver config (fetcher:Fetch.fetcher) distro =
       Lwt.return (ready, result, feed_provider)
 
     method quick_solve reqs =
-      let feed_provider = new Feed_provider.feed_provider config distro in
+      let feed_provider = new Feed_provider_impl.feed_provider config distro in
       match Solver.solve_for config feed_provider reqs with
       | (true, results) ->
           let sels = results#get_selections in

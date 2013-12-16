@@ -69,7 +69,7 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
   let refresh = ref refresh in
   let component_boxes = ref StringMap.empty in
 
-  let feed_provider = ref (new Zeroinstall.Feed_provider.feed_provider config driver#distro) in
+  let feed_provider = ref (new Zeroinstall.Feed_provider_impl.feed_provider config driver#distro) in
 
   let original_solve = Zeroinstall.Solver.solve_for config !feed_provider reqs in
   let original_selections =
@@ -243,7 +243,7 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
   (* Run a solve-with-downloads immediately, and every time the user clicks Refresh. *)
   let refresh_loop =
     let watcher =
-      object (_ : Driver.watcher)
+      object (_ : Ui.watcher)
         method update ((ready, new_results), new_fp) =
           feed_provider := new_fp;
           results := (ready, new_results);
