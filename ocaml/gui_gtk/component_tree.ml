@@ -75,14 +75,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
   let model = GTree.tree_store columns in
 
   (* View *)
-  let swin = GBin.scrolled_window
-    ~packing
-    ~hpolicy:`AUTOMATIC
-    ~vpolicy:`AUTOMATIC
-    ~shadow_type:`IN
-    () in
-
-  let view = GTree.view ~model ~packing:swin#add () in
+  let view = GTree.view ~model ~packing () in
   let action_arrow = view#misc#render_icon ~size:`SMALL_TOOLBAR `PROPERTIES in
 
   let icon_renderer = GTree.cell_renderer_pixbuf [] in
