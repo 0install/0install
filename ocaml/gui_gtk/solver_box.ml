@@ -76,9 +76,11 @@ type widgets = {
   stop_button : GButton.button;
 
   ok_button : GButton.toggle_button;
+
+  systray_icon : Tray_icon.tray_icon;
 }
 
-let make_dialog opt_message mode =
+let make_dialog opt_message mode ~systray =
   let dialog = GWindow.dialog ~title:"0install" () in
   let vbox = GPack.vbox ~packing:(dialog#vbox#pack ~expand:true) ~border_width:5 ~spacing:4 () in
 
@@ -129,7 +131,9 @@ let make_dialog opt_message mode =
     ~width:(Gdk.Screen.width () * 2 / 5)
     ~height:300;
 
-  {dialog; refresh_button; progress_area; stop_button; ok_button; swin; progress_bar}
+  let systray_icon = new Tray_icon.tray_icon systray in
+
+  {dialog; refresh_button; progress_area; stop_button; ok_button; swin; progress_bar; systray_icon}
 
 let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_downloads ?test_callback ?(systray=false) mode reqs ~refresh : solver_box =
   let refresh = ref refresh in
@@ -159,11 +163,10 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
 
   let icon_cache = Icon_cache.create ~downloader:driver#fetcher#downloader config in
 
-  let systray_icon = ref None in
-
   let user_response, set_user_response = Lwt.wait () in
 
-  let widgets = make_dialog reqs.Requirements.message mode in
+  let widgets = make_dialog reqs.Requirements.message mode ~systray in
+
   let dialog = widgets.dialog in
   widgets.refresh_button#connect#clicked ~callback:(fun () -> recalculate ~force:true) |> ignore;
   widgets.stop_button#connect#clicked ~callback:abort_all_downloads |> ignore;
@@ -177,47 +180,26 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
 
   (* If a system tray icon was requested, create one. Otherwise, show the main window. *)
   if systray then (
-    let icon = GMisc.status_icon_from_icon_name "zeroinstall" in
-    icon#set_tooltip (Printf.sprintf "Checking for updates for %s" reqs.Requirements.interface_uri);
-    let clicked, set_clicked = Lwt.wait () in
-    let switch_to_window () =
-      dialog#show ();
-      widgets.ok_button#set_active false;
-      icon#set_visible false;
-      systray_icon := None;
-      Lwt.wakeup set_clicked () in
-    icon#connect#activate ~callback:switch_to_window |> ignore;
+    widgets.systray_icon#set_tooltip (Printf.sprintf "Checking for updates for %s" reqs.Requirements.interface_uri);
     dialog#misc#realize ();     (* Make busy pointer work, even with --systray *)
-
-    let set_blinking () =
-      Gtk_utils.async (fun () ->
-        (* If the icon isn't embedded yet, give it a chance first... *)
-        lwt () = if not icon#is_embedded then Lwt_unix.sleep 0.5 else Lwt.return () in
-        if icon#is_embedded then
-          icon#set_blinking true
-        else (
-          log_info "No system-tray support, so opening main window immediately";
-          switch_to_window ()
-        );
-        Lwt.return ()
-      ) in
-
-    systray_icon := Some (icon, clicked, set_blinking);
   ) else (
-    dialog#show ();
+    dialog#show ()
   );
+
+  (* If you need to show a dialog box after the main window is open, wait for this. *)
+  let main_window_open =
+    if systray then (
+      lwt () = widgets.systray_icon#clicked in
+      widgets.dialog#show ();
+      widgets.ok_button#set_active false;
+      Lwt_unix.sleep 0.5
+    ) else Lwt.return () in
 
   let report_error ex =
     log_info ~ex "Reporting error to user";
-    let blocker =
-      match !systray_icon with
-      | Some (icon, clicked, set_blinking) ->
-          set_blinking ();
-          icon#set_tooltip (Printf.sprintf "%s\n(click for details)" (Printexc.to_string ex));
-          clicked
-      | None -> Lwt.return () in
     Gtk_utils.async (fun () ->
-      lwt () = blocker in
+      widgets.systray_icon#set_blinking (Some (Printf.sprintf "%s\n(click for details)" (Printexc.to_string ex)));
+      lwt () = main_window_open in
       Alert_box.report_error ~parent:dialog ex;
       Lwt.return ()
     ) in
@@ -300,15 +282,13 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
       if Unix.gettimeofday () < box_open_time +. 1. then widgets.ok_button#grab_default ();
       component_tree#highlight_problems;
 
-      !systray_icon |> if_some (fun (icon, _clicked, set_blinking) ->
-        if icon#visible && icon#is_embedded then (
-          if ready then (
-            icon#set_tooltip (Printf.sprintf "Downloading updates for %s" reqs.Requirements.interface_uri);
-            widgets.ok_button#set_active true
-          ) else (
-            (* Should already be reporting an error, but blink it again just in case *)
-            set_blinking ();
-          )
+      if widgets.systray_icon#have_icon then (
+        if ready then (
+          widgets.systray_icon#set_tooltip (Printf.sprintf "Downloading updates for %s" reqs.Requirements.interface_uri);
+          widgets.ok_button#set_active true
+        ) else (
+          (* Should already be reporting an error, but blink it again just in case *)
+          widgets.systray_icon#set_blinking None
         )
       );
 
@@ -345,14 +325,8 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
     (* Return the dialog window. If we're in systray mode, blink the icon and wait for the user
      * to click on it first. *)
     method ensure_main_window =
-      match !systray_icon with
-      | None -> Lwt.return (dialog :> GWindow.window_skel)
-      | Some (icon, clicked, set_blinking) ->
-          set_blinking ();
-          icon#set_tooltip "Interaction needed - click to open main window";
-          lwt () = clicked in      (* Wait for user to click on the icon *)
-          lwt () = Lwt_unix.sleep 0.5 in
-          Lwt.return (dialog :> GWindow.window_skel)
+      widgets.systray_icon#set_blinking (Some "Interaction needed - click to open main window");
+      main_window_open >> Lwt.return (dialog :> GWindow.window_skel)
 
     (* Called at regular intervals while there are downloads in progress, and once at the end.
      * Update the display. *)
