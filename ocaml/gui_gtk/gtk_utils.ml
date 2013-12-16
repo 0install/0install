@@ -46,3 +46,11 @@ let async ?parent fn =
       Alert_box.report_error ?parent ex;
       Lwt.return ()
   )
+
+(* Lazy to let GTK initialise first *)
+let default_cursor = lazy (Gdk.Cursor.create `LEFT_PTR)
+
+(* We used to have a nice animated pointer+watch, but it stopped working at some
+ * point (even in the Python).
+ * See: http://mail.gnome.org/archives/gtk-list/2007-May/msg00100.html *)
+let busy_cursor = lazy (Gdk.Cursor.create `WATCH)

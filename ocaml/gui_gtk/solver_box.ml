@@ -311,13 +311,6 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
         `Success results#get_selections |> Lwt.return
     | `aborted_by_user -> `Aborted_by_user |> Lwt.return in
 
-  let default_cursor = Gdk.Cursor.create `LEFT_PTR in
-
-  (* We used to have a nice animated pointer+watch, but it stopped working at some
-   * point (even in the Python).
-   * See: http://mail.gnome.org/archives/gtk-list/2007-May/msg00100.html *)
-  let busy_cursor = Gdk.Cursor.create `WATCH in
-
   object
     method recalculate = recalculate ~force:false
     method result = result
@@ -337,10 +330,10 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
 
         if StringMap.is_empty downloads then (
           widgets.progress_area#misc#hide ();
-          Gdk.Window.set_cursor dialog#misc#window default_cursor
+          Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.default_cursor)
         ) else if not (widgets.progress_area#misc#get_flag `VISIBLE) then (
           widgets.progress_area#misc#show ();
-          Gdk.Window.set_cursor dialog#misc#window busy_cursor
+          Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.busy_cursor)
         );
 
         (* Calculate stats: completed downloads + downloads in progress *)

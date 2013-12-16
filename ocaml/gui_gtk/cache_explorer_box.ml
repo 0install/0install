@@ -123,10 +123,6 @@ you are currently unpacking new programs, it should be fine to delete all of the
 column title to sort by name, then select all of them using Shift-click.");
 ]
 
-(* Lazy to let GTK initialise first *)
-let default_cursor = lazy (Gdk.Cursor.create `LEFT_PTR)
-let busy_cursor = lazy (Gdk.Cursor.create `WATCH)
-
 let show_verification_box config ~parent paths =
   let box = GWindow.message_dialog
     ~parent
@@ -163,7 +159,7 @@ let show_verification_box config ~parent paths =
   let n_items = List.length paths in
   let n = ref 0 in
 
-  Gdk.Window.set_cursor box#misc#window (Lazy.force busy_cursor);
+  Gdk.Window.set_cursor box#misc#window (Lazy.force Gtk_utils.busy_cursor);
   Gtk_utils.async ~parent:box (fun () ->
     try_lwt
       let rec loop = function
@@ -198,7 +194,7 @@ let show_verification_box config ~parent paths =
       Lwt.return ()
     finally
       if not (!cancelled) then
-        Gdk.Window.set_cursor box#misc#window (Lazy.force default_cursor);
+        Gdk.Window.set_cursor box#misc#window (Lazy.force Gtk_utils.default_cursor);
       Lwt.return ()
   )
 
@@ -302,7 +298,7 @@ let open_cache_explorer config =
       sorted_model#get_iter sorted_path |> CacheModel.convert_iter_to_child_iter sorted_model
     ) in
     dialog#misc#set_sensitive false;
-    Gdk.Window.set_cursor dialog#misc#window (Lazy.force busy_cursor);
+    Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.busy_cursor);
     Gtk_utils.async ~parent:dialog (fun () ->
       try_lwt
         let rec loop = function
@@ -317,7 +313,7 @@ let open_cache_explorer config =
         | `delete -> loop iters
         | `cancel -> Lwt.return ()
       finally
-        Gdk.Window.set_cursor dialog#misc#window (Lazy.force default_cursor);
+        Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.default_cursor);
         dialog#misc#set_sensitive true;
         Lwt.return ()
     )
