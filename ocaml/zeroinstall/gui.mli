@@ -12,7 +12,7 @@ class type gui_ui =
      * [test_callback] is used if the user clicks on the test button in the bug report dialog.
      *)
     method run_solver :
-      Ui.ui_handler Fetch.fetcher ->
+      Distro.distribution -> Downloader.downloader ->
       ?test_callback:(Support.Qdom.element -> string Lwt.t) ->
       ?systray:bool ->
       [`Download_only | `Select_for_run | `Select_only] ->

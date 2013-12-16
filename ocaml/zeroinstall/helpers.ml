@@ -23,7 +23,7 @@ let solve_and_download_impls gui (fetcher:_ Fetch.fetcher) ?test_callback reqs m
 
   match gui with
   | Gui.Gui gui ->
-      begin match_lwt gui#run_solver fetcher ?test_callback mode reqs ~refresh with
+      begin match_lwt gui#run_solver fetcher#distro fetcher#downloader ?test_callback mode reqs ~refresh with
       | `Success sels -> Lwt.return (Some sels)
       | `Aborted_by_user -> Lwt.return None end;
   | Gui.Ui _ ->

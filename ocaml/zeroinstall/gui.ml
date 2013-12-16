@@ -25,7 +25,7 @@ class type gui_ui =
     inherit Ui.ui_handler
     
     method run_solver :
-      Ui.ui_handler Fetch.fetcher ->
+      Distro.distribution -> Downloader.downloader ->
       ?test_callback:(Support.Qdom.element -> string Lwt.t) ->
       ?systray:bool ->
       [`Download_only | `Select_for_run | `Select_only] ->

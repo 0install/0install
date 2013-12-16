@@ -105,7 +105,8 @@ let make_gtk_ui (slave:Python.slave) =
       box#show ();
       result
 
-    method run_solver fetcher ?test_callback ?systray mode reqs ~refresh =
+    method run_solver distro downloader ?test_callback ?systray mode reqs ~refresh =
+      let fetcher = new Zeroinstall.Fetch.fetcher config trust_db distro downloader (lazy (self :> Ui.ui_handler)) in
       let abort_all_downloads () =
         downloads |> List.iter (fun dl ->
           Gtk_utils.async dl.Downloader.cancel
