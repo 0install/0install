@@ -211,7 +211,7 @@ let handle_bg options flags args =
   let driver =
     let distro = Zeroinstall.Distro_impls.get_host_distribution config in
     let downloader = new Zeroinstall.Downloader.downloader (lazy ui) ~max_downloads_per_site:2 in
-    let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader distro (lazy ui) in
+    let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader distro in
     new Zeroinstall.Driver.driver config fetcher distro in
 
   match args with
@@ -241,7 +241,7 @@ let handle_bg options flags args =
                 (* Create a new driver, attached to the new UI *)
                 let ui = lazy (gui :> Zeroinstall.Ui.ui_handler) in
                 let downloader = new Zeroinstall.Downloader.downloader ui ~max_downloads_per_site:2 in
-                let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader distro ui in
+                let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader distro in
                 let driver = new Zeroinstall.Driver.driver config fetcher distro in
                 Support.Utils.finally_do (fun () -> Zeroinstall.Python.cancel_slave () |> Lwt_main.run) () (fun () ->
                   match gui#run_solver driver `Download_only reqs ~systray:true ~refresh:true |> Lwt_main.run with

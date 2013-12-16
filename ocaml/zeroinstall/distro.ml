@@ -367,7 +367,7 @@ let is_installed config (distro:distribution) elem =
           | None -> true      (* quick-test-file exists and we don't care about the time *)
           | Some required_mtime -> (Int64.of_float info.Unix.st_mtime) = Int64.of_string required_mtime
 
-let install_distro_packages (distro:distribution) (ui:Ui.ui_handler) impls : [ `ok | `cancel ] Lwt.t =
+let install_distro_packages (distro:distribution) (ui:#Ui.ui_handler) impls : [ `ok | `cancel ] Lwt.t =
   let groups = ref StringMap.empty in
   impls |> List.iter (fun impl ->
     match impl.Feed.impl_type with
@@ -382,7 +382,7 @@ let install_distro_packages (distro:distribution) (ui:Ui.ui_handler) impls : [ `
   let rec loop = function
     | [] -> Lwt.return `ok
     | (typ, items) :: groups ->
-        match_lwt distro#install_distro_packages ui typ items with
+        match_lwt distro#install_distro_packages (ui :> Ui.ui_handler) typ items with
         | `ok -> loop groups
         | `cancel -> Lwt.return `cancel in
   !groups |> StringMap.bindings |> loop

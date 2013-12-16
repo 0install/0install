@@ -150,7 +150,7 @@ let make_site max_downloads_per_site =
       )
   end
 
-class downloader (reporter:Ui.ui_handler Lazy.t) ~max_downloads_per_site =
+class ['a] downloader (reporter:(#Ui.ui_handler as 'a) Lazy.t) ~max_downloads_per_site =
   let () = Lazy.force init in
   let sites = Hashtbl.create 10 in
 
@@ -220,4 +220,6 @@ class downloader (reporter:Ui.ui_handler Lazy.t) ~max_downloads_per_site =
       try_lwt task
       with Lwt.Canceled -> `aborted_by_user |> Lwt.return
       finally reporter#stop_monitoring ~id:tmpfile
+
+    method ui = Lazy.force reporter
   end

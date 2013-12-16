@@ -69,7 +69,7 @@ let parse_key_info xml =
 exception Aborted
 exception Try_mirror of string  (* An error where we should try the mirror (i.e. a network problem) *)
 
-class fetcher config trust_db (downloader:Downloader.downloader) (distro:Distro.distribution) (ui:Ui.ui_handler Lazy.t) =
+class ['a] fetcher config trust_db (downloader:(#Ui.ui_handler as 'a) Downloader.downloader) (distro:Distro.distribution) =
   let trust_dialog_lock = Lwt_mutex.create () in      (* Only show one trust dialog at a time *)
 
   let key_info_cache = Hashtbl.create 10 in
@@ -300,8 +300,7 @@ class fetcher config trust_db (downloader:Downloader.downloader) (distro:Distro.
       let is_trusted {G.fingerprint; _} = trust_db#is_trusted ~domain fingerprint in
       if (List.exists is_trusted valid_sigs) then Lwt.return ()
       else (
-        let ui = Lazy.force ui in
-        lwt confirmed_keys = ui#confirm_keys feed key_infos in
+        lwt confirmed_keys = downloader#ui#confirm_keys feed key_infos in
         confirmed_keys |> List.iter (fun fingerprint ->
           log_info "Trusting %s for %s" fingerprint domain;
           trust_db#trust_key ~domain fingerprint
@@ -573,7 +572,7 @@ class fetcher config trust_db (downloader:Downloader.downloader) (distro:Distro.
         ) in
 
         lwt () = Stores.check_manifest_and_rename {config with system = system#bypass_dryrun} required_digest tmpdir in
-        (Lazy.force ui)#impl_added_to_store; (* Notify the GUI *)
+        downloader#ui#impl_added_to_store; (* Notify the GUI *)
         need_rm_tmpdir := false;
         Lwt.return `success
       with ex ->
@@ -726,7 +725,7 @@ class fetcher config trust_db (downloader:Downloader.downloader) (distro:Distro.
 
     let packages_task =
       if !package_impls <> [] then (
-        match_lwt Distro.install_distro_packages distro (Lazy.force ui) !package_impls with
+        match_lwt Distro.install_distro_packages distro downloader#ui !package_impls with
         | `cancel -> Lwt.fail Aborted
         | `ok -> Lwt.return ()
       ) else Lwt.return () in

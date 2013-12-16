@@ -92,7 +92,7 @@ val is_installed : General.config -> distribution -> Support.Qdom.element -> boo
 
 (** Install these packages using the distribution's package manager.
  * Sorts the implementations into groups by their type and then calls [distribution#install_distro_packages] once for each group. *)
-val install_distro_packages : distribution -> Ui.ui_handler -> Feed.implementation list -> [ `ok | `cancel ] Lwt.t
+val install_distro_packages : distribution -> #Ui.ui_handler -> Feed.implementation list -> [ `ok | `cancel ] Lwt.t
 
 (** Return the <package-implementation> elements that best match this distribution. *)
 val get_matching_package_impls : distribution -> Feed.feed -> (Support.Qdom.element * Feed.properties) list

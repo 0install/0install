@@ -178,7 +178,7 @@ let list_impls (results:Solver.result) iface =
 
 (** Download an icon for this feed and add it to the
     icon cache. If the feed has no icon do nothing. *)
-let download_icon config (downloader:Downloader.downloader) (feed_provider:Feed_provider.feed_provider) parsed_url =
+let download_icon config (downloader:_ Downloader.downloader) (feed_provider:Feed_provider.feed_provider) parsed_url =
   let feed_url = Feed_url.format_url parsed_url in
   log_debug "download_icon %s" feed_url;
 

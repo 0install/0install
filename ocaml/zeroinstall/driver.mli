@@ -7,11 +7,11 @@
     We download any missing feeds and update any out-of-date ones, resolving each time
     we have more information. *)
 
-class driver : General.config -> Fetch.fetcher -> Distro.distribution ->
+class driver : General.config -> Ui.ui_handler Fetch.fetcher -> Distro.distribution ->
   object
     method config : General.config
     method distro : Distro.distribution
-    method fetcher : Fetch.fetcher
+    method fetcher : Ui.ui_handler Fetch.fetcher
 
     (** Find the best selections for these requirements and return them if available without downloading. 
      * Returns None if we need to refresh feeds or download any implementations. *)
