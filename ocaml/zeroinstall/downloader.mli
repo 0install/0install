@@ -22,9 +22,14 @@ val interceptor :
 
 class ['a] downloader : (#Ui.ui_handler as 'a) Lazy.t -> max_downloads_per_site:int ->
   object
-    method download : 'a. switch:Lwt_switch.t -> ?modification_time:float -> ?if_slow:(unit Lazy.t) ->
-                      ?size:Int64.t -> ?start_offset:Int64.t -> ?hint:([< Feed_url.parsed_feed_url] as 'a) ->
-                      string -> download_result Lwt.t
+    method download : 'a.
+      switch:Lwt_switch.t ->
+      ?modification_time:float ->
+      ?if_slow:(unit Lazy.t) ->
+      ?size:Int64.t ->
+      ?start_offset:Int64.t ->
+      ?hint:([< Feed_url.parsed_feed_url] as 'a) ->
+      string -> download_result Lwt.t
 
     method ui : 'a
   end

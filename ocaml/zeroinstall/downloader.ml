@@ -161,65 +161,70 @@ class ['a] downloader (reporter:(#Ui.ui_handler as 'a) Lazy.t) ~max_downloads_pe
      * @param modification_time raise [Unmodified] if file hasn't changed since this time
      * @hint a tag to attach to the download (used by the GUI to associate downloads with feeds)
      *)
-    method download : 'a. switch:Lwt_switch.t -> ?modification_time:float -> ?if_slow:(unit Lazy.t) ->
-                      ?size:Int64.t -> ?start_offset:Int64.t -> ?hint:([< Feed_url.parsed_feed_url] as 'a) ->
+    method download : 'a.
+                      switch:Lwt_switch.t ->
+                      ?modification_time:float ->
+                      ?if_slow:(unit Lazy.t) ->
+                      ?size:Int64.t ->
+                      ?start_offset:Int64.t ->
+                      ?hint:([< Feed_url.parsed_feed_url] as 'a) ->
                       string -> download_result Lwt.t =
-                      fun ~switch ?modification_time ?if_slow ?size ?start_offset ?hint url ->
-      let hint = hint |> pipe_some (fun feed -> Some (Feed_url.format_url feed)) in
-      log_debug "Download URL '%s'... (for %s)" url (default "no feed" hint);
+      fun ~switch ?modification_time ?if_slow ?size ?start_offset ?hint url ->
+        let hint = hint |> pipe_some (fun feed -> Some (Feed_url.format_url feed)) in
+        log_debug "Download URL '%s'... (for %s)" url (default "no feed" hint);
 
-      let progress, set_progress = Lwt_react.S.create (Int64.zero, size) in     (* So far / total *)
+        let progress, set_progress = Lwt_react.S.create (Int64.zero, size) in     (* So far / total *)
 
-      let tmpfile, ch = Filename.open_temp_file ~mode:[Open_binary] "0install-" "-download" in
-      Lwt_switch.add_hook (Some switch) (fun () -> Unix.unlink tmpfile |> Lwt.return);
+        let tmpfile, ch = Filename.open_temp_file ~mode:[Open_binary] "0install-" "-download" in
+        Lwt_switch.add_hook (Some switch) (fun () -> Unix.unlink tmpfile |> Lwt.return);
 
-      let rec loop redirs_left url =
-        let site =
-          let domain, _ = Support.Urlparse.split_path url in
-          try Hashtbl.find sites domain
-          with Not_found ->
-            let site = make_site max_downloads_per_site in
-            Hashtbl.add sites domain site;
-            site in
-        match_lwt site#schedule_download ?if_slow ?size ?modification_time ?start_offset ~progress:set_progress ch url with
-        | `success ->
-            close_out ch;
-            `tmpfile tmpfile |> Lwt.return
-        | `network_failure _ as failure ->
-            close_out ch;
-            Lwt.return failure
-        | `redirect target ->
-            flush ch;
-            Unix.ftruncate (Unix.descr_of_out_channel ch) 0;
-            seek_out ch 0;
-            if target = url then raise_safe "Redirection loop getting '%s'" url
-            else if redirs_left > 0 then loop (redirs_left - 1) target
-            else raise_safe "Too many redirections (next: %s)" target in
+        let rec loop redirs_left url =
+          let site =
+            let domain, _ = Support.Urlparse.split_path url in
+            try Hashtbl.find sites domain
+            with Not_found ->
+              let site = make_site max_downloads_per_site in
+              Hashtbl.add sites domain site;
+              site in
+          match_lwt site#schedule_download ?if_slow ?size ?modification_time ?start_offset ~progress:set_progress ch url with
+          | `success ->
+              close_out ch;
+              `tmpfile tmpfile |> Lwt.return
+          | `network_failure _ as failure ->
+              close_out ch;
+              Lwt.return failure
+          | `redirect target ->
+              flush ch;
+              Unix.ftruncate (Unix.descr_of_out_channel ch) 0;
+              seek_out ch 0;
+              if target = url then raise_safe "Redirection loop getting '%s'" url
+              else if redirs_left > 0 then loop (redirs_left - 1) target
+              else raise_safe "Too many redirections (next: %s)" target in
 
-      let reporter = Lazy.force reporter in
+        let reporter = Lazy.force reporter in
 
-      (* Cancelling:
-       * ocurl is missing OPENSOCKETFUNCTION, but we can get close by closing tmpfile so that it
-       * aborts on the next write. In any case, we don't wait for the thread exit, as it may be
-       * blocked on a DNS lookup, etc. *)
-      let task, waker = Lwt.task () in
-      Lwt.on_cancel task (fun () -> log_info "Cancelling download %s" tmpfile; close_out ch);
-      let cancel () = Lwt.cancel task; Lwt.return () in
-      let dl = Ui.({cancel; url; progress; hint}) in
-      lwt () = reporter#start_monitoring ~id:tmpfile dl in
+        (* Cancelling:
+         * ocurl is missing OPENSOCKETFUNCTION, but we can get close by closing tmpfile so that it
+         * aborts on the next write. In any case, we don't wait for the thread exit, as it may be
+         * blocked on a DNS lookup, etc. *)
+        let task, waker = Lwt.task () in
+        Lwt.on_cancel task (fun () -> log_info "Cancelling download %s" tmpfile; close_out ch);
+        let cancel () = Lwt.cancel task; Lwt.return () in
+        let dl = Ui.({cancel; url; progress; hint}) in
+        lwt () = reporter#start_monitoring ~id:tmpfile dl in
 
-      Python.async (fun () ->
-        try_lwt
-          lwt result = loop 10 url in
-          Lwt.wakeup waker result;
-          Lwt.return ()
-        with ex ->
-          Lwt.wakeup_exn waker ex; Lwt.return ()
-      );
+        Python.async (fun () ->
+          try_lwt
+            lwt result = loop 10 url in
+            Lwt.wakeup waker result;
+            Lwt.return ()
+          with ex ->
+            Lwt.wakeup_exn waker ex; Lwt.return ()
+        );
 
-      try_lwt task
-      with Lwt.Canceled -> `aborted_by_user |> Lwt.return
-      finally reporter#stop_monitoring ~id:tmpfile
+        try_lwt task
+        with Lwt.Canceled -> `aborted_by_user |> Lwt.return
+        finally reporter#stop_monitoring ~id:tmpfile
 
     method ui = Lazy.force reporter
   end
