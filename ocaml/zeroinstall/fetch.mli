@@ -8,7 +8,7 @@ type fetch_feed_response =
   | `problem of (string * fetch_feed_response Lwt.t option)    (* Report a problem (but may still succeed later) *)
   | `no_update ]            (* Use the previous version *)
 
-class ['a] fetcher : General.config -> Trust.trust_db -> Distro.distribution -> 'a Downloader.downloader ->
+class ['a] fetcher : General.config -> Trust.trust_db -> Distro.distribution -> Downloader.downloader -> (#Ui.ui_handler as 'a) Lazy.t ->
   object
     method download_and_import_feed : [ `remote_feed of General.feed_url ] -> fetch_feed_response Lwt.t
     method download_impls : Feed.implementation list -> [ `success | `aborted_by_user ] Lwt.t
@@ -16,7 +16,8 @@ class ['a] fetcher : General.config -> Trust.trust_db -> Distro.distribution -> 
     (** [import_feed url xml] checks the signature on [xml] and imports it into the cache if trusted.
      * If not trusted, it confirms with the user first, downloading any missing keys first. *)
     method import_feed : [`remote_feed of General.feed_url] -> string -> unit Lwt.t
-    method downloader : 'a Downloader.downloader
+    method downloader : Downloader.downloader
     method distro : Distro.distribution
     method config : General.config
+    method ui : 'a
   end

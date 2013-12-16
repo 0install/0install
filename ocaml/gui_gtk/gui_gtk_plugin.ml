@@ -8,6 +8,7 @@ open Support.Common
 
 module Python = Zeroinstall.Python
 module Ui = Zeroinstall.Ui
+module Downloader = Zeroinstall.Downloader
 
 let make_gtk_ui (slave:Python.slave) =
   let config = slave#config in
@@ -20,18 +21,28 @@ let make_gtk_ui (slave:Python.slave) =
 
     val mutable n_completed_downloads = 0
     val mutable size_completed_downloads = 0L
-    val mutable downloads = StringMap.empty
+    val mutable downloads = []
     val mutable pulse = None
 
-    method start_monitoring ~id dl =
-      log_debug "start_monitoring %s" id;
-      downloads <- downloads |> StringMap.add id dl;
+    method monitor dl =
+      log_debug "start_monitoring %s" dl.Downloader.url;
+      downloads <- dl :: downloads;
 
       if pulse = None then (
         pulse <- Some (
           try_lwt
-            while_lwt not (StringMap.is_empty downloads) do
+            while_lwt downloads <> [] do
               lwt () = Lwt_unix.sleep 0.2 in
+              downloads <- downloads |> List.filter (fun dl ->
+                if Downloader.is_in_progress dl then true
+                else (
+                  log_debug "stop_monitoring %s" dl.Downloader.url;
+                  let (bytes, _, _) = Lwt_react.S.value dl.Downloader.progress in
+                  n_completed_downloads <- n_completed_downloads + 1;
+                  size_completed_downloads <- Int64.add size_completed_downloads bytes;
+                  false
+                )
+              );
               solver_boxes |> List.iter (fun box -> box#update_download_status ~n_completed_downloads ~size_completed_downloads downloads);
               Lwt.return ()
             done
@@ -47,16 +58,7 @@ let make_gtk_ui (slave:Python.slave) =
             size_completed_downloads <- 0L;
             Lwt.return ()
         )
-      );
-      Lwt.return ()
-
-    method stop_monitoring ~id =
-      log_debug "stop_monitoring %s" id;
-      let dl = downloads |> StringMap.find_safe id in
-      n_completed_downloads <- n_completed_downloads + 1;
-      size_completed_downloads <- Int64.add size_completed_downloads (fst (Lwt_react.S.value dl.Ui.progress));
-      downloads <- downloads |> StringMap.remove id;
-      Lwt.return ()
+      )
 
     method impl_added_to_store =
       solver_boxes |> List.iter (fun box -> box#impl_added_to_store)
@@ -105,8 +107,8 @@ let make_gtk_ui (slave:Python.slave) =
 
     method run_solver fetcher ?test_callback ?systray mode reqs ~refresh =
       let abort_all_downloads () =
-        downloads |> StringMap.iter (fun _id dl ->
-          Gtk_utils.async dl.Ui.cancel
+        downloads |> List.iter (fun dl ->
+          Gtk_utils.async dl.Downloader.cancel
         ) in
       let box = Solver_box.run_solver config self trust_db fetcher ~abort_all_downloads ?test_callback ?systray mode reqs ~refresh in
       solver_boxes <- box :: solver_boxes;

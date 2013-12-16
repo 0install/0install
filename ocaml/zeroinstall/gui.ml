@@ -178,7 +178,7 @@ let list_impls (results:Solver.result) iface =
 
 (** Download an icon for this feed and add it to the
     icon cache. If the feed has no icon do nothing. *)
-let download_icon config (downloader:_ Downloader.downloader) (feed_provider:Feed_provider.feed_provider) parsed_url =
+let download_icon config (downloader:Downloader.downloader) (ui:Ui.ui_handler) (feed_provider:Feed_provider.feed_provider) parsed_url =
   let feed_url = Feed_url.format_url parsed_url in
   log_debug "download_icon %s" feed_url;
 
@@ -213,7 +213,9 @@ let download_icon config (downloader:_ Downloader.downloader) (feed_provider:Fee
   | Some href ->
       let switch = Lwt_switch.create () in
       try_lwt
-        match_lwt downloader#download ~switch ?modification_time ~hint:parsed_url href with
+        let dl, result = downloader#download ~switch ?modification_time ~hint:parsed_url href in
+        ui#monitor dl;
+        match_lwt result with
         | `network_failure msg -> raise_safe "%s" msg
         | `aborted_by_user -> Lwt.return ()
         | `tmpfile tmpfile ->

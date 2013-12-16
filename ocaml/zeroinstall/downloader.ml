@@ -8,12 +8,25 @@ open Support.Common
 
 module U = Support.Utils
 
+type progress = (Int64.t * Int64.t option * bool) Lwt_react.signal
+
+type download = {
+  cancel : unit -> unit Lwt.t;
+  url : string;
+  progress : progress;    (* Must keep a reference to this; if it gets GC'd then updates stop. *)
+  hint : string option;
+}
+
 type download_result =
  [ `aborted_by_user
  | `network_failure of string
  | `tmpfile of Support.Common.filepath ]
 
 exception Unmodified
+
+let is_in_progress dl =
+  let (_, _, finished) = Lwt_react.S.value dl.progress in
+  not finished
 
 let init = lazy (
   Lwt_preemptive.init 0 100 (log_warning "%s");
@@ -71,8 +84,10 @@ let download_no_follow ?size ?modification_time ?(start_offset=Int64.zero) ~prog
       Support.Lwt_preemptive_copy.run_in_main (fun () ->
         let dlnow = Int64.of_float dlnow in
         begin match size with
-        | None -> progress (dlnow, if dltotal = 0.0 then None else Some (Int64.of_float dltotal));
-        | Some _ -> progress (dlnow, size) end;
+        | Some _ -> progress (dlnow, size, false)
+        | None ->
+            let total = if dltotal = 0.0 then None else Some (Int64.of_float dltotal) in
+            progress (dlnow, total, false) end;
         Lwt.return false  (* (continue download) *)
       )
     );
@@ -150,7 +165,7 @@ let make_site max_downloads_per_site =
       )
   end
 
-class ['a] downloader (reporter:(#Ui.ui_handler as 'a) Lazy.t) ~max_downloads_per_site =
+class downloader ~max_downloads_per_site =
   let () = Lazy.force init in
   let sites = Hashtbl.create 10 in
 
@@ -168,12 +183,12 @@ class ['a] downloader (reporter:(#Ui.ui_handler as 'a) Lazy.t) ~max_downloads_pe
                       ?size:Int64.t ->
                       ?start_offset:Int64.t ->
                       ?hint:([< Feed_url.parsed_feed_url] as 'a) ->
-                      string -> download_result Lwt.t =
+                      string -> (download * download_result Lwt.t) =
       fun ~switch ?modification_time ?if_slow ?size ?start_offset ?hint url ->
         let hint = hint |> pipe_some (fun feed -> Some (Feed_url.format_url feed)) in
         log_debug "Download URL '%s'... (for %s)" url (default "no feed" hint);
 
-        let progress, set_progress = Lwt_react.S.create (Int64.zero, size) in     (* So far / total *)
+        let progress, set_progress = Lwt_react.S.create (Int64.zero, size, false) in
 
         let tmpfile, ch = Filename.open_temp_file ~mode:[Open_binary] "0install-" "-download" in
         Lwt_switch.add_hook (Some switch) (fun () -> Unix.unlink tmpfile |> Lwt.return);
@@ -201,8 +216,6 @@ class ['a] downloader (reporter:(#Ui.ui_handler as 'a) Lazy.t) ~max_downloads_pe
               else if redirs_left > 0 then loop (redirs_left - 1) target
               else raise_safe "Too many redirections (next: %s)" target in
 
-        let reporter = Lazy.force reporter in
-
         (* Cancelling:
          * ocurl is missing OPENSOCKETFUNCTION, but we can get close by closing tmpfile so that it
          * aborts on the next write. In any case, we don't wait for the thread exit, as it may be
@@ -210,8 +223,7 @@ class ['a] downloader (reporter:(#Ui.ui_handler as 'a) Lazy.t) ~max_downloads_pe
         let task, waker = Lwt.task () in
         Lwt.on_cancel task (fun () -> log_info "Cancelling download %s" tmpfile; close_out ch);
         let cancel () = Lwt.cancel task; Lwt.return () in
-        let dl = Ui.({cancel; url; progress; hint}) in
-        lwt () = reporter#start_monitoring ~id:tmpfile dl in
+        let dl = {cancel; url; progress; hint} in
 
         Python.async (fun () ->
           try_lwt
@@ -222,9 +234,13 @@ class ['a] downloader (reporter:(#Ui.ui_handler as 'a) Lazy.t) ~max_downloads_pe
             Lwt.wakeup_exn waker ex; Lwt.return ()
         );
 
-        try_lwt task
-        with Lwt.Canceled -> `aborted_by_user |> Lwt.return
-        finally reporter#stop_monitoring ~id:tmpfile
+        let result =
+          try_lwt task
+          with Lwt.Canceled -> `aborted_by_user |> Lwt.return
+          finally
+            let (sofar, total, _) = Lwt_react.S.value progress in
+            set_progress (sofar, total, true);
+            Lwt.return () in
 
-    method ui = Lazy.force reporter
+        (dl, result)
   end

@@ -13,7 +13,7 @@ module F = Zeroinstall.Feed
 module FC = Zeroinstall.Feed_cache
 module Python = Zeroinstall.Python
 module U = Support.Utils
-module Ui = Zeroinstall.Ui
+module Downloader = Zeroinstall.Downloader
 
 let icon_size = 20
 
@@ -25,7 +25,7 @@ let get (model:#GTree.model) row column =
 let rec count_downloads = function
   | [] -> (0L, None)
   | (x::xs) ->
-      let so_far, expected = Lwt_react.S.value x.Ui.progress in
+      let so_far, expected, _finished = Lwt_react.S.value x.Downloader.progress in   (* TODO: remove finished? *)
       let so_far_rest, expected_rest = count_downloads xs in
       (* This seems a bit odd, but it's what the Python does. *)
       let expected_total =
@@ -303,8 +303,8 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
     method update_download_status all_downloads =
       (* Downloads are associated with feeds. Create the mapping (iface -> downloads) *)
       let hints = Hashtbl.create 10 in
-      all_downloads |> StringMap.iter (fun _id dl ->
-        dl.Ui.hint |> if_some (fun feed ->
+      all_downloads |> List.iter (fun dl ->
+        dl.Downloader.hint |> if_some (fun feed ->
           Hashtbl.find_all feed_to_iface feed |> List.iter (fun iface ->
             Hashtbl.add hints iface dl
           )

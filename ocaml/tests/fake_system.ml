@@ -358,8 +358,7 @@ let () = Support.Logging.threshold := Support.Logging.Debug
 
 class null_ui =
   object (_ : #Zeroinstall.Ui.ui_handler)
-    method start_monitoring ~id:_ _dl = Lwt.return ()
-    method stop_monitoring ~id:_ = Lwt.return ()
+    method monitor _dl = ()
     method confirm_keys feed_url _xml = raise_safe "confirm_keys: %s" (Zeroinstall.Feed_url.format_url feed_url)
     method confirm msg = raise_safe "confirm: %s" msg
     method impl_added_to_store = ()
@@ -370,8 +369,8 @@ let null_ui = lazy (new null_ui)
 let make_fetcher config =
   let distro = Zeroinstall.Distro_impls.generic_distribution config in
   let trust_db = new Zeroinstall.Trust.trust_db config in
-  let downloader = new Zeroinstall.Downloader.downloader null_ui ~max_downloads_per_site:2 in
-  new Zeroinstall.Fetch.fetcher config trust_db distro downloader
+  let downloader = new Zeroinstall.Downloader.downloader ~max_downloads_per_site:2 in
+  new Zeroinstall.Fetch.fetcher config trust_db distro downloader null_ui
 
 let fake_log =
   object (_ : #Support.Logging.handler)

@@ -69,7 +69,7 @@ let parse_key_info xml =
 exception Aborted
 exception Try_mirror of string  (* An error where we should try the mirror (i.e. a network problem) *)
 
-class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:(#Ui.ui_handler as 'a) Downloader.downloader) =
+class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:Downloader.downloader) (ui:(#Ui.ui_handler as 'a) Lazy.t) =
   let trust_dialog_lock = Lwt_mutex.create () in      (* Only show one trust dialog at a time *)
 
   let key_info_cache = Hashtbl.create 10 in
@@ -105,7 +105,9 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:(#Ui
 
       let switch = Lwt_switch.create () in
       try_lwt
-        match_lwt downloader#download ~switch ~hint:feed_url key_url with
+        let dl, result = downloader#download ~switch ~hint:feed_url key_url in
+        (Lazy.force ui)#monitor dl;
+        match_lwt result with
         | `network_failure msg -> raise_safe "%s" msg
         | `aborted_by_user -> raise Aborted
         | `tmpfile tmpfile ->
@@ -221,7 +223,9 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:(#Ui
               let key_info_url = key_info_server ^ "/key/" ^ fingerprint in
               let switch = Lwt_switch.create () in
               try_lwt
-                match_lwt downloader#download ~switch ~if_slow ~hint key_info_url with
+                let dl, result = downloader#download ~switch ~if_slow ~hint key_info_url in
+                (Lazy.force ui)#monitor dl;
+                match_lwt result with
                 | `network_failure msg -> raise_safe "%s" msg
                 | `aborted_by_user -> raise Aborted
                 | `tmpfile tmpfile ->
@@ -300,7 +304,7 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:(#Ui
       let is_trusted {G.fingerprint; _} = trust_db#is_trusted ~domain fingerprint in
       if (List.exists is_trusted valid_sigs) then Lwt.return ()
       else (
-        lwt confirmed_keys = downloader#ui#confirm_keys feed key_infos in
+        lwt confirmed_keys = (Lazy.force ui)#confirm_keys feed key_infos in
         confirmed_keys |> List.iter (fun fingerprint ->
           log_info "Trusting %s for %s" fingerprint domain;
           trust_db#trust_key ~domain fingerprint
@@ -333,7 +337,9 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:(#Ui
 
     let switch = Lwt_switch.create () in
     try_lwt
-      match_lwt downloader#download ~switch ?if_slow ~hint:feed url with
+      let dl, result = downloader#download ~switch ?if_slow ~hint:feed url in
+      (Lazy.force ui)#monitor dl;
+      match_lwt result with
       | `network_failure msg -> `problem msg |> Lwt.return
       | `aborted_by_user -> Lwt.return `aborted_by_user
       | `tmpfile tmpfile ->
@@ -442,7 +448,9 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:(#Ui
             let escaped = Str.global_replace (Str.regexp_string "/") "#" url |> Curl.escape in
             Some (mirror ^ "/archive/" ^ escaped)
         | _ -> None in
-      match_lwt downloader#download ~switch ?size ~start_offset ~hint:feed url with
+      let dl, result = downloader#download ~switch ?size ~start_offset ~hint:feed url in
+      (Lazy.force ui)#monitor dl;
+      match_lwt result with
       | `aborted_by_user -> raise Aborted
       | `tmpfile tmpfile -> lazy (fn tmpfile) |> Lwt.return
       | `network_failure primary_msg ->
@@ -450,7 +458,9 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:(#Ui
            * we raise [Try_mirror] to try the other strategy. *)
           let mirror_url = mirror_url |? lazy (raise (Try_mirror primary_msg)) in
           log_warning "Primary download failed; trying mirror URL '%s'..." mirror_url;
-          match_lwt downloader#download ~switch ?size ~hint:feed mirror_url with
+          let dl, result = downloader#download ~switch ?size ~hint:feed mirror_url in
+          (Lazy.force ui)#monitor dl;
+          match_lwt result with
           | `aborted_by_user -> raise Aborted
           | `tmpfile tmpfile -> lazy (fn tmpfile) |> Lwt.return
           | `network_failure mirror_msg ->
@@ -572,7 +582,7 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:(#Ui
         ) in
 
         lwt () = Stores.check_manifest_and_rename {config with system = system#bypass_dryrun} required_digest tmpdir in
-        downloader#ui#impl_added_to_store; (* Notify the GUI *)
+        (Lazy.force ui)#impl_added_to_store; (* Notify the GUI *)
         need_rm_tmpdir := false;
         Lwt.return `success
       with ex ->
@@ -725,7 +735,7 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:(#Ui
 
     let packages_task =
       if !package_impls <> [] then (
-        match_lwt Distro.install_distro_packages distro downloader#ui !package_impls with
+        match_lwt Distro.install_distro_packages distro (Lazy.force ui) !package_impls with
         | `cancel -> Lwt.fail Aborted
         | `ok -> Lwt.return ()
       ) else Lwt.return () in
@@ -752,4 +762,5 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:(#Ui
     method downloader = downloader
     method distro = distro
     method config = config
+    method ui = Lazy.force ui
   end

@@ -37,7 +37,7 @@ type ui_type =
 (** The GUI plugin registers itself here. *)
 val register_plugin : (General.config -> Support.Common.yes_no_maybe -> gui_ui option) -> unit
 
-val download_icon : General.config -> _ Downloader.downloader -> Feed_provider.feed_provider -> Feed_url.non_distro_feed -> unit Lwt.t
+val download_icon : General.config -> Downloader.downloader -> Ui.ui_handler -> Feed_provider.feed_provider -> Feed_url.non_distro_feed -> unit Lwt.t
 
 (** Should we use the GUI?
  * The input says what the user requested:

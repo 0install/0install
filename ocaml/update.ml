@@ -193,8 +193,7 @@ let handle_bg options flags args =
   let need_gui = ref false in
   let ui =
     object (_ : Zeroinstall.Ui.ui_handler)
-      method start_monitoring ~id:_ _dl = Lwt.return ()
-      method stop_monitoring ~id:_ = Lwt.return ()
+      method monitor _dl = ()
 
       method confirm_keys _feed_url _xml =
         need_gui := true;
@@ -210,8 +209,8 @@ let handle_bg options flags args =
   let trust_db = new Zeroinstall.Trust.trust_db config in
   let fetcher =
     let distro = Zeroinstall.Distro_impls.get_host_distribution config in
-    let downloader = new Zeroinstall.Downloader.downloader (lazy ui) ~max_downloads_per_site:2 in
-    new Zeroinstall.Fetch.fetcher config trust_db distro downloader in
+    let downloader = new Zeroinstall.Downloader.downloader ~max_downloads_per_site:2 in
+    new Zeroinstall.Fetch.fetcher config trust_db distro downloader (lazy ui) in
 
   match args with
     | ["app"; app] ->
@@ -239,8 +238,8 @@ let handle_bg options flags args =
                 log_info "Background update: trying to use GUI to update %s" name;
                 (* Create a new fetcher, attached to the new UI *)
                 let ui = lazy (gui :> Zeroinstall.Ui.ui_handler) in
-                let downloader = new Zeroinstall.Downloader.downloader ui ~max_downloads_per_site:2 in
-                let fetcher = new Zeroinstall.Fetch.fetcher config trust_db distro downloader in
+                let downloader = new Zeroinstall.Downloader.downloader ~max_downloads_per_site:2 in
+                let fetcher = new Zeroinstall.Fetch.fetcher config trust_db distro downloader ui in
                 Support.Utils.finally_do (fun () -> Zeroinstall.Python.cancel_slave () |> Lwt_main.run) () (fun () ->
                   match gui#run_solver fetcher `Download_only reqs ~systray:true ~refresh:true |> Lwt_main.run with
                   | `Aborted_by_user -> raise (System_exit 0)

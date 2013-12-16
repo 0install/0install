@@ -44,7 +44,7 @@ let parse_xml s =
 
 let make_dl_tester () =
   let log = ref [] in
-  let downloader = new D.downloader Fake_system.null_ui ~max_downloads_per_site:2 in
+  let downloader = new D.downloader ~max_downloads_per_site:2 in
   let waiting = Hashtbl.create 10 in
 
   (* Intercept the download and return a new blocker *)
@@ -62,7 +62,8 @@ let make_dl_tester () =
       let switch = Lwt_switch.create () in
       let result =
         try_lwt
-          match_lwt downloader#download ~switch ~hint:(`remote_feed "testing") url with
+          let _dl, result = downloader#download ~switch ~hint:(`remote_feed "testing") url in
+          match_lwt result with
           | `tmpfile _ -> Lwt.return `success
           | (`aborted_by_user | `network_failure _) as x -> Lwt.return x
         finally
@@ -277,12 +278,7 @@ let suite = "fetch">::: [
 
   "abort">:: (fun () ->
     Lwt_main.run (
-      let ui =
-        object
-          inherit Fake_system.null_ui
-          method! start_monitoring ~id:_ dl = dl.Zeroinstall.Ui.cancel ()
-        end in
-      let downloader = new D.downloader (lazy ui) ~max_downloads_per_site:2 in
+      let downloader = new D.downloader ~max_downloads_per_site:2 in
 
       (* Intercept the download and return a new blocker *)
       let handle_download ?if_slow:_ ?size:_ ?modification_time:_ _ch url =
@@ -294,7 +290,9 @@ let suite = "fetch">::: [
       let switch = Lwt_switch.create () in
       lwt result =
         try_lwt
-          match_lwt downloader#download ~switch ~hint:(`remote_feed "testing") "http://localhost/test.tgz" with
+          let dl, result = downloader#download ~switch ~hint:(`remote_feed "testing") "http://localhost/test.tgz" in
+          Zeroinstall.Python.async dl.D.cancel;
+          match_lwt result with
           | `tmpfile _ -> Lwt.return `success
           | (`aborted_by_user | `network_failure _) as x -> Lwt.return x
         finally

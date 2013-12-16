@@ -12,6 +12,7 @@ module Driver = Zeroinstall.Driver
 module Requirements = Zeroinstall.Requirements
 module U = Support.Utils
 module Ui = Zeroinstall.Ui
+module Downloader = Zeroinstall.Downloader
 
 let main_window_help = Help_box.create "0install Help" [
 ("Overview",
@@ -61,7 +62,7 @@ class type solver_box =
     method recalculate : unit
     method result : [`Aborted_by_user | `Success of Support.Qdom.element ] Lwt.t
     method ensure_main_window : GWindow.window_skel Lwt.t
-    method update_download_status : n_completed_downloads:int -> size_completed_downloads:Int64.t -> Ui.download StringMap.t -> unit
+    method update_download_status : n_completed_downloads:int -> size_completed_downloads:Int64.t -> Downloader.download list -> unit
     method impl_added_to_store : unit
   end
 
@@ -161,7 +162,7 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db fetcher ~abort_all_d
     let thread, waker = !need_recalculate in
     if Lwt.state thread = Lwt.Sleep then Lwt.wakeup waker () in
 
-  let icon_cache = Icon_cache.create ~downloader:fetcher#downloader config in
+  let icon_cache = Icon_cache.create ~downloader:fetcher#downloader config (gui :> Ui.ui_handler) in
 
   let user_response, set_user_response = Lwt.wait () in
 
@@ -328,7 +329,7 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db fetcher ~abort_all_d
         (* (dialog is still in use) *)
         component_tree#update_download_status downloads;
 
-        if StringMap.is_empty downloads then (
+        if downloads = [] then (
           widgets.progress_area#misc#hide ();
           Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.default_cursor)
         ) else if not (widgets.progress_area#misc#get_flag `VISIBLE) then (
@@ -342,8 +343,8 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db fetcher ~abort_all_d
         let n_downloads = ref n_completed_downloads in
         let any_known = ref false in
 
-        downloads |> StringMap.iter (fun _id dl ->
-          let (so_far, expected) = Lwt_react.S.value dl.Ui.progress in
+        downloads |> List.iter (fun dl ->
+          let (so_far, expected, _finished) = Lwt_react.S.value dl.Downloader.progress in
           total_so_far := Int64.add !total_so_far so_far;
           if expected <> None then any_known := true;
           (* Guess about 4K for feeds/icons *)

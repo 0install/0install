@@ -10,11 +10,15 @@ module U = Support.Utils
 
 external get_terminal_width : unit -> int = "ocaml_0install_get_terminal_width"
 
+let is_in_progress = function
+  | None -> false
+  | Some dl -> Downloader.is_in_progress dl
+
 class console_ui : Ui.ui_handler =
-  let downloads : (string, Ui.download) Hashtbl.t = Hashtbl.create 10 in
+  let downloads : Downloader.download list ref = ref [] in
   let disable_progress = ref 0 in     (* [> 0] when we're asking the user a question *)
   let display_thread = ref None in
-  let last_updated = ref "" in
+  let last_updated = ref None in
   let msg = ref "" in
 
   let clear () =
@@ -34,14 +38,22 @@ class console_ui : Ui.ui_handler =
       disable_progress := !disable_progress - 1;
       Lwt.return () in
 
-  (* Select the most interesting download in [downloads] and return its ID. *)
+  (* Select the most interesting download in [downloads] and return its ID.
+   * Also, removes any finished downloads from the list. *)
   let find_most_progress () =
-    let find_best id dl =
-      let (sofar, _) as progress = Lwt_react.S.value dl.Ui.progress in
-      function
-      | Some (_best_id, (best_sofar, _)) as prev_best when Int64.compare sofar best_sofar < 0 -> prev_best
-      | _ -> Some (id, progress) in
-    Hashtbl.fold find_best downloads None |> pipe_some (fun (id, _) -> Some id) in
+    let old_downloads = !downloads in
+    downloads := [];
+    let best = ref None in
+    old_downloads |> List.iter (fun dl ->
+      if Downloader.is_in_progress dl then (
+        downloads := dl :: !downloads;
+        let (current_sofar, _, _) = Lwt_react.S.value dl.Downloader.progress in
+        match !best with
+        | Some (best_sofar, _best_dl) when Int64.compare current_sofar best_sofar < 0 -> ()
+        | _ -> best := Some (current_sofar, dl)
+      )
+    );
+    !best |> pipe_some (fun x -> Some (snd x)) in
 
   (* Interact with the user on stderr because we may be writing XML to stdout *)
   let print fmt =
@@ -49,26 +61,25 @@ class console_ui : Ui.ui_handler =
     Printf.ksprintf do_print fmt in
 
   let run_display_thread () =
-    let next_switch_time = ref 0. in
-    let current_favourite = ref "" in
-    let rec loop () =
-      let n_downloads = Hashtbl.length downloads in
-      if !disable_progress > 0 || n_downloads = 0 then ()
-      else (
+    try_lwt
+      let next_switch_time = ref 0. in
+      let current_favourite = ref None in
+      let rec loop () =
         let now = Unix.time () in
         let best =
-          if now < !next_switch_time && Hashtbl.mem downloads !current_favourite then Some (!current_favourite)
-          else if Hashtbl.mem downloads !last_updated then Some (!last_updated)
+          if !disable_progress > 0 then None
+          else if now < !next_switch_time && is_in_progress !current_favourite then !current_favourite
+          else if is_in_progress !last_updated then !last_updated
           else find_most_progress () in
-        match best with
+        begin match best with
         | None -> clear ()
-        | Some best ->
-            if best <> !current_favourite then (
+        | Some dl as best ->
+            let n_downloads = List.length !downloads in
+            if best != !current_favourite then (
               current_favourite := best;
               next_switch_time := now +. 1.0;
             );
-            let dl = Hashtbl.find downloads best in
-            let (sofar, total) = Lwt_react.S.value dl.Ui.progress in
+            let (sofar, total, _finished) = Lwt_react.S.value dl.Downloader.progress in
             let progress_str =
               match total with
               | None -> Printf.sprintf "%6s / unknown" (Int64.to_string sofar)  (* (could be bytes or percent) *)
@@ -76,38 +87,30 @@ class console_ui : Ui.ui_handler =
             clear ();
             Support.Logging.clear_fn := Some clear;
             if n_downloads = 1 then
-              msg := Printf.sprintf "[one download] %16s (%s)" progress_str dl.Ui.url
+              msg := Printf.sprintf "[one download] %16s (%s)" progress_str dl.Downloader.url
             else
-              msg := Printf.sprintf "[%d downloads] %16s (%s)" n_downloads progress_str dl.Ui.url;
+              msg := Printf.sprintf "[%d downloads] %16s (%s)" n_downloads progress_str dl.Downloader.url;
             let max_width = get_terminal_width () in
             if max_width > 0 && String.length !msg > max_width then msg := String.sub !msg 0 max_width;
             prerr_string !msg;
-            flush stderr
-      );
-      lwt () = Lwt_unix.sleep 0.1 in
-      loop () in
-    loop () in
+            flush stderr end;
+        lwt () = Lwt_unix.sleep 0.1 in
+        loop () in
+      loop ()
+    with ex ->
+      log_warning ~ex "Progress thread error";
+      Lwt.return () in
 
   object (self)
-    method start_monitoring ~id dl =
-      let progress = dl.Ui.progress |> React.S.map (fun v -> last_updated := id; v) in
-      Hashtbl.add downloads id ({dl with Ui.progress});     (* (store updates to prevent GC) *)
+    method monitor dl =
+      (* log_debug "Start monitoring %s" dl.Downloader.url; *)
+      let progress = dl.Downloader.progress |> React.S.map (fun v -> last_updated := Some dl; v) in
+      let dl = {dl with Downloader.progress} in     (* (store updates to prevent GC) *)
+      downloads := dl :: !downloads;
 
       if !display_thread = None then (
         display_thread := Some (run_display_thread ())
-      );
-
-      Lwt.return ()
-
-    method stop_monitoring ~id =
-      Hashtbl.remove downloads id;
-      begin match Hashtbl.length downloads, !display_thread with
-      | 0, Some thread ->
-          Lwt.cancel thread;
-          clear ();
-          display_thread := None
-      | _ -> () end;
-      Lwt.return ()
+      )
 
     method confirm message =
       with_disabled_progress (fun () ->
@@ -180,8 +183,7 @@ class batch_ui : Ui.ui_handler =
   object
     inherit console_ui
 
-    method! start_monitoring ~id:_ _dl = Lwt.return ()
-    method! stop_monitoring ~id:_ = Lwt.return ()
+    method! monitor _dl = ()
 
 (* For now, for the unit-tests, fall back to Python.
     method! confirm_keys _feed _infos =

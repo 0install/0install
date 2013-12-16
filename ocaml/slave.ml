@@ -22,8 +22,7 @@ let make_no_gui (connection:JC.json_connection) : Ui.ui_handler =
     ) in
 
   object
-    method start_monitoring ~id:_ _dl = Lwt.return ()
-    method stop_monitoring ~id:_ = Lwt.return ()
+    method monitor _dl = ()
     method impl_added_to_store = ()
 
     method confirm_keys feed_url infos =
@@ -115,8 +114,8 @@ let register_handlers config gui connection =
     ) in
     let distro = Zeroinstall.Distro_impls.get_host_distribution config in
     let trust_db = new Zeroinstall.Trust.trust_db config in
-    let downloader = new Zeroinstall.Downloader.downloader ui ~max_downloads_per_site:2 in
-    new Zeroinstall.Fetch.fetcher config trust_db distro downloader
+    let downloader = new Zeroinstall.Downloader.downloader ~max_downloads_per_site:2 in
+    new Zeroinstall.Fetch.fetcher config trust_db distro downloader ui
   ) in
 
   let do_select = function

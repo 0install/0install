@@ -51,6 +51,7 @@ let fake_fetcher config handler (distro:Zeroinstall.Distro.distribution) : Ui.ui
     method downloader = failwith "downloader"
     method config = config
     method distro = distro
+    method ui = Lazy.force Fake_system.null_ui
   end
 
 (** Parse a test-case in driven.xml *)
@@ -237,6 +238,7 @@ let suite = "driver">::: [
         method downloader = failwith "downloader"
         method distro = distro
         method config = config
+        method ui = Lazy.force Fake_system.null_ui
       end in
     let (ready, result, _fp) = Driver.solve_with_downloads fetcher reqs ~force:false ~update_local:false |> Lwt_main.run in
     assert (ready = true);

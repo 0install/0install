@@ -33,8 +33,10 @@ let handle options flags args =
       let fetcher = Lazy.force options.fetcher in
       let switch = Lwt_switch.create () in
       try
-        let result = Lwt_main.run (fetcher#downloader#download ~switch url) in
-        match result with
+        let ui = fetcher#ui in
+        let dl, result = fetcher#downloader#download ~switch url in
+        ui#monitor dl;
+        match Lwt_main.run result with
         | `aborted_by_user -> ()
         | `network_failure msg -> raise_safe "%s" msg
         | `tmpfile path ->

@@ -11,7 +11,7 @@ module Feed_url = Zeroinstall.Feed_url
 
 let icon_size = 20
 
-let create config ~downloader =
+let create config ~downloader ui =
   object
     val mutable icon_of_iface : GdkPixbuf.pixbuf option StringMap.t = StringMap.empty
     val mutable update_icons = false
@@ -49,7 +49,7 @@ let create config ~downloader =
             if not (StringMap.mem iface icon_of_iface) then icon_of_iface <- icon_of_iface |> StringMap.add iface None;
             Gtk_utils.async (fun () ->
               try_lwt
-                lwt () = Zeroinstall.Gui.download_icon config downloader feed_provider master_feed in
+                lwt () = Zeroinstall.Gui.download_icon config downloader ui feed_provider master_feed in
                 (* If the icon is now in the disk cache, load it into the memory cache and trigger a refresh.
                    If not, we'll be left with None in the cache so we don't try again. *)
                 let icon_path = Zeroinstall.Feed_cache.get_cached_icon_path config master_feed in

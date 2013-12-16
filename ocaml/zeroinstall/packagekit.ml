@@ -125,17 +125,18 @@ let rec get_total acc = function
 let install (ui:Ui.ui_handler) pk items =
   let packagekit_ids = items |> List.map (fun (_impl, rm) -> get_packagekit_id rm) in
   let total_size = get_total Int64.zero items in
+  let finished, set_finished = Lwt_react.S.create false in
   try_lwt
     let cancelled = ref false in
     lwt () = pk#run_transaction [] (fun switch proxy ->
       lwt percentage = Dbus.OBus_property.monitor ~switch (Dbus.OBus_property.make ITrans.p_Percentage proxy) in
-      let progress = percentage |> Lwt_react.S.map (fun perc ->
+      let progress = Lwt_react.S.l2 (fun perc finished ->
         match total_size with
         | Some size when size <> Int64.zero ->
             let frac = min 1.0 @@ (Int32.to_float perc) /. 100. in
-            (Int64.of_float (frac *. (Int64.to_float size)), total_size)
-        | _ -> (Int64.of_int32 perc, None)
-      ) in
+            (Int64.of_float (frac *. (Int64.to_float size)), total_size, finished)
+        | _ -> (Int64.of_int32 perc, None, finished)
+      ) percentage finished in
       let cancel () =
         if not !cancelled then (
           cancelled := true;
@@ -148,12 +149,10 @@ let install (ui:Ui.ui_handler) pk items =
         ) else Lwt.return () in
 
       (* Notify the start of all downloads (we share the overall progress between them currently). *)
-      lwt () =
-        items |> Lwt_list.iter_p (fun (impl, rm) ->
-          let id = get_packagekit_id rm in
-          let hint = Feed.get_attr_ex Constants.FeedAttr.from_feed impl in
-          ui#start_monitoring ~id:("packagekit:" ^ id) Ui.({cancel; url = "(packagekit)"; progress; hint = Some hint})
-        ) in
+      items |> List.iter (fun (impl, _rm) ->
+        let hint = Feed.get_attr_ex Constants.FeedAttr.from_feed impl in
+        ui#monitor Downloader.({cancel; url = "(packagekit)"; progress; hint = Some hint})
+      );
 
       if pk#version >= [0;8;1] then
         Dbus.OBus_method.call ITrans.m_InstallPackages2 proxy (Int32.zero, packagekit_ids)
@@ -168,9 +167,8 @@ let install (ui:Ui.ui_handler) pk items =
     );
     Lwt.return (if !cancelled then `cancel else `ok)
   finally
-    items |> Lwt_list.iter_p (fun (_impl, rm) ->
-      ui#stop_monitoring ~id:("packagekit:" ^ get_packagekit_id rm)
-    )
+    set_finished true;
+    Lwt.return ()
 
 (** The top-level PackageKit service. *)
 let packagekit_service config proxy version =

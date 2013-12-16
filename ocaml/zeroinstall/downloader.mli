@@ -11,6 +11,18 @@ type download_result =
 
 exception Unmodified
 
+(* (bytes so far, total expected, finished) *)
+type progress = (Int64.t * Int64.t option * bool) Lwt_react.signal
+
+type download = {
+  cancel : unit -> unit Lwt.t;
+  url : string;
+  progress : progress;    (* Must keep a reference to this; if it gets GC'd then updates stop. *)
+  hint : string option;
+}
+
+val is_in_progress : download -> bool
+
 val interceptor :
   (?if_slow:unit Lazy.t ->
    ?size:Int64.t ->
@@ -20,7 +32,7 @@ val interceptor :
    [ `network_failure of string | `redirect of string | `success ] Lwt.t)
   option ref
 
-class ['a] downloader : (#Ui.ui_handler as 'a) Lazy.t -> max_downloads_per_site:int ->
+class downloader : max_downloads_per_site:int ->
   object
     method download : 'a.
       switch:Lwt_switch.t ->
@@ -29,7 +41,5 @@ class ['a] downloader : (#Ui.ui_handler as 'a) Lazy.t -> max_downloads_per_site:
       ?size:Int64.t ->
       ?start_offset:Int64.t ->
       ?hint:([< Feed_url.parsed_feed_url] as 'a) ->
-      string -> download_result Lwt.t
-
-    method ui : 'a
+      string -> (download * download_result Lwt.t)
   end
