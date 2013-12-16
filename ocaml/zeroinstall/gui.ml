@@ -25,7 +25,7 @@ class type gui_ui =
     inherit Ui.ui_handler
     
     method run_solver :
-      Driver.driver ->
+      Ui.ui_handler Fetch.fetcher ->
       ?test_callback:(Support.Qdom.element -> string Lwt.t) ->
       ?systray:bool ->
       [`Download_only | `Select_for_run | `Select_only] ->
@@ -245,10 +245,10 @@ let add_feed config iface feed_url =
       );
   | feed_for -> raise_safe "This is not a feed for '%s'.\nOnly for:\n%s" iface (String.concat "\n" feed_for)
 
-let add_remote_feed driver iface (feed_url:[`remote_feed of feed_url])  =
-  match_lwt driver#download_and_import_feed feed_url with
+let add_remote_feed fetcher iface (feed_url:[`remote_feed of feed_url]) =
+  match_lwt Driver.download_and_import_feed fetcher feed_url with
   | `aborted_by_user -> Lwt.return ()
-  | `success _ | `no_update -> add_feed driver#config iface feed_url; Lwt.return ()
+  | `success _ | `no_update -> add_feed fetcher#config iface feed_url; Lwt.return ()
 
 let remove_feed config iface feed_url =
   let iface_config = Feed_cache.load_iface_config config iface in

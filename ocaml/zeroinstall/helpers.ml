@@ -19,21 +19,21 @@ type select_mode = [
 ]
 
 (** Ensure all selections are cached, downloading any that are missing. *)
-let download_selections ~include_packages ~feed_provider (driver:Driver.driver) sels =
-  match_lwt driver#download_selections ~include_packages ~feed_provider sels with
+let download_selections ~include_packages ~feed_provider (fetcher:_ Fetch.fetcher) sels =
+  match_lwt Driver.download_selections fetcher ~include_packages ~feed_provider sels with
   | `success -> Lwt.return ()
   | `aborted_by_user -> raise_safe "Aborted by user"
 
-let solve_and_download_impls gui (driver:Driver.driver) ?test_callback reqs mode ~refresh =
-  let config = driver#config in
+let solve_and_download_impls gui (fetcher:_ Fetch.fetcher) ?test_callback reqs mode ~refresh =
+  let config = fetcher#config in
 
   match gui with
   | Gui.Gui gui ->
-      begin match_lwt gui#run_solver driver ?test_callback mode reqs ~refresh with
+      begin match_lwt gui#run_solver fetcher ?test_callback mode reqs ~refresh with
       | `Success sels -> Lwt.return (Some sels)
       | `Aborted_by_user -> Lwt.return None end;
   | Gui.Ui _ ->
-      lwt result = driver#solve_with_downloads reqs ~force:refresh ~update_local:refresh in
+      lwt result = Driver.solve_with_downloads fetcher reqs ~force:refresh ~update_local:refresh in
       match result with
       | (false, result, _) -> raise_safe "%s" (Diagnostics.get_failure_reason config result)
       | (true, result, feed_provider) ->
@@ -42,7 +42,7 @@ let solve_and_download_impls gui (driver:Driver.driver) ?test_callback reqs mode
             match mode with
             | `Select_only -> Lwt.return ()
             | `Download_only | `Select_for_run ->
-                download_selections driver ~feed_provider ~include_packages:true sels in
+                download_selections fetcher ~feed_provider ~include_packages:true sels in
           Lwt.return (Some sels)
 
 let make_ui config use_gui : Gui.ui_type =

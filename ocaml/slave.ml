@@ -107,7 +107,7 @@ let parse_requirements json_assoc =
 let register_handlers config gui connection =
   let gui = make_ui config connection gui in
 
-  let driver = lazy (
+  let fetcher = lazy (
     let ui = lazy (
       match Lazy.force gui with
       | Zeroinstall.Gui.Gui gui -> (gui :> Ui.ui_handler)
@@ -116,17 +116,16 @@ let register_handlers config gui connection =
     let distro = Zeroinstall.Distro_impls.get_host_distribution config in
     let trust_db = new Zeroinstall.Trust.trust_db config in
     let downloader = new Zeroinstall.Downloader.downloader ui ~max_downloads_per_site:2 in
-    let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader distro in
-    new Zeroinstall.Driver.driver config fetcher distro
+    new Zeroinstall.Fetch.fetcher config trust_db downloader distro
   ) in
 
   let do_select = function
     | [`Assoc reqs; `Bool refresh] ->
         let requirements = parse_requirements reqs in
-        let driver = Lazy.force driver in
+        let fetcher = Lazy.force fetcher in
         lwt resp =
           try_lwt
-            match_lwt H.solve_and_download_impls (Lazy.force gui) driver requirements `Select_only ~refresh with
+            match_lwt H.solve_and_download_impls (Lazy.force gui) fetcher requirements `Select_only ~refresh with
             | None -> `List [`String "aborted-by-user"] |> Lwt.return
             | Some sels -> `WithXML (`List [`String "ok"], sels) |> Lwt.return
           with Safe_exception (msg, _) -> `List [`String "fail"; `String msg] |> Lwt.return in

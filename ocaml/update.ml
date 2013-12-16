@@ -57,15 +57,15 @@ let check_replacement system = function
           Support.Utils.print system "Warning: interface %s has been replaced by %s" (Zeroinstall.Feed_url.format_url feed.F.url) replacement
 
 let check_for_updates options reqs old_sels =
-  let driver = Lazy.force options.driver in
-  let new_sels = Zeroinstall.Helpers.solve_and_download_impls (Lazy.force options.ui) driver reqs `Download_only ~refresh:true |> Lwt_main.run in
+  let fetcher = Lazy.force options.fetcher in
+  let new_sels = Zeroinstall.Helpers.solve_and_download_impls (Lazy.force options.ui) fetcher reqs `Download_only ~refresh:true |> Lwt_main.run in
   match new_sels with
   | None -> raise (System_exit 1)   (* Aborted by user *)
   | Some new_sels ->
       let config = options.config in
       let system = config.system in
       let print fmt = Support.Utils.print system fmt in
-      let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider options.config driver#distro in
+      let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider options.config fetcher#distro in
       check_replacement system @@ feed_provider#get_feed (Zeroinstall.Feed_url.master_feed_of_iface reqs.R.interface_uri);
       let root_sel = get_root_sel new_sels in
       let root_version = ZI.get_attribute FeedAttr.version root_sel in
@@ -117,8 +117,8 @@ let handle options flags args =
     | (G.Selections old_sels, reqs) -> ignore @@ check_for_updates options reqs old_sels
     | (G.Interface, reqs) ->
         (* Select once without downloading to get the old values *)
-        let driver = Lazy.force options.driver in
-        let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config driver#distro in
+        let fetcher = Lazy.force options.fetcher in
+        let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config fetcher#distro in
         let (ready, result) = Zeroinstall.Solver.solve_for config feed_provider reqs in
         let old_sels = result#get_selections in
         if not ready then old_sels.Q.child_nodes <- [];
@@ -208,11 +208,10 @@ let handle_bg options flags args =
     end in
 
   let trust_db = new Zeroinstall.Trust.trust_db config in
-  let driver =
+  let fetcher =
     let distro = Zeroinstall.Distro_impls.get_host_distribution config in
     let downloader = new Zeroinstall.Downloader.downloader (lazy ui) ~max_downloads_per_site:2 in
-    let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader distro in
-    new Zeroinstall.Driver.driver config fetcher distro in
+    new Zeroinstall.Fetch.fetcher config trust_db downloader distro in
 
   match args with
     | ["app"; app] ->
@@ -228,23 +227,22 @@ let handle_bg options flags args =
 
         (* Refresh the feeds and solve, silently. If we find updates to download, we try to run the GUI
          * so the user can see a systray icon for the download. If that's not possible, we download silently too. *)
-        let (ready, result, feed_provider) = driver#solve_with_downloads reqs ~force:true ~update_local:true |> Lwt_main.run in
+        let (ready, result, feed_provider) = Zeroinstall.Driver.solve_with_downloads fetcher reqs ~force:true ~update_local:true |> Lwt_main.run in
         let new_sels = result#get_selections in
 
         let new_sels =
-          let distro = driver#distro in
+          let distro = fetcher#distro in
           if !need_gui || not ready || Zeroinstall.Selections.get_unavailable_selections config ~distro new_sels <> [] then (
             let interactive_ui = Zeroinstall.Helpers.make_ui config Maybe in
             match interactive_ui with
             | Zeroinstall.Gui.Gui gui ->
                 log_info "Background update: trying to use GUI to update %s" name;
-                (* Create a new driver, attached to the new UI *)
+                (* Create a new fetcher, attached to the new UI *)
                 let ui = lazy (gui :> Zeroinstall.Ui.ui_handler) in
                 let downloader = new Zeroinstall.Downloader.downloader ui ~max_downloads_per_site:2 in
                 let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader distro in
-                let driver = new Zeroinstall.Driver.driver config fetcher distro in
                 Support.Utils.finally_do (fun () -> Zeroinstall.Python.cancel_slave () |> Lwt_main.run) () (fun () ->
-                  match gui#run_solver driver `Download_only reqs ~systray:true ~refresh:true |> Lwt_main.run with
+                  match gui#run_solver fetcher `Download_only reqs ~systray:true ~refresh:true |> Lwt_main.run with
                   | `Aborted_by_user -> raise (System_exit 0)
                   | `Success gui_sels -> gui_sels
                 )
@@ -262,7 +260,7 @@ let handle_bg options flags args =
                   raise (System_exit 1)
                 ) else (
                   log_info "Background update: GUI unavailable; downloading with no UI";
-                  Zeroinstall.Helpers.download_selections ~include_packages:true ~feed_provider driver new_sels |> Lwt_main.run;
+                  Zeroinstall.Helpers.download_selections ~include_packages:true ~feed_provider fetcher new_sels |> Lwt_main.run;
                   new_sels
                 )
           ) else new_sels in

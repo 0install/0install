@@ -135,11 +135,11 @@ let make_dialog opt_message mode ~systray =
 
   {dialog; refresh_button; progress_area; stop_button; ok_button; swin; progress_bar; systray_icon}
 
-let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_downloads ?test_callback ?(systray=false) mode reqs ~refresh : solver_box =
+let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db fetcher ~abort_all_downloads ?test_callback ?(systray=false) mode reqs ~refresh : solver_box =
   let refresh = ref refresh in
   let component_boxes = ref StringMap.empty in
 
-  let feed_provider = ref (new Zeroinstall.Feed_provider_impl.feed_provider config driver#distro) in
+  let feed_provider = ref (new Zeroinstall.Feed_provider_impl.feed_provider config fetcher#distro) in
 
   let original_solve = Zeroinstall.Solver.solve_for config !feed_provider reqs in
   let original_selections =
@@ -151,7 +151,7 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
 
   let report_bug iface =
     let run_test = test_callback |> pipe_some (fun test_callback ->
-      Some (fun () -> Zeroinstall.Gui.run_test config driver#distro test_callback !results)
+      Some (fun () -> Zeroinstall.Gui.run_test config fetcher#distro test_callback !results)
     ) in
     Bug_report_box.create ?run_test ?last_error:!Alert_box.last_error config ~iface ~results:!results in
 
@@ -161,7 +161,7 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
     let thread, waker = !need_recalculate in
     if Lwt.state thread = Lwt.Sleep then Lwt.wakeup waker () in
 
-  let icon_cache = Icon_cache.create ~downloader:driver#fetcher#downloader config in
+  let icon_cache = Icon_cache.create ~downloader:fetcher#downloader config in
 
   let user_response, set_user_response = Lwt.wait () in
 
@@ -209,7 +209,7 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
     match StringMap.find iface !component_boxes with
     | Some box -> box#dialog#present ()
     | None ->
-        let box = Component_box.create config trust_db driver reqs iface ~recalculate ~select_versions_tab ~feed_provider ~results in
+        let box = Component_box.create config trust_db fetcher reqs iface ~recalculate ~select_versions_tab ~feed_provider ~results in
         component_boxes := !component_boxes |> StringMap.add iface box;
         box#dialog#connect#destroy ~callback:(fun () -> component_boxes := !component_boxes |> StringMap.remove iface) |> ignore;
         box#update;
@@ -239,7 +239,7 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
           | `Select_only -> on_success ()
           | `Download_only | `Select_for_run ->
               let sels = results#get_selections in
-              match_lwt driver#download_selections ~include_packages:true ~feed_provider:!feed_provider sels with
+              match_lwt Driver.download_selections fetcher ~include_packages:true ~feed_provider:!feed_provider sels with
               | `aborted_by_user -> widgets.ok_button#set_active false; Lwt.return ()
               | `success -> on_success ()
         with Safe_exception _ as ex ->
@@ -278,7 +278,7 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db driver ~abort_all_do
       widgets.refresh_button#misc#set_sensitive false;
       let force = !refresh in
       refresh := false;
-      lwt (ready, _, _) = driver#solve_with_downloads ~watcher reqs ~force ~update_local:true in
+      lwt (ready, _, _) = Driver.solve_with_downloads fetcher ~watcher reqs ~force ~update_local:true in
       if Unix.gettimeofday () < box_open_time +. 1. then widgets.ok_button#grab_default ();
       component_tree#highlight_problems;
 

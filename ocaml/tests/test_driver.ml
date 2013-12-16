@@ -32,7 +32,7 @@ let make_packagekit get_distro_candidates _config =
     method install_packages _ui _names = failwith "install_packages"
   end
 
-let fake_fetcher config handler =
+let fake_fetcher config handler (distro:Zeroinstall.Distro.distribution) : Ui.ui_handler Zeroinstall.Fetch.fetcher =
   object
     method download_and_import_feed (`remote_feed url) =
       match handler#get_feed url with
@@ -49,6 +49,8 @@ let fake_fetcher config handler =
     method import_feed = failwith "import_feed"
 
     method downloader = failwith "downloader"
+    method config = config
+    method distro = distro
   end
 
 (** Parse a test-case in driven.xml *)
@@ -125,13 +127,13 @@ let make_driver_test test_elem =
           with Not_found -> `problem "Unexpected feed requested"
       end in
 
-    let fetcher = fake_fetcher config handler in
-    let driver = Fake_system.make_driver ~fetcher config in
+    let distro = Zeroinstall.Distro_impls.generic_distribution config in
+    let fetcher = fake_fetcher config handler distro in
     let ui = Zeroinstall.Gui.Ui (Lazy.force Fake_system.null_ui) in
     let () =
       try
         Fake_system.collect_logging (fun () ->
-          let sels = Fake_system.expect @@ Lwt_main.run @@ Zeroinstall.Helpers.solve_and_download_impls ui driver !reqs `Select_for_run ~refresh:false in
+          let sels = Fake_system.expect @@ Lwt_main.run @@ Zeroinstall.Helpers.solve_and_download_impls ui fetcher !reqs `Select_for_run ~refresh:false in
           if !fails then assert_failure "Expected solve_and_download_impls to fail, but it didn't!";
           let actual_env = ref StringMap.empty in
           let output = trim @@ Fake_system.capture_stdout (fun () ->
@@ -189,10 +191,9 @@ let suite = "driver">::: [
 
     Zeroinstall.Packagekit.packagekit := make_packagekit get_distro_candidates;
     let distro = Distro_impls.generic_distribution config in
-    let fetcher = fake_fetcher config handler in
+    let fetcher = fake_fetcher config handler distro in
 
-    let driver = new Driver.driver config fetcher distro in
-    let (ready, result, _fp) = driver#solve_with_downloads reqs ~force:true ~update_local:true |> Lwt_main.run in
+    let (ready, result, _fp) = Driver.solve_with_downloads fetcher reqs ~force:true ~update_local:true |> Lwt_main.run in
     if not ready then
       failwith @@ Diagnostics.get_failure_reason config result;
 
@@ -206,9 +207,9 @@ let suite = "driver">::: [
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let foo_path = Test_0install.feed_dir +/ "Foo.xml" in
     let reqs = Requirements.({(default_requirements foo_path) with command = None}) in
-    let driver = Fake_system.make_driver config in
+    let fetcher = Fake_system.make_fetcher config in
     let ui = Zeroinstall.Gui.Ui (Lazy.force Fake_system.null_ui) in
-    let sels = Zeroinstall.Helpers.solve_and_download_impls ui driver reqs `Select_for_run ~refresh:false |> Lwt_main.run in
+    let sels = Zeroinstall.Helpers.solve_and_download_impls ui fetcher reqs `Select_for_run ~refresh:false |> Lwt_main.run in
     assert (sels <> None)
   );
 
@@ -234,9 +235,10 @@ let suite = "driver">::: [
         method download_impls = failwith "download_impls"
         method import_feed = failwith "import_feed"
         method downloader = failwith "downloader"
+        method distro = distro
+        method config = config
       end in
-    let driver = new Driver.driver config fetcher distro in
-    let (ready, result, _fp) = driver#solve_with_downloads reqs ~force:false ~update_local:false |> Lwt_main.run in
+    let (ready, result, _fp) = Driver.solve_with_downloads fetcher reqs ~force:false ~update_local:false |> Lwt_main.run in
     assert (ready = true);
 
     let get_ids result =
@@ -248,8 +250,7 @@ let suite = "driver">::: [
     import "Source.xml";
     import "Compiler.xml";
     let reqs = {reqs with Requirements.source = true; command = None} in
-    let driver = new Driver.driver config fetcher distro in
-    let (ready, result, _fp) = driver#solve_with_downloads reqs ~force:false ~update_local:false |> Lwt_main.run in
+    let (ready, result, _fp) = Driver.solve_with_downloads fetcher reqs ~force:false ~update_local:false |> Lwt_main.run in
     assert (ready = true);
     Fake_system.equal_str_lists ["sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"; "sha1=345"] @@ get_ids result;
   );

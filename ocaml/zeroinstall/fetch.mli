@@ -17,4 +17,6 @@ class ['a] fetcher : General.config -> Trust.trust_db -> 'a Downloader.downloade
      * If not trusted, it confirms with the user first, downloading any missing keys first. *)
     method import_feed : [`remote_feed of General.feed_url] -> string -> unit Lwt.t
     method downloader : 'a Downloader.downloader
+    method distro : Distro.distribution
+    method config : General.config
   end

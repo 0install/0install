@@ -28,7 +28,7 @@ let import_feed options arg =
 
   log_info "Importing feed %s" url;
 
-  let fetcher = (Lazy.force options.driver)#fetcher in
+  let fetcher = Lazy.force options.fetcher in
   Lwt_main.run (fetcher#import_feed parsed_url xml)
 
 let handle options flags args =

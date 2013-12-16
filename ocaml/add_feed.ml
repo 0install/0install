@@ -98,9 +98,9 @@ let handle options flags args =
             if missing || (config.network_use <> Offline && FC.is_stale config feed) then (
               print "Downloading feed; please wait...";
               flush stdout;
-              let driver = Lazy.force options.driver in
+              let fetcher = Lazy.force options.fetcher in
               try
-                match driver#download_and_import_feed feed |> Lwt_main.run with
+                match Zeroinstall.Driver.download_and_import_feed fetcher feed |> Lwt_main.run with
                 | `success _ -> print "Done"
                 | `aborted_by_user -> raise (System_exit 1)
                 | `no_update ->

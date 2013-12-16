@@ -367,12 +367,11 @@ class null_ui =
 
 let null_ui = lazy (new null_ui)
 
-let make_driver ?fetcher config =
+let make_fetcher config =
   let distro = Zeroinstall.Distro_impls.generic_distribution config in
   let trust_db = new Zeroinstall.Trust.trust_db config in
   let downloader = new Zeroinstall.Downloader.downloader null_ui ~max_downloads_per_site:2 in
-  let fetcher = fetcher |? lazy (new Zeroinstall.Fetch.fetcher config trust_db downloader distro) in
-  new Zeroinstall.Driver.driver config fetcher distro
+  new Zeroinstall.Fetch.fetcher config trust_db downloader distro
 
 let fake_log =
   object (_ : #Support.Logging.handler)

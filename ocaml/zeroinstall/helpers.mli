@@ -14,7 +14,7 @@ type select_mode = [
 val download_selections :
   include_packages:bool ->
   feed_provider:Feed_provider.feed_provider ->
-  Driver.driver ->
+  Ui.ui_handler Fetch.fetcher ->
   Support.Qdom.element ->
   unit Lwt.t
 
@@ -23,7 +23,7 @@ val download_selections :
     @raise Safe_exception if the solve fails. *)
 val solve_and_download_impls :
   Gui.ui_type ->
-  Driver.driver ->
+  Ui.ui_handler Fetch.fetcher ->
   ?test_callback:(Support.Qdom.element -> string Lwt.t) ->
   Requirements.requirements ->
   select_mode ->

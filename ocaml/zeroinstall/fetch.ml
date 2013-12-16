@@ -750,4 +750,6 @@ class ['a] fetcher config trust_db (downloader:(#Ui.ui_handler as 'a) Downloader
       | (`aborted_by_user | `no_trusted_keys | `replay_attack _) as r -> raise_safe "%s" (string_of_result r)
 
     method downloader = downloader
+    method distro = distro
+    method config = config
   end

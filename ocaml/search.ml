@@ -30,10 +30,10 @@ let handle options flags args =
   | Some mirror ->
       let url = mirror ^ "/search/?q=" ^ Curl.escape (String.concat " " args) in
       log_info "Fetching %s..." url;
-      let driver = Lazy.force options.driver in
+      let fetcher = Lazy.force options.fetcher in
       let switch = Lwt_switch.create () in
       try
-        let result = Lwt_main.run (driver#fetcher#downloader#download ~switch url) in
+        let result = Lwt_main.run (fetcher#downloader#download ~switch url) in
         match result with
         | `aborted_by_user -> ()
         | `network_failure msg -> raise_safe "%s" msg

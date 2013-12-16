@@ -12,7 +12,7 @@ class type gui_ui =
      * [test_callback] is used if the user clicks on the test button in the bug report dialog.
      *)
     method run_solver :
-      Driver.driver ->
+      Ui.ui_handler Fetch.fetcher ->
       ?test_callback:(Support.Qdom.element -> string Lwt.t) ->
       ?systray:bool ->
       [`Download_only | `Select_for_run | `Select_only] ->
@@ -50,7 +50,7 @@ val download_icon : General.config -> _ Downloader.downloader -> Feed_provider.f
 val try_get_gui : General.config -> use_gui:Support.Common.yes_no_maybe -> gui_ui option
 
 (** Download the feed and add it as an extra feed of the interface. *)
-val add_remote_feed : Driver.driver -> General.iface_uri -> [`remote_feed of General.feed_url] -> unit Lwt.t
+val add_remote_feed : Ui.ui_handler Fetch.fetcher -> General.iface_uri -> [`remote_feed of General.feed_url] -> unit Lwt.t
 (** Add a local feed to an interface. *)
 val add_feed : General.config -> General.iface_uri -> [`local_feed of Support.Common.filepath] -> unit
 val remove_feed : General.config -> General.iface_uri -> Feed_url.non_distro_feed -> unit

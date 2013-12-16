@@ -103,12 +103,12 @@ let make_gtk_ui (slave:Python.slave) =
       box#show ();
       result
 
-    method run_solver driver ?test_callback ?systray mode reqs ~refresh =
+    method run_solver fetcher ?test_callback ?systray mode reqs ~refresh =
       let abort_all_downloads () =
         downloads |> StringMap.iter (fun _id dl ->
           Gtk_utils.async dl.Ui.cancel
         ) in
-      let box = Solver_box.run_solver config self trust_db driver ~abort_all_downloads ?test_callback ?systray mode reqs ~refresh in
+      let box = Solver_box.run_solver config self trust_db fetcher ~abort_all_downloads ?test_callback ?systray mode reqs ~refresh in
       solver_boxes <- box :: solver_boxes;
       try_lwt
         box#result

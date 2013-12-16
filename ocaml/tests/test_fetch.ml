@@ -80,8 +80,7 @@ let make_dl_tester () =
 
 let suite = "fetch">::: [
   "download-local">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
-    let driver = Fake_system.make_driver config in
-    let fetcher = driver#fetcher in
+    let fetcher = Fake_system.make_fetcher config in
     download_impls fetcher [];
 
     Fake_system.assert_error_contains "(no download locations given in feed!)"
@@ -161,8 +160,7 @@ let suite = "fetch">::: [
   );
 
   "local-archive">:: Fake_system.with_fake_config (fun (config, fake_system) ->
-    let driver = Fake_system.make_driver config in
-    let fetcher = driver#fetcher in
+    let fetcher = Fake_system.make_fetcher config in
 
     let local_iface = Test_0install.feed_dir +/ "LocalArchive.xml" in
     let root = Q.parse_file config.system local_iface in
@@ -203,7 +201,7 @@ let suite = "fetch">::: [
       ) in
 
     let sels = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None in
-    assert (Zeroinstall.Selections.get_unavailable_selections config ~distro:driver#distro sels <> []);
+    assert (Zeroinstall.Selections.get_unavailable_selections config ~distro:fetcher#distro sels <> []);
 
     check ~error:"Local file '.*tests/IDONTEXIST.tgz' does not exist" "impl2";
     check ~error:"Wrong size for .*/tests/HelloWorld.tgz: feed says 177, but actually 176 bytes" "impl3";
