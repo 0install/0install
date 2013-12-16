@@ -116,7 +116,7 @@ let register_handlers config gui connection =
     let distro = Zeroinstall.Distro_impls.get_host_distribution config in
     let trust_db = new Zeroinstall.Trust.trust_db config in
     let downloader = new Zeroinstall.Downloader.downloader ui ~max_downloads_per_site:2 in
-    new Zeroinstall.Fetch.fetcher config trust_db downloader distro
+    new Zeroinstall.Fetch.fetcher config trust_db distro downloader
   ) in
 
   let do_select = function

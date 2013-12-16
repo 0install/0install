@@ -211,7 +211,7 @@ let handle_bg options flags args =
   let fetcher =
     let distro = Zeroinstall.Distro_impls.get_host_distribution config in
     let downloader = new Zeroinstall.Downloader.downloader (lazy ui) ~max_downloads_per_site:2 in
-    new Zeroinstall.Fetch.fetcher config trust_db downloader distro in
+    new Zeroinstall.Fetch.fetcher config trust_db distro downloader in
 
   match args with
     | ["app"; app] ->
@@ -240,7 +240,7 @@ let handle_bg options flags args =
                 (* Create a new fetcher, attached to the new UI *)
                 let ui = lazy (gui :> Zeroinstall.Ui.ui_handler) in
                 let downloader = new Zeroinstall.Downloader.downloader ui ~max_downloads_per_site:2 in
-                let fetcher = new Zeroinstall.Fetch.fetcher config trust_db downloader distro in
+                let fetcher = new Zeroinstall.Fetch.fetcher config trust_db distro downloader in
                 Support.Utils.finally_do (fun () -> Zeroinstall.Python.cancel_slave () |> Lwt_main.run) () (fun () ->
                   match gui#run_solver fetcher `Download_only reqs ~systray:true ~refresh:true |> Lwt_main.run with
                   | `Aborted_by_user -> raise (System_exit 0)

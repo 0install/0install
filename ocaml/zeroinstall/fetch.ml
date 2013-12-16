@@ -69,7 +69,7 @@ let parse_key_info xml =
 exception Aborted
 exception Try_mirror of string  (* An error where we should try the mirror (i.e. a network problem) *)
 
-class ['a] fetcher config trust_db (downloader:(#Ui.ui_handler as 'a) Downloader.downloader) (distro:Distro.distribution) =
+class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:(#Ui.ui_handler as 'a) Downloader.downloader) =
   let trust_dialog_lock = Lwt_mutex.create () in      (* Only show one trust dialog at a time *)
 
   let key_info_cache = Hashtbl.create 10 in
