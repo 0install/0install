@@ -10,35 +10,8 @@ module U = Support.Utils
 
 external get_terminal_width : unit -> int = "ocaml_0install_get_terminal_width"
 
-type key_vote_type = Good | Bad
-type key_vote = (key_vote_type * string)
-
-type progress = (Int64.t * Int64.t option) Lwt_react.signal
-
-type download = {
-  cancel : unit -> unit Lwt.t;
-  url : string;
-  progress : progress;    (* Must keep a reference to this; if it gets GC'd then updates stop. *)
-  hint : string option;
-}
-
-class type watcher =
-  object
-    method report : 'a. ([<Feed_url.parsed_feed_url] as 'a) -> string -> unit
-    method update : (bool * Solver.result) * Feed_provider.feed_provider -> unit
-  end
-
-class type ui_handler =
-  object
-    method start_monitoring : id:string -> download -> unit Lwt.t
-    method stop_monitoring : id:string -> unit Lwt.t
-    method confirm_keys : [`remote_feed of General.feed_url] -> (Support.Gpg.fingerprint * key_vote list Lwt.t) list -> Support.Gpg.fingerprint list Lwt.t
-    method confirm : string -> [`ok | `cancel] Lwt.t
-    method impl_added_to_store : unit
-  end
-
-class console_ui =
-  let downloads : (string, download) Hashtbl.t = Hashtbl.create 10 in
+class console_ui : Ui.ui_handler =
+  let downloads : (string, Ui.download) Hashtbl.t = Hashtbl.create 10 in
   let disable_progress = ref 0 in     (* [> 0] when we're asking the user a question *)
   let display_thread = ref None in
   let last_updated = ref "" in
@@ -64,7 +37,7 @@ class console_ui =
   (* Select the most interesting download in [downloads] and return its ID. *)
   let find_most_progress () =
     let find_best id dl =
-      let (sofar, _) as progress = Lwt_react.S.value dl.progress in
+      let (sofar, _) as progress = Lwt_react.S.value dl.Ui.progress in
       function
       | Some (_best_id, (best_sofar, _)) as prev_best when Int64.compare sofar best_sofar < 0 -> prev_best
       | _ -> Some (id, progress) in
@@ -95,7 +68,7 @@ class console_ui =
               next_switch_time := now +. 1.0;
             );
             let dl = Hashtbl.find downloads best in
-            let (sofar, total) = Lwt_react.S.value dl.progress in
+            let (sofar, total) = Lwt_react.S.value dl.Ui.progress in
             let progress_str =
               match total with
               | None -> Printf.sprintf "%6s / unknown" (Int64.to_string sofar)  (* (could be bytes or percent) *)
@@ -103,9 +76,9 @@ class console_ui =
             clear ();
             Support.Logging.clear_fn := Some clear;
             if n_downloads = 1 then
-              msg := Printf.sprintf "[one download] %16s (%s)" progress_str dl.url
+              msg := Printf.sprintf "[one download] %16s (%s)" progress_str dl.Ui.url
             else
-              msg := Printf.sprintf "[%d downloads] %16s (%s)" n_downloads progress_str dl.url;
+              msg := Printf.sprintf "[%d downloads] %16s (%s)" n_downloads progress_str dl.Ui.url;
             let max_width = get_terminal_width () in
             if max_width > 0 && String.length !msg > max_width then msg := String.sub !msg 0 max_width;
             prerr_string !msg;
@@ -115,10 +88,10 @@ class console_ui =
       loop () in
     loop () in
 
-  object (self : #ui_handler)
+  object (self)
     method start_monitoring ~id dl =
-      let progress = dl.progress |> React.S.map (fun v -> last_updated := id; v) in
-      Hashtbl.add downloads id ({dl with progress});     (* (store updates to prevent GC) *)
+      let progress = dl.Ui.progress |> React.S.map (fun v -> last_updated := id; v) in
+      Hashtbl.add downloads id ({dl with Ui.progress});     (* (store updates to prevent GC) *)
 
       if !display_thread = None then (
         display_thread := Some (run_display_thread ())
@@ -166,8 +139,8 @@ class console_ui =
             lwt votes = votes in
             if have_multiple_keys then print "%s:" fingerprint;
             votes |> List.iter (function
-              | Good, msg -> print "- %s" msg
-              | Bad, msg -> print "- BAD: %s" msg
+              | Ui.Good, msg -> print "- %s" msg
+              | Ui.Bad, msg -> print "- BAD: %s" msg
             );
             if List.length votes > 0 then shown := true;
             Lwt.return ()
@@ -203,8 +176,8 @@ class console_ui =
     method impl_added_to_store = ()
   end
 
-class batch_ui =
-  object (_ : #ui_handler)
+class batch_ui : Ui.ui_handler =
+  object
     inherit console_ui
 
     method! start_monitoring ~id:_ _dl = Lwt.return ()

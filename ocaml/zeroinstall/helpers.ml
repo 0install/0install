@@ -54,9 +54,9 @@ let make_ui config use_gui : Gui.ui_type =
 
   let make_no_gui () =
     if config.system#isatty Unix.stderr then
-      new Ui.console_ui
+      new Console.console_ui
     else
-      new Ui.batch_ui in
+      new Console.batch_ui in
 
   match use_gui with
   | No -> Gui.Ui (make_no_gui ())

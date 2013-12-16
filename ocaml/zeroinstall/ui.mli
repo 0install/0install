@@ -52,6 +52,3 @@ class type ui_handler =
      * This is used by the GUI to refresh its display. *)
     method impl_added_to_store : unit
   end
-
-class console_ui : ui_handler
-class batch_ui : ui_handler
