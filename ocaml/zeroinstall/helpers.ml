@@ -18,12 +18,6 @@ type select_mode = [
   | `Select_for_run    (* download archives; update stale in background; display "Run" in GUI *)
 ]
 
-(** Ensure all selections are cached, downloading any that are missing. *)
-let download_selections ~include_packages ~feed_provider (fetcher:_ Fetch.fetcher) sels =
-  match_lwt Driver.download_selections fetcher ~include_packages ~feed_provider sels with
-  | `success -> Lwt.return ()
-  | `aborted_by_user -> raise_safe "Aborted by user"
-
 let solve_and_download_impls gui (fetcher:_ Fetch.fetcher) ?test_callback reqs mode ~refresh =
   let config = fetcher#config in
 
@@ -38,12 +32,12 @@ let solve_and_download_impls gui (fetcher:_ Fetch.fetcher) ?test_callback reqs m
       | (false, result, _) -> raise_safe "%s" (Diagnostics.get_failure_reason config result)
       | (true, result, feed_provider) ->
           let sels = result#get_selections in
-          lwt () =
-            match mode with
-            | `Select_only -> Lwt.return ()
-            | `Download_only | `Select_for_run ->
-                download_selections fetcher ~feed_provider ~include_packages:true sels in
-          Lwt.return (Some sels)
+          match mode with
+          | `Select_only -> Lwt.return (Some sels)
+          | `Download_only | `Select_for_run ->
+              match_lwt Driver.download_selections fetcher ~feed_provider ~include_packages:true sels with
+              | `success -> Lwt.return (Some sels)
+              | `aborted_by_user -> Lwt.return None
 
 let make_ui config use_gui : Gui.ui_type =
   let use_gui =

@@ -272,8 +272,9 @@ let handle options flags arg ?test_callback for_op =
           (* Download if missing. Ignore distribution packages, because the version probably won't match exactly. *)
           let fetcher = Lazy.force options.fetcher in
           let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config fetcher#distro in
-          Zeroinstall.Helpers.download_selections ~feed_provider ~include_packages:false fetcher old_sels |> Lwt_main.run;
-          old_sels
+          match Zeroinstall.Driver.download_selections ~feed_provider ~include_packages:false fetcher old_sels |> Lwt_main.run with
+          | `success -> old_sels
+          | `aborted_by_user -> raise_safe "Aborted by user"
         )
       ) in
       maybe_show_sels new_sels;

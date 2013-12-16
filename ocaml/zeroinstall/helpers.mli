@@ -10,14 +10,6 @@ type select_mode = [
   | `Select_for_run    (* download archives; update stale in background; display "Run" in GUI *)
 ]
 
-(** Ensure all selections are cached, downloading any that are missing. *)
-val download_selections :
-  include_packages:bool ->
-  feed_provider:Feed_provider.feed_provider ->
-  Ui.ui_handler Fetch.fetcher ->
-  Support.Qdom.element ->
-  unit Lwt.t
-
 (** Get some selectsions for these requirements.
     Returns [None] if the user cancels.
     @raise Safe_exception if the solve fails. *)
