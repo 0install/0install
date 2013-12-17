@@ -137,11 +137,11 @@ let spawn_background_update config reqs mode =
     *)
 let get_selections options ~refresh ?test_callback reqs mode =
   let config = options.config in
-  let fetcher = Lazy.force options.fetcher in
+  let tools = options.tools in
 
   let select_with_refresh refresh =
     (* This is the slow path: we need to download things before selecting *)
-    H.solve_and_download_impls (Lazy.force options.ui) fetcher ?test_callback reqs mode ~refresh in
+    H.solve_and_download_impls tools#ui tools#fetcher ?test_callback reqs mode ~refresh in
 
   (* Check whether we can run immediately, without downloading anything. This requires
      - the user didn't ask to refresh or show the GUI
@@ -149,17 +149,17 @@ let get_selections options ~refresh ?test_callback reqs mode =
      - we don't need to download any implementations
     If we can run immediately, we might still spawn a background process to check for updates. *)
 
-  if refresh || options.gui = Yes then (
+  if refresh || tools#use_gui = Yes then (
     select_with_refresh refresh
   ) else (
-    let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config fetcher#distro in
+    let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config tools#distro in
     match Zeroinstall.Solver.solve_for config feed_provider reqs with
     | (false, _results) ->
         log_info "Quick solve failed; can't select without updating feeds";
         select_with_refresh true
     | (true, results) ->
         let sels = results#get_selections in
-        if mode = `Select_only || Zeroinstall.Selections.get_unavailable_selections config ~distro:fetcher#distro sels = [] then (
+        if mode = `Select_only || Zeroinstall.Selections.get_unavailable_selections config ~distro:tools#distro sels = [] then (
           (* (in select mode, we only care that we've made a selection, not that we've cached the implementations) *)
 
           let have_stale_feeds = feed_provider#have_stale_feeds in
@@ -202,9 +202,10 @@ let get_selections options ~refresh ?test_callback reqs mode =
     Calls [exit 1] if the user aborts using the GUI. *)
 let handle options flags arg ?test_callback for_op =
   let config = options.config in
+  let tools = options.tools in
 
   let select_opts = {
-    must_select = (for_op = `Select_only) || options.gui = Yes;
+    must_select = (for_op = `Select_only) || tools#use_gui = Yes;
     output = (
       match for_op with   (* Default output style *)
       | `Select_only -> Output_human
@@ -242,7 +243,7 @@ let handle options flags arg ?test_callback for_op =
   let result = resolve_target options.config flags arg in
 
   let get_app_sels path =
-    Zeroinstall.Apps.get_selections_may_update (Lazy.force options.fetcher) options.ui path in
+    Zeroinstall.Apps.get_selections_may_update tools#fetcher (lazy tools#ui) path in
 
   match result with
   | (App (path, old_reqs), reqs) when select_opts.output = Output_human ->
@@ -270,9 +271,8 @@ let handle options flags arg ?test_callback for_op =
       let new_sels = if select_opts.must_select then do_select reqs else (
         if for_op = `Select_only then old_sels else (
           (* Download if missing. Ignore distribution packages, because the version probably won't match exactly. *)
-          let fetcher = Lazy.force options.fetcher in
-          let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config fetcher#distro in
-          match Zeroinstall.Driver.download_selections ~feed_provider ~include_packages:false fetcher old_sels |> Lwt_main.run with
+          let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config tools#distro in
+          match Zeroinstall.Driver.download_selections ~feed_provider ~include_packages:false tools#fetcher old_sels |> Lwt_main.run with
           | `success -> old_sels
           | `aborted_by_user -> raise_safe "Aborted by user"
         )

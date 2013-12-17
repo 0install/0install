@@ -19,7 +19,7 @@ let handle options flags args =
   if args <> [] then raise (Support.Argparse.Usage_error 1);
 
   let gui =
-    match Lazy.force options.ui with
+    match options.tools#ui with
     | Zeroinstall.Gui.Gui gui -> gui
     | Zeroinstall.Gui.Ui _ -> raise_safe "GUI not available" in
   gui#open_cache_explorer |> Lwt_main.run

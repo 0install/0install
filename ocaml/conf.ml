@@ -98,11 +98,12 @@ let show_settings config =
   )
 
 let handle options flags args =
+  let tools = options.tools in
   Support.Argparse.iter_options flags (Common_options.process_common_option options);
   let config = options.config in
   match args with
   | [] ->
-      begin match Lazy.force options.ui with
+      begin match tools#ui with
       | Zeroinstall.Gui.Ui _ -> show_settings config
       | Zeroinstall.Gui.Gui gui -> gui#show_preferences |> Lwt_main.run end
   | [key] -> format_setting config (parse_key key) |> print_endline

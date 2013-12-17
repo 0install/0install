@@ -62,11 +62,19 @@ type zi_option = [
   | `Background
 ]
 
+type tools = <
+  config : Zeroinstall.General.config;
+  ui : Zeroinstall.Gui.ui_type;
+  downloader : Zeroinstall.Downloader.downloader;
+  distro : Zeroinstall.Distro.distribution;
+  fetcher : Zeroinstall.Ui.ui_handler Zeroinstall.Fetch.fetcher;
+  set_use_gui : Support.Common.yes_no_maybe -> unit;
+  use_gui : Support.Common.yes_no_maybe;
+>
+
 type global_settings = {
   config : Zeroinstall.General.config;
-  ui : Zeroinstall.Gui.ui_type Lazy.t;
-  fetcher : Zeroinstall.Ui.ui_handler Zeroinstall.Fetch.fetcher Lazy.t;
-  mutable gui : yes_no_maybe;
+  tools : tools;
   mutable verbosity : int;
 }
 

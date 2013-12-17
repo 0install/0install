@@ -13,6 +13,7 @@ module FeedAttr = Zeroinstall.Constants.FeedAttr
 module U = Support.Utils
 
 let import_feed options arg =
+  let tools = options.tools in
   let system = options.config.system in
 
   if not (system#file_exists arg) then
@@ -28,8 +29,7 @@ let import_feed options arg =
 
   log_info "Importing feed %s" url;
 
-  let fetcher = Lazy.force options.fetcher in
-  Lwt_main.run (fetcher#import_feed parsed_url xml)
+  Lwt_main.run (tools#fetcher#import_feed parsed_url xml)
 
 let handle options flags args =
   Support.Argparse.iter_options flags (function

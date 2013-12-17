@@ -273,25 +273,35 @@ let rec set_of_option_names = function
   | Subgroup group ->
       group |> List.fold_left (fun set (_name, node) -> StringSet.union set (set_of_option_names node)) StringSet.empty
 
-let get_default_options config =
-  let rec options = {
-    config;
-    gui = Maybe;
-    verbosity = 0;
-    ui = lazy (
-      Zeroinstall.Helpers.make_ui config options.gui
-    );
-    fetcher = lazy (
+let make_tools config =
+  let gui = ref Maybe in
+  let ui = lazy (Zeroinstall.Helpers.make_ui config !gui) in
+  let distro = lazy (Zeroinstall.Distro_impls.get_host_distribution config) in
+  let trust_db = lazy (new Zeroinstall.Trust.trust_db config) in
+  let downloader = lazy (new Zeroinstall.Downloader.downloader ~max_downloads_per_site:2) in
+  let fetcher = lazy (
       let ui = lazy (
-        match Lazy.force options.ui with
+        match Lazy.force ui with
         | Zeroinstall.Gui.Gui gui -> (gui :> Zeroinstall.Ui.ui_handler)
         | Zeroinstall.Gui.Ui ui -> ui
       ) in
-      let distro = Zeroinstall.Distro_impls.get_host_distribution config in
-      let trust_db = new Zeroinstall.Trust.trust_db config in
-      let downloader = new Zeroinstall.Downloader.downloader ~max_downloads_per_site:2 in
-      new Zeroinstall.Fetch.fetcher config trust_db distro downloader ui
-    );
+      new Zeroinstall.Fetch.fetcher config (Lazy.force trust_db) (Lazy.force distro) (Lazy.force downloader) ui
+    ) in
+  object (_ : Options.tools)
+    method config = config
+    method ui = Lazy.force ui
+    method distro = Lazy.force distro
+    method downloader = Lazy.force downloader
+    method fetcher = Lazy.force fetcher
+    method set_use_gui value = gui := value
+    method use_gui = !gui
+  end
+
+let get_default_options config =
+  let options = {
+    config;
+    verbosity = 0;
+    tools = make_tools config;
   } in
   options
 

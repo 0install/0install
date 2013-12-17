@@ -146,7 +146,7 @@ let handle options flags args =
       let api_version = min requested_api_version Zeroinstall.About.parsed_version in
 
       let connection = new JC.json_connection ~from_peer:Lwt_io.stdin ~to_peer:Lwt_io.stdout in
-      register_handlers config options.gui connection;
+      register_handlers config options.tools#use_gui connection;
       connection#notify "set-api-version" [`String (V.format_version api_version)] |> Lwt_main.run;
 
       Lwt_main.run connection#run;

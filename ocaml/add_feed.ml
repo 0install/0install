@@ -81,6 +81,7 @@ let edit_feeds_interactive config (mode:[`add | `remove]) feed_url =
 
 let handle options flags args =
   let config = options.config in
+  let tools = options.tools in
   Support.Argparse.iter_options flags (function
     | #common_option as o -> Common_options.process_common_option options o
   );
@@ -98,9 +99,8 @@ let handle options flags args =
             if missing || (config.network_use <> Offline && FC.is_stale config feed) then (
               print "Downloading feed; please wait...";
               flush stdout;
-              let fetcher = Lazy.force options.fetcher in
               try
-                match Zeroinstall.Driver.download_and_import_feed fetcher feed |> Lwt_main.run with
+                match Zeroinstall.Driver.download_and_import_feed tools#fetcher feed |> Lwt_main.run with
                 | `success _ -> print "Done"
                 | `aborted_by_user -> raise (System_exit 1)
                 | `no_update ->

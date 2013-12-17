@@ -68,7 +68,7 @@ let show_help (system:system) valid_options help extra_fn =
 let process_common_option options =
   let config = options.config in
   function
-  | `UseGUI b -> options.gui <- b
+  | `UseGUI b -> options.tools#set_use_gui b
   | `DryRun -> config.dry_run <- true; config.system <- new Zeroinstall.Dry_run.dryrun_system config.system
   | `Verbose -> increase_verbosity options
   | `WithStore store -> add_store options store

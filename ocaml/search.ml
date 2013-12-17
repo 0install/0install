@@ -20,6 +20,7 @@ module Empty = Q.NsQuery(EmptyNS)
 
 let handle options flags args =
   let config = options.config in
+  let tools = options.tools in
   Support.Argparse.iter_options flags (function
     | #common_option as o -> Common_options.process_common_option options o
   );
@@ -30,9 +31,9 @@ let handle options flags args =
   | Some mirror ->
       let url = mirror ^ "/search/?q=" ^ Curl.escape (String.concat " " args) in
       log_info "Fetching %s..." url;
-      let fetcher = Lazy.force options.fetcher in
       let switch = Lwt_switch.create () in
       try
+        let fetcher = tools#fetcher in
         let ui = fetcher#ui in
         let dl, result = fetcher#downloader#download ~switch url in
         ui#monitor dl;

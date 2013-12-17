@@ -60,11 +60,12 @@ let handle_help options flags args =
   | _ -> raise (Support.Argparse.Usage_error 1)
 
 let handle options flags args =
+  let tools = options.tools in
   Support.Argparse.iter_options flags (function
     | #common_option as o -> Common_options.process_common_option options o
   );
   let gui =
-    match Lazy.force options.ui with
+    match tools#ui with
     | Zeroinstall.Gui.Gui gui -> gui
     | Zeroinstall.Gui.Ui _ -> raise_safe "GUI not available" in
   let config = options.config in

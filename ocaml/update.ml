@@ -57,15 +57,15 @@ let check_replacement system = function
           Support.Utils.print system "Warning: interface %s has been replaced by %s" (Zeroinstall.Feed_url.format_url feed.F.url) replacement
 
 let check_for_updates options reqs old_sels =
-  let fetcher = Lazy.force options.fetcher in
-  let new_sels = Zeroinstall.Helpers.solve_and_download_impls (Lazy.force options.ui) fetcher reqs `Download_only ~refresh:true |> Lwt_main.run in
+  let tools = options.tools in
+  let new_sels = Zeroinstall.Helpers.solve_and_download_impls tools#ui tools#fetcher reqs `Download_only ~refresh:true |> Lwt_main.run in
   match new_sels with
   | None -> raise (System_exit 1)   (* Aborted by user *)
   | Some new_sels ->
       let config = options.config in
       let system = config.system in
       let print fmt = Support.Utils.print system fmt in
-      let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider options.config fetcher#distro in
+      let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider options.config tools#distro in
       check_replacement system @@ feed_provider#get_feed (Zeroinstall.Feed_url.master_feed_of_iface reqs.R.interface_uri);
       let root_sel = get_root_sel new_sels in
       let root_version = ZI.get_attribute FeedAttr.version root_sel in
@@ -96,6 +96,7 @@ let check_for_updates options reqs old_sels =
 
 let handle options flags args =
   let config = options.config in
+  let tools = options.tools in
 
   let select_opts = ref [] in
   Support.Argparse.iter_options flags (function
@@ -117,8 +118,7 @@ let handle options flags args =
     | (G.Selections old_sels, reqs) -> ignore @@ check_for_updates options reqs old_sels
     | (G.Interface, reqs) ->
         (* Select once without downloading to get the old values *)
-        let fetcher = Lazy.force options.fetcher in
-        let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config fetcher#distro in
+        let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config tools#distro in
         let (ready, result) = Zeroinstall.Solver.solve_for config feed_provider reqs in
         let old_sels = result#get_selections in
         if not ready then old_sels.Q.child_nodes <- [];
