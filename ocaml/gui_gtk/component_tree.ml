@@ -59,7 +59,7 @@ let walk_tree (model:GTree.tree_store) ~start ~stop fn =
   try walk ~start
   with Stop_walk -> ()
 
-let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_bug ~recalculate ~original_selections ~feed_provider ~results =
+let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_bug ~recalculate ~watcher =
   (* Model *)
   let columns = new GTree.column_list in
   let implementation = columns#add Gobject.Data.caml in
@@ -114,7 +114,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
         if col = component_vc#get_oid then (
           Printf.sprintf "Full name: %s" iface
         ) else if col = summary_vc#get_oid then (
-          match !feed_provider#get_feed (Zeroinstall.Feed_url.master_feed_of_iface iface) with
+          match watcher#feed_provider#get_feed (Zeroinstall.Feed_url.master_feed_of_iface iface) with
           | Some (main_feed, _overrides) -> F.get_description config.langs main_feed |> default "-" |> first_para
           | None -> "-"
         ) else if col = action_vc#get_oid then (
@@ -124,7 +124,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
           | Some stability_str, Some impl, Some version ->
               if col = version_vc#get_oid then (
                 let current = Printf.sprintf "Currently preferred version: %s (%s)" version stability_str in
-                let prev_version = StringMap.find iface original_selections
+                let prev_version = StringMap.find iface watcher#original_selections
                   |> pipe_some (fun sel -> ZI.get_attribute_opt FeedAttr.version sel) in
                 match prev_version with
                 | Some prev_version when version <> prev_version ->
@@ -153,7 +153,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
   let module B = GdkEvent.Button in
   let show_menu row bev =
     let iface = model#get ~row ~column:interface_uri in
-    let have_source = Zeroinstall.Gui.have_source_for !feed_provider iface in
+    let have_source = Zeroinstall.Gui.have_source_for watcher#feed_provider iface in
     let menu = GMenu.menu () in
     let packing = menu#add in
 
@@ -169,7 +169,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
     if have_source then (
       let compile ~autocompile () =
         Gtk_utils.async ~parent (fun () ->
-          lwt () = Zeroinstall.Gui.compile config !feed_provider iface ~autocompile in
+          lwt () = Zeroinstall.Gui.compile config watcher#feed_provider iface ~autocompile in
           recalculate ~force:false;
           Lwt.return ()
         ) in
@@ -210,8 +210,8 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
   let default_icon = view#misc#render_icon ~size:`SMALL_TOOLBAR `EXECUTE in
 
   let rec update () =
-    let (_ready, new_results) = !results in
-    let feed_provider = !feed_provider in
+    let (_ready, new_results) = watcher#results in
+    let feed_provider = watcher#feed_provider in
 
     let rec process_tree parent (uri, details) =
       let (name, summary, feed_imports) =
@@ -250,7 +250,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
                 match user_stability with
                 | Some s -> String.uppercase (F.format_stability s)
                 | None -> F.get_attr_ex FeedAttr.stability impl in
-              let prev_version = StringMap.find uri original_selections
+              let prev_version = StringMap.find uri watcher#original_selections
                 |> pipe_some (fun old_sel ->
                   let old_version = ZI.get_attribute FeedAttr.version old_sel in
                   if old_version = version then None

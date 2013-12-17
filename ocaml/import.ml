@@ -29,7 +29,7 @@ let import_feed options arg =
 
   log_info "Importing feed %s" url;
 
-  Lwt_main.run (tools#fetcher#import_feed parsed_url xml)
+  Lwt_main.run ((tools#make_fetcher tools#ui#watcher)#import_feed parsed_url xml)
 
 let handle options flags args =
   Support.Argparse.iter_options flags (function

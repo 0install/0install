@@ -32,6 +32,7 @@ Launcher
 Manifest
 Packagekit
 Packagekit_interfaces
+Progress
 Python
 Recipe
 Requirements

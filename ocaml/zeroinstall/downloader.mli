@@ -32,14 +32,18 @@ val interceptor :
    [ `network_failure of string | `redirect of string | `success ] Lwt.t)
   option ref
 
-class downloader : max_downloads_per_site:int ->
-  object
-    method download : 'a.
+type monitor = download -> unit
+
+type downloader =
+  < download : 'b.
       switch:Lwt_switch.t ->
       ?modification_time:float ->
       ?if_slow:(unit Lazy.t) ->
       ?size:Int64.t ->
       ?start_offset:Int64.t ->
-      ?hint:([< Feed_url.parsed_feed_url] as 'a) ->
-      string -> (download * download_result Lwt.t)
-  end
+      ?hint:([< Feed_url.parsed_feed_url] as 'b) ->
+      string -> download_result Lwt.t >
+
+type download_pool = monitor -> downloader
+
+val make_pool : max_downloads_per_site:int -> download_pool

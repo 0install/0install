@@ -4,40 +4,10 @@
 
 (** Manage the GUI sub-process. *)
 
-class type gui_ui =
-  object
-    inherit Ui.ui_handler
-
-    (** Run the GUI to choose and download a set of implementations
-     * [test_callback] is used if the user clicks on the test button in the bug report dialog.
-     *)
-    method run_solver :
-      Distro.distribution -> Downloader.downloader ->
-      ?test_callback:(Support.Qdom.element -> string Lwt.t) ->
-      ?systray:bool ->
-      [`Download_only | `Select_for_run | `Select_only] ->
-      Requirements.requirements ->
-      refresh:bool ->
-      [`Aborted_by_user | `Success of Support.Qdom.element ] Lwt.t
-    
-    (** Display the Preferences dialog. Resolves when dialog is closed. *)
-    method show_preferences : unit Lwt.t
-
-    method open_app_list_box : unit Lwt.t
-
-    method open_add_box : General.feed_url -> unit Lwt.t
-
-    method open_cache_explorer : unit Lwt.t
-  end
-
-type ui_type =
-  | Gui of gui_ui
-  | Ui of Ui.ui_handler
-
 (** The GUI plugin registers itself here. *)
-val register_plugin : (General.config -> Support.Common.yes_no_maybe -> gui_ui option) -> unit
+val register_plugin : (General.config -> Support.Common.yes_no_maybe -> Ui.ui_handler option) -> unit
 
-val download_icon : General.config -> Downloader.downloader -> Ui.ui_handler -> Feed_provider.feed_provider -> Feed_url.non_distro_feed -> unit Lwt.t
+val download_icon : Fetch.fetcher -> Feed_provider.feed_provider -> Feed_url.non_distro_feed -> unit Lwt.t
 
 (** Should we use the GUI?
  * The input says what the user requested:
@@ -47,10 +17,13 @@ val download_icon : General.config -> Downloader.downloader -> Ui.ui_handler -> 
  *
  * Returns a suitable GUI handler if so, or None if we should use a non-GUI handler.
  *)
-val try_get_gui : General.config -> use_gui:Support.Common.yes_no_maybe -> gui_ui option
+val try_get_gui : General.config -> use_gui:Support.Common.yes_no_maybe -> Ui.ui_handler option
 
 (** Download the feed and add it as an extra feed of the interface. *)
-val add_remote_feed : Ui.ui_handler Fetch.fetcher -> General.iface_uri -> [`remote_feed of General.feed_url] -> unit Lwt.t
+val add_remote_feed :
+  General.config ->
+  Fetch.fetcher ->
+  General.iface_uri -> [`remote_feed of General.feed_url] -> unit Lwt.t
 (** Add a local feed to an interface. *)
 val add_feed : General.config -> General.iface_uri -> [`local_feed of Support.Common.filepath] -> unit
 val remove_feed : General.config -> General.iface_uri -> Feed_url.non_distro_feed -> unit

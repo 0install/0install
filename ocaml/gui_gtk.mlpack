@@ -5,6 +5,7 @@ Component_box
 Component_tree
 Gtk_utils
 Gui_gtk_plugin
+Gui_progress
 Help_box
 Icon_cache
 Limiter

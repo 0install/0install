@@ -141,7 +141,7 @@ let get_selections options ~refresh ?test_callback reqs mode =
 
   let select_with_refresh refresh =
     (* This is the slow path: we need to download things before selecting *)
-    H.solve_and_download_impls tools#ui tools#fetcher ?test_callback reqs mode ~refresh in
+    H.solve_and_download_impls tools ?test_callback reqs mode ~refresh in
 
   (* Check whether we can run immediately, without downloading anything. This requires
      - the user didn't ask to refresh or show the GUI
@@ -272,7 +272,8 @@ let handle options flags arg ?test_callback for_op =
         if for_op = `Select_only then old_sels else (
           (* Download if missing. Ignore distribution packages, because the version probably won't match exactly. *)
           let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config tools#distro in
-          match Zeroinstall.Driver.download_selections ~feed_provider ~include_packages:false tools#fetcher old_sels |> Lwt_main.run with
+          let fetcher = tools#make_fetcher tools#ui#watcher in
+          match Zeroinstall.Driver.download_selections ~feed_provider ~include_packages:false config tools#distro fetcher old_sels |> Lwt_main.run with
           | `success -> old_sels
           | `aborted_by_user -> raise_safe "Aborted by user"
         )

@@ -4,34 +4,30 @@
 
 (** Common types for user interface callbacks *)
 
-type key_vote_type = Good | Bad
-type key_vote = (key_vote_type * string)
-
-(** Used to report progress during a solve *)
-class type watcher =
-  object
-    (* An error ocurred (probably a failure to download something). *)
-    method report : 'a. ([<Feed_url.parsed_feed_url] as 'a) -> string -> unit
-
-    (* Updates the latest solution. If the first argument is [true] then the solve is
-     * usable (although it may improve if you wait). *)
-    method update : (bool * Solver.result) * Feed_provider.feed_provider -> unit
-  end
-
 class type ui_handler =
   object
-    (** A new download has been added (may still be queued). *)
-    method monitor : Downloader.download -> unit
+    (** Choose (and possibly download) a set of implementations.
+     * @param test_callback is used if the user clicks on the test button in the bug report dialog.
+     * @param systray is used during background updates - just show an icon in the systray if possible
+     *)
+    method run_solver :
+      < config : General.config; distro : Distro.distribution; make_fetcher : Progress.watcher -> Fetch.fetcher; .. > ->
+      ?test_callback:(Support.Qdom.element -> string Lwt.t) ->
+      ?systray:bool ->
+      [`Download_only | `Select_for_run | `Select_only] ->
+      Requirements.requirements ->
+      refresh:bool ->
+      [`Aborted_by_user | `Success of Support.Qdom.element ] Lwt.t
+    
+    (** Display the Preferences dialog. Resolves when dialog is closed.
+     * @return None if we don't have a GUI available. *)
+    method show_preferences : unit Lwt.t option
 
-    (** Ask the user to confirm they trust at least one of the signatures on this feed.
-     * @param key_info a list of fingerprints and their (eventual) votes
-     * Return the list of fingerprints the user wants to trust. *)
-    method confirm_keys : [`remote_feed of General.feed_url] -> (Support.Gpg.fingerprint * key_vote list Lwt.t) list -> Support.Gpg.fingerprint list Lwt.t
+    method open_app_list_box : unit Lwt.t
 
-    (** Display a confirmation request *)
-    method confirm : string -> [`ok | `cancel] Lwt.t
+    method open_add_box : General.feed_url -> unit Lwt.t
 
-    (** Called each time a new implementation is added to the cache.
-     * This is used by the GUI to refresh its display. *)
-    method impl_added_to_store : unit
+    method open_cache_explorer : unit Lwt.t
+
+    method watcher : Progress.watcher
   end

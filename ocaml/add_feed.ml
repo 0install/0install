@@ -100,7 +100,8 @@ let handle options flags args =
               print "Downloading feed; please wait...";
               flush stdout;
               try
-                match Zeroinstall.Driver.download_and_import_feed tools#fetcher feed |> Lwt_main.run with
+                let fetcher = tools#make_fetcher tools#ui#watcher in
+                match Zeroinstall.Driver.download_and_import_feed fetcher feed |> Lwt_main.run with
                 | `success _ -> print "Done"
                 | `aborted_by_user -> raise (System_exit 1)
                 | `no_update ->

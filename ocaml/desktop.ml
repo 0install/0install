@@ -64,10 +64,7 @@ let handle options flags args =
   Support.Argparse.iter_options flags (function
     | #common_option as o -> Common_options.process_common_option options o
   );
-  let gui =
-    match tools#ui with
-    | Zeroinstall.Gui.Gui gui -> gui
-    | Zeroinstall.Gui.Ui _ -> raise_safe "GUI not available" in
+  let gui = tools#ui in
   let config = options.config in
 
   Zeroinstall.Python.register_handler "show-help" (function

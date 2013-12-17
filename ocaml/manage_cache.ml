@@ -7,6 +7,8 @@
 open Options
 open Support.Common
 
+let () = ignore on_windows
+
 module F = Zeroinstall.Feed
 module FC = Zeroinstall.Feed_cache
 module P = Zeroinstall.Python
@@ -18,8 +20,4 @@ let handle options flags args =
   );
   if args <> [] then raise (Support.Argparse.Usage_error 1);
 
-  let gui =
-    match options.tools#ui with
-    | Zeroinstall.Gui.Gui gui -> gui
-    | Zeroinstall.Gui.Ui _ -> raise_safe "GUI not available" in
-  gui#open_cache_explorer |> Lwt_main.run
+  options.tools#ui#open_cache_explorer |> Lwt_main.run

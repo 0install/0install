@@ -20,29 +20,6 @@ let gui_plugin = ref None
 let register_plugin fn =
   gui_plugin := Some fn
 
-class type gui_ui =
-  object
-    inherit Ui.ui_handler
-    
-    method run_solver :
-      Distro.distribution -> Downloader.downloader ->
-      ?test_callback:(Support.Qdom.element -> string Lwt.t) ->
-      ?systray:bool ->
-      [`Download_only | `Select_for_run | `Select_only] ->
-      Requirements.requirements ->
-      refresh:bool ->
-      [`Aborted_by_user | `Success of Support.Qdom.element ] Lwt.t
-
-    method show_preferences : unit Lwt.t
-    method open_app_list_box : unit Lwt.t
-    method open_add_box : General.feed_url -> unit Lwt.t
-    method open_cache_explorer : unit Lwt.t
-  end
-
-type ui_type =
-  | Gui of gui_ui
-  | Ui of Ui.ui_handler
-
 let get_impl (feed_provider:Feed_provider.feed_provider) sel =
   let {Feed.id; Feed.feed = from_feed} = Selections.get_id sel in
 
@@ -178,20 +155,11 @@ let list_impls (results:Solver.result) iface =
 
 (** Download an icon for this feed and add it to the
     icon cache. If the feed has no icon do nothing. *)
-let download_icon config (downloader:Downloader.downloader) (ui:Ui.ui_handler) (feed_provider:Feed_provider.feed_provider) parsed_url =
+let download_icon (fetcher:Fetch.fetcher) (feed_provider:Feed_provider.feed_provider) parsed_url =
   let feed_url = Feed_url.format_url parsed_url in
   log_debug "download_icon %s" feed_url;
 
   let parsed_url = Feed_url.parse_non_distro feed_url in
-  let system = config.system in
-
-  let modification_time =
-    match Feed_cache.get_cached_icon_path config parsed_url with
-    | None -> None
-    | Some existing_icon ->
-        match system#stat existing_icon with
-        | None -> None
-        | Some info -> Some info.Unix.st_mtime in
 
   let icon_url =
     match feed_provider#get_feed parsed_url with
@@ -211,22 +179,7 @@ let download_icon config (downloader:Downloader.downloader) (ui:Ui.ui_handler) (
   match icon_url with
   | None -> log_info "No PNG icons found in %s" feed_url; Lwt.return ()
   | Some href ->
-      let switch = Lwt_switch.create () in
-      try_lwt
-        let dl, result = downloader#download ~switch ?modification_time ~hint:parsed_url href in
-        ui#monitor dl;
-        match_lwt result with
-        | `network_failure msg -> raise_safe "%s" msg
-        | `aborted_by_user -> Lwt.return ()
-        | `tmpfile tmpfile ->
-            let icons_cache = Basedir.save_path system cache_icons config.basedirs.Basedir.cache in
-            let icon_file = icons_cache +/ Escape.escape feed_url in
-            tmpfile |> system#with_open_in [Open_rdonly;Open_binary] (fun ic ->
-              icon_file |> system#atomic_write [Open_wronly;Open_binary] ~mode:0o644 (U.copy_channel ic)
-            );
-            Lwt.return ()
-      with Downloader.Unmodified -> Lwt.return ()
-      finally Lwt_switch.turn_off switch
+      fetcher#download_icon parsed_url href
 
 let add_feed config iface feed_url =
   let (`remote_feed url | `local_feed url) = feed_url in
@@ -247,10 +200,10 @@ let add_feed config iface feed_url =
       );
   | feed_for -> raise_safe "This is not a feed for '%s'.\nOnly for:\n%s" iface (String.concat "\n" feed_for)
 
-let add_remote_feed fetcher iface (feed_url:[`remote_feed of feed_url]) =
+let add_remote_feed config fetcher iface (feed_url:[`remote_feed of feed_url]) =
   match_lwt Driver.download_and_import_feed fetcher feed_url with
   | `aborted_by_user -> Lwt.return ()
-  | `success _ | `no_update -> add_feed fetcher#config iface feed_url; Lwt.return ()
+  | `success _ | `no_update -> add_feed config iface feed_url; Lwt.return ()
 
 let remove_feed config iface feed_url =
   let iface_config = Feed_cache.load_iface_config config iface in

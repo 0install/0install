@@ -336,7 +336,7 @@ class virtual distribution config =
             packagekit#check_for_candidates package_names
           ) else Lwt.return ()
 
-    method install_distro_packages (ui:Ui.ui_handler) typ items : [ `ok | `cancel ] Lwt.t =
+    method install_distro_packages (ui:Progress.watcher) typ items : [ `ok | `cancel ] Lwt.t =
       match typ with
       | "packagekit" ->
           begin match_lwt packagekit#install_packages ui items with
@@ -367,7 +367,7 @@ let is_installed config (distro:distribution) elem =
           | None -> true      (* quick-test-file exists and we don't care about the time *)
           | Some required_mtime -> (Int64.of_float info.Unix.st_mtime) = Int64.of_string required_mtime
 
-let install_distro_packages (distro:distribution) (ui:#Ui.ui_handler) impls : [ `ok | `cancel ] Lwt.t =
+let install_distro_packages (distro:distribution) (ui:#Progress.watcher) impls : [ `ok | `cancel ] Lwt.t =
   let groups = ref StringMap.empty in
   impls |> List.iter (fun impl ->
     match impl.Feed.impl_type with
@@ -382,7 +382,7 @@ let install_distro_packages (distro:distribution) (ui:#Ui.ui_handler) impls : [ 
   let rec loop = function
     | [] -> Lwt.return `ok
     | (typ, items) :: groups ->
-        match_lwt distro#install_distro_packages (ui :> Ui.ui_handler) typ items with
+        match_lwt distro#install_distro_packages (ui :> Progress.watcher) typ items with
         | `ok -> loop groups
         | `cancel -> Lwt.return `cancel in
   !groups |> StringMap.bindings |> loop

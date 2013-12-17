@@ -41,20 +41,13 @@ module DownloadMap = Map.Make(DownloadElt)
 
 let get_values map = DownloadMap.fold (fun _key value xs -> value :: xs) map []
 
-let solve_with_downloads fetcher ?(watcher:Ui.watcher option) requirements ~force ~update_local =
-  let config = fetcher#config in
-  let distro = fetcher#distro in
+let solve_with_downloads config distro fetcher ~(watcher:#Progress.watcher) requirements ~force ~update_local =
   let force = ref force in
   let seen = ref DownloadSet.empty in
   let downloads_in_progress = ref DownloadMap.empty in
 
   let already_seen url = DownloadSet.mem (url :> Feed_url.parsed_feed_url) !seen in
   let forget_feed url = seen := DownloadSet.remove url !seen in
-
-  let report_problem feed_url msg =
-    match watcher with
-    | Some watcher -> watcher#report feed_url msg
-    | None -> log_warning "Feed %s: %s" (Feed_url.format_url feed_url) msg in
 
   (* There are three cases:
      1. We want to run immediately if possible. If not, download all the information we can.
@@ -77,7 +70,7 @@ let solve_with_downloads fetcher ?(watcher:Ui.watcher option) requirements ~forc
         lwt fn = download in
         Lwt.return (url, fn)
       with Safe_exception (msg, _) ->
-        report_problem url msg;
+        watcher#report url msg;
         Lwt.return (url, fun () -> ()) in
     downloads_in_progress := DownloadMap.add url wrapped !downloads_in_progress
     in
@@ -88,7 +81,7 @@ let solve_with_downloads fetcher ?(watcher:Ui.watcher option) requirements ~forc
       (* (we are now running in the main thread) *)
       match result with
       | `problem (msg, next_update) -> (
-          report_problem f msg;
+          watcher#report f msg;
           match next_update with
           | None -> ()
           | Some next -> handle_download f next
@@ -112,10 +105,7 @@ let solve_with_downloads fetcher ?(watcher:Ui.watcher option) requirements ~forc
     (* Called once at the start, and once for every feed that downloads (or fails to download). *)
     let result = Solver.solve_for config feed_provider requirements in
 
-    let () =
-      match watcher with
-      | Some watcher -> watcher#update (result, feed_provider)
-      | None -> () in
+    watcher#update (result, feed_provider);
 
     match result with
     | (true, _) when try_quick_exit ->
@@ -167,9 +157,9 @@ let solve_with_downloads fetcher ?(watcher:Ui.watcher option) requirements ~forc
   lwt (ready, result) = loop ~try_quick_exit:(not (!force || update_local)) in
   Lwt.return (ready, result, feed_provider)
 
-let quick_solve fetcher reqs =
-  let config = fetcher#config in
-  let distro = fetcher#distro in
+let quick_solve tools reqs =
+  let config = tools#config in
+  let distro = tools#distro in
   let feed_provider = new Feed_provider_impl.feed_provider config distro in
   match Solver.solve_for config feed_provider reqs with
   | (true, results) ->
@@ -214,9 +204,7 @@ let download_and_import_feed fetcher url =
 (** Ensure all selections are cached, downloading any that are missing.
     If [include_packages] is given then distribution packages are also installed, otherwise
     they are ignored. *)
-let download_selections fetcher ~include_packages ~(feed_provider:Feed_provider.feed_provider) sels : [ `success | `aborted_by_user ] Lwt.t =
-  let config = fetcher#config in
-  let distro = fetcher#distro in
+let download_selections config distro fetcher ~include_packages ~(feed_provider:Feed_provider.feed_provider) sels : [ `success | `aborted_by_user ] Lwt.t =
   let missing =
     let maybe_distro = if include_packages then Some distro else None in
     Selections.get_unavailable_selections config ?distro:maybe_distro sels in

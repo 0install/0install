@@ -7,7 +7,7 @@
 open Support.Common
 open Zeroinstall.General
 
-module Ui = Zeroinstall.Ui
+module Progress = Zeroinstall.Progress
 module Python = Zeroinstall.Python
 module Trust = Zeroinstall.Trust
 module G = Support.Gpg
@@ -31,8 +31,8 @@ let pretty_fp fingerprint =
 let make_hint vote hint_text =
   let stock =
     match vote with
-    | Ui.Good -> `YES
-    | Ui.Bad -> `DIALOG_WARNING in
+    | Progress.Good -> `YES
+    | Progress.Bad -> `DIALOG_WARNING in
   let hint_icon = GMisc.image ~stock ~icon_size:`BUTTON ~xalign:0.0 ~yalign:0.0 () in
   let hint = left hint_text ~line_wrap:true () in
   let hint_hbox = GPack.hbox ~homogeneous:false ~spacing:4 () in
@@ -46,7 +46,7 @@ let make_hints_area result hints =
   let add_hints hints =
     if Lwt.state result = Lwt.Sleep then (
       let hints =
-        if hints = [] then [(Ui.Bad, "Warning: Nothing known about this key!")] else hints in
+        if hints = [] then [(Progress.Bad, "Warning: Nothing known about this key!")] else hints in
       hints |> List.iter (fun (vote, msg) ->
         box#pack ~expand:false ~fill:true (make_hint vote msg :> GObj.widget)
       )
@@ -114,7 +114,7 @@ let confirm_unknown_keys ~parent to_trust valid_sigs =
     | Lwt.Fail _ | Lwt.Sleep -> true  (* Still waiting => unknown *)
     | Lwt.Return hints ->
         (* Unknown if we didn't get any Good votes *)
-        not (List.exists (fun (vote, _msg) -> vote = Ui.Good) hints)
+        not (List.exists (fun (vote, _msg) -> vote = Progress.Good) hints)
   ) in
   let confirm message =
     let result, set_result = Lwt.wait () in

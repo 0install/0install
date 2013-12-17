@@ -10,7 +10,7 @@
 (** Find the best selections for these requirements and return them if available without downloading. 
  * Returns None if we need to refresh feeds or download any implementations. *)
 val quick_solve :
-  Ui.ui_handler Fetch.fetcher ->
+  < config : General.config; distro : Distro.distribution; .. > ->
   Requirements.requirements -> Solver.Qdom.element option
 
 (** Run the solver, then download any feeds that are missing or that need to be
@@ -27,8 +27,8 @@ val quick_solve :
             provider used (which will have cached all the feeds used in the solve).
     *)
 val solve_with_downloads :
-  Ui.ui_handler Fetch.fetcher ->
-  ?watcher:Ui.watcher ->
+  General.config -> Distro.distribution -> Fetch.fetcher ->
+  watcher:#Progress.watcher ->
   Requirements.requirements ->
   force:bool ->
   update_local:bool ->
@@ -37,7 +37,7 @@ val solve_with_downloads :
 (** Convenience wrapper for [fetcher#download_and_import_feed] that just gives the final result.
  * If the mirror replies first, but the primary succeeds, we return the primary. *)
 val download_and_import_feed :
-  Ui.ui_handler Fetch.fetcher ->
+  Fetch.fetcher ->
   [ `remote_feed of General.feed_url ] ->
   [ `aborted_by_user | `no_update | `success of Support.Qdom.element ]
   Lwt.t
@@ -47,7 +47,7 @@ val download_and_import_feed :
  * @param feed_provider it's more efficient to reuse the provider returned by [solve_with_downloads], if possible
  *)
 val download_selections :
-  Ui.ui_handler Fetch.fetcher ->
+  General.config -> Distro.distribution -> Fetch.fetcher ->
   include_packages:bool ->
   feed_provider:Feed_provider.feed_provider ->
   Support.Qdom.element -> [ `aborted_by_user | `success ] Lwt.t

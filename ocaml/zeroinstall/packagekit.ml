@@ -23,7 +23,7 @@ class type packagekit =
     method is_available : bool Lwt.t
     method get_impls : string -> package_info list
     method check_for_candidates : string list -> unit Lwt.t
-    method install_packages : Ui.ui_handler -> (Feed.implementation * Feed.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
+    method install_packages : Progress.watcher -> (Feed.implementation * Feed.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
   end
 
 (** PackageKit refuses to process more than 100 requests per transaction, so never ask for more than this in a single request. *)
@@ -122,7 +122,7 @@ let rec get_total acc = function
   | (_impl, {Feed.distro_size = None; _}) :: _ -> None
 
 (** Install distribution packages. *)
-let install (ui:Ui.ui_handler) pk items =
+let install (ui:Progress.watcher) pk items =
   let packagekit_ids = items |> List.map (fun (_impl, rm) -> get_packagekit_id rm) in
   let total_size = get_total Int64.zero items in
   let finished, set_finished = Lwt_react.S.create false in
@@ -388,7 +388,7 @@ let packagekit = ref (fun config ->
             log_warning ~ex "Error querying PackageKit";
             Lwt.return ()
 
-    method install_packages (ui:Ui.ui_handler) items : [ `ok | `cancel ] Lwt.t =
+    method install_packages (ui:Progress.watcher) items : [ `ok | `cancel ] Lwt.t =
       lwt response =
         let packagekit_ids = items |> List.map (fun (_impl, rm) -> get_packagekit_id rm) in
         ui#confirm (

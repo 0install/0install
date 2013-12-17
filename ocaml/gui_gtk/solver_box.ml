@@ -11,7 +11,7 @@ module Feed_url = Zeroinstall.Feed_url
 module Driver = Zeroinstall.Driver
 module Requirements = Zeroinstall.Requirements
 module U = Support.Utils
-module Ui = Zeroinstall.Ui
+module Progress = Zeroinstall.Progress
 module Downloader = Zeroinstall.Downloader
 
 let main_window_help = Help_box.create "0install Help" [
@@ -62,8 +62,10 @@ class type solver_box =
     method recalculate : unit
     method result : [`Aborted_by_user | `Success of Support.Qdom.element ] Lwt.t
     method ensure_main_window : GWindow.window_skel Lwt.t
+    method update : unit
     method update_download_status : n_completed_downloads:int -> size_completed_downloads:Int64.t -> Downloader.download list -> unit
     method impl_added_to_store : unit
+    method report_error : exn -> unit
   end
 
 type widgets = {
@@ -136,25 +138,16 @@ let make_dialog opt_message mode ~systray =
 
   {dialog; refresh_button; progress_area; stop_button; ok_button; swin; progress_bar; systray_icon}
 
-let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db fetcher ~abort_all_downloads ?test_callback ?(systray=false) mode reqs ~refresh : solver_box =
+let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false) mode reqs ~refresh watcher : solver_box =
+  let config = tools#config in
   let refresh = ref refresh in
   let component_boxes = ref StringMap.empty in
 
-  let feed_provider = ref (new Zeroinstall.Feed_provider_impl.feed_provider config fetcher#distro) in
-
-  let original_solve = Zeroinstall.Solver.solve_for config !feed_provider reqs in
-  let original_selections =
-    match original_solve with
-    | (false, _) -> StringMap.empty
-    | (true, results) -> Zeroinstall.Selections.make_selection_map results#get_selections in
-
-  let results = ref original_solve in
-
   let report_bug iface =
     let run_test = test_callback |> pipe_some (fun test_callback ->
-      Some (fun () -> Zeroinstall.Gui.run_test config fetcher#distro test_callback !results)
+      Some (fun () -> Zeroinstall.Gui.run_test config tools#distro test_callback watcher#results)
     ) in
-    Bug_report_box.create ?run_test ?last_error:!Alert_box.last_error config ~iface ~results:!results in
+    Bug_report_box.create ?run_test ?last_error:!Alert_box.last_error config ~iface ~results:watcher#results in
 
   let need_recalculate = ref (Lwt.wait ()) in
   let recalculate ~force =
@@ -162,7 +155,8 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db fetcher ~abort_all_d
     let thread, waker = !need_recalculate in
     if Lwt.state thread = Lwt.Sleep then Lwt.wakeup waker () in
 
-  let icon_cache = Icon_cache.create ~downloader:fetcher#downloader config (gui :> Ui.ui_handler) in
+  let fetcher = tools#make_fetcher (watcher :> Zeroinstall.Progress.watcher) in
+  let icon_cache = Icon_cache.create ~fetcher config in
 
   let user_response, set_user_response = Lwt.wait () in
 
@@ -170,11 +164,11 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db fetcher ~abort_all_d
 
   let dialog = widgets.dialog in
   widgets.refresh_button#connect#clicked ~callback:(fun () -> recalculate ~force:true) |> ignore;
-  widgets.stop_button#connect#clicked ~callback:abort_all_downloads |> ignore;
+  widgets.stop_button#connect#clicked ~callback:(fun () -> watcher#abort_all_downloads) |> ignore;
 
   widgets.dialog#connect#response ~callback:(function
     | `HELP -> main_window_help#display
-    | `PREFERENCES -> Gtk_utils.async ~parent:dialog (fun () -> gui#show_preferences)
+    | `PREFERENCES -> Gtk_utils.async ~parent:dialog show_preferences
     | `DELETE_EVENT | `CANCEL ->
         Lwt.wakeup set_user_response `aborted_by_user
   ) |> ignore;
@@ -210,14 +204,14 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db fetcher ~abort_all_d
     match StringMap.find iface !component_boxes with
     | Some box -> box#dialog#present ()
     | None ->
-        let box = Component_box.create config trust_db fetcher reqs iface ~recalculate ~select_versions_tab ~feed_provider ~results in
+        let box = Component_box.create tools ~trust_db reqs iface ~recalculate ~select_versions_tab ~watcher in
         component_boxes := !component_boxes |> StringMap.add iface box;
         box#dialog#connect#destroy ~callback:(fun () -> component_boxes := !component_boxes |> StringMap.remove iface) |> ignore;
         box#update;
         box#dialog#show () in
 
   let component_tree = Component_tree.build_tree_view config ~parent:dialog ~packing:widgets.swin#add
-    ~icon_cache ~show_component ~report_bug ~recalculate ~feed_provider ~original_selections ~results in
+    ~icon_cache ~show_component ~report_bug ~recalculate ~watcher in
   component_tree#set_update_icons !refresh;
 
   (* Handling the Select/Download/Run toggle button *)
@@ -226,21 +220,21 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db fetcher ~abort_all_d
     let on_success () =
       (* Downloads done - check button is still pressed *)
       if widgets.ok_button#active then (
-        abort_all_downloads ();
+        watcher#abort_all_downloads;
         Lwt.wakeup set_user_response `ok;
       );
       Lwt.return () in
-    let (ready, results) = !results in
+    let (ready, results) = watcher#results in
     if widgets.ok_button#active && ready then (
       (* Start the downloads; run when complete *)
-      abort_all_downloads ();
+      watcher#abort_all_downloads;
       Gtk_utils.async ~parent:dialog (fun () ->
         try_lwt
           match mode with
           | `Select_only -> on_success ()
           | `Download_only | `Select_for_run ->
               let sels = results#get_selections in
-              match_lwt Driver.download_selections fetcher ~include_packages:true ~feed_provider:!feed_provider sels with
+              match_lwt Driver.download_selections config tools#distro fetcher ~include_packages:true ~feed_provider:watcher#feed_provider sels with
               | `aborted_by_user -> widgets.ok_button#set_active false; Lwt.return ()
               | `success -> on_success ()
         with Safe_exception _ as ex ->
@@ -255,31 +249,12 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db fetcher ~abort_all_d
 
   (* Run a solve-with-downloads immediately, and every time the user clicks Refresh. *)
   let refresh_loop =
-    let watcher =
-      object (_ : Ui.watcher)
-        method update ((ready, new_results), new_fp) =
-          feed_provider := new_fp;
-          results := (ready, new_results);
-
-          widgets.ok_button#misc#set_sensitive ready;
-
-          !component_boxes |> StringMap.iter (fun _iface box ->
-            box#update
-          );
-
-          component_tree#update
-
-        method report feed_url msg =
-          let msg = Printf.sprintf "Feed '%s': %s" (Feed_url.format_url feed_url) msg in
-          report_error (Safe_exception (msg, ref []))
-      end in
-
     while_lwt Lwt.state user_response = Lwt.Sleep do
       need_recalculate := Lwt.wait ();
       widgets.refresh_button#misc#set_sensitive false;
       let force = !refresh in
       refresh := false;
-      lwt (ready, _, _) = Driver.solve_with_downloads fetcher ~watcher reqs ~force ~update_local:true in
+      lwt (ready, _, _) = Driver.solve_with_downloads config tools#distro fetcher ~watcher reqs ~force ~update_local:true in
       if Unix.gettimeofday () < box_open_time +. 1. then widgets.ok_button#grab_default ();
       component_tree#highlight_problems;
 
@@ -302,12 +277,12 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db fetcher ~abort_all_d
   let result =
     (* Wait for user to click Cancel or Run *)
     lwt response = user_response in
-    abort_all_downloads ();
+    watcher#abort_all_downloads;
     Lwt.cancel refresh_loop;
 
     match response with
     | `ok ->
-        let (ready, results) = !results in
+        let (ready, results) = watcher#results in
         assert ready;
         `Success results#get_selections |> Lwt.return
     | `aborted_by_user -> `Aborted_by_user |> Lwt.return in
@@ -367,4 +342,16 @@ let run_solver config (gui:Zeroinstall.Gui.gui_ui) trust_db fetcher ~abort_all_d
       )
 
     method impl_added_to_store = component_tree#update
+
+    method update =
+      let (ready, _) = watcher#results in
+      widgets.ok_button#misc#set_sensitive ready;
+
+      !component_boxes |> StringMap.iter (fun _iface box ->
+        box#update
+      );
+
+      component_tree#update
+
+    method report_error ex = report_error ex
   end

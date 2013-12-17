@@ -357,27 +357,27 @@ let real_log = !Support.Logging.handler
 let () = Support.Logging.threshold := Support.Logging.Debug
 
 class null_ui =
-  object (_ : #Zeroinstall.Ui.ui_handler)
-    method monitor _dl = ()
-    method confirm_keys feed_url _xml = raise_safe "confirm_keys: %s" (Zeroinstall.Feed_url.format_url feed_url)
-    method confirm msg = raise_safe "confirm: %s" msg
-    method impl_added_to_store = ()
+  object (_ : #Zeroinstall.Ui.ui_handler as 'a)
+    constraint 'a = #Zeroinstall.Progress.watcher
+    inherit Zeroinstall.Console.batch_ui
+    method! confirm_keys feed_url _xml = raise_safe "confirm_keys: %s" (Zeroinstall.Feed_url.format_url feed_url)
+    method! confirm msg = raise_safe "confirm: %s" msg
   end
 
-let null_ui = lazy (new null_ui)
+let null_ui = new null_ui
 
 let make_tools config =
   let distro = Zeroinstall.Distro_impls.generic_distribution config in
   let trust_db = new Zeroinstall.Trust.trust_db config in
-  let downloader = new Zeroinstall.Downloader.downloader ~max_downloads_per_site:2 in
-  let fetcher = new Zeroinstall.Fetch.fetcher config trust_db distro downloader null_ui in
+  let download_pool = Zeroinstall.Downloader.make_pool ~max_downloads_per_site:2 in
   object
     method config = config
     method distro = distro
     method trust_db = trust_db
-    method downloader = downloader
-    method fetcher = fetcher
-    method ui = Zeroinstall.Gui.Ui (Lazy.force null_ui)
+    method download_pool = download_pool
+    method downloader = download_pool ignore
+    method make_fetcher watcher = new Zeroinstall.Fetch.fetcher config trust_db distro download_pool watcher
+    method ui = (null_ui :> Zeroinstall.Ui.ui_handler)
   end
 
 let fake_log =

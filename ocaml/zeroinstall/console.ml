@@ -14,7 +14,7 @@ let is_in_progress = function
   | None -> false
   | Some dl -> Downloader.is_in_progress dl
 
-class console_ui : Ui.ui_handler =
+class console_ui =
   let downloads : Downloader.download list ref = ref [] in
   let disable_progress = ref 0 in     (* [> 0] when we're asking the user a question *)
   let display_thread = ref None in
@@ -101,7 +101,31 @@ class console_ui : Ui.ui_handler =
       log_warning ~ex "Progress thread error";
       Lwt.return () in
 
-  object (self)
+  object (self : #Ui.ui_handler as 'a)
+    constraint 'a = #Progress.watcher
+
+    method run_solver tools ?test_callback ?systray mode reqs ~refresh =
+        let config = tools#config in
+        ignore test_callback;
+        ignore systray;
+        let fetcher = tools#make_fetcher (self :> Progress.watcher) in
+        lwt result = Driver.solve_with_downloads config tools#distro fetcher reqs ~watcher:self ~force:refresh ~update_local:refresh in
+        match result with
+        | (false, result, _) -> raise_safe "%s" (Diagnostics.get_failure_reason config result)
+        | (true, result, feed_provider) ->
+            let sels = result#get_selections in
+            match mode with
+            | `Select_only -> Lwt.return (`Success sels)
+            | `Download_only | `Select_for_run ->
+                match_lwt Driver.download_selections config tools#distro fetcher ~feed_provider ~include_packages:true sels with
+                | `success -> Lwt.return (`Success sels)
+                | `aborted_by_user -> Lwt.return `Aborted_by_user
+
+    method update _ = ()
+
+    method report feed_url msg =
+      log_warning "Feed %s: %s" (Feed_url.format_url feed_url) msg
+
     method monitor dl =
       (* log_debug "Start monitoring %s" dl.Downloader.url; *)
       let progress = dl.Downloader.progress |> React.S.map (fun v -> last_updated := Some dl; v) in
@@ -142,8 +166,8 @@ class console_ui : Ui.ui_handler =
             lwt votes = votes in
             if have_multiple_keys then print "%s:" fingerprint;
             votes |> List.iter (function
-              | Ui.Good, msg -> print "- %s" msg
-              | Ui.Bad, msg -> print "- BAD: %s" msg
+              | Progress.Good, msg -> print "- %s" msg
+              | Progress.Bad, msg -> print "- BAD: %s" msg
             );
             if List.length votes > 0 then shown := true;
             Lwt.return ()
@@ -177,9 +201,16 @@ class console_ui : Ui.ui_handler =
       )
 
     method impl_added_to_store = ()
+
+    method watcher = (self :> Progress.watcher)
+
+    method show_preferences = None
+    method open_app_list_box = raise_safe "Not available without a GUI (hint: try with --gui)"
+    method open_add_box = raise_safe "Not available without a GUI (hint: try with --gui)"
+    method open_cache_explorer = raise_safe "Not available without a GUI (hint: try with --gui)"
   end
 
-class batch_ui : Ui.ui_handler =
+class batch_ui =
   object
     inherit console_ui
 

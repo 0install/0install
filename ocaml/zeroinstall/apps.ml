@@ -120,7 +120,7 @@ let set_selections config app_path sels ~touch_last_checked =
    Try to open the GUI for a blocking download. If we can't do that, download without the GUI. *)
 let foreground_update tools app_path reqs =
   log_info "App '%s' needs to get new selections; current ones are not usable" app_path;
-  match Helpers.solve_and_download_impls tools#ui tools#fetcher reqs `Download_only ~refresh:true |> Lwt_main.run with
+  match Helpers.solve_and_download_impls tools reqs `Download_only ~refresh:true |> Lwt_main.run with
   | None -> raise_safe "Aborted by user"
   | Some sels ->
       set_selections tools#config app_path sels ~touch_last_checked:true;
@@ -195,7 +195,7 @@ let check_for_updates tools app_path sels =
     if need_solve then (
       let reqs = get_requirements system app_path in
       let new_sels =
-        match Driver.quick_solve tools#fetcher reqs with
+        match Driver.quick_solve tools reqs with
         | Some new_sels ->
             if Support.Qdom.compare_nodes ~ignore_whitespace:true new_sels sels = 0 then (
               log_info "Quick solve succeeded; no change needed";

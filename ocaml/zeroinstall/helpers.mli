@@ -14,8 +14,8 @@ type select_mode = [
     Returns [None] if the user cancels.
     @raise Safe_exception if the solve fails. *)
 val solve_and_download_impls :
-  Gui.ui_type ->
-  Ui.ui_handler Fetch.fetcher ->
+  < config : General.config; distro : Distro.distribution; ui : Ui.ui_handler;
+    make_fetcher : Progress.watcher -> Fetch.fetcher; ..> ->
   ?test_callback:(Support.Qdom.element -> string Lwt.t) ->
   Requirements.requirements ->
   select_mode ->
@@ -30,4 +30,4 @@ val solve_and_download_impls :
 val make_ui :
   General.config ->
   Support.Common.yes_no_maybe ->
-  Gui.ui_type
+  Ui.ui_handler

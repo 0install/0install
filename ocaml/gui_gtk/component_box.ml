@@ -36,7 +36,7 @@ type feed_description = {
 
 let spf = Printf.sprintf
 
-let add_description_text config trust_db ~heading_style ~link_style (buffer:GText.buffer) feed description =
+let add_description_text config ~trust_db ~heading_style ~link_style (buffer:GText.buffer) feed description =
   let iter = buffer#start_iter in
   buffer#insert ~iter ~tags:[heading_style] feed.F.name;
   buffer#insert ~iter (spf " (%s)" (default "-" @@ F.get_summary config.langs feed));
@@ -215,7 +215,7 @@ source by clicking on the Compile button. If no source is available, the Compile
 be shown shaded.")
 ]
 
-let add_remote_feed ~parent ~recalculate driver iface () =
+let add_remote_feed ~parent ~watcher ~recalculate tools iface () =
   let box = GWindow.message_dialog
     ~parent
     ~message_type:`QUESTION
@@ -241,7 +241,9 @@ let add_remote_feed ~parent ~recalculate driver iface () =
             begin match Zeroinstall.Feed_url.parse_non_distro url with
             | `local_feed _ -> raise_safe "Not a remote feed!"
             | `remote_feed _ as feed_url ->
-                lwt () = Zeroinstall.Gui.add_remote_feed driver iface feed_url in
+                let config = tools#config in
+                let fetcher = tools#make_fetcher (watcher :> Zeroinstall.Progress.watcher) in
+                lwt () = Zeroinstall.Gui.add_remote_feed config fetcher iface feed_url in
                 box#destroy ();
                 recalculate ~force:false;
                 Lwt.return () end
@@ -288,7 +290,9 @@ let open_in_browser (system:system) url =
   let browser = default "firefox" (system#getenv "BROWSER") in
   system#spawn_detach ~search_path:true [browser; url]
 
-let make_feeds_tab config ~trust_db ~driver ~recalculate ~feed_provider window iface =
+let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
+  let config = tools#config in
+
   (* Model *)
   let columns = new GTree.column_list in
   let url = columns#add Gobject.Data.string in
@@ -326,7 +330,7 @@ let make_feeds_tab config ~trust_db ~driver ~recalculate ~feed_provider window i
   let add_local = GButton.button ~packing:button_box#pack ~label:"Add local feed" () in
   let remove_feed = GButton.button ~packing:button_box#pack ~label:"Remove feed" () in
 
-  add_remote#connect#clicked ~callback:(add_remote_feed ~parent:window ~recalculate driver iface) |> ignore;
+  add_remote#connect#clicked ~callback:(add_remote_feed ~parent:window ~watcher ~recalculate tools iface) |> ignore;
   add_local#connect#clicked ~callback:(add_local_feed ~parent:window ~recalculate config iface) |> ignore;
   remove_feed#connect#clicked ~callback:(fun () ->
     match selection#get_selected_rows with
@@ -373,12 +377,12 @@ let make_feeds_tab config ~trust_db ~driver ~recalculate ~feed_provider window i
           let iter = feeds_model#get_iter path in
           let feed_import = feeds_model#get ~row:iter ~column:feed_obj in
           remove_feed#misc#set_sensitive @@ (feed_import.F.feed_type = F.User_registered);
-          begin match !feed_provider#get_feed feed_import.F.feed_src with
+          begin match watcher#feed_provider#get_feed feed_import.F.feed_src with
           | None -> buffer#insert ~iter:buffer#start_iter "Not yet downloaded."; Lwt.return ()
           | Some (feed, overrides) ->
               lwt description = generate_feed_description config trust_db feed overrides in
               clear ();
-              add_description_text config trust_db ~heading_style ~link_style buffer feed description end
+              add_description_text config ~trust_db ~heading_style ~link_style buffer feed description end
       | _ -> log_warning "Multiple selection in browse mode!"; Lwt.return ()
     )
   ) |> ignore;
@@ -404,12 +408,12 @@ let make_feeds_tab config ~trust_db ~driver ~recalculate ~feed_provider window i
   object
     method widget = (vpaned :> GObj.widget)
     method update =
-      let iface_config = !feed_provider#get_iface_config iface in
+      let iface_config = watcher#feed_provider#get_iface_config iface in
       let extra_feeds = iface_config.FC.extra_feeds in
 
       let master_feed = Zeroinstall.Feed_url.master_feed_of_iface iface in
       let imported_feeds =
-        match !feed_provider#get_feed master_feed with
+        match watcher#feed_provider#get_feed master_feed with
         | None -> []
         | Some (feed, _overrides) -> feed.F.imported_feeds in
 
@@ -430,7 +434,7 @@ let make_feeds_tab config ~trust_db ~driver ~recalculate ~feed_provider window i
           | os, machine -> Zeroinstall.Arch.format_arch os machine in
         feeds_model#set ~row ~column:url (Zeroinstall.Feed_url.format_url feed.F.feed_src);
         feeds_model#set ~row ~column:arch arch_value;
-        feeds_model#set ~row ~column:used (!feed_provider#was_used feed.F.feed_src);
+        feeds_model#set ~row ~column:used (watcher#feed_provider#was_used feed.F.feed_src);
         feeds_model#set ~row ~column:feed_obj feed;
       );
 
@@ -493,7 +497,7 @@ let show_explanation_box ~parent iface version reason =
     box#show ()
   )
 
-let make_versions_tab config reqs ~recalculate ~feed_provider ~results window iface =
+let make_versions_tab config reqs ~recalculate ~watcher window iface =
   let vbox = GPack.vbox () in
 
   (* Stability policy *)
@@ -600,7 +604,7 @@ let make_versions_tab config reqs ~recalculate ~feed_provider ~results window if
 
             let explain = GMenu.menu_item ~packing:menu#add ~label:"Explain this decision" () in
             explain#connect#activate ~callback:(fun () ->
-              let reason = Zeroinstall.Diagnostics.justify_decision config !feed_provider reqs iface (F.get_id impl) in
+              let reason = Zeroinstall.Diagnostics.justify_decision config watcher#feed_provider reqs iface (F.get_id impl) in
               show_explanation_box ~parent:window iface version_str reason
             ) |> ignore;
             menu#popup ~button:(B.button bev) ~time:(B.time bev);
@@ -612,7 +616,7 @@ let make_versions_tab config reqs ~recalculate ~feed_provider ~results window if
     method widget = vbox#coerce
     method update =
       model#clear ();
-      let (_ready, result) = !results in
+      let (_ready, result) = watcher#results in
       match Zeroinstall.Gui.list_impls result iface with
       | None -> view#misc#set_sensitive false
       | Some (selected, impls) ->
@@ -664,7 +668,8 @@ let make_versions_tab config reqs ~recalculate ~feed_provider ~results window if
           )
   end
 
-let create config trust_db driver reqs iface ~recalculate ~select_versions_tab ~feed_provider ~results =
+let create tools ~trust_db reqs iface ~recalculate ~select_versions_tab ~watcher =
+  let config = tools#config in
   let title = Printf.sprintf "Properties for %s" iface in
   let dialog = GWindow.dialog ~title () in
   dialog#set_default_size
@@ -674,8 +679,8 @@ let create config trust_db driver reqs iface ~recalculate ~select_versions_tab ~
   (* Tabs *)
   let notebook = GPack.notebook ~packing:(dialog#vbox#pack ~expand:true ~fill:true) () in
   let label text = (GMisc.label ~text () :> GObj.widget) in
-  let feeds_tab = make_feeds_tab config ~trust_db ~driver ~recalculate ~feed_provider dialog iface in
-  let versions_tab = make_versions_tab config reqs ~recalculate ~feed_provider ~results dialog iface in
+  let feeds_tab = make_feeds_tab tools ~trust_db ~recalculate ~watcher dialog iface in
+  let versions_tab = make_versions_tab config reqs ~recalculate ~watcher dialog iface in
   notebook#append_page ~tab_label:(label "Feeds") (feeds_tab#widget) |> ignore;
   notebook#append_page ~tab_label:(label "Versions") (versions_tab#widget) |> ignore;
 
@@ -696,7 +701,7 @@ let create config trust_db driver reqs iface ~recalculate ~select_versions_tab ~
   dialog#connect#response ~callback:(function
     | `COMPILE ->
         Gtk_utils.async ~parent:dialog (fun () ->
-          lwt () = Zeroinstall.Gui.compile config !feed_provider iface ~autocompile:true in
+          lwt () = Zeroinstall.Gui.compile config watcher#feed_provider iface ~autocompile:true in
           recalculate ~force:false;
           Lwt.return ()
         )
@@ -707,7 +712,7 @@ let create config trust_db driver reqs iface ~recalculate ~select_versions_tab ~
   object
     method dialog = dialog
     method update : unit =
-      dialog#set_response_sensitive `COMPILE (Zeroinstall.Gui.have_source_for !feed_provider iface);
+      dialog#set_response_sensitive `COMPILE (Zeroinstall.Gui.have_source_for watcher#feed_provider iface);
       feeds_tab#update;
       versions_tab#update
   end

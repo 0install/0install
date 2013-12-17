@@ -43,14 +43,9 @@ let remove_cached config selections_path =
   U.rmtree ~even_if_locked:true config.system stored
 
 let fake_gui =
-  object (_ : Zeroinstall.Gui.gui_ui)
+  object (_ : #Zeroinstall.Ui.ui_handler)
     inherit Fake_system.null_ui
-
-    method run_solver = raise Open_gui
-    method show_preferences = failwith "show_preferences"
-    method open_app_list_box = failwith "open_app_list_box"
-    method open_add_box = failwith "open_add_box"
-    method open_cache_explorer = failwith "open_cache_explorer"
+    method! run_solver = raise Open_gui
   end
 
 let install_interceptor system checked_for_gui =
@@ -59,7 +54,7 @@ let install_interceptor system checked_for_gui =
     let have_gui = system#getenv "DISPLAY" <> Some "" in
     checked_for_gui := true;
     if have_gui then (
-      Some fake_gui
+      Some (fake_gui :> Zeroinstall.Ui.ui_handler)
     ) else (
       None
     )
@@ -729,13 +724,12 @@ let suite = "download">::: [
     server#expect [
       [("/missing.png", `Give404)];
     ];
-    let distro = Zeroinstall.Distro_impls.generic_distribution config in
-    let downloader = new Zeroinstall.Downloader.downloader ~max_downloads_per_site:2 in
-    let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config distro in
+    let tools = Fake_system.make_tools config in
+    let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config tools#distro in
     let iface = Test_0install.feed_dir +/ "Binary.xml" in
     Fake_system.assert_raises_safe "Error downloading 'http://localhost/missing.png': \
                                     The requested URL returned error: 404" (lazy (
-      Lwt_main.run @@ Zeroinstall.Gui.download_icon config downloader (Lazy.force Fake_system.null_ui) feed_provider (`local_feed iface);
+      Lwt_main.run @@ Zeroinstall.Gui.download_icon (tools#make_fetcher tools#ui#watcher) feed_provider (`local_feed iface);
     ));
   );
 

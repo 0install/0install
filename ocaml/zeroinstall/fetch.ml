@@ -60,16 +60,18 @@ let parse_key_info xml =
     | ("", "item") ->
         let msg = child.Q.last_text_inside in
         if Q.get_attribute_opt ("", "vote") child = Some "good" then
-          Some (Ui.Good, msg)
+          Some (Progress.Good, msg)
         else
-          Some (Ui.Bad, msg)
+          Some (Progress.Bad, msg)
     | _ -> None
   )
 
 exception Aborted
 exception Try_mirror of string  (* An error where we should try the mirror (i.e. a network problem) *)
 
-class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:Downloader.downloader) (ui:(#Ui.ui_handler as 'a) Lazy.t) =
+class fetcher config trust_db (distro:Distro.distribution) (download_pool:Downloader.download_pool) (ui:#Progress.watcher) =
+  let downloader = download_pool ui#monitor in
+
   let trust_dialog_lock = Lwt_mutex.create () in      (* Only show one trust dialog at a time *)
 
   let key_info_cache = Hashtbl.create 10 in
@@ -105,9 +107,7 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:Down
 
       let switch = Lwt_switch.create () in
       try_lwt
-        let dl, result = downloader#download ~switch ~hint:feed_url key_url in
-        (Lazy.force ui)#monitor dl;
-        match_lwt result with
+        match_lwt downloader#download ~switch ~hint:feed_url key_url with
         | `network_failure msg -> raise_safe "%s" msg
         | `aborted_by_user -> raise Aborted
         | `tmpfile tmpfile ->
@@ -205,7 +205,7 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:Down
           | Some _ -> save_new_xml ()
     ) in
 
-  let fetch_key_info ~if_slow ~hint fingerprint : Ui.key_vote list Lwt.t =
+  let fetch_key_info ~if_slow ~hint fingerprint : Progress.key_vote list Lwt.t =
     try
       let result = Hashtbl.find key_info_cache fingerprint in
       match Lwt.state result with
@@ -223,9 +223,7 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:Down
               let key_info_url = key_info_server ^ "/key/" ^ fingerprint in
               let switch = Lwt_switch.create () in
               try_lwt
-                let dl, result = downloader#download ~switch ~if_slow ~hint key_info_url in
-                (Lazy.force ui)#monitor dl;
-                match_lwt result with
+                match_lwt downloader#download ~switch ~if_slow ~hint key_info_url with
                 | `network_failure msg -> raise_safe "%s" msg
                 | `aborted_by_user -> raise Aborted
                 | `tmpfile tmpfile ->
@@ -236,7 +234,7 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:Down
                 Lwt_switch.turn_off switch
         with Safe_exception (msg, _) as ex ->
           log_info ~ex "Error fetching key info";
-          Lwt.return [(Ui.Bad, "Error fetching key info: " ^ msg)] in
+          Lwt.return [(Progress.Bad, "Error fetching key info: " ^ msg)] in
       Hashtbl.add key_info_cache fingerprint result;
       result in
 
@@ -286,7 +284,7 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:Down
           match Lwt.state info with
           | Lwt.Return votes -> (
               votes |> List.iter (fun (vote_type, msg) ->
-                if vote_type = Ui.Good then (
+                if vote_type = Progress.Good then (
                   log_info "Automatically approving key for new feed %s based on response from key info server: %s" feed_url msg;
                   trust_db#trust_key ~domain fingerprint
                 ) else (
@@ -304,7 +302,7 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:Down
       let is_trusted {G.fingerprint; _} = trust_db#is_trusted ~domain fingerprint in
       if (List.exists is_trusted valid_sigs) then Lwt.return ()
       else (
-        lwt confirmed_keys = (Lazy.force ui)#confirm_keys feed key_infos in
+        lwt confirmed_keys = ui#confirm_keys feed key_infos in
         confirmed_keys |> List.iter (fun fingerprint ->
           log_info "Trusting %s for %s" fingerprint domain;
           trust_db#trust_key ~domain fingerprint
@@ -337,9 +335,7 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:Down
 
     let switch = Lwt_switch.create () in
     try_lwt
-      let dl, result = downloader#download ~switch ?if_slow ~hint:feed url in
-      (Lazy.force ui)#monitor dl;
-      match_lwt result with
+      match_lwt downloader#download ~switch ?if_slow ~hint:feed url with
       | `network_failure msg -> `problem msg |> Lwt.return
       | `aborted_by_user -> Lwt.return `aborted_by_user
       | `tmpfile tmpfile ->
@@ -448,9 +444,7 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:Down
             let escaped = Str.global_replace (Str.regexp_string "/") "#" url |> Curl.escape in
             Some (mirror ^ "/archive/" ^ escaped)
         | _ -> None in
-      let dl, result = downloader#download ~switch ?size ~start_offset ~hint:feed url in
-      (Lazy.force ui)#monitor dl;
-      match_lwt result with
+      match_lwt downloader#download ~switch ?size ~start_offset ~hint:feed url with
       | `aborted_by_user -> raise Aborted
       | `tmpfile tmpfile -> lazy (fn tmpfile) |> Lwt.return
       | `network_failure primary_msg ->
@@ -458,9 +452,7 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:Down
            * we raise [Try_mirror] to try the other strategy. *)
           let mirror_url = mirror_url |? lazy (raise (Try_mirror primary_msg)) in
           log_warning "Primary download failed; trying mirror URL '%s'..." mirror_url;
-          let dl, result = downloader#download ~switch ?size ~hint:feed mirror_url in
-          (Lazy.force ui)#monitor dl;
-          match_lwt result with
+          match_lwt downloader#download ~switch ?size ~hint:feed mirror_url with
           | `aborted_by_user -> raise Aborted
           | `tmpfile tmpfile -> lazy (fn tmpfile) |> Lwt.return
           | `network_failure mirror_msg ->
@@ -582,7 +574,7 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:Down
         ) in
 
         lwt () = Stores.check_manifest_and_rename {config with system = system#bypass_dryrun} required_digest tmpdir in
-        (Lazy.force ui)#impl_added_to_store; (* Notify the GUI *)
+        ui#impl_added_to_store; (* Notify the GUI *)
         need_rm_tmpdir := false;
         Lwt.return `success
       with ex ->
@@ -735,7 +727,7 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:Down
 
     let packages_task =
       if !package_impls <> [] then (
-        match_lwt Distro.install_distro_packages distro (Lazy.force ui) !package_impls with
+        match_lwt Distro.install_distro_packages distro ui !package_impls with
         | `cancel -> Lwt.fail Aborted
         | `ok -> Lwt.return ()
       ) else Lwt.return () in
@@ -759,8 +751,24 @@ class ['a] fetcher config trust_db (distro:Distro.distribution) (downloader:Down
       | `ok _ -> Lwt.return ()
       | (`aborted_by_user | `no_trusted_keys | `replay_attack _) as r -> raise_safe "%s" (string_of_result r)
 
-    method downloader = downloader
-    method distro = distro
-    method config = config
-    method ui = Lazy.force ui
+    method download_icon (feed_url:Feed_url.non_distro_feed) icon_url =
+      let modification_time =
+        Feed_cache.get_cached_icon_path config feed_url
+        |> pipe_some system#stat
+        |> pipe_some (fun info -> Some info.Unix.st_mtime) in
+
+      let switch = Lwt_switch.create () in
+      try_lwt
+        match_lwt downloader#download ~switch ?modification_time ~hint:feed_url icon_url with
+        | `network_failure msg -> raise_safe "%s" msg
+        | `aborted_by_user -> Lwt.return ()
+        | `tmpfile tmpfile ->
+            let icons_cache = Support.Basedir.save_path system cache_icons config.basedirs.Support.Basedir.cache in
+            let icon_file = icons_cache +/ Escape.escape (Feed_url.format_url feed_url) in
+            tmpfile |> system#with_open_in [Open_rdonly;Open_binary] (fun ic ->
+              icon_file |> system#atomic_write [Open_wronly;Open_binary] ~mode:0o644 (U.copy_channel ic)
+            );
+            Lwt.return ()
+      with Downloader.Unmodified -> Lwt.return ()
+      finally Lwt_switch.turn_off switch
   end

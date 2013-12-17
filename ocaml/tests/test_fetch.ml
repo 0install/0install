@@ -44,7 +44,8 @@ let parse_xml s =
 
 let make_dl_tester () =
   let log = ref [] in
-  let downloader = new D.downloader ~max_downloads_per_site:2 in
+  let download_pool = D.make_pool ~max_downloads_per_site:2 in
+  let downloader = download_pool Fake_system.null_ui#monitor in
   let waiting = Hashtbl.create 10 in
 
   (* Intercept the download and return a new blocker *)
@@ -62,8 +63,7 @@ let make_dl_tester () =
       let switch = Lwt_switch.create () in
       let result =
         try_lwt
-          let _dl, result = downloader#download ~switch ~hint:(`remote_feed "testing") url in
-          match_lwt result with
+          match_lwt downloader#download ~switch ~hint:(`remote_feed "testing") url with
           | `tmpfile _ -> Lwt.return `success
           | (`aborted_by_user | `network_failure _) as x -> Lwt.return x
         finally
@@ -81,7 +81,8 @@ let make_dl_tester () =
 
 let suite = "fetch">::: [
   "download-local">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
-    let fetcher = (Fake_system.make_tools config)#fetcher in
+    let tools = Fake_system.make_tools config in
+    let fetcher = tools#make_fetcher tools#ui#watcher in
     download_impls fetcher [];
 
     Fake_system.assert_error_contains "(no download locations given in feed!)"
@@ -161,7 +162,8 @@ let suite = "fetch">::: [
   );
 
   "local-archive">:: Fake_system.with_fake_config (fun (config, fake_system) ->
-    let fetcher = (Fake_system.make_tools config)#fetcher in
+    let tools = Fake_system.make_tools config in
+    let fetcher = tools#make_fetcher tools#ui#watcher in
 
     let local_iface = Test_0install.feed_dir +/ "LocalArchive.xml" in
     let root = Q.parse_file config.system local_iface in
@@ -202,7 +204,7 @@ let suite = "fetch">::: [
       ) in
 
     let sels = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None in
-    assert (Zeroinstall.Selections.get_unavailable_selections config ~distro:fetcher#distro sels <> []);
+    assert (Zeroinstall.Selections.get_unavailable_selections config ~distro:tools#distro sels <> []);
 
     check ~error:"Local file '.*tests/IDONTEXIST.tgz' does not exist" "impl2";
     check ~error:"Wrong size for .*/tests/HelloWorld.tgz: feed says 177, but actually 176 bytes" "impl3";
@@ -278,7 +280,7 @@ let suite = "fetch">::: [
 
   "abort">:: (fun () ->
     Lwt_main.run (
-      let downloader = new D.downloader ~max_downloads_per_site:2 in
+      let downloader = D.make_pool ~max_downloads_per_site:2 (fun dl -> Zeroinstall.Python.async dl.D.cancel) in
 
       (* Intercept the download and return a new blocker *)
       let handle_download ?if_slow:_ ?size:_ ?modification_time:_ _ch url =
@@ -290,9 +292,7 @@ let suite = "fetch">::: [
       let switch = Lwt_switch.create () in
       lwt result =
         try_lwt
-          let dl, result = downloader#download ~switch ~hint:(`remote_feed "testing") "http://localhost/test.tgz" in
-          Zeroinstall.Python.async dl.D.cancel;
-          match_lwt result with
+          match_lwt downloader#download ~switch ~hint:(`remote_feed "testing") "http://localhost/test.tgz" with
           | `tmpfile _ -> Lwt.return `success
           | (`aborted_by_user | `network_failure _) as x -> Lwt.return x
         finally

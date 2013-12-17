@@ -33,10 +33,7 @@ let handle options flags args =
       log_info "Fetching %s..." url;
       let switch = Lwt_switch.create () in
       try
-        let fetcher = tools#fetcher in
-        let ui = fetcher#ui in
-        let dl, result = fetcher#downloader#download ~switch url in
-        ui#monitor dl;
+        let result = (tools#download_pool tools#ui#watcher#monitor)#download ~switch url in
         match Lwt_main.run result with
         | `aborted_by_user -> ()
         | `network_failure msg -> raise_safe "%s" msg

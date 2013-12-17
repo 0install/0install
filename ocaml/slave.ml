@@ -13,51 +13,56 @@ module J = Yojson.Basic
 module JC = Zeroinstall.Json_connection
 module H = Zeroinstall.Helpers
 module Ui = Zeroinstall.Ui
+module Progress = Zeroinstall.Progress
 
 let make_no_gui (connection:JC.json_connection) : Ui.ui_handler =
   let json_of_votes =
     List.map (function
-      | Ui.Good, msg -> `List [`String "good"; `String msg]
-      | Ui.Bad, msg -> `List [`String "bad"; `String msg]
+      | Progress.Good, msg -> `List [`String "good"; `String msg]
+      | Progress.Bad, msg -> `List [`String "bad"; `String msg]
     ) in
 
-  object
-    method monitor _dl = ()
-    method impl_added_to_store = ()
+  let ui =
+    (* There's more stuff we could expose to clients easily; see Zeroinstall.Progress.watcher for a list of things
+     * that could be overridden. *)
+    object
+      inherit Zeroinstall.Console.batch_ui
 
-    method confirm_keys feed_url infos =
-      let pending_tasks = ref [] in
+      method! confirm_keys feed_url infos =
+        let pending_tasks = ref [] in
 
-      let handle_pending fingerprint votes =
-        let task =
-          lwt votes = votes in
-          connection#invoke "update-key-info" [`String fingerprint; `List (json_of_votes votes)] in
-        pending_tasks := task :: !pending_tasks in
+        let handle_pending fingerprint votes =
+          let task =
+            lwt votes = votes in
+            connection#invoke "update-key-info" [`String fingerprint; `List (json_of_votes votes)] in
+          pending_tasks := task :: !pending_tasks in
 
-      try_lwt
-        let json_infos = infos |> List.map (fun (fingerprint, votes) ->
-          let json_votes =
-            match Lwt.state votes with
-            | Lwt.Sleep -> handle_pending fingerprint votes; [`String "pending"]
-            | Lwt.Fail ex -> [`List [`String "bad"; `String (Printexc.to_string ex)]]
-            | Lwt.Return votes -> json_of_votes votes in
-          (fingerprint, `List json_votes)
-        ) in
-        match_lwt connection#invoke "confirm-keys" [`String (Zeroinstall.Feed_url.format_url feed_url); `Assoc json_infos] with
-        | `List confirmed_keys -> confirmed_keys |> List.map Yojson.Basic.Util.to_string |> Lwt.return
-        | _ -> raise_safe "Invalid response"
-      finally
-        !pending_tasks |> List.iter Lwt.cancel;
-        Lwt.return ()
+        try_lwt
+          let json_infos = infos |> List.map (fun (fingerprint, votes) ->
+            let json_votes =
+              match Lwt.state votes with
+              | Lwt.Sleep -> handle_pending fingerprint votes; [`String "pending"]
+              | Lwt.Fail ex -> [`List [`String "bad"; `String (Printexc.to_string ex)]]
+              | Lwt.Return votes -> json_of_votes votes in
+            (fingerprint, `List json_votes)
+          ) in
+          match_lwt connection#invoke "confirm-keys" [`String (Zeroinstall.Feed_url.format_url feed_url); `Assoc json_infos] with
+          | `List confirmed_keys -> confirmed_keys |> List.map Yojson.Basic.Util.to_string |> Lwt.return
+          | _ -> raise_safe "Invalid response"
+        finally
+          !pending_tasks |> List.iter Lwt.cancel;
+          Lwt.return ()
 
-    method confirm message =
-      match_lwt connection#invoke "confirm" [`String message] with
-      | `String "ok" -> Lwt.return `ok
-      | `String "cancel" -> Lwt.return `cancel
-      | json -> raise_safe "Invalid response '%s'" (J.to_string json)
-  end
+      method! confirm message =
+        match_lwt connection#invoke "confirm" [`String message] with
+        | `String "ok" -> Lwt.return `ok
+        | `String "cancel" -> Lwt.return `cancel
+        | json -> raise_safe "Invalid response '%s'" (J.to_string json)
+    end in
 
-let make_ui config connection use_gui : Zeroinstall.Gui.ui_type Lazy.t = lazy (
+  (ui :> Zeroinstall.Ui.ui_handler)
+
+let make_ui config connection use_gui : Zeroinstall.Ui.ui_handler =
   let use_gui =
     match use_gui, config.dry_run with
     | Yes, true -> raise_safe "Can't use GUI with --dry-run"
@@ -65,12 +70,11 @@ let make_ui config connection use_gui : Zeroinstall.Gui.ui_type Lazy.t = lazy (
     | use_gui, false -> use_gui in
 
   match use_gui with
-  | No -> Zeroinstall.Gui.Ui (make_no_gui connection)
+  | No -> make_no_gui connection
   | Yes | Maybe ->
       match Zeroinstall.Gui.try_get_gui config ~use_gui with
-      | Some gui -> Zeroinstall.Gui.Gui gui
-      | None -> Zeroinstall.Gui.Ui (make_no_gui connection)
-)
+      | Some gui -> gui
+      | None -> make_no_gui connection
 
 let parse_restrictions = function
   | `Null -> StringMap.empty
@@ -103,30 +107,17 @@ let parse_requirements json_assoc =
   table |> Hashtbl.iter (fun name _ -> log_warning "Unexpected requirements field '%s'!" name);
   reqs
 
-let register_handlers config gui connection =
-  let gui = make_ui config connection gui in
-
-  let fetcher = lazy (
-    let ui = lazy (
-      match Lazy.force gui with
-      | Zeroinstall.Gui.Gui gui -> (gui :> Ui.ui_handler)
-      | Zeroinstall.Gui.Ui ui -> ui
-    ) in
-    let distro = Zeroinstall.Distro_impls.get_host_distribution config in
-    let trust_db = new Zeroinstall.Trust.trust_db config in
-    let downloader = new Zeroinstall.Downloader.downloader ~max_downloads_per_site:2 in
-    new Zeroinstall.Fetch.fetcher config trust_db distro downloader ui
-  ) in
+let register_handlers options connection =
+  let ui = make_ui options.config connection options.tools#use_gui in
 
   let do_select = function
     | [`Assoc reqs; `Bool refresh] ->
         let requirements = parse_requirements reqs in
-        let fetcher = Lazy.force fetcher in
         lwt resp =
           try_lwt
-            match_lwt H.solve_and_download_impls (Lazy.force gui) fetcher requirements `Select_only ~refresh with
-            | None -> `List [`String "aborted-by-user"] |> Lwt.return
-            | Some sels -> `WithXML (`List [`String "ok"], sels) |> Lwt.return
+            match_lwt ui#run_solver options.tools `Select_only requirements ~refresh with
+            | `Aborted_by_user -> `List [`String "aborted-by-user"] |> Lwt.return
+            | `Success sels -> `WithXML (`List [`String "ok"], sels) |> Lwt.return
           with Safe_exception (msg, _) -> `List [`String "fail"; `String msg] |> Lwt.return in
         resp |> Lwt.return
     | _ -> raise JC.Bad_request in
@@ -134,7 +125,6 @@ let register_handlers config gui connection =
   connection#register_handler "select" do_select
 
 let handle options flags args =
-  let config = options.config in
   Support.Argparse.iter_options flags (Common_options.process_common_option options);
 
   match args with
@@ -146,7 +136,7 @@ let handle options flags args =
       let api_version = min requested_api_version Zeroinstall.About.parsed_version in
 
       let connection = new JC.json_connection ~from_peer:Lwt_io.stdin ~to_peer:Lwt_io.stdout in
-      register_handlers config options.tools#use_gui connection;
+      register_handlers options connection;
       connection#notify "set-api-version" [`String (V.format_version api_version)] |> Lwt_main.run;
 
       Lwt_main.run connection#run;

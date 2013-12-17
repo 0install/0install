@@ -58,7 +58,7 @@ let check_replacement system = function
 
 let check_for_updates options reqs old_sels =
   let tools = options.tools in
-  let new_sels = Zeroinstall.Helpers.solve_and_download_impls tools#ui tools#fetcher reqs `Download_only ~refresh:true |> Lwt_main.run in
+  let new_sels = Zeroinstall.Helpers.solve_and_download_impls tools reqs `Download_only ~refresh:true |> Lwt_main.run in
   match new_sels with
   | None -> raise (System_exit 1)   (* Aborted by user *)
   | Some new_sels ->
@@ -189,10 +189,15 @@ let handle_bg options flags args =
   );
 
   let config = options.config in
+  let tools = options.tools in
+  let distro = tools#distro in
 
   let need_gui = ref false in
-  let ui =
-    object (_ : Zeroinstall.Ui.ui_handler)
+  let watcher : Zeroinstall.Progress.watcher =
+    object
+      method update _ = ()
+      method report feed_url msg = log_warning "Feed %s: %s" (Zeroinstall.Feed_url.format_url feed_url) msg
+
       method monitor _dl = ()
 
       method confirm_keys _feed_url _xml =
@@ -205,11 +210,6 @@ let handle_bg options flags args =
 
       method impl_added_to_store = ()
     end in
-
-  let trust_db = new Zeroinstall.Trust.trust_db config in
-  let downloader = new Zeroinstall.Downloader.downloader ~max_downloads_per_site:2 in
-  let distro = Zeroinstall.Distro_impls.get_host_distribution config in
-  let fetcher = new Zeroinstall.Fetch.fetcher config trust_db distro downloader (lazy ui) in
 
   match args with
     | ["app"; app] ->
@@ -225,21 +225,22 @@ let handle_bg options flags args =
 
         (* Refresh the feeds and solve, silently. If we find updates to download, we try to run the GUI
          * so the user can see a systray icon for the download. If that's not possible, we download silently too. *)
-        let (ready, result, feed_provider) = Zeroinstall.Driver.solve_with_downloads fetcher reqs ~force:true ~update_local:true |> Lwt_main.run in
+        let fetcher = tools#make_fetcher watcher in
+        let (ready, result, feed_provider) = Zeroinstall.Driver.solve_with_downloads config distro fetcher ~watcher reqs ~force:true ~update_local:true |> Lwt_main.run in
         let new_sels = result#get_selections in
 
         let new_sels =
           if !need_gui || not ready || Zeroinstall.Selections.get_unavailable_selections config ~distro new_sels <> [] then (
-            let interactive_ui = Zeroinstall.Helpers.make_ui config Maybe in
+            let interactive_ui = Zeroinstall.Gui.try_get_gui config ~use_gui:Maybe in
             match interactive_ui with
-            | Zeroinstall.Gui.Gui gui ->
+            | Some gui ->
                 log_info "Background update: trying to use GUI to update %s" name;
                 Support.Utils.finally_do (fun () -> Zeroinstall.Python.cancel_slave () |> Lwt_main.run) () (fun () ->
-                  match gui#run_solver distro downloader `Download_only reqs ~systray:true ~refresh:true |> Lwt_main.run with
+                  match gui#run_solver tools `Download_only reqs ~systray:true ~refresh:true |> Lwt_main.run with
                   | `Aborted_by_user -> raise (System_exit 0)
                   | `Success gui_sels -> gui_sels
                 )
-            | Zeroinstall.Gui.Ui _ ->
+            | None ->
                 Zeroinstall.Python.cancel_slave () |> Lwt_main.run;
                 if !need_gui then (
                   let msg = Printf.sprintf "Can't update 0install app '%s' without user intervention (run '0install update %s' to fix)" name name in
@@ -253,7 +254,7 @@ let handle_bg options flags args =
                   raise (System_exit 1)
                 ) else (
                   log_info "Background update: GUI unavailable; downloading with no UI";
-                  match Zeroinstall.Driver.download_selections ~include_packages:true ~feed_provider fetcher new_sels |> Lwt_main.run with
+                  match Zeroinstall.Driver.download_selections ~include_packages:true ~feed_provider config distro fetcher new_sels |> Lwt_main.run with
                   | `success -> new_sels
                   | `aborted_by_user -> raise_safe "Aborted by user"
                 )

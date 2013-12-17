@@ -278,22 +278,16 @@ let make_tools config =
   let ui = lazy (Zeroinstall.Helpers.make_ui config !gui) in
   let distro = lazy (Zeroinstall.Distro_impls.get_host_distribution config) in
   let trust_db = lazy (new Zeroinstall.Trust.trust_db config) in
-  let downloader = lazy (new Zeroinstall.Downloader.downloader ~max_downloads_per_site:2) in
-  let fetcher = lazy (
-      let ui = lazy (
-        match Lazy.force ui with
-        | Zeroinstall.Gui.Gui gui -> (gui :> Zeroinstall.Ui.ui_handler)
-        | Zeroinstall.Gui.Ui ui -> ui
-      ) in
-      new Zeroinstall.Fetch.fetcher config (Lazy.force trust_db) (Lazy.force distro) (Lazy.force downloader) ui
-    ) in
+  let download_pool = lazy (Zeroinstall.Downloader.make_pool ~max_downloads_per_site:2) in
+  let make_fetcher = lazy (new Zeroinstall.Fetch.fetcher config (Lazy.force trust_db) (Lazy.force distro) (Lazy.force download_pool)) in
   object (_ : Options.tools)
     method config = config
     method ui = Lazy.force ui
     method distro = Lazy.force distro
-    method downloader = Lazy.force downloader
-    method fetcher = Lazy.force fetcher
+    method download_pool = Lazy.force download_pool
     method set_use_gui value = gui := value
+    method make_fetcher watcher = (Lazy.force make_fetcher) watcher
+    method trust_db = Lazy.force trust_db
     method use_gui = !gui
   end
 
