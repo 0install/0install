@@ -243,7 +243,7 @@ let handle options flags arg ?test_callback for_op =
   let result = resolve_target options.config flags arg in
 
   let get_app_sels path =
-    Zeroinstall.Apps.get_selections_may_update tools#fetcher (lazy tools#ui) path in
+    Zeroinstall.Apps.get_selections_may_update tools path in
 
   match result with
   | (App (path, old_reqs), reqs) when select_opts.output = Output_human ->

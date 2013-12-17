@@ -116,8 +116,8 @@ let suite = "selections">::: [
     let sels = get_sels config fake_system iface in
     let index = Selections.make_selection_map sels in
     let sel = StringMap.find_safe iface index in
-    let fetcher = Fake_system.make_fetcher config in
-    assert (Selections.get_unavailable_selections ~distro:fetcher#distro config sels <> []);
+    let tools = Fake_system.make_tools config in
+    assert (Selections.get_unavailable_selections ~distro:tools#distro config sels <> []);
 
     let () =
       match Selections.make_selection sel with

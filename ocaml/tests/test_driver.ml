@@ -208,9 +208,9 @@ let suite = "driver">::: [
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let foo_path = Test_0install.feed_dir +/ "Foo.xml" in
     let reqs = Requirements.({(default_requirements foo_path) with command = None}) in
-    let fetcher = Fake_system.make_fetcher config in
+    let tools = Fake_system.make_tools config in
     let ui = Zeroinstall.Gui.Ui (Lazy.force Fake_system.null_ui) in
-    let sels = Zeroinstall.Helpers.solve_and_download_impls ui fetcher reqs `Select_for_run ~refresh:false |> Lwt_main.run in
+    let sels = Zeroinstall.Helpers.solve_and_download_impls ui tools#fetcher reqs `Select_for_run ~refresh:false |> Lwt_main.run in
     assert (sels <> None)
   );
 

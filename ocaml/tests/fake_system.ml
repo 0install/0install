@@ -366,11 +366,19 @@ class null_ui =
 
 let null_ui = lazy (new null_ui)
 
-let make_fetcher config =
+let make_tools config =
   let distro = Zeroinstall.Distro_impls.generic_distribution config in
   let trust_db = new Zeroinstall.Trust.trust_db config in
   let downloader = new Zeroinstall.Downloader.downloader ~max_downloads_per_site:2 in
-  new Zeroinstall.Fetch.fetcher config trust_db distro downloader null_ui
+  let fetcher = new Zeroinstall.Fetch.fetcher config trust_db distro downloader null_ui in
+  object
+    method config = config
+    method distro = distro
+    method trust_db = trust_db
+    method downloader = downloader
+    method fetcher = fetcher
+    method ui = Zeroinstall.Gui.Ui (Lazy.force null_ui)
+  end
 
 let fake_log =
   object (_ : #Support.Logging.handler)

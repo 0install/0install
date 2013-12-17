@@ -81,7 +81,7 @@ let make_dl_tester () =
 
 let suite = "fetch">::: [
   "download-local">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
-    let fetcher = Fake_system.make_fetcher config in
+    let fetcher = (Fake_system.make_tools config)#fetcher in
     download_impls fetcher [];
 
     Fake_system.assert_error_contains "(no download locations given in feed!)"
@@ -161,7 +161,7 @@ let suite = "fetch">::: [
   );
 
   "local-archive">:: Fake_system.with_fake_config (fun (config, fake_system) ->
-    let fetcher = Fake_system.make_fetcher config in
+    let fetcher = (Fake_system.make_tools config)#fetcher in
 
     let local_iface = Test_0install.feed_dir +/ "LocalArchive.xml" in
     let root = Q.parse_file config.system local_iface in

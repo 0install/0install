@@ -449,7 +449,7 @@ let suite = "0install">::: [
 
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let system = (fake_system :> system) in
-    let fetcher = Fake_system.make_fetcher config in
+    let tools = Fake_system.make_tools config in
     let run = run_0install fake_system in
     config.freshness <- None;
 
@@ -475,8 +475,7 @@ let suite = "0install">::: [
     system#set_mtime local_copy 100.0;				(* Feed edited at t=100 *)
     system#set_mtime (app +/ "last-checked") 200.0; 	        (* Added at t=200 *)
 
-    let distro = fetcher#distro in
-    let ui = lazy (Zeroinstall.Gui.Ui (Lazy.force Fake_system.null_ui)) in
+    let distro = tools#distro in
 
     (* Can run without using the solver... *)
     let module A = Zeroinstall.Apps in
@@ -486,12 +485,12 @@ let suite = "0install">::: [
 
     (* But if the feed is modified, we resolve... *)
     system#set_mtime local_copy 300.0;
-    let sels = A.get_selections_may_update fetcher ui app in
+    let sels = A.get_selections_may_update tools app in
     assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config sels;
     assert (0.0 <> (A.get_times system app).A.last_solve);
 
     system#set_mtime (app +/ "last-solve") 400.0;
-    let sels = A.get_selections_may_update fetcher ui app in
+    let sels = A.get_selections_may_update tools app in
     assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config ~distro sels;
     assert_equal 400.0 (A.get_times system app).A.last_solve;
 
@@ -499,7 +498,7 @@ let suite = "0install">::: [
     Fake_system.collect_logging (fun () ->
       system#unlink local_copy;
       U.touch system (app +/ "last-check-attempt");	(* Prevent background update *)
-      let sels = A.get_selections_may_update fetcher ui app in
+      let sels = A.get_selections_may_update tools app in
       assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config ~distro sels;
       assert (400.0 <> (A.get_times system app).A.last_solve);
     );
@@ -516,7 +515,7 @@ let suite = "0install">::: [
     U.copy_file system hello_feed local_copy 0o600;
     Fake_system.collect_logging (fun () ->
       Fake_system.fake_log#reset;
-      ignore @@ A.get_selections_may_update fetcher ui app
+      ignore @@ A.get_selections_may_update tools app
     );
     let () =
       Fake_system.fake_log#assert_contains "Still not connected to network. Giving up on background update.";
@@ -532,7 +531,7 @@ let suite = "0install">::: [
     );
     system#set_mtime (app +/ "last-solve") 400.0;
 
-    let sels = A.get_selections_may_update fetcher ui app in
+    let sels = A.get_selections_may_update tools app in
     assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config sels;
 
     (* If the selections.xml gets deleted, regenerate it *)
@@ -540,7 +539,7 @@ let suite = "0install">::: [
     let fake_slave = new fake_slave config in
     fake_slave#install;
     fake_slave#allow_download "http://example.com:8000/HelloWorld.tgz" generic_archive;
-    ignore @@ A.get_selections_may_update fetcher ui app
+    ignore @@ A.get_selections_may_update tools app
   );
 
   "add-feed">:: Fake_system.with_fake_config (fun (config, fake_system) ->

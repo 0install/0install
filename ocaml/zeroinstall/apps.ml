@@ -118,12 +118,12 @@ let set_selections config app_path sels ~touch_last_checked =
 
 (* We can't run with saved selections or solved selections without downloading.
    Try to open the GUI for a blocking download. If we can't do that, download without the GUI. *)
-let foreground_update ui fetcher app_path reqs =
+let foreground_update tools app_path reqs =
   log_info "App '%s' needs to get new selections; current ones are not usable" app_path;
-  match Helpers.solve_and_download_impls (Lazy.force ui) fetcher reqs `Download_only ~refresh:true |> Lwt_main.run with
+  match Helpers.solve_and_download_impls tools#ui tools#fetcher reqs `Download_only ~refresh:true |> Lwt_main.run with
   | None -> raise_safe "Aborted by user"
   | Some sels ->
-      set_selections fetcher#config app_path sels ~touch_last_checked:true;
+      set_selections tools#config app_path sels ~touch_last_checked:true;
       sels
 
 type app_times = {
@@ -152,8 +152,8 @@ let get_times system app =
     - without downloading => switch to the new selections now
     - with downloading => use current selections, update in the background
 *)
-let check_for_updates ui fetcher app_path sels =
-  let config = fetcher#config in
+let check_for_updates tools app_path sels =
+  let config = tools#config in
   let system = config.system in
   let last_solve_path = app_path +/ "last-solve" in
   let last_check_path = app_path +/ "last-check-attempt" in
@@ -169,7 +169,7 @@ let check_for_updates ui fetcher app_path sels =
 
   (* Do we have everything we need to run now? *)
   let unavailable_sels =
-    Selections.get_unavailable_selections config ~distro:fetcher#distro sels <> [] in
+    Selections.get_unavailable_selections config ~distro:tools#distro sels <> [] in
 
   (* Should we do a quick solve before running?
      Checks whether the inputs to the current solution have changed. *)
@@ -195,7 +195,7 @@ let check_for_updates ui fetcher app_path sels =
     if need_solve then (
       let reqs = get_requirements system app_path in
       let new_sels =
-        match Driver.quick_solve fetcher reqs with
+        match Driver.quick_solve tools#fetcher reqs with
         | Some new_sels ->
             if Support.Qdom.compare_nodes ~ignore_whitespace:true new_sels sels = 0 then (
               log_info "Quick solve succeeded; no change needed";
@@ -213,7 +213,7 @@ let check_for_updates ui fetcher app_path sels =
               if system#file_exists last_solve_path && not config.dry_run then
                 system#unlink last_solve_path;
 
-              foreground_update ui fetcher app_path reqs
+              foreground_update tools app_path reqs
             ) else (
               (* Continue with the current (cached) selections while we download *)
               want_bg_update := true;
@@ -239,18 +239,12 @@ let check_for_updates ui fetcher app_path sels =
     sels
   ) else sels
 
-(** If [fetcher_ui] is [None] then we don't check for updates. *)
-let get_selections_internal system ?fetcher_ui app_path =
+let get_selections_internal system app_path =
   let sels_path = app_path +/ "selections.xml" in
   if Sys.file_exists sels_path then
-    let sels = Selections.load_selections system sels_path in
-    match fetcher_ui with
-    | None -> sels
-    | Some (fetcher, ui) -> check_for_updates ui fetcher app_path sels
+    Some (Selections.load_selections system sels_path)
   else
-    match fetcher_ui with
-    | Some (fetcher, ui) -> foreground_update ui fetcher app_path (get_requirements system app_path)
-    | None -> raise_safe "App selections missing! Expected: %s" sels_path
+    None
 
 let list_app_names config =
   let apps = ref StringSet.empty in
@@ -265,10 +259,14 @@ let list_app_names config =
   List.iter scan_dir config.basedirs.Basedir.config;
   StringSet.elements !apps
 
-let get_selections_may_update fetcher ui app_path =
-  get_selections_internal fetcher#config.system ~fetcher_ui:(fetcher, ui) app_path
+let get_selections_may_update tools app_path =
+  let system = tools#config.system in
+  match get_selections_internal system app_path with
+  | Some sels -> check_for_updates tools app_path sels
+  | None -> foreground_update tools app_path (get_requirements system app_path)
 
-let get_selections_no_updates config app_path = get_selections_internal config app_path
+let get_selections_no_updates config app_path =
+  get_selections_internal config app_path |? lazy (raise_safe "App selections missing in %s" app_path)
 
 let set_requirements config path req =
   let reqs_file = path +/ "requirements.json" in

@@ -57,11 +57,10 @@ let suite = "apps">::: [
     Fake_system.assert_str_equal url @@ ZI.get_attribute "interface" sels;
     Fake_system.assert_str_equal "0.1-pre" @@ ZI.get_attribute "version" (List.hd sels.Q.child_nodes);
 
-    let fetcher = Fake_system.make_fetcher config in
-    let ui = Zeroinstall.Gui.Ui (Lazy.force Fake_system.null_ui) in
+    let tools = Fake_system.make_tools config in
 
     (* Get selections with updates allowed; should resolve and find version 1. *)
-    let sels = Apps.get_selections_may_update fetcher (lazy ui) app in
+    let sels = Apps.get_selections_may_update tools app in
     Fake_system.assert_str_equal url @@ ZI.get_attribute "interface" sels;
     Fake_system.assert_str_equal "1" @@ ZI.get_attribute "version" (List.hd sels.Q.child_nodes);
   )
