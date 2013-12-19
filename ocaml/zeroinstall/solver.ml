@@ -13,7 +13,6 @@ module FeedAttr = Constants.FeedAttr
 module SolverData =
   struct
     type t =
-      | Unused        (* This is just here to make the compiler happy. *)
       | ImplElem of Feed.implementation
       | CommandElem of Feed.command
       | MachineGroup of string
@@ -21,8 +20,6 @@ module SolverData =
       | ImplElem impl -> (Versions.format_version impl.Feed.parsed_version) ^ " - " ^ Qdom.show_with_loc impl.Feed.qdom
       | CommandElem command -> Qdom.show_with_loc command.Feed.command_qdom
       | MachineGroup name -> name
-      | Unused -> assert false
-    let unused = Unused
   end
 
 module S = Support.Sat.MakeSAT(SolverData)

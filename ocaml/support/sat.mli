@@ -8,7 +8,6 @@ module type USER =
   sig
     type t
     val to_string : t -> string
-    val unused : t      (* Any value of type t; just to make the compiler happy *)
   end
 
 module MakeSAT :

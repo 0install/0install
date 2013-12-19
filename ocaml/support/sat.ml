@@ -23,7 +23,6 @@ module type USER =
   sig
     type t
     val to_string : t -> string
-    val unused : t
   end
 
 module MakeSAT(User : USER) =
