@@ -195,6 +195,12 @@ let check_cache id_prefix elem (cache:Cache.cache) =
 module Debian = struct
   let dpkg_db_status = "/var/lib/dpkg/status"
 
+  (* It's OK if dpkg-query returns a non-zero exit status. *)
+  let error_ok child_pid =
+    match snd (Support.System.waitpid_non_intr child_pid) with
+    | Unix.WEXITED _ -> ()
+    | status -> Support.System.check_exit_status status
+
   type apt_cache_entry = {
     version : string;
     machine : string;
@@ -245,7 +251,7 @@ module Debian = struct
       U.finally_do Unix.close (Unix.openfile Support.System.dev_null [Unix.O_WRONLY] 0)
         (fun dev_null ->
           ["dpkg-query"; "-W"; "--showformat=${Version}\t${Architecture}\t${Status}\n"; "--"; package_name]
-            |> U.check_output ~stderr:(`FD dev_null) system (fun ch  ->
+            |> U.check_output ~reaper:error_ok ~stderr:(`FD dev_null) system (fun ch  ->
               try
                 while true do
                   let line = input_line ch in

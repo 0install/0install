@@ -219,7 +219,7 @@ let find_in_path_ex system name =
   | Some path -> path
   | None -> raise_safe "Not found in $PATH: %s" name
 
-let check_output ?env ?stderr (system:system) fn (argv:string list) =
+let check_output ?env ?stderr ?reaper (system:system) fn (argv:string list) =
   try
     let (r, w) = Unix.pipe () in
     let child_pid =
@@ -247,7 +247,9 @@ let check_output ?env ?stderr (system:system) fn (argv:string list) =
           raise ex
       )
     in
-    system#reap_child child_pid;
+    begin match reaper with
+    | None -> system#reap_child child_pid
+    | Some reap_child -> reap_child child_pid end;
     result
   with
   | Unix.Unix_error _ as ex ->

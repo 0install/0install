@@ -47,6 +47,7 @@ val find_in_path_ex : Common.system -> Common.filepath -> Common.filepath
 val check_output :
   ?env:string array ->
   ?stderr:[< `FD of Unix.file_descr | `Stdout ] ->
+  ?reaper:(int -> unit) ->
   Common.system -> (in_channel -> 'a) -> string list -> 'a
 
 (** Read up to [n] bytes from [ch] (less if we hit end-of-file. *)
