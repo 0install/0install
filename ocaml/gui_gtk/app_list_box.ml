@@ -144,11 +144,7 @@ let confirm_deletion ~parent name =
 
 (** If [feed] <needs-terminal> then find one and add it to the start of args. *)
 let maybe_with_terminal system feed args =
-  let rec needs_terminal = function
-    | [] -> false
-    | x :: xs -> ZI.tag x = Some "needs-terminal" || needs_terminal xs in
-
-  if needs_terminal feed.F.root.Q.child_nodes then (
+  if F.needs_terminal feed then (
     if (system#platform).Platform.os = "MacOSX" then (
       (* This is probably wrong, or at least inefficient (we ignore [args] and invoke 0launch again).
        * But I don't know how to make the escaping right - someone on OS X should check it... *)
@@ -184,16 +180,8 @@ let run config dialog tools gui uri =
       Lwt.return ()
   )
 
-let create config ~gui ~trust_db ~add_app =
+let create config ~gui ~tools ~add_app =
   let finished, set_finished = Lwt.wait () in
-  let tools =
-    let distro = Zeroinstall.Distro_impls.get_host_distribution config in
-    let download_pool = Zeroinstall.Downloader.make_pool ~max_downloads_per_site:2 in
-    object
-      method config = config
-      method distro = distro
-      method make_fetcher watcher = new Zeroinstall.Fetch.fetcher config trust_db distro download_pool watcher
-    end in
 
   let dialog = GWindow.dialog ~title:"0install Applications" () in
 

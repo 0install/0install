@@ -144,3 +144,6 @@ val get_description : int Support.Locale.LangMap.t -> feed -> string option
 (** The <feed-for> elements' interfaces *)
 val get_feed_targets : feed -> General.iface_uri list
 val make_user_import : [<`local_feed of Support.Common.filepath | `remote_feed of General.feed_url] -> feed_import
+
+val get_category : feed -> string option
+val needs_terminal : feed -> bool

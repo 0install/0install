@@ -46,7 +46,6 @@ sys.path.insert(0, %s)''' % repr(self.lib_dir))
 class build_with_data(build_py):
 	"""Python < 2.4 doesn't support package_data_files, so add it manually."""
 	package_data_files = [
-		"zeroinstall/gtkui/desktop.ui",
 	]
 
 	def run(self):

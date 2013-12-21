@@ -10,12 +10,19 @@ module Python = Zeroinstall.Python
 module Ui = Zeroinstall.Ui
 module Downloader = Zeroinstall.Downloader
 
-let make_gtk_ui (slave:Python.slave) =
-  let config = slave#config in
-
+let make_gtk_ui config =
   let trust_db = new Zeroinstall.Trust.trust_db config in
 
   let batch_ui = lazy (new Zeroinstall.Console.batch_ui) in
+
+  let tools = (* TODO: move this out of the plugin *)
+    let distro = Zeroinstall.Distro_impls.get_host_distribution config in
+    let download_pool = Zeroinstall.Downloader.make_pool ~max_downloads_per_site:2 in
+    object
+      method config = config
+      method distro = distro
+      method make_fetcher watcher = new Zeroinstall.Fetch.fetcher config trust_db distro download_pool watcher
+    end in
 
   object (self : Zeroinstall.Ui.ui_handler)
     val mutable preferences_dialog = None
@@ -50,10 +57,9 @@ let make_gtk_ui (slave:Python.slave) =
         Lwt.return ()
 
     method open_app_list_box =
-      App_list_box.create config ~gui:self ~trust_db ~add_app:self#open_add_box
+      App_list_box.create config ~gui:self ~tools ~add_app:self#open_add_box
 
-    method open_add_box url =
-      slave#invoke "open-add-box" [`String url] Zeroinstall.Python.expect_null
+    method open_add_box url = Add_box.create ~gui:self ~tools url 
 
     method open_cache_explorer = Cache_explorer_box.open_cache_explorer config
 
@@ -66,9 +72,7 @@ let make_gtk_ui (slave:Python.slave) =
 let try_get_gtk_gui config _use_gui =
   (* Initializes GTK. *)
   ignore (GMain.init ());
-
-  let slave = new Zeroinstall.Python.slave config in
-  Some (make_gtk_ui slave)
+  Some (make_gtk_ui config)
 
 let () =
   log_info "Initialising GTK GUI";

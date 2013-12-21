@@ -6,7 +6,7 @@
 
 open General
 open Support.Common
-module Qdom = Support.Qdom
+module Q = Support.Qdom
 module U = Support.Utils
 open Constants
 
@@ -43,7 +43,7 @@ type package_impl = {
 
 type cache_impl = {
   digests : Manifest.digest list;
-  retrieval_methods : Qdom.element list;
+  retrieval_methods : Q.element list;
 }
 
 type impl_type =
@@ -53,10 +53,10 @@ type impl_type =
 
 type restriction = < to_string : string; meets_restriction : implementation -> bool >
 
-and binding = Qdom.element
+and binding = Q.element
 
 and dependency = {
-  dep_qdom : Qdom.element;
+  dep_qdom : Q.element;
   dep_importance : importance;
   dep_iface: iface_uri;
   dep_restrictions: restriction list;
@@ -66,7 +66,7 @@ and dependency = {
 }
 
 and command = {
-  command_qdom : Qdom.element;
+  command_qdom : Q.element;
   command_requires : dependency list;
   (* command_bindings : binding list; - not needed by solver; just copies the element *)
 }
@@ -79,7 +79,7 @@ and properties = {
 }
 
 and implementation = {
-  qdom : Qdom.element;
+  qdom : Q.element;
   props : properties;
   stability : stability_level;
   os : string option;           (* Required OS; the first part of the 'arch' attribute. None for '*' *)
@@ -132,7 +132,7 @@ type feed_import = {
 
 type feed = {
   url : Feed_url.non_distro_feed;
-  root : Qdom.element;
+  root : Q.element;
   name : string;
   implementations : implementation StringMap.t;
   imported_feeds : feed_import list;
@@ -141,14 +141,14 @@ type feed = {
      This is the value of the feed's <replaced-by interface'...'/> element. *)
   replacement : string option;
 
-  package_implementations : (Qdom.element * properties) list;
+  package_implementations : (Q.element * properties) list;
 }
 
 let value_testing = "testing"
 
 let make_command doc ?source_hint name ?(new_attr="path") path : command =
   let elem = ZI.make doc ?source_hint "command" in
-  elem.Qdom.attrs <- [(("", "name"), name); (("", new_attr), path)];
+  elem.Q.attrs <- [(("", "name"), name); (("", new_attr), path)];
   {
     command_qdom = elem;
     command_requires = [];
@@ -171,7 +171,7 @@ let make_distribtion_restriction distros =
 
 let get_attr_ex name (impl:implementation) =
   try AttrMap.find ("", name) impl.props.attrs
-  with Not_found -> Qdom.raise_elem "Missing '%s' attribute for " name impl.qdom
+  with Not_found -> Q.raise_elem "Missing '%s' attribute for " name impl.qdom
 
 let get_attr_opt key map =
   try Some (AttrMap.find ("", key) map)
@@ -216,7 +216,7 @@ let parse_dep local_dir dep =
       match local_dir with
       | Some dir ->
           let iface = U.normpath @@ dir +/ raw_iface in
-          Qdom.set_attribute "interface" iface dep;
+          Q.set_attribute "interface" iface dep;
           iface
       | None ->
           raise_safe "Relative interface URI '%s' in non-local feed" raw_iface
@@ -288,32 +288,32 @@ let parse_command local_dir elem : command =
   }
 
 let rec filter_if_0install_version node =
-  match Qdom.get_attribute_opt ("", FeedAttr.if_0install_version) node with
+  match Q.get_attribute_opt ("", FeedAttr.if_0install_version) node with
   | Some expr when not (Versions.parse_expr expr About.parsed_version) -> None
   | Some _expr -> Some {
-    node with Qdom.child_nodes = U.filter_map filter_if_0install_version node.Qdom.child_nodes;
-    attrs = List.remove_assoc ("", FeedAttr.if_0install_version) node.Qdom.attrs
+    node with Q.child_nodes = U.filter_map filter_if_0install_version node.Q.child_nodes;
+    attrs = List.remove_assoc ("", FeedAttr.if_0install_version) node.Q.attrs
   }
   | None -> Some {
-    node with Qdom.child_nodes = U.filter_map filter_if_0install_version node.Qdom.child_nodes;
+    node with Q.child_nodes = U.filter_map filter_if_0install_version node.Q.child_nodes;
   }
 
 let parse system root feed_local_path =
   let root =
     match filter_if_0install_version root with
     | Some root -> root
-    | None -> Qdom.raise_elem "Feed requires 0install version %s (we are %s):" (ZI.get_attribute FeedAttr.if_0install_version root) About.version root
+    | None -> Q.raise_elem "Feed requires 0install version %s (we are %s):" (ZI.get_attribute FeedAttr.if_0install_version root) About.version root
   in
 
   let () = match ZI.tag root with
   | Some "interface" | Some "feed" -> ()
   | _ ->
       ZI.check_ns root;
-      Qdom.raise_elem "Expected <interface>, not" root in
+      Q.raise_elem "Expected <interface>, not" root in
 
   let () = match ZI.get_attribute_opt "min-injector-version" root with
   | Some min_version when Versions.parse_version min_version > About.parsed_version ->
-      Qdom.raise_elem "Feed requires 0install version %s or later (we are %s):" min_version About.version root
+      Q.raise_elem "Feed requires 0install version %s or later (we are %s):" min_version About.version root
   | _ -> () in
 
   let url =
@@ -333,7 +333,7 @@ let parse system root feed_local_path =
     else (
       match local_dir with
       | Some dir -> U.normpath @@ dir +/ raw_url
-      | None -> Qdom.raise_elem "Relative URI '%s' in non-local feed" raw_url elem
+      | None -> Q.raise_elem "Relative URI '%s' in non-local feed" raw_url elem
     ) in
 
   let parse_feed_import node =
@@ -360,13 +360,13 @@ let parse system root feed_local_path =
 
   root |> ZI.iter (fun node ->
     match ZI.tag node with
-    | Some "name" -> name := Some (Qdom.simple_content node)
+    | Some "name" -> name := Some (Q.simple_content node)
     | Some "feed" -> imported_feeds := parse_feed_import node :: !imported_feeds
     | Some "replaced-by" ->
         if !replacement = None then
           replacement := Some (normalise_url (ZI.get_attribute FeedAttr.interface node) node)
         else
-          Qdom.raise_elem "Multiple replacements!" node
+          Q.raise_elem "Multiple replacements!" node
     | _ -> ()
   );
 
@@ -379,7 +379,7 @@ let parse system root feed_local_path =
 
     let get_required_attr name =
       try AttrMap.find ("", name) !s.attrs
-      with Not_found -> Qdom.raise_elem "Missing attribute '%s' on" name node in
+      with Not_found -> Q.raise_elem "Missing attribute '%s' on" name node in
 
     let id = ZI.get_attribute "id" node in
 
@@ -387,7 +387,7 @@ let parse system root feed_local_path =
       match local_dir with
       | None ->
           if AttrMap.mem ("", FeedAttr.local_path) !s.attrs then
-            Qdom.raise_elem "local-path in non-local feed! " node;
+            Q.raise_elem "local-path in non-local feed! " node;
       | Some dir ->
           let use rel_path =
             if Filename.is_relative rel_path then
@@ -401,7 +401,7 @@ let parse system root feed_local_path =
                 use id in
 
     if StringMap.mem id !implementations then
-      Qdom.raise_elem "Duplicate ID '%s' in:" id node;
+      Q.raise_elem "Duplicate ID '%s' in:" id node;
     (* version-modifier *)
     let () = match get_attr_opt FeedAttr.version_modifier !s.attrs with
     | Some modifier ->
@@ -413,11 +413,11 @@ let parse system root feed_local_path =
     let get_prop key =
       match get_attr_opt key !s.attrs with
       | Some value -> value
-      | None -> Qdom.raise_elem "Missing attribute '%s' on" key node in
+      | None -> Q.raise_elem "Missing attribute '%s' on" key node in
 
     let (os, machine) =
       try Arch.parse_arch @@ default "*-*" @@ get_attr_opt "arch" !s.attrs
-      with Safe_exception _ as ex -> reraise_with_context ex "... processing %s" (Qdom.show_with_loc node) in
+      with Safe_exception _ as ex -> reraise_with_context ex "... processing %s" (Q.show_with_loc node) in
 
     let stability =
       match get_attr_opt FeedAttr.stability !s.attrs with
@@ -427,7 +427,7 @@ let parse system root feed_local_path =
     let impl_type =
       try LocalImpl (AttrMap.find ("", FeedAttr.local_path) !s.attrs)
       with Not_found ->
-        let retrieval_methods = List.filter Recipe.is_retrieval_method node.Qdom.child_nodes in
+        let retrieval_methods = List.filter Recipe.is_retrieval_method node.Q.child_nodes in
         CacheImpl { digests = Stores.get_digests node; retrieval_methods; } in
 
     let impl = {
@@ -444,7 +444,7 @@ let parse system root feed_local_path =
 
   let package_implementations = ref [] in
 
-  let rec process_group state (group:Qdom.element) =
+  let rec process_group state (group:Q.element) =
     group |> ZI.iter (fun item ->
       match ZI.tag item with
       | Some "group" | Some "implementation" | Some "package-implementation" -> (
@@ -460,16 +460,16 @@ let parse system root feed_local_path =
             match ZI.get_attribute_opt attr_name item with
             | None -> ()
             | Some path ->
-                let new_command = make_command root.Qdom.doc ~source_hint:item command_name path in
+                let new_command = make_command root.Q.doc ~source_hint:item command_name path in
                 s := {!s with commands = StringMap.add command_name new_command !s.commands} in
           handle_old_command FeedAttr.main "run";
           handle_old_command FeedAttr.self_test "test";
 
           let () =
-            match Qdom.get_attribute_opt (COMPILE_NS.ns, "command") item with
+            match Q.get_attribute_opt (COMPILE_NS.ns, "command") item with
             | None -> ()
             | Some command ->
-                let new_command = make_command root.Qdom.doc ~source_hint:item "compile" ~new_attr:"shell-command" command in
+                let new_command = make_command root.Q.doc ~source_hint:item "compile" ~new_attr:"shell-command" command in
                 s := {!s with commands = StringMap.add "compile" new_command !s.commands} in
 
           let new_bindings = ref [] in
@@ -494,7 +494,7 @@ let parse system root feed_local_path =
             AttrMap.add name_pair value old in
 
           s := {!s with
-            attrs = List.fold_left add_attr !s.attrs item.Qdom.attrs;
+            attrs = List.fold_left add_attr !s.attrs item.Q.attrs;
             requires = !s.requires;
           };
 
@@ -514,7 +514,7 @@ let parse system root feed_local_path =
   let root_commands = match ZI.get_attribute_opt FeedAttr.main root with
     | None -> StringMap.empty
     | Some path ->
-        let new_command = make_command root.Qdom.doc ~source_hint:root "run" path in
+        let new_command = make_command root.Q.doc ~source_hint:root "run" path in
         StringMap.singleton "run" new_command in
 
   let root_state = {
@@ -529,7 +529,7 @@ let parse system root feed_local_path =
     url = Feed_url.parse_non_distro url;
     name = (
       match !name with
-      | None -> Qdom.raise_elem "Missing <name> in" root
+      | None -> Q.raise_elem "Missing <name> in" root
       | Some name -> name
     );
     root;
@@ -548,7 +548,7 @@ let is_source impl = impl.machine = Some "src"
 let get_command_opt command_name commands = StringMap.find command_name commands
 
 let get_command_ex impl command_name : command =
-  StringMap.find command_name impl.props.commands |? lazy (Qdom.raise_elem "Command '%s' not found in" command_name impl.qdom)
+  StringMap.find command_name impl.props.commands |? lazy (Q.raise_elem "Command '%s' not found in" command_name impl.qdom)
 
 (** Load per-feed extra data (last-checked time and preferred stability.
     Probably we should use a simple timestamp file for the last-checked time and attach
@@ -559,7 +559,7 @@ let load_feed_overrides config feed_url =
   match load_first config.system (config_site +/ config_prog +/ "feeds" +/ Escape.pretty url) config.basedirs.config with
   | None -> { last_checked = None; user_stability = StringMap.empty }
   | Some path ->
-      let root = Qdom.parse_file config.system path in
+      let root = Q.parse_file config.system path in
 
       let last_checked =
         match ZI.get_attribute_opt "last-checked" root with
@@ -587,15 +587,15 @@ let save_feed_overrides config feed_url overrides =
     match last_checked with
     | None -> ()
     | Some last_checked ->
-        Qdom.set_attribute "last-checked" (Printf.sprintf "%.0f" last_checked) root in
+        Q.set_attribute "last-checked" (Printf.sprintf "%.0f" last_checked) root in
   user_stability |> StringMap.iter (fun id stability ->
     let impl = ZI.insert_first "implementation" root in
-    Qdom.set_attribute FeedAttr.id id impl;
-    Qdom.set_attribute FeedConfigAttr.user_stability (format_stability stability) impl
+    Q.set_attribute FeedAttr.id id impl;
+    Q.set_attribute FeedConfigAttr.user_stability (format_stability stability) impl
   );
   let url = Feed_url.format_url feed_url in
   feeds +/ Escape.pretty url |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
-    Qdom.output (`Channel ch |> Xmlm.make_output) root;
+    Q.output (`Channel ch |> Xmlm.make_output) root;
   )
 
 let update_last_checked_time config url =
@@ -633,10 +633,10 @@ let get_id impl =
 let get_text tag langs feed =
   let best = ref None in
   feed.root |> ZI.iter ~name:tag (fun elem ->
-    let new_score = Support.Locale.score_lang langs (Qdom.get_attribute_opt (xml_ns, FeedAttr.lang) elem) in
+    let new_score = Support.Locale.score_lang langs (Q.get_attribute_opt (xml_ns, FeedAttr.lang) elem) in
     match !best with
     | Some (_old_summary, old_score) when new_score <= old_score -> ()
-    | _ -> best := Some (elem.Qdom.last_text_inside, new_score)
+    | _ -> best := Some (elem.Q.last_text_inside, new_score)
   );
   match !best with
   | None -> None
@@ -657,3 +657,12 @@ let make_user_import feed_src = {
   feed_langs = None;
   feed_type = User_registered;
 }
+
+let get_category feed =
+  try
+    let elem = feed.root.Q.child_nodes |> List.find (fun node -> ZI.tag node = Some "category") in
+    Some elem.Q.last_text_inside
+  with Not_found -> None
+
+let needs_terminal feed =
+  feed.root.Q.child_nodes |> List.exists (fun node -> ZI.tag node = Some "needs-terminal")
