@@ -37,18 +37,3 @@ try:
 	_ = translation.ugettext	# Python 2
 except AttributeError:
 	_ = translation.gettext		# Python 3
-
-class SafeException(Exception):
-	"""An exception that can be reported to the user without a stack trace.
-	The command-line interface's C{--verbose} option will display the full stack trace."""
-
-class NeedDownload(SafeException):
-	"""Thrown if we tried to start a download and downloading is
-	disabled."""
-	def __init__(self, url):
-		"""@type url: str"""
-		Exception.__init__(self, _("Would download '%s'") % url)
-
-class DryRun(SafeException):
-	"""We can't do something because this is a dry run (--dry-run).
-	@since: 1.14"""

@@ -44,29 +44,21 @@ home)
 	ZSHFUNCTIONS=".zsh"
 	PREFIX_SHARE="${HOME}/.local/share"
 	PREFIX_MAN="${HOME}/.local/man"
-
-	$PYTHON "setup.py" -q install --force --home ~ --install-data ~/.local $ROOT
 	;;
 system)
 	PREFIX="/usr"
 	PREFIX_SHARE="${PREFIX}/share"
 	PREFIX_MAN="${PREFIX_SHARE}/man"
-
-	$PYTHON "setup.py" -q install --force $ROOT
 	;;
 local)
 	PREFIX="/usr/local"
 	PREFIX_SHARE="${PREFIX}/share"
 	PREFIX_MAN="${PREFIX}/man"
-
-	$PYTHON "setup.py" -q install --force --prefix=/usr/local $ROOT
 	;;
 /*)
 	PREFIX="$1"
 	PREFIX_SHARE="${PREFIX}/share"
 	PREFIX_MAN="${PREFIX_SHARE}/man"
-
-	$PYTHON "setup.py" -q install --force --prefix="${PREFIX}" $ROOT
 	;;
 *)
 	echo "Use: \"./install.sh system\" to install"

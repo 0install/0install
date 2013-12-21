@@ -168,7 +168,7 @@ class TestLaunch(BaseTest):
 
 	def testExecutables(self):
 		# Check top-level scripts are readable (detects white-space errors)
-		for script in ['0install-python-fallback', '0alias']:
+		for script in ['0alias']:
 			path = os.path.join('..', script)
 
 			old_stdout = sys.stdout

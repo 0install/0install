@@ -2,7 +2,7 @@ SRCDIR ?= NOTSET
 DISTDIR ?= NOTSET
 BUILDDIR ?= NOTSET
 
-SCRIPTS = 0install-python-fallback 0alias
+SCRIPTS = 0alias
 DOCS = README.md COPYING
 MANPAGES = 0launch.1 0store-secure-add.1 0store.1 0desktop.1 0install.1
 
@@ -19,7 +19,6 @@ JSON_LIBS = "${EASY_FORMAT}/easy_format.cmo" "${BINIOU}/bi_util.cmo" "${BINIOU}/
 XMLM = $(shell ocamlfind query xmlm)
 
 all: translations
-	(cd "${SRCDIR}" && $(PYTHON) setup.py build --build-lib="${BUILDDIR}/build/lib" --build-base="${BUILDDIR}/build")
 	(cd "${SRCDIR}/ocaml" && $(PYTHON) build-in.py "${BUILDDIR}/ocaml")
 	(cd "${SRCDIR}" && cp README.md COPYING "${DISTDIR}/")
 	install -d "${DISTDIR}/files"
@@ -29,9 +28,8 @@ all: translations
 	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0store"
 	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0store-secure-add"
 	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0desktop"
-	(cd "${SRCDIR}" && cp ${MANPAGES} ${SCRIPTS} setup.py "${DISTDIR}/files")
+	(cd "${SRCDIR}" && cp ${MANPAGES} ${SCRIPTS} "${DISTDIR}/files")
 	install "${SRCDIR}/install.sh.src" "${DISTDIR}/install.sh"
-	(cp -r build/lib/zeroinstall "${DISTDIR}/files/")
 	(cp -r share "${DISTDIR}/files/")
 	(cd "${SRCDIR}" && cp -r share/0install.net share/applications share/bash-completion share/fish share/icons share/zsh "${DISTDIR}/files/share/")
 

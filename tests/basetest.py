@@ -20,9 +20,7 @@ os.environ['LANG'] = 'C'
 if 'ZEROINSTALL_CRASH_LOGS' in os.environ: del os.environ['ZEROINSTALL_CRASH_LOGS']
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import iface_cache, model
-from zeroinstall import support, cmd
-from zeroinstall.support import basedir
+from zeroinstall import support
 
 def skipIf(condition, reason):
 	def wrapped(underlying):
@@ -69,13 +67,9 @@ os.execvp = test_execvp
 class TestConfig:
 	freshness = 0
 	help_with_testing = False
-	network_use = model.network_full
 	key_info_server = None
 	auto_approve_keys = False
 	mirror = None
-
-	def __init__(self):
-		self.iface_cache = iface_cache.IfaceCache()
 
 class BaseTest(unittest.TestCase):
 	def setUp(self):
@@ -95,8 +89,6 @@ class BaseTest(unittest.TestCase):
 		os.environ['XDG_DATA_DIRS'] = ''
 		if 'ZEROINSTALL_PORTABLE_BASE' in os.environ:
 			del os.environ['ZEROINSTALL_PORTABLE_BASE']
-		imp.reload(basedir)
-		assert basedir.xdg_config_home == self.config_home
 
 		os.mkdir(self.config_home, 0o700)
 		os.mkdir(self.cache_home, 0o700)
@@ -107,7 +99,6 @@ class BaseTest(unittest.TestCase):
 			del os.environ['DISPLAY']
 
 		self.config = TestConfig()
-		iface_cache.iface_cache = self.config.iface_cache
 
 		logging.getLogger().setLevel(logging.WARN)
 
@@ -136,36 +127,3 @@ class BaseTest(unittest.TestCase):
 				msg = msg.encode('utf-8')
 			err += msg
 		return out, err
-
-	def run_0install(self, args):
-		old_stdout = sys.stdout
-		old_stderr = sys.stderr
-		try:
-			sys.stdout = StringIO()
-			sys.stderr = StringIO()
-			ex = None
-			try:
-				cmd.main(args, config = self.config)
-			except NameError:
-				raise
-			except SystemExit:
-				pass
-			except TypeError:
-				raise
-			except AttributeError:
-				raise
-			except AssertionError:
-				raise
-			except ValueError:
-				raise
-			except Exception as ex2:
-				ex = ex2		# Python 3
-				raise
-			out = sys.stdout.getvalue()
-			err = sys.stderr.getvalue()
-			if ex is not None:
-				err += str(ex.__class__)
-		finally:
-			sys.stdout = old_stdout
-			sys.stderr = old_stderr
-		return (out, err)

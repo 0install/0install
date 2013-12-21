@@ -463,7 +463,6 @@ let get_fake_config tmpdir =
   system#putenv "HOME" home;
   if on_windows then (
     system#add_file (src_dir +/ "0install-runenv.exe") (build_dir +/ "0install-runenv.exe");
-    system#add_file (src_dir +/ "0install-python-fallback") (src_dir +/ "0install-python-fallback");
     let python = expect @@ U.find_in_path real_system "python" in
     system#add_file python python;
     system#putenv "PATH" @@ Sys.getenv "PATH" ^ ";" ^ Filename.dirname python;
