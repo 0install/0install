@@ -504,10 +504,6 @@ let suite = "0install">::: [
     );
 
     fake_system#allow_spawn_detach true;
-    Zeroinstall.Python.slave_interceptor := (fun ?xml:_ -> function
-      | `List [`String "wait-for-network"] -> Some (Lwt.return (`List [`String "ok"; `String "offline"]))
-      | _ -> None
-    );
     (* Local feed is updated; now requires a download *)
     system#unlink (app +/ "last-check-attempt");
     let hello_feed = (feed_dir +/ "Hello.xml") in

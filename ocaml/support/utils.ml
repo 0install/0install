@@ -542,3 +542,10 @@ let xdg_open_dir ?(exec=false) (system:system) path =
     system#exec ~search_path:true ["xdg-open"; path]
   else
     system#spawn_detach ~search_path:true ["xdg-open"; path]
+
+let async fn =
+  Lwt.ignore_result (
+    Lwt.catch fn (fun ex ->
+      log_warning ~ex "Unhandled error from Lwt thread"; Lwt.fail ex
+    )
+  )

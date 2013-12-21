@@ -11,7 +11,6 @@ module FeedAttr = Zeroinstall.Constants.FeedAttr
 module Feed_url = Zeroinstall.Feed_url
 module F = Zeroinstall.Feed
 module FC = Zeroinstall.Feed_cache
-module Python = Zeroinstall.Python
 module U = Support.Utils
 module Downloader = Zeroinstall.Downloader
 

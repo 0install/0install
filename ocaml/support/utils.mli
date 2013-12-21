@@ -121,3 +121,7 @@ val make_command : Common.system -> string list -> Lwt_process.command
 
 (** Open this directory with the user's preferred file manager. *)
 val xdg_open_dir : ?exec:bool -> Common.system -> Common.filepath -> unit
+
+(** Don't wait for the result of this Lwt thread.
+ * If it throws an exception, log it. *)
+val async : (unit -> unit Lwt.t) -> unit

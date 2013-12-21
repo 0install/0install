@@ -452,8 +452,6 @@ let with_tmpdir fn () =
     )
 
 let get_fake_config tmpdir =
-  Zeroinstall.Python.slave_debug_level := Some Support.Logging.Warning;
-  Zeroinstall.Python.slave_interceptor := Zeroinstall.Python.default_interceptor;
   let system = new fake_system tmpdir in
   let home =
     match tmpdir with

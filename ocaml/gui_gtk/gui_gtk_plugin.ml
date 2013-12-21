@@ -6,7 +6,6 @@
 
 open Support.Common
 
-module Python = Zeroinstall.Python
 module Ui = Zeroinstall.Ui
 module Downloader = Zeroinstall.Downloader
 

@@ -10,7 +10,6 @@ open Support.Common
 
 module U = Support.Utils
 module C = Zeroinstall.Config
-module P = Zeroinstall.Python
 
 let minutes = 60.
 

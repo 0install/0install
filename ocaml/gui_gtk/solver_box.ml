@@ -6,7 +6,6 @@
 
 open Support.Common
 
-module Python = Zeroinstall.Python
 module Feed_url = Zeroinstall.Feed_url
 module Driver = Zeroinstall.Driver
 module Requirements = Zeroinstall.Requirements

@@ -351,7 +351,7 @@ let packagekit = ref (fun config ->
               let next = next_batch in
               next_batch <- [];
               if next <> [] then
-                Python.async (fun () -> fetch_batch proxy next) in
+                U.async (fun () -> fetch_batch proxy next) in
 
             (* Create a promise for each package and add it to [candidates].
              * Pass the resolvers to fetch_batch (in groups of up to [max_batch_size]).

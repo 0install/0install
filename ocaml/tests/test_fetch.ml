@@ -11,6 +11,7 @@ module Recipe = Zeroinstall.Recipe
 module F = Zeroinstall.Feed
 module Q = Support.Qdom
 module D = Zeroinstall.Downloader
+module U = Support.Utils
 
 let download_impls fetcher impls =
   match fetcher#download_impls impls |> Lwt_main.run with
@@ -280,7 +281,7 @@ let suite = "fetch">::: [
 
   "abort">:: (fun () ->
     Lwt_main.run (
-      let downloader = D.make_pool ~max_downloads_per_site:2 (fun dl -> Zeroinstall.Python.async dl.D.cancel) in
+      let downloader = D.make_pool ~max_downloads_per_site:2 (fun dl -> U.async dl.D.cancel) in
 
       (* Intercept the download and return a new blocker *)
       let handle_download ?if_slow:_ ?size:_ ?modification_time:_ _ch url =

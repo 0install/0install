@@ -235,13 +235,10 @@ let handle_bg options flags args =
             match interactive_ui with
             | Some gui ->
                 log_info "Background update: trying to use GUI to update %s" name;
-                Support.Utils.finally_do (fun () -> Zeroinstall.Python.cancel_slave () |> Lwt_main.run) () (fun () ->
-                  match gui#run_solver tools `Download_only reqs ~systray:true ~refresh:true |> Lwt_main.run with
-                  | `Aborted_by_user -> raise (System_exit 0)
-                  | `Success gui_sels -> gui_sels
-                )
+                begin match gui#run_solver tools `Download_only reqs ~systray:true ~refresh:true |> Lwt_main.run with
+                | `Aborted_by_user -> raise (System_exit 0)
+                | `Success gui_sels -> gui_sels end
             | None ->
-                Zeroinstall.Python.cancel_slave () |> Lwt_main.run;
                 if !need_gui then (
                   let msg = Printf.sprintf "Can't update 0install app '%s' without user intervention (run '0install update %s' to fix)" name name in
                   !notify ~timeout:10 ~msg;

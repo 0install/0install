@@ -8,7 +8,6 @@ open Support.Common
 open Zeroinstall.General
 
 module Progress = Zeroinstall.Progress
-module Python = Zeroinstall.Python
 module Trust = Zeroinstall.Trust
 module G = Support.Gpg
 module U = Support.Utils

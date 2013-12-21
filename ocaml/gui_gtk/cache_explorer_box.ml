@@ -7,7 +7,6 @@
 open Zeroinstall.General
 open Support.Common
 
-module Python = Zeroinstall.Python
 module F = Zeroinstall.Feed
 module U = Support.Utils
 module FC = Zeroinstall.Feed_cache

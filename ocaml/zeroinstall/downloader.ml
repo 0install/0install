@@ -240,7 +240,7 @@ let make_pool ~max_downloads_per_site : download_pool =
           let cancel () = Lwt.cancel task; Lwt.return () in
           monitor {cancel; url; progress; hint};
 
-          Python.async (fun () ->
+          U.async (fun () ->
             try_lwt
               lwt result = loop 10 url in
               Lwt.wakeup waker result;

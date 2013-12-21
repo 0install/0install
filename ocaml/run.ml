@@ -20,7 +20,7 @@ let run_test options run_opts run_args sels =
   let result, set_result = Lwt.wait () in
 
   let exec args ~env =
-    Zeroinstall.Python.async (fun () ->
+    U.async (fun () ->
       try_lwt
         let command = (U.find_in_path_ex options.config.system (List.hd args), Array.of_list args) in
         lwt out = Lwt_process.pread ~env ~stderr:(`FD_copy Unix.stdout) command in
@@ -59,7 +59,6 @@ let handle options flags args =
     let sels = Generic_select.handle options ~test_callback:(run_test options run_opts run_args) !select_opts arg `Select_for_run in
 
     let exec args ~env =
-      Zeroinstall.Python.cancel_slave () |> Lwt_main.run;
       options.config.system#exec args ~env in
 
     try Zeroinstall.Exec.execute_selections ~exec options.config sels run_args ?main:run_opts.main ?wrapper:run_opts.wrapper

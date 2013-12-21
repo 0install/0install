@@ -9,11 +9,6 @@ open Support.Common
 
 let () = ignore on_windows
 
-module F = Zeroinstall.Feed
-module FC = Zeroinstall.Feed_cache
-module P = Zeroinstall.Python
-module U = Support.Utils
-
 let handle options flags args =
   Support.Argparse.iter_options flags (function
     | #common_option as o -> Common_options.process_common_option options o

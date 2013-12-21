@@ -317,14 +317,11 @@ let handle config raw_args =
   let (raw_options, args, complete) = read_args spec raw_args in
   assert (complete = CompleteNothing);
 
-  Support.Utils.finally_do (fun _options -> Zeroinstall.Python.cancel_slave () |> Lwt_main.run)
-    (get_default_options config)
-    (fun options ->
-      let command_path, subcommand, command_args =
-        match args with
-        | [] -> ([], no_command, [])
-        | ["run"] when List.mem ("-V", []) raw_options -> (["run"], no_command, [])      (* Hack for 0launch -V *)
-        | command :: command_args -> lookup_subcommand config command command_args subcommands in
-      try subcommand#handle options raw_options command_path command_args
-      with ShowVersion -> Common_options.show_version config.system
-    )
+  let options = get_default_options config in
+  let command_path, subcommand, command_args =
+    match args with
+    | [] -> ([], no_command, [])
+    | ["run"] when List.mem ("-V", []) raw_options -> (["run"], no_command, [])      (* Hack for 0launch -V *)
+    | command :: command_args -> lookup_subcommand config command command_args subcommands in
+  try subcommand#handle options raw_options command_path command_args
+  with ShowVersion -> Common_options.show_version config.system
