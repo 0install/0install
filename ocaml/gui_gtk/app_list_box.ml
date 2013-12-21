@@ -99,13 +99,10 @@ let show_help config sel =
   U.xdg_open_dir ~exec:false system path
 
 let get_selections tools ~(gui:Zeroinstall.Ui.ui_handler) uri =
-  let config = tools#config in
-  let distro = Zeroinstall.Distro_impls.get_host_distribution config in
   let reqs = Zeroinstall.Requirements.default_requirements uri in
-  let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config distro in
-  match Zeroinstall.Solver.solve_for config feed_provider reqs with
-  | (true, results) -> Some results#get_selections |> Lwt.return
-  | (false, _) ->
+  match Zeroinstall.Driver.quick_solve tools reqs with
+  | Some _ as sels -> Lwt.return sels
+  | None ->
       (* Slow path: program isn't cached yet *)
       match_lwt gui#run_solver tools `Download_only reqs ~refresh:false with
       | `Success sels -> Some sels |> Lwt.return
