@@ -384,9 +384,12 @@ let packagekit = ref (fun config ->
             do_batch ();
 
             Lwt.join !waiting_for
-          with ex ->
-            log_warning ~ex "Error querying PackageKit";
-            Lwt.return ()
+          with
+          | Lwt.Canceled ->
+              Lwt.return ()
+          | ex ->
+              log_warning ~ex "Error querying PackageKit";
+              Lwt.return ()
 
     method install_packages (ui:Progress.watcher) items : [ `ok | `cancel ] Lwt.t =
       lwt response =
