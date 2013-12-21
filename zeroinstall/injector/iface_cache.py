@@ -31,10 +31,8 @@ creating new cache objects.
 from __future__ import print_function
 
 from zeroinstall import _, logger
-from zeroinstall.support import basedir, unicode
-from zeroinstall.injector import reader
-from zeroinstall.injector.namespaces import config_site
-from zeroinstall.injector.model import Interface, escape
+from zeroinstall.support import unicode
+from zeroinstall.injector.model import Interface
 
 class IfaceCache(object):
 	"""
@@ -58,25 +56,6 @@ class IfaceCache(object):
 		self._interfaces = {}
 		self._feeds = {}
 
-	def get_feed(self, url, force = False):
-		"""Get a feed from the cache.
-		@param url: the URL of the feed
-		@type url: str
-		@param force: load the file from disk again
-		@type force: bool
-		@return: the feed, or None if it isn't cached
-		@rtype: L{model.ZeroInstallFeed}"""
-		if not force:
-			feed = self._feeds.get(url, False)
-			if feed != False:
-				return feed
-
-		assert not url.startswith('distribution:'), url
-
-		feed = reader.load_feed_from_cache(url)
-		self._feeds[url] = feed
-		return feed
-
 	def get_interface(self, uri):
 		"""Get the interface for uri, creating a new one if required.
 		New interfaces are initialised from the disk cache, but not from
@@ -94,14 +73,5 @@ class IfaceCache(object):
 		logger.debug(_("Initialising new interface object for %s"), uri)
 		self._interfaces[uri] = Interface(uri)
 		return self._interfaces[uri]
-
-	def get_icon_path(self, iface):
-		"""Get the path of a cached icon for an interface.
-		@param iface: interface whose icon we want
-		@type iface: L{Interface}
-		@return: the path of the cached icon, or None if not cached.
-		@rtype: str"""
-		return basedir.load_first_cache(config_site, 'interface_icons',
-						 escape(iface.uri))
 
 iface_cache = IfaceCache()

@@ -221,6 +221,7 @@ let suite =
   Test_manifest.suite;
   Test_packagekit.suite;
   Test_gui.suite;
+  Test_qdom.suite;
  "test_basedir">:: test_basedir;
  "test_option_parsing">:: (fun () -> collect_logging test_option_parsing);
  "test_run_real">:: (fun () -> collect_logging (with_tmpdir test_run_real));

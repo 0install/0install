@@ -20,7 +20,6 @@ os.environ['LANG'] = 'C'
 if 'ZEROINSTALL_CRASH_LOGS' in os.environ: del os.environ['ZEROINSTALL_CRASH_LOGS']
 
 sys.path.insert(0, '..')
-from zeroinstall.injector import qdom
 from zeroinstall.injector import iface_cache, model
 from zeroinstall import support, cmd
 from zeroinstall.support import basedir
@@ -39,11 +38,6 @@ def skipIf(condition, reason):
 	return wrapped
 
 dpkgdir = os.path.join(os.path.dirname(__file__), 'dpkg')
-
-empty_feed = qdom.parse(BytesIO(b"""<interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>
-<name>Empty</name>
-<summary>just for testing</summary>
-</interface>"""))
 
 import my_dbus
 sys.modules['dbus'] = my_dbus
@@ -71,15 +65,6 @@ def test_execvp(prog, args):
 	return old_execvp(prog, args)
 
 os.execvp = test_execvp
-
-test_locale = (None, None)
-assert model.locale
-class TestLocale:
-	LC_ALL = 'LC_ALL'	# Note: LC_MESSAGES not present on Windows
-	def getlocale(self, x = None):
-		assert x is not TestLocale.LC_ALL
-		return test_locale
-model.locale = TestLocale()
 
 class TestConfig:
 	freshness = 0
