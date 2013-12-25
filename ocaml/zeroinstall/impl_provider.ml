@@ -2,8 +2,6 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(** Provides implementation candidates to the solver. *)
-
 open General
 open Support.Common
 module U = Support.Utils
@@ -16,7 +14,7 @@ type rejection = [
   | `Poor_stability
   | `No_retrieval_methods
   | `Not_cached_and_offline
-  | `Missing_local_impl
+  | `Missing_local_impl of filepath
   | `Incompatible_OS
   | `Not_binary
   | `Not_source
@@ -52,11 +50,7 @@ let describe_problem impl =
   | `Not_binary               -> "We want a binary and this is source"
   | `Not_source               -> "We want source and this is a binary"
   | `Incompatible_machine     -> "Not compatibile with the requested CPU type"
-  | `Missing_local_impl       ->
-      match impl.impl_type with
-      | LocalImpl path ->
-          spf "Local impl's directory (%s) is missing" path
-      | _ -> "ERROR - not local!"
+  | `Missing_local_impl path  -> spf "Local impl's directory (%s) is missing" path
 
 type scope_filter = {
   extra_restrictions : Feed.restriction StringMap.t;  (* iface -> test *)
@@ -68,8 +62,8 @@ type scope_filter = {
 
 type candidates = {
   replacement : iface_uri option;
-  impls : Feed.implementation list;
-  rejects : (Feed.implementation * rejection) list;
+  impls : Feed.generic_implementation list;
+  rejects : (Feed.generic_implementation * rejection) list;
 }
 
 class type impl_provider =
@@ -91,7 +85,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
   let watch_iface = ref None in
 
   (* If [watch_iface] is set, we store the comparison function for use by Diagnostics. *)
-  let compare_for_watched_iface = ref None in
+  let compare_for_watched_iface : (Feed.generic_implementation -> Feed.generic_implementation -> int * preferred_reason) option ref = ref None in
 
   let do_overrides overrides impls =
     let do_override id impl =
@@ -148,9 +142,9 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
         try
           let open Feed in
           match impl.impl_type with
-          | PackageImpl {package_installed;_} -> package_installed
-          | LocalImpl path -> config.system#file_exists path
-          | CacheImpl {digests;_} -> Stores.check_available cached_digests digests
+          | `package_impl {package_installed;_} -> package_installed
+          | `local_impl path -> config.system#file_exists path
+          | `cache_impl {digests;_} -> Stores.check_available cached_digests digests
         with Safe_exception _ as ex ->
           log_warning ~ex "Can't test whether impl is available: %s" (Support.Qdom.show_with_loc impl.Feed.qdom);
           false in
@@ -205,7 +199,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
 
         let score_requires_root_install i =
           match i.impl_type with
-          | PackageImpl {Feed.package_installed = false;_} -> 0   (* Bad - needs root install *)
+          | `package_impl {Feed.package_installed = false;_} -> 0   (* Bad - needs root install *)
           | _ -> 1 in
 
         ignore (
@@ -278,7 +272,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
             | None -> ([], None)
             | Some ((feed, _overrides) as pair) ->
                 let sub_feeds = U.filter_map get_feed_if_useful feed.Feed.imported_feeds in
-                let distro_impls = get_distro_impls feed in
+                let distro_impls = (get_distro_impls feed :> Feed.generic_implementation list) in
                 let impls = List.concat (distro_impls :: List.map get_impls (pair :: sub_feeds)) in
                 (impls, iface_config.Feed_cache.stability_policy) in
 
@@ -329,10 +323,10 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
             else (
               let open Feed in
               match impl.Feed.impl_type with
-              | LocalImpl _ -> `Missing_local_impl
-              | PackageImpl _ -> if config.network_use = Offline then `Not_cached_and_offline else `Acceptable
-              | CacheImpl {retrieval_methods = [];_} -> `No_retrieval_methods
-              | CacheImpl cache_impl ->
+              | `local_impl path -> `Missing_local_impl path
+              | `package_impl _ -> if config.network_use = Offline then `Not_cached_and_offline else `Acceptable
+              | `cache_impl {retrieval_methods = [];_} -> `No_retrieval_methods
+              | `cache_impl cache_impl ->
                   if config.network_use <> Offline then `Acceptable   (* Can download it *)
                   else if Feed.is_retrievable_without_network cache_impl then `Acceptable
                   else `Not_cached_and_offline

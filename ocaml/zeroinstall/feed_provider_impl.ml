@@ -17,7 +17,7 @@ let () = ignore on_windows  (* Quiet compiler warning *)
 class feed_provider config (distro:Distro.distribution) =
   object (self : #Feed_provider.feed_provider)
     val mutable cache = FeedMap.empty
-    val mutable distro_cache : (Feed.implementation StringMap.t * Feed.feed_overrides) FeedMap.t = FeedMap.empty
+    val mutable distro_cache : (Feed.distro_implementation StringMap.t * Feed.feed_overrides) FeedMap.t = FeedMap.empty
 
     method get_feed url : (Feed.feed * Feed.feed_overrides) option =
       try FeedMap.find url cache
@@ -31,7 +31,7 @@ class feed_provider config (distro:Distro.distribution) =
         cache <- FeedMap.add url result cache;
         result
 
-    method get_distro_impls feed : (Feed.implementation StringMap.t * Feed.feed_overrides) =
+    method get_distro_impls feed : (Feed.distro_implementation StringMap.t * Feed.feed_overrides) =
       let master_feed_url = feed.Feed.url in
       let url = `distribution_feed master_feed_url in
       try FeedMap.find master_feed_url distro_cache

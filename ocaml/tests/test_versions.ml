@@ -170,11 +170,11 @@ let suite = "versions">::: [
   "restrictions">:: (fun () ->
     let v6 = {Zeroinstall.Solver.dummy_impl with
       F.parsed_version = (Versions.parse_version "6");
-      F.impl_type = F.PackageImpl {F.package_distro = "RPM"; F.package_installed = true; F.retrieval_method = None};
+      F.impl_type = `package_impl {F.package_distro = "RPM"; F.package_installed = true; F.retrieval_method = None};
     } in
     let v7 = {Zeroinstall.Solver.dummy_impl with
       F.parsed_version = (Versions.parse_version "7");
-      F.impl_type = F.PackageImpl {F.package_distro = "Gentoo"; F.package_installed = true; F.retrieval_method = None};
+      F.impl_type = `package_impl {F.package_distro = "Gentoo"; F.package_installed = true; F.retrieval_method = None};
     } in
 
     let r = F.make_version_restriction "!7" in

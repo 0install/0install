@@ -47,11 +47,11 @@ type cache_impl = {
 }
 
 type impl_type =
-  | CacheImpl of cache_impl
-  | LocalImpl of filepath
-  | PackageImpl of package_impl
+  [ `cache_impl of cache_impl
+  | `local_impl of filepath
+  | `package_impl of package_impl ]
 
-type restriction = < to_string : string; meets_restriction : implementation -> bool >
+type restriction = < to_string : string; meets_restriction : impl_type implementation -> bool >
 
 and binding = Q.element
 
@@ -78,15 +78,18 @@ and properties = {
   commands : command StringMap.t;
 }
 
-and implementation = {
+and +'a implementation = {
   qdom : Q.element;
   props : properties;
   stability : stability_level;
   os : string option;           (* Required OS; the first part of the 'arch' attribute. None for '*' *)
   machine : string option;      (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
   parsed_version : Versions.parsed_version;
-  impl_type : impl_type;
+  impl_type : [< impl_type] as 'a;
 }
+
+type generic_implementation = impl_type implementation
+type distro_implementation = [ `package_impl of package_impl ] implementation
 
 let parse_stability ~from_user s =
   let if_from_user l =
@@ -134,7 +137,7 @@ type feed = {
   url : Feed_url.non_distro_feed;
   root : Q.element;
   name : string;
-  implementations : implementation StringMap.t;
+  implementations : generic_implementation StringMap.t;
   imported_feeds : feed_import list;
 
   (* The URI of the interface that replaced the one with the URI of this feed's URL.
@@ -159,17 +162,17 @@ let make_distribtion_restriction distros =
     method meets_restriction impl =
       ListLabels.exists (Str.split U.re_space distros) ~f:(fun distro ->
         match distro, impl.impl_type with
-        | "0install", PackageImpl _ -> false
-        | "0install", CacheImpl _ -> true
-        | "0install", LocalImpl _ -> true
-        | distro, PackageImpl {package_distro;_} -> package_distro = distro
+        | "0install", `package_impl _ -> false
+        | "0install", `cache_impl _ -> true
+        | "0install", `local_impl _ -> true
+        | distro, `package_impl {package_distro;_} -> package_distro = distro
         | _ -> false
       )
 
     method to_string = "distribution:" ^ distros
   end
 
-let get_attr_ex name (impl:implementation) =
+let get_attr_ex name impl =
   try AttrMap.find ("", name) impl.props.attrs
   with Not_found -> Q.raise_elem "Missing '%s' attribute for " name impl.qdom
 
@@ -425,10 +428,10 @@ let parse system root feed_local_path =
       | Some s -> parse_stability ~from_user:false s in
 
     let impl_type =
-      try LocalImpl (AttrMap.find ("", FeedAttr.local_path) !s.attrs)
+      try `local_impl (AttrMap.find ("", FeedAttr.local_path) !s.attrs)
       with Not_found ->
         let retrieval_methods = List.filter Recipe.is_retrieval_method node.Q.child_nodes in
-        CacheImpl { digests = Stores.get_digests node; retrieval_methods; } in
+        `cache_impl { digests = Stores.get_digests node; retrieval_methods; } in
 
     let impl = {
       qdom = node;
@@ -612,9 +615,9 @@ let get_langs impl =
 (** Is this implementation in the cache? *)
 let is_available_locally config impl =
   match impl.impl_type with
-  | PackageImpl {package_installed;_} -> package_installed
-  | LocalImpl path -> config.system#file_exists path
-  | CacheImpl {digests;_} ->
+  | `package_impl {package_installed;_} -> package_installed
+  | `local_impl path -> config.system#file_exists path
+  | `cache_impl {digests;_} ->
       match Stores.lookup_maybe config.system digests config.stores with
       | None -> false
       | Some _path -> true

@@ -10,7 +10,7 @@ type query = {
   package_name : string;            (* The 'package' attribute on the <package-element> *)
   elem_props : Feed.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
   feed : Feed.feed;                 (* The feed containing the <package-element> *)
-  results : Feed.implementation Support.Common.StringMap.t ref;
+  results : Feed.distro_implementation Support.Common.StringMap.t ref;
 }
 
 type quick_test_condition = Exists | UnchangedSince of float
@@ -53,7 +53,7 @@ class virtual distribution : General.config ->
     (** Get the native implementations (installed or candidates for installation) for this feed.
      * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one.
      * @param init add the results to this map, rather than starting with an empty one *)
-    method get_impls_for_feed : ?init:(Feed.implementation Support.Common.StringMap.t) -> Feed.feed -> Feed.implementation Support.Common.StringMap.t
+    method get_impls_for_feed : ?init:(Feed.distro_implementation Support.Common.StringMap.t) -> Feed.feed -> Feed.distro_implementation Support.Common.StringMap.t
 
     (** Check (asynchronously) for available but currently uninstalled candidates. Once the returned
         promise resolves, the candidates should be included in future responses from [get_package_impls]. *)
@@ -61,7 +61,7 @@ class virtual distribution : General.config ->
 
     (** Install a set of packages of a given type (as set previously by [check_for_candidates]).
      * Normally called only by the [Distro.install_distro_packages] function. *)
-    method install_distro_packages : Progress.watcher -> string -> (Feed.implementation * Feed.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
+    method install_distro_packages : Progress.watcher -> string -> (Feed.distro_implementation * Feed.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
 
     (** Check whether this name is possible for this distribution. The default implementation filters using [valid_package_name]. *)
     method is_valid_package_name : string -> bool
@@ -70,7 +70,7 @@ class virtual distribution : General.config ->
      * since we might not be able to work it out before-hand. The default checks that the path exists and, if not,
      * searches [system_paths] for it.
      * Note: Only called if the implementation already has a "run" command. *)
-    method private get_correct_main : Feed.implementation -> Feed.command -> Support.Common.filepath option
+    method private get_correct_main : Feed.distro_implementation -> Feed.command -> Support.Common.filepath option
 
     (** Add a new Feed.implementation result to [query]. *)
     method private add_package_implementation :
@@ -92,7 +92,7 @@ val is_installed : General.config -> distribution -> Support.Qdom.element -> boo
 
 (** Install these packages using the distribution's package manager.
  * Sorts the implementations into groups by their type and then calls [distribution#install_distro_packages] once for each group. *)
-val install_distro_packages : distribution -> #Progress.watcher -> Feed.implementation list -> [ `ok | `cancel ] Lwt.t
+val install_distro_packages : distribution -> #Progress.watcher -> Feed.distro_implementation list -> [ `ok | `cancel ] Lwt.t
 
 (** Return the <package-implementation> elements that best match this distribution. *)
 val get_matching_package_impls : distribution -> Feed.feed -> (Support.Qdom.element * Feed.properties) list

@@ -27,7 +27,7 @@ type packagekit = <
   check_for_candidates : string list -> unit Lwt.t;
 
   (** Install packages. Will confirm first with the user. *)
-  install_packages : Progress.watcher -> (Feed.implementation * Feed.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t;
+  install_packages : Progress.watcher -> (Feed.distro_implementation * Feed.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t;
 >
 
 (** Create a packagekit object, which can be used to query the PackageKit D-BUS

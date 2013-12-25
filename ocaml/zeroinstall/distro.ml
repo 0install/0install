@@ -41,7 +41,7 @@ type query = {
   package_name : string;            (* The 'package' attribute on the <package-element> *)
   elem_props : Feed.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
   feed : Feed.feed;                 (* The feed containing the <package-element> *)
-  results : Feed.implementation Support.Common.StringMap.t ref;
+  results : Feed.distro_implementation Support.Common.StringMap.t ref;
 }
 
 let make_query feed elem elem_props results = {
@@ -131,7 +131,7 @@ class virtual distribution config =
       os = None;
       machine = Some host_machine.Platform.machine;       (* (hopefully) *)
       parsed_version = Versions.parse_version version;
-      impl_type = PackageImpl {
+      impl_type = `package_impl {
         package_distro = "host";
         package_installed = true;
         retrieval_method = None;
@@ -239,7 +239,7 @@ class virtual distribution config =
         stability = Packaged;
         props = {props with attrs = !new_attrs};
         parsed_version = version;
-        impl_type = PackageImpl { package_installed = is_installed; package_distro = distro_name; retrieval_method };
+        impl_type = `package_impl { package_installed = is_installed; package_distro = distro_name; retrieval_method };
       } in
 
       if is_installed then fixup_main self#get_correct_main impl;
@@ -265,14 +265,11 @@ class virtual distribution config =
           let impls = self#get_impls_for_feed master_feed in
           match StringMap.find wanted_id impls with
           | None -> false
-          | Some impl ->
-              match impl.Feed.impl_type with
-              | Feed.PackageImpl {Feed.package_installed; _} -> package_installed
-              | _ -> assert false
+          | Some {Feed.impl_type = `package_impl {Feed.package_installed; _}; _} -> package_installed
 
     (** Get the native implementations (installed or candidates for installation) for this feed.
      * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one. *)
-    method get_impls_for_feed ?(init=StringMap.empty) (feed:Feed.feed) : Feed.implementation StringMap.t =
+    method get_impls_for_feed ?(init=StringMap.empty) (feed:Feed.feed) : Feed.distro_implementation StringMap.t =
       let results = ref init in
 
       if check_host_python then (
@@ -370,13 +367,11 @@ let is_installed config (distro:distribution) elem =
 let install_distro_packages (distro:distribution) (ui:#Progress.watcher) impls : [ `ok | `cancel ] Lwt.t =
   let groups = ref StringMap.empty in
   impls |> List.iter (fun impl ->
-    match impl.Feed.impl_type with
-    | Feed.PackageImpl {Feed.retrieval_method = rm; _} ->
-        let rm = rm |? lazy (raise_safe "Missing retrieval method for package '%s'" (Feed.get_attr_ex FeedAttr.id impl)) in
-        let (typ, _info) = rm.Feed.distro_install_info in
-        let items = default [] @@ StringMap.find typ !groups in
-        groups := StringMap.add typ ((impl, rm) :: items) !groups
-    | _ -> raise_safe "BUG: not a PackageImpl! %s" (Feed.get_attr_ex FeedAttr.id impl)
+    let `package_impl {Feed.retrieval_method = rm; _} = impl.Feed.impl_type in
+    let rm = rm |? lazy (raise_safe "Missing retrieval method for package '%s'" (Feed.get_attr_ex FeedAttr.id impl)) in
+    let (typ, _info) = rm.Feed.distro_install_info in
+    let items = default [] @@ StringMap.find typ !groups in
+    groups := StringMap.add typ ((impl, rm) :: items) !groups
   );
 
   let rec loop = function

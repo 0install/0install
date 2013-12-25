@@ -35,11 +35,10 @@ let test ?(package="gnupg") config fake_system =
   log_info "done check_for_candidates";
   let impls = distro#get_impls_for_feed feed |> Test_distro.to_impl_list in
   impls |> List.iter (function
-    | {F.impl_type = F.PackageImpl info; _} ->
+    | {F.impl_type = `package_impl info; _} ->
         assert_equal false info.F.package_installed;
         let rm = expect info.F.retrieval_method in
         assert_equal (Some (Int64.of_int 100)) rm.F.distro_size;
-    | _ -> assert false
   );
   assert_equal `ok (Distro.install_distro_packages distro approve_ui impls |> Lwt_main.run);
   List.length impls

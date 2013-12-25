@@ -32,7 +32,7 @@ let impl_template = F.({
   os = None;
   machine = None;
   parsed_version = Zeroinstall.Versions.parse_version "1.0";
-  impl_type = CacheImpl {
+  impl_type = `cache_impl {
     digests = [("sha1", "123")];
     retrieval_methods = [];
   };
@@ -91,7 +91,7 @@ let suite = "fetch">::: [
 
     let try_with ?(template = impl_template) ?(digest=("sha1new", "123")) xml =
       let recipe = parse_xml xml in
-      let impl_type = F.(CacheImpl {
+      let impl_type = F.(`cache_impl {
         digests = [digest];
         retrieval_methods = [recipe];
       }) in
@@ -175,7 +175,7 @@ let suite = "fetch">::: [
         let impl = StringMap.find_safe id feed.F.implementations in
         let digests =
           match impl.F.impl_type with
-          | F.CacheImpl {F.digests; _} -> digests
+          | `cache_impl {F.digests; _} -> digests
           | _ -> assert false in
 
         (* Not cached before download... *)

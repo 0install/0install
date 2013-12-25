@@ -34,7 +34,7 @@ let get_impl (feed_provider:Feed_provider.feed_provider) sel =
           let (impls, overrides) = feed_provider#get_distro_impls master_feed in
           match StringMap.find id impls with
           | None -> None
-          | Some impl -> Some (impl, get_override overrides)
+          | Some impl -> Some ((impl :> F.generic_implementation), get_override overrides)
   )
   | (`local_feed _ | `remote_feed _) as feed_url ->
       match feed_provider#get_feed feed_url with
@@ -55,8 +55,8 @@ let get_download_size info impl =
 let get_fetch_info config impl =
   try
     match impl.F.impl_type with
-    | F.LocalImpl path -> ("(local)", path)
-    | F.CacheImpl info -> (
+    | `local_impl path -> ("(local)", path)
+    | `cache_impl info -> (
         match Stores.lookup_maybe config.system info.F.digests config.stores with
         | None ->
           begin match get_download_size info impl with
@@ -66,7 +66,7 @@ let get_fetch_info config impl =
           | None -> ("-", "No size") end;
         | Some path -> ("(cached)", "This version is already stored on your computer:\n" ^ path)
     )
-    | F.PackageImpl info ->
+    | `package_impl info ->
         if info.F.package_installed then ("(package)", "This distribution-provided package is already installed.")
         else (
           let size =

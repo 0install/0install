@@ -11,7 +11,7 @@ type fetch_feed_response =
 class fetcher : General.config -> Trust.trust_db -> Distro.distribution -> Downloader.download_pool -> #Progress.watcher ->
   object
     method download_and_import_feed : [ `remote_feed of General.feed_url ] -> fetch_feed_response Lwt.t
-    method download_impls : Feed.implementation list -> [ `success | `aborted_by_user ] Lwt.t
+    method download_impls : Feed.generic_implementation list -> [ `success | `aborted_by_user ] Lwt.t
 
     (** [import_feed url xml] checks the signature on [xml] and imports it into the cache if trusted.
      * If not trusted, it confirms with the user first, downloading any missing keys first. *)

@@ -9,7 +9,7 @@ type rejection = [
   | `Poor_stability
   | `No_retrieval_methods
   | `Not_cached_and_offline
-  | `Missing_local_impl
+  | `Missing_local_impl of Support.Common.filepath
   | `Incompatible_OS
   | `Not_binary
   | `Not_source
@@ -33,7 +33,7 @@ type preferred_reason =
   | PreferStability
   | PreferVersion
 
-val describe_problem : Feed.implementation -> rejection -> string
+val describe_problem : _ Feed.implementation -> rejection -> string
 
 type scope_filter = {
   extra_restrictions : Feed.restriction Support.Common.StringMap.t;
@@ -45,8 +45,8 @@ type scope_filter = {
 
 type candidates = {
   replacement : General.iface_uri option;
-  impls : Feed.implementation list;
-  rejects : (Feed.implementation * rejection) list;
+  impls : Feed.generic_implementation list;
+  rejects : (Feed.generic_implementation * rejection) list;
 }
 
 class type impl_provider =
@@ -68,5 +68,5 @@ class default_impl_provider : General.config -> Feed_provider.feed_provider -> s
     method is_dep_needed : Feed.dependency -> bool
 
     method set_watch_iface : General.iface_uri -> unit
-    method get_watched_compare : (Feed.implementation -> Feed.implementation -> int * preferred_reason) option
+    method get_watched_compare : (Feed.generic_implementation -> Feed.generic_implementation -> int * preferred_reason) option
   end

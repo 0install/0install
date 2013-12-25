@@ -40,10 +40,10 @@ val have_source_for : Feed_provider.feed_provider -> General.iface_uri -> bool
 (** List the implementations of this interface in the order they should be shown in the GUI.
  * @return (selected_version, implementations), or None if this interface wasn't used in the solve. *)
 val list_impls : Solver.result -> General.iface_uri ->
-  (Feed.implementation option * (Feed.implementation * Impl_provider.rejection option) list) option
+  (Feed.generic_implementation option * (Feed.generic_implementation * Impl_provider.rejection option) list) option
 
 (* Returns (fetch-size, fetch-tooltip) *)
-val get_fetch_info : General.config -> Feed.implementation -> (string * string)
+val get_fetch_info : General.config -> Feed.generic_implementation -> (string * string)
 
 (** Set a user-override stability rating. *)
 val set_impl_stability : General.config -> Feed.global_id -> General.stability_level option -> unit
@@ -57,6 +57,6 @@ val get_bug_report_details : General.config -> iface:General.iface_uri -> (bool 
 val send_bug_report : General.iface_uri -> string -> string Lwt.t
 
 (** Find the [Feed.implementation] which produced this selection. If there is an override on the stability, return that too. *)
-val get_impl : Feed_provider.feed_provider -> Support.Qdom.element -> (Feed.implementation * General.stability_level option) option
+val get_impl : Feed_provider.feed_provider -> Support.Qdom.element -> (Feed.generic_implementation * General.stability_level option) option
 
 val run_test : General.config -> Distro.distribution -> (Support.Qdom.element -> string Lwt.t) -> (bool * Solver.result) -> string Lwt.t

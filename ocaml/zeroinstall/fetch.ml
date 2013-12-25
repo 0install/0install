@@ -694,7 +694,7 @@ class fetcher config trust_db (distro:Distro.distribution) (download_pool:Downlo
                       `problem (msg, Some (wait_for_mirror mirror)) |> Lwt.return
               )
 
-    method download_impls (impls:Feed.implementation list) : [ `success | `aborted_by_user ] Lwt.t =
+    method download_impls (impls:Feed.generic_implementation list) : [ `success | `aborted_by_user ] Lwt.t =
       (* todo: external fetcher on Windows? *)
 
       let zi_impls = ref [] in
@@ -706,12 +706,12 @@ class fetcher config trust_db (distro:Distro.distribution) (download_pool:Downlo
 
         log_debug "download_impls: for %s get %s" (Feed_url.format_url feed) version;
 
-        match impl.Feed.impl_type with
-        | Feed.PackageImpl _ ->
+        match impl with
+        | {Feed.impl_type = `package_impl _; _} as impl ->
             (* Any package without a retrieval method should be already installed *)
             package_impls := impl :: !package_impls
-        | Feed.LocalImpl path -> raise_safe "Can't fetch a missing local impl (%s from %s)!" path (Feed_url.format_url feed)
-        | Feed.CacheImpl info ->
+        | {Feed.impl_type = `local_impl path; _} -> raise_safe "Can't fetch a missing local impl (%s from %s)!" path (Feed_url.format_url feed)
+        | {Feed.impl_type = `cache_impl info; _} ->
             (* Choose the best digest algorithm we support *)
             if info.Feed.digests = [] then (
               Q.raise_elem "No digests at all! (so can't choose best) on " impl.Feed.qdom

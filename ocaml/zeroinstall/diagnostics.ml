@@ -27,7 +27,7 @@ type rejection_reason = [
   | Impl_provider.rejection
   | `FailsRestriction of Feed.restriction
   | `DepFailsRestriction of Feed.dependency * Feed.restriction
-  | `MachineGroupConflict of Feed.implementation
+  | `MachineGroupConflict of Feed.impl_type Feed.implementation
   | `ConflictsInterface of iface_uri
   | `MissingCommand of string
   | `DiagnosticsFailure of string
@@ -37,8 +37,8 @@ type note =
   | UserRequested of Feed.restriction
   | ReplacesConflict of iface_uri
   | ReplacedByConflict of iface_uri
-  | Restricts of iface_uri * Feed.implementation * Feed.restriction list
-  | RequiresCommand of iface_uri * Feed.implementation * string
+  | Restricts of iface_uri * Feed.generic_implementation * Feed.restriction list
+  | RequiresCommand of iface_uri * Feed.generic_implementation * string
   | NoCandidates
 
 let format_restrictions r = String.concat ", " (List.map (fun r -> r#to_string) r)
@@ -117,14 +117,14 @@ let format_report buf (iface_uri, _source) component =
     [candidates] is the result from the impl_provider.
     [impl] is the selected implementation, or [None] if we chose [dummy_impl].
     [lit] is the SAT literal, which can be used to produce diagnostics as a last resort. *)
-class component candidates (lit:S.lit) (selected_impl:Feed.implementation option) =
+class component candidates (lit:S.lit) (selected_impl:Feed.generic_implementation option) =
   let {Impl_provider.impls = orig_good; Impl_provider.rejects = orig_bad; Impl_provider.replacement} = candidates in
   (* orig_good is all the implementations passed to the SAT solver (these are the
      ones with a compatible OS, CPU, etc). They are sorted most desirable first. *)
   object (self)
     val mutable notes = []
     val mutable good = orig_good
-    val mutable bad = (orig_bad :> (Feed.implementation * rejection_reason) list)
+    val mutable bad = (orig_bad :> (Feed.generic_implementation * rejection_reason) list)
 
     method note (note:note) = notes <- note :: notes
 
@@ -280,7 +280,7 @@ let process_root_req report = function
 
 (** Find an implementation which requires a machine group. Use this to
     explain the rejection of all implementations requiring other groups. *)
-exception Found of (Feed.implementation * Arch.machine_group)
+exception Found of (Feed.generic_implementation * Arch.machine_group)
 let check_machine_groups report =
   let check _key compoment =
     match compoment#impl with

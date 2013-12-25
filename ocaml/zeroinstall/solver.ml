@@ -13,7 +13,7 @@ module FeedAttr = Constants.FeedAttr
 module SolverData =
   struct
     type t =
-      | ImplElem of Feed.implementation
+      | ImplElem of Feed.generic_implementation
       | CommandElem of Feed.command
       | MachineGroup of string
     let to_string = function
@@ -65,7 +65,7 @@ let dummy_impl =
       bindings = [];
     };
     parsed_version = Versions.dummy;
-    impl_type = PackageImpl { package_installed = true; package_distro = "dummy"; retrieval_method = None };
+    impl_type = `package_impl { package_installed = true; package_distro = "dummy"; retrieval_method = None };
   }
 
 (** A fake <command> used to generate diagnostics if the solve fails. *)
@@ -74,7 +74,7 @@ let dummy_command = {
   Feed.command_requires = [];
 }
 
-class impl_candidates sat (clause : S.at_most_one_clause option) (vars : (S.var * Feed.implementation) list) =
+class impl_candidates sat (clause : S.at_most_one_clause option) (vars : (S.var * Feed.generic_implementation) list) =
   object (_ : #candidates)
     method get_clause = clause
 

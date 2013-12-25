@@ -29,7 +29,7 @@ exception Ok
 let handle_download_impls config pending_digests impls =
   impls |> List.iter (fun impl ->
     match impl.F.impl_type with
-    | F.CacheImpl {F.digests;_} ->
+    | `cache_impl {F.digests;_} ->
         if Zeroinstall.Stores.lookup_maybe config.system digests config.stores = None then (
           let digest_str =
             digests |> U.first_match (fun digest ->

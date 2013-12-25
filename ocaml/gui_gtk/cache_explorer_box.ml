@@ -338,7 +338,7 @@ let open_cache_explorer config =
     (* For each implementation... *)
     feed.F.implementations |> StringMap.iter (fun _id impl ->
       match impl.F.impl_type with
-      | F.CacheImpl info ->
+      | `cache_impl info ->
           (* For each digest... *)
           info.F.digests |> List.iter (fun parsed_digest ->
             let digest = Manifest.format_digest parsed_digest in
@@ -346,7 +346,7 @@ let open_cache_explorer config =
               Hashtbl.add impl_of_digest digest (feed, impl)
             )
           )
-      | F.PackageImpl _ | F.LocalImpl _ -> assert false
+      | `package_impl _ | `local_impl _ -> assert false
     );
   );
 

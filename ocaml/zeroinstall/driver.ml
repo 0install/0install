@@ -250,7 +250,7 @@ let download_selections config distro fetcher ~include_packages ~(feed_provider:
         | `distribution_feed master_url ->
             match feed_provider#get_feed master_url with
             | None -> raise Not_found
-            | Some (master_feed, _) -> find_distro_impl feed_provider id master_feed in
+            | Some (master_feed, _) -> (find_distro_impl feed_provider id master_feed :> Feed.generic_implementation) in
 
       let refresh_feeds () =
         match feed_url with

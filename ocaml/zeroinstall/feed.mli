@@ -37,11 +37,11 @@ type cache_impl = {
 }
 
 type impl_type =
-  | CacheImpl of cache_impl
-  | LocalImpl of Support.Common.filepath
-  | PackageImpl of package_impl
+  [ `cache_impl of cache_impl
+  | `local_impl of Support.Common.filepath
+  | `package_impl of package_impl ]
 
-type restriction = < meets_restriction : implementation -> bool; to_string : string >
+type restriction = < meets_restriction : impl_type implementation -> bool; to_string : string >
 and binding = Support.Qdom.element
 and dependency = {
   dep_qdom : Support.Qdom.element;
@@ -63,15 +63,18 @@ and properties = {
   bindings : binding list;
   commands : command Support.Common.StringMap.t;
 }
-and implementation = {
+and +'a implementation = {
   qdom : Support.Qdom.element;
   props : properties;
   stability : General.stability_level;
   os : string option;           (* Required OS; the first part of the 'arch' attribute. None for '*' *)
   machine : string option;      (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
   parsed_version : Versions.parsed_version;
-  impl_type : impl_type;
+  impl_type : [< impl_type] as 'a;
 }
+
+type generic_implementation = impl_type implementation
+type distro_implementation = [ `package_impl of package_impl ] implementation
 
 type feed_overrides = {
   last_checked : float option;
@@ -97,7 +100,7 @@ type feed = {
   url : Feed_url.non_distro_feed;
   root : Support.Qdom.element;
   name : string;
-  implementations : implementation Support.Common.StringMap.t;
+  implementations : generic_implementation Support.Common.StringMap.t;
   imported_feeds : feed_import list;    (* Always of type Feed_import here *)
 
   (* The URI of the interface that replaced the one with the URI of this feed's URL.
@@ -123,21 +126,21 @@ val make_distribtion_restriction : string -> restriction
 val make_version_restriction : string -> restriction
 
 val get_attr_opt : string -> string AttrMap.t -> string option
-val get_attr_ex : string -> implementation -> string
+val get_attr_ex : string -> _ implementation -> string
 
-val get_implementations : feed -> implementation list
-val is_source : implementation -> bool
+val get_implementations : feed -> generic_implementation list
+val is_source : _ implementation -> bool
 
 val get_command_opt : string -> command Support.Common.StringMap.t -> command option
-val get_command_ex : implementation -> string -> command
+val get_command_ex : _ implementation -> string -> command
 
 val load_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides
 val save_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides -> unit
 val update_last_checked_time : General.config -> [< `remote_feed of General.feed_url] -> unit
-val get_langs : implementation -> Support.Locale.lang_spec list
-val is_available_locally : General.config -> implementation -> bool
+val get_langs : _ implementation -> Support.Locale.lang_spec list
+val is_available_locally : General.config -> _ implementation -> bool
 val is_retrievable_without_network : cache_impl -> bool
-val get_id : implementation -> global_id
+val get_id : _ implementation -> global_id
 val get_summary : int Support.Locale.LangMap.t -> feed -> string option
 val get_description : int Support.Locale.LangMap.t -> feed -> string option
 

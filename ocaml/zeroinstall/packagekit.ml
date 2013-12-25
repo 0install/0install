@@ -23,7 +23,7 @@ class type packagekit =
     method is_available : bool Lwt.t
     method get_impls : string -> package_info list
     method check_for_candidates : string list -> unit Lwt.t
-    method install_packages : Progress.watcher -> (Feed.implementation * Feed.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
+    method install_packages : Progress.watcher -> (Feed.distro_implementation * Feed.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
   end
 
 (** PackageKit refuses to process more than 100 requests per transaction, so never ask for more than this in a single request. *)
@@ -161,9 +161,8 @@ let install (ui:Progress.watcher) pk items =
     ) in
     (* Mark each package as now installed (possibly we should do this individually in a signal callback instead). *)
     items |> List.iter (fun (impl, _rm) ->
-      match impl.Feed.impl_type with
-      | Feed.PackageImpl info -> info.Feed.package_installed <- true
-      | _ -> assert false
+      let `package_impl info = impl.Feed.impl_type in
+      info.Feed.package_installed <- true
     );
     Lwt.return (if !cancelled then `cancel else `ok)
   finally

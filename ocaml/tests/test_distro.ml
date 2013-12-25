@@ -43,7 +43,7 @@ let load_feed system xml =
     let root = Q.parse_input None @@ Xmlm.make_input (`String (0, xml)) in
     F.parse system root None
 
-let to_impl_list map : F.implementation list =
+let to_impl_list map : _ F.implementation list =
   StringMap.map_bindings (fun _ impl -> impl) map
 
 let gimp_feed = Test_feed.feed_of_xml Fake_system.real_system "\

@@ -37,7 +37,7 @@ class impl_provider =
       stability = General.Stable;
       os; machine;
       parsed_version = Versions.parse_version v;
-      impl_type = LocalImpl "/"
+      impl_type = `local_impl "/"
     }) in
 
   object (_ : #I.impl_provider)

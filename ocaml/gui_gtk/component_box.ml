@@ -596,11 +596,11 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
                 U.xdg_open_dir config.system path
               ) |> ignore in
             begin match impl.F.impl_type with
-            | F.LocalImpl path -> add_open_item path
-            | F.CacheImpl info ->
+            | `local_impl path -> add_open_item path
+            | `cache_impl info ->
                 let path = Zeroinstall.Stores.lookup_maybe config.system info.F.digests config.stores in
                 path |> if_some add_open_item
-            | F.PackageImpl _ -> () end;
+            | `package_impl _ -> () end;
 
             let explain = GMenu.menu_item ~packing:menu#add ~label:"Explain this decision" () in
             explain#connect#activate ~callback:(fun () ->
