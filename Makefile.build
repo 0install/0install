@@ -19,7 +19,7 @@ JSON_LIBS = "${EASY_FORMAT}/easy_format.cmo" "${BINIOU}/bi_util.cmo" "${BINIOU}/
 XMLM = $(shell ocamlfind query xmlm)
 
 all: translations
-	(cd "${SRCDIR}/ocaml" && $(PYTHON) build-in.py "${BUILDDIR}/ocaml")
+	(cd "${SRCDIR}/ocaml" && ocaml build-in.ml "${BUILDDIR}/ocaml")
 	(cd "${SRCDIR}" && cp README.md COPYING "${DISTDIR}/")
 	install -d "${DISTDIR}/files"
 	-install ocaml/gui_gtk.c*[sa] "${DISTDIR}/files/"
