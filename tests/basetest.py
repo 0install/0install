@@ -37,14 +37,6 @@ def skipIf(condition, reason):
 
 dpkgdir = os.path.join(os.path.dirname(__file__), 'dpkg')
 
-import my_dbus
-sys.modules['dbus'] = my_dbus
-sys.modules['dbus.glib'] = my_dbus
-my_dbus.types = my_dbus
-sys.modules['dbus.types'] = my_dbus
-sys.modules['dbus.mainloop'] = my_dbus
-sys.modules['dbus.mainloop.glib'] = my_dbus
-
 mydir = os.path.dirname(__file__)
 ocaml_0install = os.path.join(mydir, '..', 'build', 'ocaml', '0install')
 
@@ -104,8 +96,6 @@ class BaseTest(unittest.TestCase):
 
 		self.old_path = os.environ['PATH']
 		os.environ['PATH'] = self.config_home + ':' + dpkgdir + ':' + self.old_path
-
-		my_dbus.system_services = {}
 
 	def tearDown(self):
 		shutil.rmtree(self.config_home)
