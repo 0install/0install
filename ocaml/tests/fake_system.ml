@@ -36,8 +36,8 @@ let expect = function
 module RealSystem = Support.System.RealSystem(Unix)
 let real_system = new RealSystem.real_system
 
-let real_spawn_handler args cin cout cerr =
-  real_system#create_process args cin cout cerr
+let real_spawn_handler ?env args cin cout cerr =
+  real_system#create_process ?env args cin cout cerr
 
 let build_dir = Filename.dirname @@ Filename.dirname Sys.argv.(0)
 
@@ -82,13 +82,14 @@ let capture_stdout ?(include_stderr=false) fn =
         )
     )
 
+exception Did_exec
 exception Would_exec of (bool * string array option * string list)
 exception Would_spawn of (bool * string array option * string list)
 
 let ocaml_dir = Sys.getcwd ()
 let src_dir = Filename.dirname ocaml_dir
 let tests_dir = ocaml_dir +/ "tests"
-let test_0install = src_dir +/ "0install"           (* Pretend we're running from here so we find 0install-python-fallback *)
+let test_0install = U.realpath real_system (build_dir +/ "0install")
 
 class fake_system tmpdir =
   let extra_files : dentry StringMap.t ref = ref StringMap.empty in
@@ -238,7 +239,12 @@ class fake_system tmpdir =
     method rmdir path = real_system#rmdir (check_write path)
 
     method exec ?(search_path = false) ?env argv =
-      raise (Would_exec (search_path, env, argv))
+      match spawn_handler with
+      | None -> raise (Would_exec (search_path, env, argv))
+      | Some handler ->
+          let child = handler ?env argv Unix.stdin Unix.stdout Unix.stderr in
+          Support.System.reap_child child;
+          raise Did_exec
 
     method allow_spawn_detach v = allow_spawn_detach <- v
 
@@ -246,15 +252,15 @@ class fake_system tmpdir =
       if allow_spawn_detach then (
         ignore search_path;
         (* For testing, we run in-process to allow tests interceptors to work, etc. *)
-        if List.hd argv <> test_0install then failwith "spawn_detach";
+        if List.hd argv <> test_0install then raise_safe "spawn_detach with %s (not %s)" (List.hd argv) test_0install;
         let config = Zeroinstall.Config.get_default_config (self :> system) test_0install in
         Cli.handle config (List.tl argv)
       ) else raise (Would_spawn (search_path, env, argv))
 
-    method create_process ?env:_ args new_stdin new_stdout new_stderr =
+    method create_process ?env args new_stdin new_stdout new_stderr =
       match spawn_handler with
       | None -> raise (Would_spawn (true, None, args))
-      | Some handler -> handler args new_stdin new_stdout new_stderr
+      | Some handler -> handler ?env args new_stdin new_stdout new_stderr
 
     method set_spawn_handler handler =
       spawn_handler <- handler
@@ -470,6 +476,7 @@ let get_fake_config tmpdir =
     system#putenv "PATH" @@ (home +/ "bin") ^ ":" ^ (Sys.getenv "PATH");
     system#add_file test_0install (build_dir +/ "0install");
   );
+  system#allow_read src_dir;
   (* Allow reading from all PATH directories *)
   Str.split_delim U.re_path_sep (system#getenv "PATH" |? lazy (failwith "PATH")) |> List.iter (fun dir ->
     system#allow_read dir

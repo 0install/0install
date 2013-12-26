@@ -124,7 +124,7 @@ let suite = "0install">::: [
     assert_str_equal "" output;
 
     (* Use --console --offline --refresh to force us to use the Python *)
-    let my_spawn_handler args cin cout cerr =
+    let my_spawn_handler ?env:_ args cin cout cerr =
       Fake_system.real_system#create_process args cin cout cerr in
     fake_system#set_spawn_handler (Some my_spawn_handler);
     fake_system#set_argv [| test_0install; "-cor"; "download"; "http://example.com:8000/Hello.xml"; "--version"; "2" |];
@@ -412,7 +412,7 @@ let suite = "0install">::: [
     assert_contains "Local.xml: 0.1-pre -> 0.1" out;
 
     (* Allow running diff *)
-    let my_spawn_handler args cin cout cerr =
+    let my_spawn_handler ?env:_ args cin cout cerr =
       Fake_system.real_system#create_process args cin cout cerr in
     fake_system#set_spawn_handler (Some my_spawn_handler);
     let out = run ["whatchanged"; "local-app"; "--full"] in
