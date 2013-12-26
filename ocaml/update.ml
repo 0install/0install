@@ -58,10 +58,10 @@ let check_replacement system = function
 
 let check_for_updates options reqs old_sels =
   let tools = options.tools in
-  let new_sels = Zeroinstall.Helpers.solve_and_download_impls tools reqs `Download_only ~refresh:true |> Lwt_main.run in
-  match new_sels with
-  | None -> raise (System_exit 1)   (* Aborted by user *)
-  | Some new_sels ->
+  let ui : Zeroinstall.Ui.ui_handler = tools#ui in
+  match ui#run_solver tools `Download_only reqs ~refresh:true |> Lwt_main.run with
+  | `Aborted_by_user -> raise (System_exit 1)
+  | `Success new_sels ->
       let config = options.config in
       let system = config.system in
       let print fmt = Support.Utils.print system fmt in

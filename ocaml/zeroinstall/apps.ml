@@ -120,9 +120,10 @@ let set_selections config app_path sels ~touch_last_checked =
    Try to open the GUI for a blocking download. If we can't do that, download without the GUI. *)
 let foreground_update tools app_path reqs =
   log_info "App '%s' needs to get new selections; current ones are not usable" app_path;
-  match Helpers.solve_and_download_impls tools reqs `Download_only ~refresh:true |> Lwt_main.run with
-  | None -> raise_safe "Aborted by user"
-  | Some sels ->
+  let ui : Ui.ui_handler = tools#ui in
+  match ui#run_solver tools `Download_only reqs ~refresh:true |> Lwt_main.run with
+  | `Aborted_by_user -> raise_safe "Aborted by user"
+  | `Success sels ->
       set_selections tools#config app_path sels ~touch_last_checked:true;
       sels
 

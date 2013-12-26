@@ -38,8 +38,8 @@ let handle options flags args =
       match G.resolve_target options.config !select_opts arg with
       | (G.Interface, reqs) -> (
           match G.get_selections options ~refresh:!refresh reqs `Download_only |> Lwt_main.run with
-          | None -> raise (System_exit 1)  (* Aborted by user *)
-          | Some sels ->
+          | `Aborted_by_user -> raise (System_exit 1)
+          | `Success sels ->
               check_for_replacement options.config reqs.R.interface_uri;
               let app = Apps.create_app options.config pet_name reqs in
               Apps.set_selections options.config app sels ~touch_last_checked:true;

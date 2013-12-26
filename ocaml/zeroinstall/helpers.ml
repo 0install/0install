@@ -18,12 +18,6 @@ type select_mode = [
   | `Select_for_run    (* download archives; update stale in background; display "Run" in GUI *)
 ]
 
-let solve_and_download_impls tools ?test_callback reqs mode ~refresh =
-  let ui : Ui.ui_handler = tools#ui in
-  match_lwt ui#run_solver tools ?test_callback mode reqs ~refresh with
-  | `Success sels -> Lwt.return (Some sels)
-  | `Aborted_by_user -> Lwt.return None
-
 let make_ui config use_gui : Ui.ui_handler =
   let use_gui =
     match use_gui, config.dry_run with

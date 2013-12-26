@@ -138,8 +138,11 @@ let make_driver_test test_elem =
     let () =
       try
         Fake_system.collect_logging (fun () ->
-          let sels = Fake_system.expect @@ Lwt_main.run @@ Zeroinstall.Helpers.solve_and_download_impls tools !reqs `Select_for_run ~refresh:false in
-          if !fails then assert_failure "Expected solve_and_download_impls to fail, but it didn't!";
+          let sels =
+            match Lwt_main.run @@ Fake_system.null_ui#run_solver tools `Select_for_run !reqs ~refresh:false with
+            | `Success sels -> sels
+            | `Aborted_by_user -> assert false in
+          if !fails then assert_failure "Expected run_solver to fail, but it didn't!";
           let actual_env = ref StringMap.empty in
           let output = trim @@ Fake_system.capture_stdout (fun () ->
             let exec cmd ~env =
@@ -212,8 +215,9 @@ let suite = "driver">::: [
     let foo_path = Test_0install.feed_dir +/ "Foo.xml" in
     let reqs = Requirements.({(default_requirements foo_path) with command = None}) in
     let tools = Fake_system.make_tools config in
-    let sels = Zeroinstall.Helpers.solve_and_download_impls tools reqs `Select_for_run ~refresh:false |> Lwt_main.run in
-    assert (sels <> None)
+    match Fake_system.null_ui#run_solver tools `Select_for_run reqs ~refresh:false |> Lwt_main.run with
+    | `Success _ -> ()
+    | `Aborted_by_user -> assert false
   );
 
   "source">:: Fake_system.with_tmpdir (fun tmpdir ->

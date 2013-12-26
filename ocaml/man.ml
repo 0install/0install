@@ -116,8 +116,8 @@ let handle options flags args =
                 let reqs = {(Zeroinstall.Requirements.default_requirements uri) with Zeroinstall.Requirements.command} in
                 (* Ensure cached *)
                 match Generic_select.get_selections options ~refresh:false reqs `Download_only |> Lwt_main.run with
-                | Some sels -> (sels, main)
-                | None -> raise (System_exit 1)
+                | `Success sels -> (sels, main)
+                | `Aborted_by_user -> raise (System_exit 1)
             )
             | Some (AppLauncher app_name) ->
                 match Zeroinstall.Apps.lookup_app options.config app_name with

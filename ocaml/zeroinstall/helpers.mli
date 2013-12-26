@@ -10,18 +10,6 @@ type select_mode = [
   | `Select_for_run    (* download archives; update stale in background; display "Run" in GUI *)
 ]
 
-(** Get some selectsions for these requirements.
-    Returns [None] if the user cancels.
-    @raise Safe_exception if the solve fails. *)
-val solve_and_download_impls :
-  < config : General.config; distro : Distro.distribution; ui : Ui.ui_handler;
-    make_fetcher : Progress.watcher -> Fetch.fetcher; ..> ->
-  ?test_callback:(Support.Qdom.element -> string Lwt.t) ->
-  Requirements.requirements ->
-  select_mode ->
-  refresh:bool ->
-  Support.Qdom.element option Lwt.t
-
 (** Create a UI appropriate for the current environment and user options.
  * This will be a graphical UI if [Gui.try_get_gui] returns one and we're not in dry-run mode.
  * Otherwise, it will be an interactive console UI if stderr is a tty.

@@ -101,17 +101,15 @@ let show_help config sel =
 let get_selections tools ~(gui:Zeroinstall.Ui.ui_handler) uri =
   let reqs = Zeroinstall.Requirements.default_requirements uri in
   match Zeroinstall.Driver.quick_solve tools reqs with
-  | Some _ as sels -> Lwt.return sels
+  | Some sels -> Lwt.return (`Success sels)
   | None ->
       (* Slow path: program isn't cached yet *)
-      match_lwt gui#run_solver tools `Download_only reqs ~refresh:false with
-      | `Success sels -> Some sels |> Lwt.return
-      | `Aborted_by_user -> None |> Lwt.return
+      gui#run_solver tools `Download_only reqs ~refresh:false
 
 let show_help_for_iface tools ~gui uri : unit Lwt.t =
   match_lwt get_selections tools ~gui uri with
-  | None -> Lwt.return ()    (* Aborted by user *)
-  | Some sels ->
+  | `Aborted_by_user -> Lwt.return ()
+  | `Success sels ->
       let index = Zeroinstall.Selections.make_selection_map sels in
       let sel = StringMap.find_safe uri index in
       show_help tools#config sel;
@@ -165,8 +163,8 @@ let run config dialog tools gui uri =
     Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.busy_cursor);
     try_lwt
       match_lwt get_selections tools ~gui uri with
-      | None -> Lwt.return ()
-      | Some sels ->
+      | `Aborted_by_user -> Lwt.return ()
+      | `Success sels ->
           let feed_url = Feed_url.master_feed_of_iface uri in
           let feed = FC.get_cached_feed config feed_url |? lazy (raise_safe "BUG: feed still not cached! %s" uri) in
           let exec args ~env = config.system#spawn_detach ~env (maybe_with_terminal tools#config.system feed args) in

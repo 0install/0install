@@ -133,7 +133,7 @@ let spawn_background_update config reqs mode =
 (** Get selections for the requirements. Will switch to GUI mode if necessary.
     @param select_only 
     @param download_only wait for stale feeds, and display GUI button as Download, not Run
-    @return the selections, or None if the user cancels (in which case, there is no need to alert the user again)
+    @return `Success selections, or `Aborted_by_user if the user cancels (in which case, there is no need to alert the user again)
     *)
 let get_selections options ~refresh ?test_callback reqs mode =
   let config = options.config in
@@ -141,7 +141,8 @@ let get_selections options ~refresh ?test_callback reqs mode =
 
   let select_with_refresh refresh =
     (* This is the slow path: we need to download things before selecting *)
-    H.solve_and_download_impls tools ?test_callback reqs mode ~refresh in
+    let ui : Zeroinstall.Ui.ui_handler = tools#ui in
+    ui#run_solver tools ?test_callback mode reqs ~refresh in
 
   (* Check whether we can run immediately, without downloading anything. This requires
      - the user didn't ask to refresh or show the GUI
@@ -184,7 +185,7 @@ let get_selections options ~refresh ?test_callback reqs mode =
                 spawn_background_update options.config reqs mode
               )
             );
-            Lwt.return (Some sels)
+            Lwt.return (`Success sels)
           )
         ) else (
           select_with_refresh true
@@ -233,8 +234,8 @@ let handle options flags arg ?test_callback for_op =
     log_info "Getting new selections for %s" arg;
     let sels = get_selections options ~refresh:select_opts.refresh ?test_callback requirements for_op |> Lwt_main.run in
     match sels with
-    | None -> exit 1    (* Aborted by user *)
-    | Some sels -> sels
+    | `Aborted_by_user -> exit 1
+    | `Success sels -> sels
   in
 
   if flags <> [] then (
