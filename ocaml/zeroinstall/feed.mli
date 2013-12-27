@@ -100,7 +100,7 @@ type feed = {
   url : Feed_url.non_distro_feed;
   root : Support.Qdom.element;
   name : string;
-  implementations : generic_implementation Support.Common.StringMap.t;
+  implementations : 'a. ([> `cache_impl of cache_impl | `local_impl of Support.Common.filepath] as 'a) implementation Support.Common.StringMap.t;
   imported_feeds : feed_import list;    (* Always of type Feed_import here *)
 
   (* The URI of the interface that replaced the one with the URI of this feed's URL.

@@ -137,7 +137,7 @@ type feed = {
   url : Feed_url.non_distro_feed;
   root : Q.element;
   name : string;
-  implementations : generic_implementation StringMap.t;
+  implementations : 'a. ([> `cache_impl of cache_impl | `local_impl of Support.Common.filepath] as 'a) implementation StringMap.t;
   imported_feeds : feed_import list;
 
   (* The URI of the interface that replaced the one with the URI of this feed's URL.
@@ -301,77 +301,9 @@ let rec filter_if_0install_version node =
     node with Q.child_nodes = U.filter_map filter_if_0install_version node.Q.child_nodes;
   }
 
-let parse system root feed_local_path =
-  let root =
-    match filter_if_0install_version root with
-    | Some root -> root
-    | None -> Q.raise_elem "Feed requires 0install version %s (we are %s):" (ZI.get_attribute FeedAttr.if_0install_version root) About.version root
-  in
-
-  let () = match ZI.tag root with
-  | Some "interface" | Some "feed" -> ()
-  | _ ->
-      ZI.check_ns root;
-      Q.raise_elem "Expected <interface>, not" root in
-
-  let () = match ZI.get_attribute_opt "min-injector-version" root with
-  | Some min_version when Versions.parse_version min_version > About.parsed_version ->
-      Q.raise_elem "Feed requires 0install version %s or later (we are %s):" min_version About.version root
-  | _ -> () in
-
-  let url =
-    match feed_local_path with
-    | None -> ZI.get_attribute "uri" root
-    | Some path -> path in
-
-  let local_dir =
-    match feed_local_path with
-    | None -> None
-    | Some path -> Some (Filename.dirname path) in
-
-  (* For local feeds, make relative paths absolute. For cached feeds, reject paths. *)
-  let normalise_url raw_url elem =
-    if U.starts_with raw_url "http://" || U.starts_with raw_url "https://" then
-      raw_url
-    else (
-      match local_dir with
-      | Some dir -> U.normpath @@ dir +/ raw_url
-      | None -> Q.raise_elem "Relative URI '%s' in non-local feed" raw_url elem
-    ) in
-
-  let parse_feed_import node =
-    let (feed_os, feed_machine) = match ZI.get_attribute_opt "arch" node with
-    | None -> (None, None)
-    | Some arch -> Arch.parse_arch arch in
-
-    let feed_langs = match ZI.get_attribute_opt FeedAttr.langs node with
-    | None -> None
-    | Some langs -> Some (Str.split U.re_space langs) in
-
-    {
-      feed_src = Feed_url.parse_non_distro @@ normalise_url (ZI.get_attribute FeedAttr.src node) node;
-      feed_os;
-      feed_machine;
-      feed_langs;
-      feed_type = Feed_import;
-    } in
-
-  let name = ref None in
-  let replacement = ref None in
+let parse_implementations (system:system) url root local_dir =
   let implementations = ref StringMap.empty in
-  let imported_feeds = ref [] in
-
-  root |> ZI.iter (fun node ->
-    match ZI.tag node with
-    | Some "name" -> name := Some (Q.simple_content node)
-    | Some "feed" -> imported_feeds := parse_feed_import node :: !imported_feeds
-    | Some "replaced-by" ->
-        if !replacement = None then
-          replacement := Some (normalise_url (ZI.get_attribute FeedAttr.interface node) node)
-        else
-          Q.raise_elem "Multiple replacements!" node
-    | _ -> ()
-  );
+  let package_implementations = ref [] in
 
   let process_impl node (state:properties) =
     let s = ref state in
@@ -444,8 +376,6 @@ let parse system root feed_local_path =
     } in
     implementations := StringMap.add id impl !implementations
   in
-
-  let package_implementations = ref [] in
 
   let rec process_group state (group:Q.element) =
     group |> ZI.iter (fun item ->
@@ -528,6 +458,81 @@ let parse system root feed_local_path =
   } in
   process_group root_state root;
 
+  (!implementations, !package_implementations)
+
+let parse system root feed_local_path =
+  let root =
+    match filter_if_0install_version root with
+    | Some root -> root
+    | None -> Q.raise_elem "Feed requires 0install version %s (we are %s):" (ZI.get_attribute FeedAttr.if_0install_version root) About.version root
+  in
+
+  let () = match ZI.tag root with
+  | Some "interface" | Some "feed" -> ()
+  | _ ->
+      ZI.check_ns root;
+      Q.raise_elem "Expected <interface>, not" root in
+
+  let () = match ZI.get_attribute_opt "min-injector-version" root with
+  | Some min_version when Versions.parse_version min_version > About.parsed_version ->
+      Q.raise_elem "Feed requires 0install version %s or later (we are %s):" min_version About.version root
+  | _ -> () in
+
+  let url =
+    match feed_local_path with
+    | None -> ZI.get_attribute "uri" root
+    | Some path -> path in
+
+  let local_dir =
+    match feed_local_path with
+    | None -> None
+    | Some path -> Some (Filename.dirname path) in
+
+  (* For local feeds, make relative paths absolute. For cached feeds, reject paths. *)
+  let normalise_url raw_url elem =
+    if U.starts_with raw_url "http://" || U.starts_with raw_url "https://" then
+      raw_url
+    else (
+      match local_dir with
+      | Some dir -> U.normpath @@ dir +/ raw_url
+      | None -> Q.raise_elem "Relative URI '%s' in non-local feed" raw_url elem
+    ) in
+
+  let parse_feed_import node =
+    let (feed_os, feed_machine) = match ZI.get_attribute_opt "arch" node with
+    | None -> (None, None)
+    | Some arch -> Arch.parse_arch arch in
+
+    let feed_langs = match ZI.get_attribute_opt FeedAttr.langs node with
+    | None -> None
+    | Some langs -> Some (Str.split U.re_space langs) in
+
+    {
+      feed_src = Feed_url.parse_non_distro @@ normalise_url (ZI.get_attribute FeedAttr.src node) node;
+      feed_os;
+      feed_machine;
+      feed_langs;
+      feed_type = Feed_import;
+    } in
+
+  let name = ref None in
+  let replacement = ref None in
+  let imported_feeds = ref [] in
+
+  root |> ZI.iter (fun node ->
+    match ZI.tag node with
+    | Some "name" -> name := Some (Q.simple_content node)
+    | Some "feed" -> imported_feeds := parse_feed_import node :: !imported_feeds
+    | Some "replaced-by" ->
+        if !replacement = None then
+          replacement := Some (normalise_url (ZI.get_attribute FeedAttr.interface node) node)
+        else
+          Q.raise_elem "Multiple replacements!" node
+    | _ -> ()
+  );
+
+  let implementations, package_implementations = parse_implementations system url root local_dir in
+
   {
     url = Feed_url.parse_non_distro url;
     name = (
@@ -537,8 +542,8 @@ let parse system root feed_local_path =
     );
     root;
     replacement = !replacement;
-    implementations = !implementations;
-    package_implementations = !package_implementations;
+    implementations = implementations;
+    package_implementations = package_implementations;
     imported_feeds = !imported_feeds;
   }
 
