@@ -256,12 +256,13 @@ let show_group_help config parents group =
 
 let handle_no_command options flags args =
   assert (args = []);
+  let exit_status = ref 1 in
   Support.Argparse.iter_options flags (function
-    | `Help -> ()
+    | `Help -> exit_status := 0
     | #common_option as o -> Common_options.process_common_option options o
   );
   show_group_help options.config [] subcommands;
-  raise (System_exit 1)
+  raise (System_exit !exit_status)
 
 let no_command = make_command_obj "" handle_no_command @@ common_options @ show_version_options
 

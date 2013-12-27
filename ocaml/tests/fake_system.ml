@@ -348,6 +348,8 @@ class fake_system tmpdir =
     method allow_read dir =
       read_ok := dir :: !read_ok
 
+    method tmpdir = expect tmpdir
+
     initializer
       match tmpdir with
       | Some dir ->

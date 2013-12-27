@@ -53,7 +53,7 @@ class TestInstall(BaseTest):
 		assert err == "Exit status: 1\n", err
 
 		out2, err = self.run_ocaml(['--help'])
-		assert err == "Exit status: 1\n", err
+		assert not err, err
 		assert out2 == out
 
 		out, err = self.run_ocaml(['--version'])

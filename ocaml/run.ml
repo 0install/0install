@@ -41,21 +41,21 @@ let run_test options run_opts run_args sels =
   result
 
 let handle options flags args =
+  let run_opts = {
+    wrapper = None;
+    main = None;
+  } in
+  let select_opts = ref [] in
+  Support.Argparse.iter_options flags (function
+    | #common_option as o -> Common_options.process_common_option options o
+    | #select_option | `Refresh as o -> select_opts := o :: !select_opts
+    | `Wrapper w -> run_opts.wrapper <- Some w
+    | `ShowManifest -> raise_safe "The -m argument is ambiguous before the 'run' argument. Put it after, or use --main"
+    | `MainExecutable m -> run_opts.main <- Some m
+  );
+
   match args with
   | arg :: run_args -> (
-    let run_opts = {
-      wrapper = None;
-      main = None;
-    } in
-    let select_opts = ref [] in
-    Support.Argparse.iter_options flags (function
-      | #common_option as o -> Common_options.process_common_option options o
-      | #select_option | `Refresh as o -> select_opts := o :: !select_opts
-      | `Wrapper w -> run_opts.wrapper <- Some w
-      | `ShowManifest -> raise_safe "The -m argument is ambiguous before the 'run' argument. Put it after, or use --main"
-      | `MainExecutable m -> run_opts.main <- Some m
-    );
-
     let sels = Generic_select.handle options ~test_callback:(run_test options run_opts run_args) !select_opts arg `Select_for_run in
 
     let exec args ~env =

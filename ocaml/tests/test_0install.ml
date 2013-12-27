@@ -81,10 +81,10 @@ class fake_slave _config =
       pending_feed_downloads := StringMap.add url contents !pending_feed_downloads
   end
 
-let run_0install ?stdin ?(include_stderr=false) fake_system ?(exit=0) args =
+let run_0install ?stdin ?(binary=test_0install) ?(include_stderr=false) fake_system ?(exit=0) args =
   let run = lazy (
     Fake_system.fake_log#reset;
-    fake_system#set_argv @@ Array.of_list (test_0install :: args);
+    fake_system#set_argv @@ Array.of_list (binary :: args);
     Fake_system.capture_stdout ~include_stderr (fun () ->
       try Main.main (fake_system : Fake_system.fake_system :> system); assert (exit = 0)
       with System_exit n -> assert_equal ~msg:"exit code" n exit
@@ -115,7 +115,7 @@ let suite = "0install">::: [
       try failwith @@ fake_system#collect_output (fun () -> Main.main system)
       with Fake_system.Would_spawn (_, _, args) ->
         Fake_system.equal_str_lists
-          ["select"; "--refresh"; "--console"; "-v"; "--command"; "run"; "http://example.com:8000/Hello.xml"]
+         ["select"; "--refresh"; "--console"; "-v"; "--command"; "run"; "http://example.com:8000/Hello.xml"]
           (List.tl args) in
 
     (* Download succeeds (does nothing, as it's already cached *)
@@ -574,7 +574,6 @@ let suite = "0install">::: [
     with open('Source.xml') as stream: source_feed = stream.read()
     self.config.fetcher.allow_feed_download('http://foo/Source.xml', source_feed)
     out, err = self.run_ocaml(['add-feed', 'http://foo/Source.xml'])
-    assert not err, err
     assert 'Downloading feed; please wait' in out, out
     reader.update_from_cache(binary_iface, iface_cache = self.config.iface_cache)
     assert len(binary_iface.extra_feeds) == 1
@@ -729,5 +728,128 @@ let suite = "0install">::: [
 
     let out = run_0install fake_system ["list"; "hello"] in
     assert_str_equal "http://example.com:8000/Hello.xml\n" out
+  );
+
+  "help">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    let out = run_0install ~exit:1 fake_system [] in
+    assert (U.starts_with out "Usage:")
+  );
+
+  "list">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    let out = run_0install fake_system ["list"] in
+    assert_str_equal "" out;
+    let cached_ifaces = List.hd config.basedirs.Support.Basedir.cache +/ "0install.net" +/ "interfaces" in
+
+    U.makedirs config.system cached_ifaces 0o700;
+    U.touch config.system @@ cached_ifaces +/ "file%3a%2f%2ffoo";
+
+    let out = run_0install fake_system ["list"] in
+    assert_str_equal "file://foo\n" out;
+
+    let out = run_0install fake_system ["list"; "foo"] in
+    assert_str_equal "file://foo\n" out;
+
+    let out = run_0install fake_system ["list"; "bar"] in
+    assert_str_equal "" out;
+
+    let out = run_0install fake_system ~exit:1 ["list"; "one"; "two"] in
+    assert (U.starts_with out "Usage:");
+  );
+
+  "version">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    let out = run_0install fake_system ~binary:"0launch" ["--version"] in
+    assert (U.starts_with out "0launch (zero-install)");
+  );
+
+  "invalid">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    Fake_system.assert_raises_safe "Unknown option '-q'" (lazy (
+      run_0install fake_system ~binary:"0launch" ["-q"; "/missing"] |> ignore
+    ));
+  );
+
+  "run">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    Fake_system.assert_raises_safe ".*test-echo' does not exist" (lazy (
+      run_0install fake_system ~binary:"0launch" [feed_dir +/ "Local.xml"] |> ignore
+    ));
+  );
+
+  "abs-main">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    let name, ch = Filename.open_temp_file ~temp_dir:fake_system#tmpdir "abs-main" "tmp" in
+    output_string ch
+      "<?xml version='1.0' ?>\
+      \n<interface last-modified='1110752708'\
+      \n uri='http://foo'\
+      \n xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>\
+      \n  <name>Foo</name>\
+      \n  <summary>Foo</summary>\
+      \n  <description>Foo</description>\
+      \n  <group main='/bin/sh'>\
+      \n   <implementation id='.' version='1'/>\
+      \n  </group>\
+      \n</interface>";
+    close_out ch;
+
+    Fake_system.assert_raises_safe "Absolute path '/bin/sh' in <group>" (lazy (
+      run_0install fake_system ~exit:1 ["run"; name] |> ignore
+    ));
+  );
+
+  "offline">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    Fake_system.assert_raises_safe
+     "Can't find all required implementations:\
+    \n- http://foo/d -> (problem)\
+    \n    No known implementations at all\
+    \nNote: 0install is in off-line mode"
+     (lazy (run_0install fake_system ~binary:"0launch" ["--offline"; "http://foo/d"] |> ignore));
+  );
+
+  "need-download">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    fake_system#putenv "DISPLAY" ":foo";
+    let out = run_0install fake_system ["download"; "--dry-run"; feed_dir +/ "Foo.xml"] in
+    assert_str_equal "" out;
+  );
+
+  "hello">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    let out = run_0install fake_system ~binary:"0launch" ["--dry-run"; feed_dir +/ "Foo.xml"] in
+    assert_contains "[dry-run] would execute: " out;
+
+    try run_0install fake_system ~binary:"0launch" ~exit:127 [feed_dir +/ "Foo.xml"] |> ignore
+    with Fake_system.Would_exec (false, _env, [path]) ->
+      assert_contains "tests" path;
+  );
+
+  "ranges">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    let out = run_0install fake_system ["select"; "--before=1"; "--not-before=0.2"; feed_dir +/ "Foo.xml"] in
+    assert_contains "tests/rpm" out;
+  );
+
+  "logging">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    let out = run_0install fake_system ["-v"; "list"; "UNKNOWN"] in
+    assert_str_equal "" out;
+    Fake_system.fake_log#assert_contains "0install (OCaml version): verbose mode on";
+  );
+
+  "help2">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    let out = run_0install fake_system ~binary:"0launch" ["--help"] in
+    assert_contains "Options:" out;
+
+    let out = run_0install fake_system ~exit:1 ~binary:"0launch" [] in
+    assert_contains "Options:" out;
+  );
+
+  "bad-fd">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    let copy = Unix.dup Unix.stdout in
+    U.finally_do (fun () -> Unix.dup2 copy Unix.stdout) ()
+      (fun () ->
+        Unix.close Unix.stdout;
+        let out = run_0install fake_system ["list"; "UNKNOWN"] in
+        assert_str_equal "" out
+      )
+  );
+
+  "select3">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    let command_feed = feed_dir +/ "Command.xml" in
+    let out = run_0install fake_system ["select"; command_feed] in
+    assert_contains "Local.xml" out
   );
 ]
