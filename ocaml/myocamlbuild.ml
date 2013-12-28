@@ -47,6 +47,8 @@ let rec parse_version v =
     flush stderr;
     []
 
+let add x xs = xs := A x :: !xs
+
 let () =
   let v = Sys.ocaml_version in
   let first_dot = String.index v '.' in
@@ -117,14 +119,13 @@ let () =
     (* We use mypp rather than camlp4of because if you pass -pp and -ppopt to ocamlfind
        then it just ignores the ppopt. So, we need to write the -pp option ourselves. *)
 
-    let defines_portable = List.concat [
-      if (major_version < 4 || (major_version == 4 && minor_version < 1)) then [A"-DOCAML_LT_4_01"] else [];
-      if use_dbus then [A"-DHAVE_DBUS"] else [];
-    ] in
+    let defines_portable = ref [] in
+    if (major_version < 4 || (major_version == 4 && minor_version < 1)) then add "-DOCAML_LT_4_01" defines_portable;
+    if use_dbus then add "-DHAVE_DBUS" defines_portable;
+    if gtk_dir <> None then add "-DHAVE_GTK" defines_portable;
 
-    let defines_native =
-      if on_windows then A"-DWINDOWS" :: defines_portable
-      else defines_portable in
+    let defines_native = ref !defines_portable in
+    if on_windows then add "-DWINDOWS" defines_native;
 
     if not on_windows then (
       let add_glib tag =
@@ -133,8 +134,8 @@ let () =
       List.iter add_glib ["compile"; "ocamldep"; "doc"; "link"; "infer_interface"]
     );
 
-    flag ["native";"ocaml";"pp";"mypp"] (S (A "camlp4of" :: defines_native));
-    flag ["byte";"ocaml";"pp";"mypp"] (S (A "camlp4of" :: defines_portable));
+    flag ["native";"ocaml";"pp";"mypp"] (S (A "camlp4of" :: !defines_native));
+    flag ["byte";"ocaml";"pp";"mypp"] (S (A "camlp4of" :: !defines_portable));
 
     flag ["ocaml";"ocamldep";"mypp"] (S [A"-pp"; A "camlp4of"]);
 

@@ -28,7 +28,7 @@ let crash_handler system crash_dir entries =
   );
   Printf.fprintf stderr "(wrote crash logs to %s)\n" log_file
 
-IFNDEF WINDOWS THEN
+IFDEF HAVE_GTK THEN
 let () =
   (* Install Lwt<->Glib integration in case we need the GUI. *)
   (* Using lwt_into_glib mode hangs; see https://github.com/ocsigen/lwt/issues/25.
