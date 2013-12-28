@@ -241,7 +241,8 @@ let suite = "download">::: [
        \\[dry-run] downloading http://localhost:8000/HelloWorld.tgz\n\
        \\[dry-run] would store implementation as .*/cache/0install.net/implementations/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a\n\
        \\[dry-run] would execute: .*HelloWorld/main Hello\n" in
-    assert (Str.string_match (Str.regexp expected) out 0);
+    if not (Str.string_match (Str.regexp expected) out 0) then
+      raise_safe "No match. Got:\n%s" out;
   );
 
   "import">:: Server.with_server (fun (config, fake_system) server ->
