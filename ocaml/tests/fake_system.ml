@@ -131,11 +131,8 @@ class fake_system tmpdir =
   (* It's OK to check whether these paths exists. We just say they don't,
      unless they're in extra_files (check there first). *)
   let hidden_subtree path =
-    if U.starts_with path "/var" then
-      match tmpdir with
-      | None -> true
-      | Some tmpdir -> not (U.starts_with (U.realpath real_system path) tmpdir)
-    else false in
+    U.starts_with path "/var/lib" ||
+    U.starts_with path "/var/log" in
 
   object (self : #system)
     val now = ref @@ 101. *. days
