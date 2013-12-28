@@ -36,5 +36,5 @@ let () =
       |> List.filter (fun pair -> not (Str.string_match re_OCAMLLIB pair 0))
       |> Array.of_list in
 
-      Unix.execvpe "make" [| "make"; "OCAML_BUILDDIR=" ^ ocaml_build_dir; "ocaml" |] env
+      Unix.execvpe "make" [| "make"; "OCAML_BUILDDIR=" ^ ocaml_build_dir |] env
   | _ -> failwith "usage: ocaml build-in.ml builddir"

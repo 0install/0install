@@ -7,7 +7,7 @@ ifeq ($(OS), Windows_NT)
   OCAMLBUILDFLAGS = -lflag -cclib -lflag -lshell32
 endif
 MS_SDK:="/cygdrive/c/Program Files/Microsoft SDKs/Windows/v7.0/Bin"
-TEST_BINARY=./${OCAML_BUILDDIR}/tests/test.$(TYPE)
+TEST_BINARY=${OCAML_BUILDDIR}/tests/test.$(TYPE)
 
 .PHONY: all ocaml doc clean tags test
 
