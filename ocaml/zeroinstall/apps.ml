@@ -234,7 +234,7 @@ let check_for_updates tools app_path sels =
       try
         let extra_flags = if Support.Logging.will_log Support.Logging.Debug then ["-v"] else [] in
         set_mtime config last_check_path;
-        system#spawn_detach @@ [config.abspath_0install; "update-bg"] @ extra_flags @ ["--"; "app"; app_path]
+        system#spawn_detach @@ [config.abspath_0install; "_update-bg"] @ extra_flags @ ["--"; "app"; app_path]
       with ex -> log_warning ~ex "Error starting background check for updates to %s" app_path
     );
     sels

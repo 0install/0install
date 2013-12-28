@@ -93,7 +93,10 @@ let complete_command (completer:completer) raw_options prefix group =
   let add s (name, _values) = StringSet.add name s in
   let options_used = List.fold_left add StringSet.empty raw_options in
 
-  let commands = List.filter (fun (full, _) -> starts_with full prefix) group in
+  let commands = group |> List.filter (fun (full, _) ->
+    if prefix = "" then not (U.starts_with full "_")
+    else starts_with full prefix
+  ) in
   let compatible_with_command (_name, subcommand) = StringSet.subset options_used (Cli.set_of_option_names subcommand) in
   let valid_commands = List.filter compatible_with_command commands in
 
