@@ -59,6 +59,11 @@ let expect = function
   | None -> assert_failure "Unexpected None!"
   | Some x -> x
 
+let write_script (system:#system) launcher_script interface_uri =
+  launcher_script |> system#with_open_out [Open_wronly;Open_creat] ~mode:0o755 (fun ch ->
+    Printf.fprintf ch "#!/bin/sh\nexec 0launch '%s' \"$@\"\n" interface_uri
+  )
+
 class fake_slave _config =
   let pending_feed_downloads = ref StringMap.empty in
 
@@ -93,6 +98,19 @@ let run_0install ?stdin ?(binary=test_0install) ?(include_stderr=false) fake_sys
   match stdin with
   | None -> Lazy.force run
   | Some stdin -> fake_system#with_stdin stdin run
+
+let check_man fake_system args expected =
+  try
+    run_0install fake_system ("man" :: args) |> ignore;
+    assert false
+  with Fake_system.Would_exec (true, _env, man_args) ->
+    let man_args =
+      match man_args with
+      | [prog; arg] when Str.string_match (Str.regexp "^.*/\\(tests/.*\\)$") arg 0 ->
+          let rel_path = Str.matched_group 1 arg in
+          [prog; rel_path]
+      | x -> x in
+    Fake_system.equal_str_lists expected man_args
 
 let generic_archive = U.handle_exceptions (U.read_file Fake_system.real_system) @@ feed_dir +/ "HelloWorld.tgz"
 
@@ -573,7 +591,7 @@ let suite = "0install">::: [
     (*
     with open('Source.xml') as stream: source_feed = stream.read()
     self.config.fetcher.allow_feed_download('http://foo/Source.xml', source_feed)
-    out, err = self.run_ocaml(['add-feed', 'http://foo/Source.xml'])
+    let out = run_0install fake_system ['add-feed', 'http://foo/Source.xml'])
     assert 'Downloading feed; please wait' in out, out
     reader.update_from_cache(binary_iface, iface_cache = self.config.iface_cache)
     assert len(binary_iface.extra_feeds) == 1
@@ -851,5 +869,78 @@ let suite = "0install">::: [
     let command_feed = feed_dir +/ "Command.xml" in
     let out = run_0install fake_system ["select"; command_feed] in
     assert_contains "Local.xml" out
+  );
+
+  "help3">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    let out = run_0install fake_system ~exit:1 [] in
+    assert (U.starts_with out "Usage:");
+    assert_contains "add-feed" out;
+    assert_contains "--version" out;
+
+    let out2 = run_0install fake_system ["--help"] in
+    assert_str_equal out2 out;
+
+    let out = run_0install fake_system ["--version"] in
+    assert_contains "Thomas Leonard" out;
+
+    Fake_system.assert_raises_safe "Unknown 0install sub-command" (lazy (
+      run_0install fake_system ["foobar"] |> ignore
+    ));
+  );
+
+  "run2">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    let out = run_0install fake_system ~exit:1 ["run"] in
+    assert (U.starts_with out "Usage:");
+    assert_contains "URI" out;
+
+    let out = run_0install fake_system ["run"; "--dry-run"; feed_dir +/ "runnable/Runnable.xml"; "--help"] in
+    assert_contains "arg-for-runner" out;
+    assert_contains "--help" out;
+  );
+
+  "update-alias">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    let local_feed = feed_dir +/ "Local.xml" in
+    let bindir = fake_system#tmpdir +/ "bin" in
+    fake_system#mkdir bindir 0o700;
+    let launcher_script = bindir +/ "my-test-alias" in
+    write_script fake_system launcher_script local_feed;
+
+    Fake_system.assert_raises_safe "Bad interface name 'my-test-alias'.\n(hint: try 'alias:my-test-alias' instead)" (lazy (
+      run_0install fake_system ["update"; "my-test-alias"] |> ignore
+    ));
+  );
+
+  "man">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    let out = run_0install fake_system ["man"; "--help"] in
+    assert (U.starts_with out "Usage:");
+
+    (* Wrong number of args: pass-through *)
+    check_man fake_system ["git"; "config"] ["man"; "git"; "config"];
+    check_man fake_system [] ["man"];
+
+    let local_feed = feed_dir +/ "Local.xml" in
+    let bindir = fake_system#tmpdir +/ "bin" in
+    fake_system#mkdir bindir 0o700;
+    let launcher_script = bindir +/ "my-test-alias" in
+    write_script fake_system launcher_script local_feed;
+    check_man fake_system ["my-test-alias"] ["man"; "tests/test-echo.1"];
+
+    check_man fake_system ["__i_dont_exist"] ["man"; "__i_dont_exist"];
+    check_man fake_system ["ls"] ["man"; "ls"];
+
+    (* No man-page *)
+    let binary_feed = feed_dir +/ "Command.xml" |> U.realpath config.system in
+    let launcher_script = bindir +/ "my-binary-alias" in
+    write_script fake_system launcher_script binary_feed;
+
+    let out = run_0install fake_system ~exit:1 ["man"; "my-binary-alias"] in
+    assert_contains "No matching manpage was found for 'my-binary-alias'" out;
+  );
+
+  "alias">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    let local_feed = feed_dir +/ "Local.xml" in
+    Fake_system.assert_raises_safe "ERROR: '0alias' has been removed; use '0install add' instead" (lazy (
+      run_0install fake_system ~binary:"0alias" ["local-app"; local_feed] |> ignore
+    ));
   );
 ]

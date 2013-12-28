@@ -63,6 +63,8 @@ let main (system:system) : unit =
           match args with
           | "_complete" :: args -> Completion.handle_complete config args
           | args -> Cli.handle config ("_desktop" :: args) end
+      | "0alias" | "0alias.exe" ->
+          Cli.handle config ("_alias" :: args)
       | "0store-secure-add" -> Secureadd.handle config args
       | name -> raise_safe "Unknown command '%s': must be invoked as '0install' or '0launch'" name
 

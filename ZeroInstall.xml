@@ -23,8 +23,6 @@ interfere with those provided by the distribution.
   <release:management xmlns:release="http://zero-install.sourceforge.net/2007/namespaces/0release">
     <!-- Update the copy of the version number -->
     <release:update-version path="ocaml/zeroinstall/about.ml">^let version = &quot;(.*)&quot;$</release:update-version>
-    <release:update-version path="zeroinstall/__init__.py">^version = '(.*)'$</release:update-version>
-    <release:update-version path="zeroinstall/gui/gui.py">^version = '(.*)'$</release:update-version>
     <release:action phase="generate-archive">rm .gitignore; make translations</release:action>
   </release:management>
 
@@ -44,22 +42,8 @@ interfere with those provided by the distribution.
 	<requires interface="http://repo.roscidus.com/security/gnupg">
 	  <executable-in-var name="ZEROINSTALL_GPG"/>
 	</requires>
-
-	<requires interface="http://repo.roscidus.com/python/python" version="2.6..!3 | 3.2.2..">
-	  <executable-in-var name="ZEROINSTALL_PYTHON"/>
-	</requires>
-
-	<requires interface="http://repo.roscidus.com/python/python-gobject" os="POSIX"/>
       </compile:implementation>
     </command>
-
-    <!-- Need to add support to 0test for testing source code.
-    <command name="test" path="tests/testall.py">
-      <runner interface="http://repo.roscidus.com/python/python">
-	<arg>-tt</arg>
-      </runner>
-    </command>
-    -->
 
     <implementation id="." version="2.5.1-post"/>
   </group>
