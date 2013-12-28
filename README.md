@@ -42,8 +42,8 @@ See [the 0install.net web-site](http://0install.net/) for full details.
 INSTALLATION
 ------------
 
-0install is written in a mixture of Python and OCaml. You will need the OCaml
-build tools and some OCaml libraries to compile 0install.
+0install is written in a OCaml. You will need the OCaml build tools and some
+OCaml libraries to compile 0install.
 
 The easiest way to get the dependencies is using [OPAM](http://opam.ocamlpro.com/):
 
