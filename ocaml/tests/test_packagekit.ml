@@ -71,7 +71,9 @@ let suite =
 
             assert_equal 0 @@ test config fake_system;
 
-            let destroy = Lwt_main.run (Pk_service.start [| 0; 8; 1 |]) in
+            let destroy =
+              try Lwt_main.run (Pk_service.start [| 0; 8; 1 |])
+              with Safe_exception ("No D-BUS!", _) -> skip_if true "No D-BUS support compiled in"; assert false in
             assert_equal 1 @@ test config fake_system;
             Fake_system.fake_log#assert_contains "confirm: The following components need to be installed using native packages.";
 
