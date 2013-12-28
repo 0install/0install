@@ -236,7 +236,7 @@ let suite = "download">::: [
       "\\[dry-run] downloading feed from http://localhost:8000/Hello\n\
        \\[dry-run] asking http://localhost:3333/key-info about key DE937DD411906ACF7C263B396FCF121BE2390E0B\n\
        \\[dry-run] would trust key DE937DD411906ACF7C263B396FCF121BE2390E0B for localhost:8000\n\
-       \\[dry-run] would update trust database /tmp/.*/config/0install.net/injector/trustdb.xml\n\
+       \\[dry-run] would update trust database .*/config/0install.net/injector/trustdb.xml\n\
        \\[dry-run] would cache feed http://localhost:8000/Hello as .*/cache/0install.net/interfaces/http%3a%2f%2flocalhost%3a8000%2fHello\n\
        \\[dry-run] downloading http://localhost:8000/HelloWorld.tgz\n\
        \\[dry-run] would store implementation as .*/cache/0install.net/implementations/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a\n\
