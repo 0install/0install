@@ -45,6 +45,6 @@ interfere with those provided by the distribution.
       </compile:implementation>
     </command>
 
-    <implementation id="." version="2.5.1-post"/>
+    <implementation id="." released="2013-12-28" version="2.6-rc1"/>
   </group>
 </interface>

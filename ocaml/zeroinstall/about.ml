@@ -4,6 +4,6 @@
 
 (** Information about this software *)
 
-let version = "2.5.1-post"
+let version = "2.6-rc1"
 
 let parsed_version = Versions.parse_version version
