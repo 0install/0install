@@ -102,10 +102,13 @@ class virtual distribution config =
         try
           let json = [path; "-c"; python_test_code] |> U.check_output system Yojson.Basic.from_channel in
           match json with
-          | `List [
-              `List [`String python_path; `String python_version];
-              `List [`String gobject_path; `String gobject_version]
-            ] -> Some ((python_path, python_version), (gobject_path, gobject_version))
+          | `List [`List [`String python_path; `String python_version]; gobject_json] ->
+              let gobject =
+                match gobject_json with
+                | `Null -> None
+                | `List [`String gobject_path; `String gobject_version] -> Some (gobject_path, gobject_version)
+                | _ -> raise_safe "Bad JSON: '%s'" (Yojson.Basic.to_string json) in
+              Some ((python_path, python_version), gobject)
           | _ -> raise_safe "Bad JSON: '%s'" (Yojson.Basic.to_string json)
         with ex -> log_warning ~ex "Failed to get details from Python"; None
       )
@@ -154,10 +157,12 @@ class virtual distribution config =
           (id, make_host_impl path version ~commands url id)
         )
     | `remote_feed "http://repo.roscidus.com/python/python-gobject" as url ->
-        Lazy.force python_info |> List.map (fun (_, (path, version)) ->
-          let id = "package:host:python-gobject:" ^ version in
-          let requires = [make_restricts_distro fake_host_doc "http://repo.roscidus.com/python/python" "host"] in
-          (id, make_host_impl path version ~requires url id)
+        Lazy.force python_info |> U.filter_map (function
+          | (_, Some (path, version)) ->
+              let id = "package:host:python-gobject:" ^ version in
+              let requires = [make_restricts_distro fake_host_doc "http://repo.roscidus.com/python/python" "host"] in
+              Some (id, make_host_impl path version ~requires url id)
+          | (_, None) -> None
         )
     | _ -> [] in
 
