@@ -20,8 +20,8 @@ and element = {
   tag: Xmlm.name;
   mutable attrs: Xmlm.attribute list;
   mutable child_nodes: element list;
-  mutable text_before: string;        (** The text node immediately before us *)
-  mutable last_text_inside: string;   (** The last text node inside us with no following element *)
+  text_before: string;        (** The text node immediately before us *)
+  last_text_inside: string;   (** The last text node inside us with no following element *)
   doc: document;
   source_hint: source_hint;
 }
@@ -182,15 +182,14 @@ let set_attribute_ns ~prefix name value elem =
   elem.attrs <- (name, value) :: List.remove_assoc name elem.attrs
 
 let reindent root =
-  let rec process indent node =
-    node.text_before <- indent ^ (trim node.text_before);
-    if node.child_nodes <> [] then (
-      List.iter (process @@ indent ^ "  ") node.child_nodes;
-      node.last_text_inside <- (trim node.last_text_inside) ^ indent;
-    )
-    in
-  process "\n" root;
-  root.text_before <- "";
+  let rec process indent node = {node with
+    text_before = indent ^ trim node.text_before;
+    child_nodes = List.map (process @@ indent ^ "  ") node.child_nodes;
+    last_text_inside =
+      if node.child_nodes <> [] then trim node.last_text_inside ^ indent
+      else node.last_text_inside;
+    } in
+  process "\n" {root with text_before = ""}
 
 exception Compare_result of int
 

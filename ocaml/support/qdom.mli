@@ -8,8 +8,8 @@ type element = {
   tag: Xmlm.name;
   mutable attrs: Xmlm.attribute list;
   mutable child_nodes: element list;
-  mutable text_before: string;        (** The text node immediately before us *)
-  mutable last_text_inside: string;   (** The last text node inside us with no following element *)
+  text_before: string;        (** The text node immediately before us *)
+  last_text_inside: string;   (** The last text node inside us with no following element *)
   doc: document;
   source_hint: source_hint;           (** Location to report in error messages *)
 }
@@ -70,7 +70,7 @@ val compare_nodes : ignore_whitespace:bool -> element -> element -> int
 
 (** Add or remove whitespace to indent the document nicely. Nodes with simple content
     (e.g. [<name>Bob</name>] do not have their content changed. *)
-val reindent : element -> unit
+val reindent : element -> element
 
 module type NsType = sig val ns : string end
 
