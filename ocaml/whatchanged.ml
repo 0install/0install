@@ -9,12 +9,17 @@ open Zeroinstall.General
 open Support.Common
 module Qdom = Support.Qdom
 module U = Support.Utils
+module Selections = Zeroinstall.Selections
 
 let show_changes (system:system) old_selections new_selections =
   let changes = ref false in
 
-  let old_index = Zeroinstall.Selections.make_selection_map old_selections in
-  let new_index = Zeroinstall.Selections.make_selection_map new_selections in
+  let old_index =
+    match old_selections with
+    | None -> StringMap.empty
+    | Some old_selections -> Selections.make_selection_map old_selections in
+
+  let new_index = Selections.make_selection_map new_selections in
 
   let lookup name index = StringMap.find name index in
 
@@ -22,8 +27,7 @@ let show_changes (system:system) old_selections new_selections =
 
   let print fmt = Support.Utils.print system fmt in
 
-  old_selections |> ZI.iter ~name:"selection" (fun old_sel ->
-    let iface = ZI.get_attribute "interface" old_sel in
+  old_index |> StringMap.iter (fun iface old_sel ->
     match lookup iface new_index with
     | None ->
         print "No longer used: %s" iface;
@@ -35,7 +39,7 @@ let show_changes (system:system) old_selections new_selections =
         )
   );
 
-  new_selections |> ZI.iter ~name:"selection" (fun new_sel ->
+  new_selections |> Selections.iter (fun new_sel ->
     let iface = ZI.get_attribute "interface" new_sel in
     if not (StringMap.mem iface old_index) then (
       print "%s: new -> %s" iface (v new_sel);
@@ -86,7 +90,7 @@ let show_app_changes options ~full app =
             | x -> Support.System.check_exit_status x
           ) else (
             let old_sels = Zeroinstall.Selections.load_selections system @@ get_selections_path previous in
-            let changes = show_changes system old_sels current_sels in
+            let changes = show_changes system (Some old_sels) current_sels in
             if not changes then
               print "No changes to versions (use --full to see all changes)."
           );

@@ -17,7 +17,7 @@ module H = Zeroinstall.Helpers
 type target =
   | App of (filepath * Requirements.requirements)
   | Interface
-  | Selections of Qdom.element
+  | Selections of Zeroinstall.Selections.t
 
 let local_path_of_iface uri =
   let starts = U.starts_with uri in
@@ -105,8 +105,8 @@ let resolve_target config flags arg =
         (Interface, reqs) in
 
       let is_selections sels =
-        let iface_uri = ZI.get_attribute "interface" sels in
-        let command = ZI.get_attribute_opt "command" sels in
+        let iface_uri = Zeroinstall.Selections.root_iface sels in
+        let command = Zeroinstall.Selections.root_command sels in
         let reqs = Req_options.parse_options flags iface_uri ~command in
         (Selections sels, reqs) in
 
@@ -116,7 +116,7 @@ let resolve_target config flags arg =
           let root = Support.Qdom.parse_file config.system path in
           match ZI.tag root with
           | None -> Support.Qdom.raise_elem "Not a 0install document (wrong namespace on root element): " root
-          | Some "selections" -> Zeroinstall.Selections.to_latest_format root |> is_selections
+          | Some "selections" -> Zeroinstall.Selections.create root |> is_selections
           | Some "interface" | Some "feed" -> is_interface ()
           | Some x -> raise_safe "Unexpected root element <%s>" x
 
@@ -160,7 +160,7 @@ let get_selections options ~refresh ?test_callback reqs mode =
         select_with_refresh true
     | (true, results) ->
         let sels = results#get_selections in
-        if mode = `Select_only || Zeroinstall.Selections.get_unavailable_selections config ~distro:tools#distro sels = [] then (
+        if mode = `Select_only || Zeroinstall.Driver.get_unavailable_selections config ~distro:tools#distro sels = [] then (
           (* (in select mode, we only care that we've made a selection, not that we've cached the implementations) *)
 
           let have_stale_feeds = feed_provider#have_stale_feeds in
@@ -227,7 +227,7 @@ let handle options flags arg ?test_callback for_op =
   let maybe_show_sels sels =
     match select_opts.output with
     | Output_none -> ()
-    | Output_XML -> Show.show_xml sels
+    | Output_XML -> Show.show_xml (Zeroinstall.Selections.as_xml sels)
     | Output_human -> Show.show_human config sels in
 
   let do_select requirements =
@@ -253,7 +253,7 @@ let handle options flags arg ?test_callback for_op =
       let new_sels = if select_opts.must_select then do_select reqs else old_sels in
       Show.show_restrictions config.system reqs;
       Show.show_human config new_sels;
-      if Whatchanged.show_changes config.system old_sels new_sels || reqs <> old_reqs then
+      if Whatchanged.show_changes config.system (Some old_sels) new_sels || reqs <> old_reqs then
         U.print config.system "(note: use '0install update' instead to save the changes)";
       new_sels
   | (App (path, _old_reqs), reqs) ->
@@ -280,5 +280,4 @@ let handle options flags arg ?test_callback for_op =
         )
       ) in
       maybe_show_sels new_sels;
-      ignore @@ Whatchanged.show_changes config.system old_sels new_sels;
       new_sels

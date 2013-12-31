@@ -15,7 +15,7 @@ module Q = Support.Qdom
 let cache_path_for config url = Feed_cache.get_save_cache_path config url
 
 let make_packagekit get_distro_candidates _config =
-  object
+  object (_ : Zeroinstall.Packagekit.packagekit)
     val candidates = Hashtbl.create 10
 
     method is_available = Lwt.return true
@@ -204,7 +204,7 @@ let suite = "driver">::: [
     if not ready then
       failwith @@ Diagnostics.get_failure_reason config result;
 
-    match result#get_selections.Q.child_nodes with
+    match (result#get_selections |> Selections.as_xml).Q.child_nodes with
     | [ sel ] -> Fake_system.assert_str_equal "package:fallback:prog:1.0:*" (ZI.get_attribute "id" sel)
     | _ -> assert_failure "Bad selections"
       
@@ -247,7 +247,7 @@ let suite = "driver">::: [
     assert (ready = true);
 
     let get_ids result =
-      ZI.map result#get_selections "selection" ~f:(fun sel -> ZI.get_attribute "id" sel) in
+      ZI.map (Selections.as_xml result#get_selections) "selection" ~f:(fun sel -> ZI.get_attribute "id" sel) in
 
     Fake_system.equal_str_lists ["sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"] @@ get_ids result;
 

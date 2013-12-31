@@ -59,7 +59,7 @@ means that it won't need to be downloaded again each time you run the program. T
 class type solver_box =
   object
     method recalculate : unit
-    method result : [`Aborted_by_user | `Success of Support.Qdom.element ] Lwt.t
+    method result : [`Aborted_by_user | `Success of Zeroinstall.Selections.t ] Lwt.t
     method ensure_main_window : GWindow.window_skel Lwt.t
     method update : unit
     method update_download_status : n_completed_downloads:int -> size_completed_downloads:Int64.t -> Downloader.download list -> unit

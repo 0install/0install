@@ -196,7 +196,7 @@ class ['a, 'b] cache =
 
 class type result =
   object
-    method get_selections : Qdom.element
+    method get_selections : Selections.t
     method impl_cache : ((General.iface_uri * bool), impl_candidates) cache
     method impl_provider : Impl_provider.impl_provider
     method get_details : (S.sat_problem * Impl_provider.impl_provider *
@@ -545,7 +545,7 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
   | Some _solution ->
       Some (
       object (_ : result)
-        method get_selections = get_selections dep_in_use root_req impl_cache command_cache
+        method get_selections = get_selections dep_in_use root_req impl_cache command_cache |> Selections.create
 
         method impl_cache = impl_cache
         method impl_provider = impl_provider

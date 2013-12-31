@@ -15,7 +15,7 @@ let assert_str_equal = Fake_system.assert_str_equal
 let get_sels config fake_system uri =
   fake_system#set_argv [| Test_0install.test_0install; "select"; "--xml"; uri|];
   let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
-  `String (0, output) |> Xmlm.make_input |> Q.parse_input None
+  `String (0, output) |> Xmlm.make_input |> Q.parse_input None |> Selections.create
 
 let suite = "selections">::: [
   "selections">:: Fake_system.with_fake_config (fun (config, fake_system) ->
@@ -27,21 +27,22 @@ let suite = "selections">::: [
     import "Compiler.xml";
     fake_system#set_argv [| Test_0install.test_0install; "select"; "--xml";  "--command=compile"; "--source"; "http://foo/Source.xml" |];
     let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
-    let old_sels = `String (0, output) |> Xmlm.make_input |> Q.parse_input None in
+    let old_sels = `String (0, output) |> Xmlm.make_input |> Q.parse_input None |> Selections.create in
     let index = Selections.make_selection_map old_sels in
     let source_sel = StringMap.find_safe "http://foo/Source.xml" index in
     Q.set_attribute_ns ~prefix:"foo" ("http://namespace", "foo") "bar" source_sel;
 
     (* Convert to string and back to XML to check we don't lose anything. *)
-    let as_str = Q.to_utf8 old_sels in
+    let old_xml = Selections.as_xml old_sels in
+    let as_str = Q.to_utf8 old_xml in
     let s = `String (0, as_str) |> Xmlm.make_input |> Q.parse_input None in
 
     ZI.check_tag "selections" s;
-    assert_equal 0 @@ Q.compare_nodes ~ignore_whitespace:false old_sels s;
+    assert_equal 0 @@ Q.compare_nodes ~ignore_whitespace:false old_xml s;
 
     assert_equal "http://foo/Source.xml" @@ ZI.get_attribute "interface" s;
 
-    let index = Selections.make_selection_map s in
+    let index = Selections.make_selection_map (Selections.create s) in
     assert_equal 2 @@ StringMap.cardinal index;
 
     let ifaces = StringMap.bindings index |> List.map fst in
@@ -75,7 +76,7 @@ let suite = "selections">::: [
           | _ -> assert false in
 
         let () =
-          match Selections.make_selection comp with
+          match Selections.get_source comp with
           | Selections.CacheSelection [("sha256new", "RPUJPVVHEWJ673N736OCN7EMESYAEYM2UAY6OJ4MDFGUZ7QACLKA"); ("sha1", "345")] -> ()
           | _ -> assert false in
 
@@ -106,7 +107,7 @@ let suite = "selections">::: [
     let index = Selections.make_selection_map (get_sels config fake_system iface) in
     let sel = StringMap.find_safe iface index in
     let () =
-      match Selections.make_selection sel with
+      match Selections.get_source sel with
       | Selections.LocalSelection local_path ->
           assert (fake_system#file_exists local_path);
       | _ -> assert false in
@@ -117,14 +118,14 @@ let suite = "selections">::: [
     let index = Selections.make_selection_map sels in
     let sel = StringMap.find_safe iface index in
     let tools = Fake_system.make_tools config in
-    assert (Selections.get_unavailable_selections ~distro:tools#distro config sels <> []);
+    assert (Driver.get_unavailable_selections ~distro:tools#distro config sels <> []);
 
     let () =
-      match Selections.make_selection sel with
+      match Selections.get_source sel with
       | Selections.CacheSelection [("sha1", "999")] -> ()
       | _ -> assert false in
 
-    assert_equal Feed.({id = "foo bar=123"; feed = `local_feed iface}) @@ Selections.get_id sel
+    assert_equal Feed_url.({id = "foo bar=123"; feed = `local_feed iface}) @@ Selections.get_id sel
   );
 
   "commands">:: Fake_system.with_fake_config (fun (config, fake_system) ->
@@ -152,7 +153,7 @@ let suite = "selections">::: [
 
     fake_system#set_argv [| Test_0install.test_0install; "download"; "--offline"; "--xml"; runexec|];
     let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
-    let s3 = `String (0, output) |> Xmlm.make_input |> Q.parse_input None in
+    let s3 = `String (0, output) |> Xmlm.make_input |> Q.parse_input None |> Selections.create in
     let index = Selections.make_selection_map s3 in
 
     let runnable_impl = StringMap.find_safe runnable index in
@@ -163,7 +164,7 @@ let suite = "selections">::: [
 
   "old-commands">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     let command_feed = Test_0install.feed_dir +/ "old-selections.xml" in
-    let sels = Q.parse_file config.system command_feed |> Selections.to_latest_format in
+    let sels = Q.parse_file config.system command_feed |> Selections.create in
 
     let user_store = List.hd config.stores in
     let add_impl digest_str =

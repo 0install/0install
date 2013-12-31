@@ -47,20 +47,19 @@ let suite = "apps">::: [
       match Zeroinstall.Solver.solve_for config feed_provider r with
       | (true, results) ->
           let sels = results#get_selections in
-          let sel = List.hd sels.Q.child_nodes in
-          Q.set_attribute "version" "0.1-pre" sel;
+          sels |> Zeroinstall.Selections.iter (Q.set_attribute "version" "0.1-pre");
           Apps.set_selections config app sels ~touch_last_checked:true
       | _ -> assert_failure "Solve failed" in
 
     (* Get selections without updating. *)
-    let sels = Apps.get_selections_no_updates system app in
+    let sels = Apps.get_selections_no_updates system app |> Zeroinstall.Selections.as_xml in
     Fake_system.assert_str_equal url @@ ZI.get_attribute "interface" sels;
     Fake_system.assert_str_equal "0.1-pre" @@ ZI.get_attribute "version" (List.hd sels.Q.child_nodes);
 
     let tools = Fake_system.make_tools config in
 
     (* Get selections with updates allowed; should resolve and find version 1. *)
-    let sels = Apps.get_selections_may_update tools app in
+    let sels = Apps.get_selections_may_update tools app |> Zeroinstall.Selections.as_xml in
     Fake_system.assert_str_equal url @@ ZI.get_attribute "interface" sels;
     Fake_system.assert_str_equal "1" @@ ZI.get_attribute "version" (List.hd sels.Q.child_nodes);
   )

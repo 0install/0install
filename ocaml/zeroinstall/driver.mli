@@ -11,7 +11,7 @@
  * Returns None if we need to refresh feeds or download any implementations. *)
 val quick_solve :
   < config : General.config; distro : Distro.distribution; .. > ->
-  Requirements.requirements -> Solver.Qdom.element option
+  Requirements.requirements -> Selections.t option
 
 (** Run the solver, then download any feeds that are missing or that need to be
     updated. Each time a new feed is imported into the cache, the solver is run
@@ -50,4 +50,7 @@ val download_selections :
   General.config -> Distro.distribution -> Fetch.fetcher ->
   include_packages:bool ->
   feed_provider:Feed_provider.feed_provider ->
-  Support.Qdom.element -> [ `aborted_by_user | `success ] Lwt.t
+  Selections.t -> [ `aborted_by_user | `success ] Lwt.t
+
+(** If [distro] is set then <package-implementation>s are included. Otherwise, they are ignored. *)
+val get_unavailable_selections : General.config -> ?distro:Distro.distribution -> Selections.t -> Selections.selection list

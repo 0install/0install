@@ -99,7 +99,8 @@ let do_exec_binding dry_run builder env impls (iface_uri, {Binding.exec_type; Bi
 
 (* Make a map from InterfaceURIs to the selected <selection> and (for non-native packages) paths *)
 let make_selection_map system stores sels =
-  let add_selection m sel =
+  let map = ref StringMap.empty in
+  sels |> Selections.iter (fun sel ->
     let iface = ZI.get_attribute "interface" sel in
     let path =
       try Selections.get_path system stores sel
@@ -107,8 +108,9 @@ let make_selection_map system stores sels =
         raise_safe "Missing implementation for '%s' %s: %s" iface (ZI.get_attribute "version" sel) msg
     in
     let value = (sel, path) in
-    StringMap.add iface value m
-  in ZI.fold_left ~f:add_selection StringMap.empty sels "selection"
+    map := StringMap.add iface value !map
+  );
+  !map
 
 (** Calculate the arguments and environment to pass to exec to run this
     process. This also ensures any necessary launchers exist, creating them
@@ -130,15 +132,15 @@ let get_exec_args config ?main sels args =
   (* Do <executable-in-*> bindings *)
   List.iter (do_exec_binding config.dry_run launcher_builder env impls) exec_bindings;
 
-  let command = ZI.get_attribute_opt "command" sels in
-  let prog_args = (Command.build_command ?main ~dry_run:config.dry_run impls (ZI.get_attribute "interface" sels) command env) @ args in
+  let command = Selections.root_command sels in
+  let prog_args = (Command.build_command ?main ~dry_run:config.dry_run impls (Selections.root_iface sels) command env) @ args in
 
   (prog_args, (Env.to_array env))
 
 (** Run the given selections. If [wrapper] is given, run that command with the command we would have run as the arguments.
     If [exec] is given, use that instead of config.system#exec. *)
 let execute_selections config ?exec ?wrapper ?main sels args =
-  if main = None && ZI.get_attribute_opt FeedAttr.command sels = None then
+  if main = None && Selections.root_command sels = None then
     raise_safe "Can't run: no command specified!";
 
   let (prog_args, env) = get_exec_args config ?main sels args in

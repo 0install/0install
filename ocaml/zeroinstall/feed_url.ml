@@ -36,3 +36,9 @@ module FeedElt =
 
 module FeedSet = Set.Make(FeedElt)
 module FeedMap = Map.Make(FeedElt)
+
+(** A globally-unique identifier for an implementation. *)
+type global_id = {
+  feed : parsed_feed_url;
+  id : string;
+}

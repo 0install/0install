@@ -61,7 +61,7 @@ class virtual distribution : General.config ->
 
     (** Install a set of packages of a given type (as set previously by [check_for_candidates]).
      * Normally called only by the [Distro.install_distro_packages] function. *)
-    method install_distro_packages : Progress.watcher -> string -> (Feed.distro_implementation * Feed.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
+    method install_distro_packages : 'a. (#Packagekit.ui as 'a) -> string -> (Feed.distro_implementation * Feed.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
 
     (** Check whether this name is possible for this distribution. The default implementation filters using [valid_package_name]. *)
     method is_valid_package_name : string -> bool
@@ -92,7 +92,7 @@ val is_installed : General.config -> distribution -> Support.Qdom.element -> boo
 
 (** Install these packages using the distribution's package manager.
  * Sorts the implementations into groups by their type and then calls [distribution#install_distro_packages] once for each group. *)
-val install_distro_packages : distribution -> #Progress.watcher -> Feed.distro_implementation list -> [ `ok | `cancel ] Lwt.t
+val install_distro_packages : distribution -> #Packagekit.ui -> Feed.distro_implementation list -> [ `ok | `cancel ] Lwt.t
 
 (** Return the <package-implementation> elements that best match this distribution. *)
 val get_matching_package_impls : distribution -> Feed.feed -> (Support.Qdom.element * Feed.properties) list

@@ -12,12 +12,12 @@ class type ui_handler =
      *)
     method run_solver :
       < config : General.config; distro : Distro.distribution; make_fetcher : Progress.watcher -> Fetch.fetcher; .. > ->
-      ?test_callback:(Support.Qdom.element -> string Lwt.t) ->
+      ?test_callback:(Selections.t -> string Lwt.t) ->
       ?systray:bool ->
       [`Download_only | `Select_for_run | `Select_only] ->
       Requirements.requirements ->
       refresh:bool ->
-      [`Aborted_by_user | `Success of Support.Qdom.element ] Lwt.t
+      [`Aborted_by_user | `Success of Selections.t] Lwt.t
     
     (** Display the Preferences dialog. Resolves when dialog is closed.
      * @return None if we don't have a GUI available. *)

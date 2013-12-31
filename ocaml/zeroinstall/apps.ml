@@ -45,7 +45,7 @@ let iter_inputs config cb sels =
     | None -> ()
     | Some p -> cb p
   in
-  let check_sel sel_elem =
+  sels |> Selections.iter (fun sel_elem ->
     let feed = Selections.get_feed sel_elem in
 
     (* Check per-feed config *)
@@ -59,8 +59,7 @@ let iter_inputs config cb sels =
       match Feed_cache.get_cached_feed_path config remote_feed with
       | None -> need_solve @@ "Source feed no longer cached: " ^ feed
       | Some path -> cb path              (* Check feed hasn't changed *)
-  in
-  ZI.iter check_sel sels ~name:"selection";
+  );
 
   (* Check global config *)
   check_maybe_config config_injector_global
@@ -93,6 +92,7 @@ let set_last_checked system app_dir =
   U.touch system @@ app_dir +/ "last-checked"
 
 let set_selections config app_path sels ~touch_last_checked =
+  let sels = Selections.as_xml sels in
   let date = U.format_date (Unix.gmtime @@ config.system#time) in
   let sels_file = app_path +/ (Printf.sprintf "selections-%s.xml" date) in
 
@@ -170,7 +170,7 @@ let check_for_updates tools app_path sels =
 
   (* Do we have everything we need to run now? *)
   let unavailable_sels =
-    Selections.get_unavailable_selections config ~distro:tools#distro sels <> [] in
+    Driver.get_unavailable_selections config ~distro:tools#distro sels <> [] in
 
   (* Should we do a quick solve before running?
      Checks whether the inputs to the current solution have changed. *)
@@ -198,7 +198,7 @@ let check_for_updates tools app_path sels =
       let new_sels =
         match Driver.quick_solve tools reqs with
         | Some new_sels ->
-            if Support.Qdom.compare_nodes ~ignore_whitespace:true new_sels sels = 0 then (
+            if Selections.equal new_sels sels then (
               log_info "Quick solve succeeded; no change needed";
               sels
             ) else (

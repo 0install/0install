@@ -19,6 +19,27 @@ let rec collect_ex = function
       lwt result = x in
       lwt results = collect_ex xs in
       result :: results |> Lwt.return
+   
+(** If [distro] is set then <package-implementation>s are included. Otherwise, they are ignored. *)
+let get_unavailable_selections config ?distro sels =
+  let missing = ref [] in
+
+  let needs_download elem =
+    match Selections.get_source elem with
+    | Selections.LocalSelection _ -> false
+    | Selections.CacheSelection digests -> None = Stores.lookup_maybe config.system digests config.stores
+    | Selections.PackageSelection ->
+        match distro with
+        | None -> false
+        | Some distro -> not @@ Distro.is_installed config distro elem
+  in
+  sels |> Selections.iter (fun sel ->
+    if needs_download sel then (
+      Support.Qdom.log_elem Support.Logging.Info "Missing selection of %s:" (ZI.get_attribute "interface" sel) sel;
+      missing := sel :: !missing
+    )
+  );
+  !missing
 
 (** Find a package implementation. Note: does not call [distro#check_for_candidates]. *)
 let find_distro_impl feed_provider id master_feed =
@@ -164,7 +185,7 @@ let quick_solve tools reqs =
   match Solver.solve_for config feed_provider reqs with
   | (true, results) ->
       let sels = results#get_selections in
-      if Selections.get_unavailable_selections config ~distro sels = [] then
+      if get_unavailable_selections config ~distro sels = [] then
         Some sels   (* A set of valid selections, available locally *)
       else
         None        (* Need to download to get the new selections *)
@@ -207,7 +228,7 @@ let download_and_import_feed fetcher url =
 let download_selections config distro fetcher ~include_packages ~(feed_provider:Feed_provider.feed_provider) sels : [ `success | `aborted_by_user ] Lwt.t =
   let missing =
     let maybe_distro = if include_packages then Some distro else None in
-    Selections.get_unavailable_selections config ?distro:maybe_distro sels in
+    get_unavailable_selections config ?distro:maybe_distro sels in
   if missing = [] then (
     Lwt.return `success
   ) else if config.network_use = Offline then (
@@ -241,7 +262,7 @@ let download_selections config distro fetcher ~include_packages ~(feed_provider:
 
     (* Find the <implementation> corresponding to sel in the feed cache. If missing, download the feed and retry. *)
     let impl_of_sel sel =
-      let {Feed.id; Feed.feed = feed_url} = Selections.get_id sel in
+      let {Feed_url.id; Feed_url.feed = feed_url} = Selections.get_id sel in
 
       let get_impl () =
         match feed_url with
@@ -277,3 +298,4 @@ let download_selections config distro fetcher ~include_packages ~(feed_provider:
       fetcher#download_impls impls
     with Aborted_by_user -> Lwt.return `aborted_by_user
   )
+

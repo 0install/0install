@@ -117,7 +117,7 @@ let register_handlers options connection =
           try_lwt
             match_lwt ui#run_solver options.tools `Select_only requirements ~refresh with
             | `Aborted_by_user -> `List [`String "aborted-by-user"] |> Lwt.return
-            | `Success sels -> `WithXML (`List [`String "ok"], sels) |> Lwt.return
+            | `Success sels -> `WithXML (`List [`String "ok"], Zeroinstall.Selections.as_xml sels) |> Lwt.return
           with Safe_exception (msg, _) -> `List [`String "fail"; `String msg] |> Lwt.return in
         resp |> Lwt.return
     | _ -> raise JC.Bad_request in

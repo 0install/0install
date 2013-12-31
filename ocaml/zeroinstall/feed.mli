@@ -9,12 +9,6 @@
 module AttrType : sig type t = Xmlm.name val compare : 'a -> 'a -> int end
 module AttrMap : (Map.S with type key = AttrType.t)
 
-(** A globally-unique identifier for an implementation. *)
-type global_id = {
-  feed : Feed_url.parsed_feed_url;
-  id : string;
-}
-
 type importance =
   | Dep_essential       (* Must select a version of the dependency *)
   | Dep_recommended     (* Prefer to select a version, if possible *)
@@ -140,7 +134,7 @@ val update_last_checked_time : General.config -> [< `remote_feed of General.feed
 val get_langs : _ implementation -> Support.Locale.lang_spec list
 val is_available_locally : General.config -> _ implementation -> bool
 val is_retrievable_without_network : cache_impl -> bool
-val get_id : _ implementation -> global_id
+val get_id : _ implementation -> Feed_url.global_id
 val get_summary : int Support.Locale.LangMap.t -> feed -> string option
 val get_description : int Support.Locale.LangMap.t -> feed -> string option
 

@@ -46,7 +46,7 @@ val list_impls : Solver.result -> General.iface_uri ->
 val get_fetch_info : General.config -> Feed.generic_implementation -> (string * string)
 
 (** Set a user-override stability rating. *)
-val set_impl_stability : General.config -> Feed.global_id -> General.stability_level option -> unit
+val set_impl_stability : General.config -> Feed_url.global_id -> General.stability_level option -> unit
 
 (** Get the initial text for the bug report dialog box. *)
 val get_bug_report_details : General.config -> iface:General.iface_uri -> (bool * Solver.result) -> string
@@ -59,4 +59,4 @@ val send_bug_report : General.iface_uri -> string -> string Lwt.t
 (** Find the [Feed.implementation] which produced this selection. If there is an override on the stability, return that too. *)
 val get_impl : Feed_provider.feed_provider -> Support.Qdom.element -> (Feed.generic_implementation * General.stability_level option) option
 
-val run_test : General.config -> Distro.distribution -> (Support.Qdom.element -> string Lwt.t) -> (bool * Solver.result) -> string Lwt.t
+val run_test : General.config -> Distro.distribution -> (Selections.t -> string Lwt.t) -> (bool * Solver.result) -> string Lwt.t

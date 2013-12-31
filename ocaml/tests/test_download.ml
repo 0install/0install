@@ -23,13 +23,13 @@ exception Open_gui
 
 let parse_sels xml =
   try
-    let sels = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None |> Zeroinstall.Selections.to_latest_format in
+    let sels = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None |> Zeroinstall.Selections.create in
     Zeroinstall.Selections.make_selection_map sels
   with Safe_exception _ as ex ->
     reraise_with_context ex "... parsing %s" xml
 
 let get_sel_path config sel =
-  match Zeroinstall.Selections.make_selection sel with
+  match Zeroinstall.Selections.get_source sel with
   | Zeroinstall.Selections.CacheSelection digests ->
       Zeroinstall.Stores.lookup_maybe config.system digests config.stores
   | _ -> assert_failure "Wrong type!"
@@ -65,7 +65,7 @@ let do_recipe config fake_system server ?(expected=[[("HelloWorld.tar.bz2", `Ser
   let feed = Test_0install.feed_dir +/ name in
   server#expect expected;
   let out = run_0install fake_system ["download"; feed; "--command="; "--xml"] in
-  let sels = `String (0, out) |> Xmlm.make_input |> Q.parse_input None in
+  let sels = `String (0, out) |> Xmlm.make_input |> Q.parse_input None |> Zeroinstall.Selections.create in
   let index = Zeroinstall.Selections.make_selection_map sels in
   let sel = StringMap.find_safe feed index in
   get_sel_path config sel |> expect
@@ -361,7 +361,7 @@ let suite = "download">::: [
     Fake_system.fake_log#assert_contains ".* 404.*: trying implementation mirror at http://roscidus.com/0mirror";
     let sels = parse_sels out in
     let sel = StringMap.find_safe "http://example.com:8000/Hello.xml" sels in
-    begin match Zeroinstall.Selections.make_selection sel with
+    begin match Zeroinstall.Selections.get_source sel with
     | Zeroinstall.Selections.CacheSelection digests ->
         let path = Zeroinstall.Stores.lookup_any config.system digests config.stores in
         assert (fake_system#file_exists (path +/ "HelloWorld" +/ "main"))
@@ -442,7 +442,7 @@ let suite = "download">::: [
     Fake_system.fake_log#assert_contains "Automatically approving key for new feed";
 
     assert (fake_system#file_exists @@ expect (get_sel_path config sel) +/ "HelloWorld" +/ "main");
-    assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config sels
+    assert_equal [] @@ Zeroinstall.Driver.get_unavailable_selections config sels
   );
 
   "background-app">:: Server.with_server (fun (config, fake_system) server ->

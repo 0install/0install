@@ -48,7 +48,7 @@ let as_tree sels =
                     match ZI.get_attribute_opt FeedAttr.importance dep with
                     | None | Some "essential" -> true
                     | _ -> false in
-                  build_node child_iface (Selections.get_required_commands dep) ~essential
+                  build_node child_iface (Command.get_required_commands dep) ~essential
                 ) in
 
               `Selected (impl, children)
@@ -61,10 +61,10 @@ let as_tree sels =
     )
   in
 
-  let root_iface = ZI.get_attribute FeedAttr.interface sels in
+  let root_iface = Selections.root_iface sels in
   let commands =
-    match ZI.get_attribute_opt FeedAttr.command sels with
-    | None | Some "" -> []
+    match Selections.root_command sels with
+    | None -> []
     | Some command -> [command] in
 
   match build_node root_iface commands ~essential:true with
@@ -107,7 +107,7 @@ let print config printer sels =
             (* printf "ID: %s" (ZI.get_attribute "id" impl); *)
             printf "Version: %s" (ZI.get_attribute "version" impl);
             (* print indent + "  Command:", command *)
-            let path = match Selections.make_selection impl with
+            let path = match Selections.get_source impl with
               | Selections.PackageSelection -> Printf.sprintf "(%s)" @@ ZI.get_attribute "id" impl
               | Selections.LocalSelection path -> path
               | Selections.CacheSelection digests ->

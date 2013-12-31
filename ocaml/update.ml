@@ -8,19 +8,13 @@ open Zeroinstall.General
 open Options
 open Support.Common
 
+module Selections = Zeroinstall.Selections
 module FeedAttr = Zeroinstall.Constants.FeedAttr
 module Apps = Zeroinstall.Apps
 module R = Zeroinstall.Requirements
 module Q = Support.Qdom
 module F = Zeroinstall.Feed
 module D = Zeroinstall.Dbus
-
-let get_root_sel sels =
-  let iface = ZI.get_attribute FeedAttr.interface sels in
-  let is_root sel = ZI.get_attribute FeedAttr.interface sel = iface in
-  match Q.find is_root sels with
-  | Some sel -> sel
-  | None -> raise_safe "Can't find a selection for the root (%s)!" iface
 
 let get_newest options feed_provider reqs =
   let module I = Zeroinstall.Impl_provider in
@@ -67,14 +61,18 @@ let check_for_updates options reqs old_sels =
       let print fmt = Support.Utils.print system fmt in
       let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider options.config tools#distro in
       check_replacement system @@ feed_provider#get_feed (Zeroinstall.Feed_url.master_feed_of_iface reqs.R.interface_uri);
-      let root_sel = get_root_sel new_sels in
+      let root_sel = Selections.root_sel new_sels in
       let root_version = ZI.get_attribute FeedAttr.version root_sel in
-      let changes = ref (Whatchanged.show_changes system old_sels new_sels) in
-      if not !changes && Q.compare_nodes old_sels new_sels ~ignore_whitespace:true <> 0 then (
-        changes := true;
-        print "Updates to metadata found, but no change to version (%s)." root_version;
-        log_debug "Old:\n%s\nNew:\n%s" (Q.to_utf8 old_sels) (Q.to_utf8 new_sels)
-      );
+      let changes = Whatchanged.show_changes system old_sels new_sels ||
+        match old_sels with
+        | None -> true
+        | Some old_sels ->
+            if Selections.equal old_sels new_sels then false
+            else (
+              print "Updates to metadata found, but no change to version (%s)." root_version;
+              log_debug "Old:\n%s\nNew:\n%s" (Q.to_utf8 (Selections.as_xml old_sels)) (Q.to_utf8 (Selections.as_xml new_sels));
+              true
+            ) in
 
       let () =
         match get_newest options feed_provider reqs with
@@ -85,11 +83,11 @@ let check_for_updates options reqs old_sels =
                 reqs.R.interface_uri (Zeroinstall.Versions.format_version best.F.parsed_version) root_version;
               if not config.help_with_testing && best.F.stability < Stable then
                 print "To select \"testing\" versions, use:\n0install config help_with_testing True"
-            ) else if not !changes then (
+            ) else if not changes then (
               print "No updates found. Continuing with version %s." root_version
             ) in
 
-      if !changes then
+      if changes then
         Some new_sels
       else
         None
@@ -111,17 +109,18 @@ let handle options flags args =
     | (G.App (app, _old_reqs), reqs) ->
         let old_sels = Apps.get_selections_no_updates config.system app in
         let () =
-          match check_for_updates options reqs old_sels with
+          match check_for_updates options reqs (Some old_sels) with
           | Some new_sels -> Apps.set_selections config app new_sels ~touch_last_checked:true;
           | None -> () in
         Apps.set_requirements config app reqs
-    | (G.Selections old_sels, reqs) -> ignore @@ check_for_updates options reqs old_sels
+    | (G.Selections old_sels, reqs) -> ignore @@ check_for_updates options reqs (Some old_sels)
     | (G.Interface, reqs) ->
         (* Select once without downloading to get the old values *)
         let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config tools#distro in
         let (ready, result) = Zeroinstall.Solver.solve_for config feed_provider reqs in
-        let old_sels = result#get_selections in
-        if not ready then old_sels.Q.child_nodes <- [];
+        let old_sels =
+          if ready then Some result#get_selections
+          else None in
         ignore @@ check_for_updates options reqs old_sels
   )
   | _ -> raise (Support.Argparse.Usage_error 1)
@@ -230,7 +229,7 @@ let handle_bg options flags args =
         let new_sels = result#get_selections in
 
         let new_sels =
-          if !need_gui || not ready || Zeroinstall.Selections.get_unavailable_selections config ~distro new_sels <> [] then (
+          if !need_gui || not ready || Zeroinstall.Driver.get_unavailable_selections config ~distro new_sels <> [] then (
             let interactive_ui = Zeroinstall.Gui.try_get_gui config ~use_gui:Maybe in
             match interactive_ui with
             | Some gui ->
@@ -257,7 +256,7 @@ let handle_bg options flags args =
                 )
           ) else new_sels in
 
-        if Q.compare_nodes old_sels new_sels ~ignore_whitespace:true <> 0 then (
+        if not (Selections.equal old_sels new_sels) then (
           Apps.set_selections config app new_sels ~touch_last_checked:true;
           let msg = Printf.sprintf "%s updated" name in
           log_info "Background update: %s" msg;

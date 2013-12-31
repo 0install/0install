@@ -21,16 +21,15 @@ let exec_man config ?env args =
 
 (** Exec the man command to show the man-page for this interface. Never returns. *)
 let find_and_exec_man config ?main ?fallback_name sels =
-  let interface_uri = ZI.get_attribute "interface" sels in
-  let is_main_impl elem = (ZI.tag elem = Some "selection" && ZI.get_attribute "interface" elem = interface_uri) in
-  let selected_impl = List.find is_main_impl sels.Qdom.child_nodes in
+  let interface_uri = Zeroinstall.Selections.root_iface sels in
+  let selected_impl = Zeroinstall.Selections.root_sel sels in
   let system = config.system in
 
   let main =
     match main with
     | Some main -> main
     | None ->
-        let command_name = ZI.get_attribute "command" sels in
+        let command_name = Zeroinstall.Selections.root_command sels |? lazy (failwith "missing command") in
         let selected_command = Zeroinstall.Command.get_command_ex command_name selected_impl in
         match ZI.get_attribute_opt "path" selected_command with
         | None -> Qdom.raise_elem "No main program for interface '%s'" interface_uri selected_command

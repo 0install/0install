@@ -13,6 +13,7 @@ module F = Zeroinstall.Feed
 module FC = Zeroinstall.Feed_cache
 module R = Zeroinstall.Requirements
 module Escape = Zeroinstall.Escape
+module Selections = Zeroinstall.Selections
 
 let assert_contains = Fake_system.assert_contains
 let assert_str_equal = Fake_system.assert_str_equal
@@ -113,6 +114,9 @@ let check_man fake_system args expected =
     Fake_system.equal_str_lists expected man_args
 
 let generic_archive = U.handle_exceptions (U.read_file Fake_system.real_system) @@ feed_dir +/ "HelloWorld.tgz"
+
+let selections_of_string ?path s =
+  `String (0, s) |> Xmlm.make_input |> Q.parse_input path |> Selections.create
 
 let suite = "0install">::: [
   "select">:: Fake_system.with_tmpdir (fun tmpdir ->
@@ -251,7 +255,7 @@ let suite = "0install">::: [
 
     let local_uri = U.abspath system (feed_dir +/ "Local.xml") in
     let out = run ["download"; local_uri; "--xml"] in
-    let sels = Zeroinstall.Selections.make_selection_map @@ Q.parse_input None (Xmlm.make_input (`String (0, out))) in
+    let sels = selections_of_string out |> Zeroinstall.Selections.make_selection_map in
     let sel = StringMap.find_safe local_uri sels in
     assert_str_equal "0.1" @@ ZI.get_attribute "version" sel;
 
@@ -498,18 +502,18 @@ let suite = "0install">::: [
     (* Can run without using the solver... *)
     let module A = Zeroinstall.Apps in
     let sels = A.get_selections_no_updates system app in
-    assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config ~distro sels;
+    assert_equal [] @@ Zeroinstall.Driver.get_unavailable_selections config ~distro sels;
     assert_equal 0.0 (A.get_times system app).A.last_solve;
 
     (* But if the feed is modified, we resolve... *)
     system#set_mtime local_copy 300.0;
     let sels = A.get_selections_may_update tools app in
-    assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config sels;
+    assert_equal [] @@ Zeroinstall.Driver.get_unavailable_selections config sels;
     assert (0.0 <> (A.get_times system app).A.last_solve);
 
     system#set_mtime (app +/ "last-solve") 400.0;
     let sels = A.get_selections_may_update tools app in
-    assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config ~distro sels;
+    assert_equal [] @@ Zeroinstall.Driver.get_unavailable_selections config ~distro sels;
     assert_equal 400.0 (A.get_times system app).A.last_solve;
 
     (* The feed is missing. We warn but continue with the old selections. *)
@@ -517,7 +521,7 @@ let suite = "0install">::: [
       system#unlink local_copy;
       U.touch system (app +/ "last-check-attempt");	(* Prevent background update *)
       let sels = A.get_selections_may_update tools app in
-      assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config ~distro sels;
+      assert_equal [] @@ Zeroinstall.Driver.get_unavailable_selections config ~distro sels;
       assert (400.0 <> (A.get_times system app).A.last_solve);
     );
 
@@ -546,7 +550,7 @@ let suite = "0install">::: [
     system#set_mtime (app +/ "last-solve") 400.0;
 
     let sels = A.get_selections_may_update tools app in
-    assert_equal [] @@ Zeroinstall.Selections.get_unavailable_selections config sels;
+    assert_equal [] @@ Zeroinstall.Driver.get_unavailable_selections config sels;
 
     (* If the selections.xml gets deleted, regenerate it *)
     system#unlink (app +/ "selections.xml");
@@ -652,7 +656,7 @@ let suite = "0install">::: [
     assert_contains "Version: 0.1" out;
 
     let out = run_0install fake_system ["select"; feed_dir +/ "Local.xml"; "--xml"] in
-    let sels = `String (0, out) |> Xmlm.make_input |> Q.parse_input (Some local_uri) in
+    let sels = selections_of_string ~path:local_uri out in
     let index = Zeroinstall.Selections.make_selection_map sels in
     let sel = StringMap.find_safe local_uri index in
     assert_str_equal "0.1" (ZI.get_attribute "version" sel);
@@ -663,7 +667,7 @@ let suite = "0install">::: [
     let local_uri = U.realpath config.system (feed_dir +/ "Hello.xml") in
     fake_system#putenv "DISPLAY" ":foo";
     let out = run_0install fake_system ["select"; "--xml"; local_uri] in
-    let sels = `String (0, out) |> Xmlm.make_input |> Q.parse_input (Some local_uri) in
+    let sels = selections_of_string ~path:local_uri out in
     let index = Zeroinstall.Selections.make_selection_map sels in
     let sel = StringMap.find_safe local_uri index in
 

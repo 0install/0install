@@ -204,8 +204,8 @@ let suite = "fetch">::: [
         Main.main config.system
       ) in
 
-    let sels = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None in
-    assert (Zeroinstall.Selections.get_unavailable_selections config ~distro:tools#distro sels <> []);
+    let sels = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None |> Zeroinstall.Selections.create in
+    assert (Zeroinstall.Driver.get_unavailable_selections config ~distro:tools#distro sels <> []);
 
     check ~error:"Local file '.*tests/IDONTEXIST.tgz' does not exist" "impl2";
     check ~error:"Wrong size for .*/tests/HelloWorld.tgz: feed says 177, but actually 176 bytes" "impl3";

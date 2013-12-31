@@ -338,22 +338,23 @@ class virtual distribution config =
             packagekit#check_for_candidates package_names
           ) else Lwt.return ()
 
-    method install_distro_packages (ui:Progress.watcher) typ items : [ `ok | `cancel ] Lwt.t =
-      match typ with
-      | "packagekit" ->
-          begin match_lwt packagekit#install_packages ui items with
-          | `cancel -> Lwt.return `cancel
-          | `ok ->
-              items |> List.iter (fun (impl, _rm) ->
-                fixup_main self#get_correct_main impl
-              );
-              Lwt.return `ok end
-      | _ ->
-          let names = items |> List.map (fun (_impl, rm) -> snd rm.Feed.distro_install_info) in
-          ui#confirm (Printf.sprintf
-            "This program depends on some packages that are available through your distribution. \
-             Please install them manually using %s and try again. Or, install 'packagekit' and I can \
-             use that to install things. The packages are:\n\n- %s" typ (String.concat "\n- " names))
+    method install_distro_packages : 'a. (#Packagekit.ui as 'a) -> string -> _ list -> [ `ok | `cancel ] Lwt.t =
+      fun ui typ items ->
+        match typ with
+        | "packagekit" ->
+            begin match_lwt packagekit#install_packages ui items with
+            | `cancel -> Lwt.return `cancel
+            | `ok ->
+                items |> List.iter (fun (impl, _rm) ->
+                  fixup_main self#get_correct_main impl
+                );
+                Lwt.return `ok end
+        | _ ->
+            let names = items |> List.map (fun (_impl, rm) -> snd rm.Feed.distro_install_info) in
+            ui#confirm (Printf.sprintf
+              "This program depends on some packages that are available through your distribution. \
+               Please install them manually using %s and try again. Or, install 'packagekit' and I can \
+               use that to install things. The packages are:\n\n- %s" typ (String.concat "\n- " names))
   end
 
 let is_installed config (distro:distribution) elem =
@@ -369,7 +370,7 @@ let is_installed config (distro:distribution) elem =
           | None -> true      (* quick-test-file exists and we don't care about the time *)
           | Some required_mtime -> (Int64.of_float info.Unix.st_mtime) = Int64.of_string required_mtime
 
-let install_distro_packages (distro:distribution) (ui:#Progress.watcher) impls : [ `ok | `cancel ] Lwt.t =
+let install_distro_packages (distro:distribution) ui impls : [ `ok | `cancel ] Lwt.t =
   let groups = ref StringMap.empty in
   impls |> List.iter (fun impl ->
     let `package_impl {Feed.retrieval_method = rm; _} = impl.Feed.impl_type in
@@ -382,7 +383,7 @@ let install_distro_packages (distro:distribution) (ui:#Progress.watcher) impls :
   let rec loop = function
     | [] -> Lwt.return `ok
     | (typ, items) :: groups ->
-        match_lwt distro#install_distro_packages (ui :> Progress.watcher) typ items with
+        match_lwt distro#install_distro_packages ui typ items with
         | `ok -> loop groups
         | `cancel -> Lwt.return `cancel in
   !groups |> StringMap.bindings |> loop

@@ -19,12 +19,6 @@ module AttrType =
 
 module AttrMap = Map.Make(AttrType)
 
-(** A globally-unique identifier for an implementation. *)
-type global_id = {
-  feed : Feed_url.parsed_feed_url;
-  id : string;
-}
-
 type importance =
   | Dep_essential       (* Must select a version of the dependency *)
   | Dep_recommended     (* Prefer to select a version, if possible *)
@@ -636,7 +630,7 @@ let is_retrievable_without_network cache_impl =
 
 let get_id impl =
   let feed_url = get_attr_ex FeedAttr.from_feed impl in
-  {feed = Feed_url.parse feed_url; id = get_attr_ex FeedAttr.id impl}
+  Feed_url.({feed = Feed_url.parse feed_url; id = get_attr_ex FeedAttr.id impl})
 
 let get_text tag langs feed =
   let best = ref None in

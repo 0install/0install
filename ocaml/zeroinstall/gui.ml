@@ -21,7 +21,7 @@ let register_plugin fn =
   gui_plugin := Some fn
 
 let get_impl (feed_provider:Feed_provider.feed_provider) sel =
-  let {Feed.id; Feed.feed = from_feed} = Selections.get_id sel in
+  let {Feed_url.id; Feed_url.feed = from_feed} = Selections.get_id sel in
 
   let get_override overrides =
     StringMap.find id overrides.F.user_stability in
@@ -215,7 +215,7 @@ let remove_feed config iface feed_url =
     Feed_cache.save_iface_config config iface {iface_config with Feed_cache.extra_feeds};
   )
 
-let set_impl_stability config {Feed.feed; Feed.id} rating =
+let set_impl_stability config {Feed_url.feed; Feed_url.id} rating =
   let overrides = Feed.load_feed_overrides config feed in
   let overrides = {
     overrides with F.user_stability =
@@ -281,10 +281,8 @@ let compile config feed_provider iface ~autocompile =
         "--"; iface;
       |] in
       let root = `String (0, stdout) |> Xmlm.make_input |> Q.parse_input None in
-      let sels = Selections.to_latest_format root in
-      let sel = sels |> Q.find (fun child ->
-        ZI.tag child = Some "selection" && ZI.get_attribute FeedAttr.interface child = iface
-      ) in
+      let sels = Selections.create root in
+      let sel = Selections.find iface sels in
       let sel = sel |? lazy (raise_safe "No implementation of root (%s)!" iface) in
       let min_version =
         match Q.get_attribute_opt (COMPILE_NS.ns, "min-version") sel with
@@ -301,7 +299,7 @@ let compile config feed_provider iface ~autocompile =
 let get_bug_report_details config ~iface (ready, results) =
   let system = config.system in
   let sels = results#get_selections in
-  let root_iface = ZI.get_attribute FeedAttr.interface sels in
+  let root_iface = Selections.root_iface sels in
 
   let issue_file = "/etc/issue" in
   let issue =
@@ -335,7 +333,7 @@ let get_bug_report_details config ~iface (ready, results) =
        \nIssue:\
        \n  %s\n" platform.Platform.os platform.Platform.release platform.Platform.machine issue;
 
-  add "\n%s" @@ Support.Qdom.to_utf8 sels;
+  add "\n%s" @@ Support.Qdom.to_utf8 (Selections.as_xml sels);
 
   Buffer.contents b
 
@@ -343,7 +341,7 @@ let run_test config distro test_callback (ready, results) =
   try_lwt
     if ready then (
       let sels = results#get_selections in
-      match Selections.get_unavailable_selections config ~distro sels with
+      match Driver.get_unavailable_selections config ~distro sels with
       | [] -> test_callback sels
       | missing ->
           let details =

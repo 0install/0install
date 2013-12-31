@@ -55,8 +55,8 @@ let handle options flags args =
           Selections.load_selections config.system arg in
 
       match (!s_root, !s_xml) with
-      | (true, false) -> system#print_string (ZI.get_attribute "interface" sels ^ "\n")
-      | (false, true) -> show_xml sels
+      | (true, false) -> system#print_string (Selections.root_iface sels ^ "\n")
+      | (false, true) -> show_xml (Selections.as_xml sels)
       | (false, false) -> show_human config sels
       | (true, true) -> raise_safe "Can't use --xml with --root"
   )

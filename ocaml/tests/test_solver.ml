@@ -209,17 +209,17 @@ let make_solver_test test_elem =
       Fake_system.assert_str_equal !expected_problem reason
     else (
       let actual_sels = result#get_selections in
-      assert (ZI.tag actual_sels = Some "selections");
+      assert (ZI.tag (Selections.as_xml actual_sels) = Some "selections");
       if ready then (
-        let changed = Whatchanged.show_changes (fake_system :> system) !expected_selections actual_sels in
+        let changed = Whatchanged.show_changes (fake_system :> system) (Some (Selections.create !expected_selections)) actual_sels in
         assert (not changed);
       );
-      xml_diff !expected_selections actual_sels
+      xml_diff !expected_selections (Selections.as_xml actual_sels)
     );
 
     ListLabels.iter !justifications ~f:(fun elem ->
       let iface = ZI.get_attribute "interface" elem in
-      let g_id = Feed.({
+      let g_id = Feed_url.({
         feed = Feed_url.parse iface;
         id = ZI.get_attribute "id" elem;
       }) in
@@ -535,7 +535,7 @@ let suite = "solver">::: [
       command = Some "compile"}) in
 
     let justify expected iface feed id =
-      let g_id = Feed.({feed; id}) in
+      let g_id = Feed_url.({feed; id}) in
       let actual = Diagnostics.justify_decision config (feed_provider :> Feed_provider.feed_provider) reqs iface g_id in
       Fake_system.assert_str_equal expected actual in
 
@@ -581,7 +581,7 @@ let suite = "solver">::: [
     | (true, results) ->
         let sels = results#get_selections in
         let index = Selections.make_selection_map sels in
-        let sel = StringMap.find_safe (ZI.get_attribute "interface" sels) index in
+        let sel = StringMap.find_safe (Selections.root_iface sels) index in
         let command = Command.get_command_ex "run" sel in
         match Selections.get_dependencies ~restricts:true command with
         | [dep] ->
@@ -675,7 +675,7 @@ let suite = "solver">::: [
       match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:false with
       | None -> assert_failure expected
       | Some results ->
-          match results#get_selections.Support.Qdom.child_nodes with
+          match (Selections.as_xml results#get_selections).Support.Qdom.child_nodes with
           | [sel] -> Fake_system.assert_str_equal expected @@ ZI.get_attribute "id" sel
           | _ -> assert false in
 

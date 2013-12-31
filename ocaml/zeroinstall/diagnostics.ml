@@ -383,8 +383,8 @@ let maybe_justify_local_preference wanted_id actual_id candidates compare =
 
         let (wanted, actual) =
           if wanted_version = actual_version then
-            (spf "%s (%s)" wanted_version @@ truncate wanted_id.Feed.id,
-             spf "%s (%s)" actual_version @@ truncate actual_id.Feed.id)
+            (spf "%s (%s)" wanted_version @@ truncate wanted_id.Feed_url.id,
+             spf "%s (%s)" actual_version @@ truncate actual_id.Feed_url.id)
           else
             (wanted_version, actual_version) in
 
@@ -397,10 +397,7 @@ let maybe_justify_local_preference wanted_id actual_id candidates compare =
 let justify_preference test_sels wanted q_iface wanted_id ~old_sels ~compare candidates =
   let index = Selections.make_selection_map test_sels in
 
-  let actual_selection =
-    let is_our_iface sel = ZI.tag sel = Some "selection" && ZI.get_attribute FeedAttr.interface sel = q_iface in
-    try Some (List.find is_our_iface old_sels.Qdom.child_nodes)
-    with Not_found -> None in
+  let actual_selection = Selections.find q_iface old_sels in
 
   let () =
     match actual_selection, compare with
@@ -424,7 +421,7 @@ let justify_preference test_sels wanted q_iface wanted_id ~old_sels ~compare can
     let do_add msg = changes := msg :: !changes in
     Printf.ksprintf do_add fmt in
 
-  old_sels |> ZI.iter (fun old_sel ->
+  old_sels |> Selections.iter (fun old_sel ->
     let old_iface = ZI.get_attribute FeedAttr.interface old_sel in
     if old_iface <> q_iface || not used_impl then (
       match StringMap.find old_iface index with
@@ -462,7 +459,7 @@ let justify_decision config feed_provider requirements q_iface q_impl =
   (* Note: there's a slight mismatch between the diagnostics system (which assumes each interface is used either for
      source or binaries, but not both, and the current implementation of the solver. *)
 
-  let wanted = ref @@ spf "%s %s" q_iface q_impl.Feed.id in
+  let wanted = ref @@ spf "%s %s" q_iface q_impl.Feed_url.id in
 
   let candidates = ref [] in
 

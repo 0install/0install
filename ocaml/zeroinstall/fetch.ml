@@ -410,7 +410,7 @@ class fetcher config trust_db (distro:Distro.distribution) (download_pool:Downlo
    * Note: This is just one way we try the mirror. Code elsewhere checks for mirrors of the individual archives.
    * This is for a single archive containing the whole implementation. *)
   let get_impl_mirror_recipe mirror impl =
-    let {Feed.feed; Feed.id} = Feed.get_id impl in
+    let {Feed_url.feed; Feed_url.id} = Feed.get_id impl in
     match get_mirror_url mirror feed ("impl/" ^ escape_slashes id) with
     | None -> None
     | Some url -> Some (Recipe.get_mirror_download url) in
@@ -515,7 +515,7 @@ class fetcher config trust_db (distro:Distro.distribution) (download_pool:Downlo
         resolved in
 
     try_lwt
-      let {Feed.feed; Feed.id = _} = Feed.get_id impl in
+      let {Feed_url.feed; Feed_url.id = _} = Feed.get_id impl in
       let open Recipe in
       (* Start all the downloads. The downloads happen in parallel, each returning
        * a future that will perform the extraction step. These futures are evaluated in sequence. *)
@@ -615,7 +615,7 @@ class fetcher config trust_db (distro:Distro.distribution) (download_pool:Downlo
                   log_info "Error from mirror: %s" mirror_msg;
                   raise_safe "%s" orig_msg
     with Safe_exception _ as ex ->
-      let {Feed.feed; Feed.id} = Feed.get_id impl in
+      let {Feed_url.feed; Feed_url.id} = Feed.get_id impl in
       let version = Feed.get_attr_ex FeedAttr.version impl in
       reraise_with_context ex "... downloading implementation %s %s (id=%s)" (Feed_url.format_url feed) version id in
 
@@ -701,7 +701,7 @@ class fetcher config trust_db (distro:Distro.distribution) (download_pool:Downlo
       let package_impls = ref [] in
 
       impls |> List.iter (fun impl ->
-        let {Feed.feed; Feed.id} = Feed.get_id impl in
+        let {Feed_url.feed; Feed_url.id} = Feed.get_id impl in
         let version = Feed.get_attr_ex FeedAttr.version impl in
 
         log_debug "download_impls: for %s get %s" (Feed_url.format_url feed) version;
