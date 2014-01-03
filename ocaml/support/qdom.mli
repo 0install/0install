@@ -123,7 +123,7 @@ module NsQuery :
 
       (** Create a new element in our namespace.
        * @param source_hint will be used in error messages *)
-      val make : ?source_hint:element -> ?attrs:attributes -> string -> element
+      val make : ?source_hint:element -> ?attrs:attributes -> ?child_nodes:element list -> string -> element
 
       (** Create a new element as the first child of the given element. *)
       val insert_first : ?source_hint:element -> string -> element -> element

@@ -345,11 +345,11 @@ module NsQuery (Ns : NsType) = struct
     else if name <> expected then raise_elem "Expected <%s> but found " expected elem
     else ()
 
-  let make ?source_hint ?(attrs=AttrMap.empty) tag = {
+  let make ?source_hint ?(attrs=AttrMap.empty) ?(child_nodes=[]) tag = {
     prefix_hint = Ns.prefix_hint;
     tag = (Ns.ns, tag);
     attrs;
-    child_nodes = [];
+    child_nodes;
     text_before = "";
     last_text_inside = "";
     source_hint = match source_hint with

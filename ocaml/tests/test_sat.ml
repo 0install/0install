@@ -81,8 +81,6 @@ let run_sat_test expected problem =
   let expected_items = List.map parse_id @@ Str.split re_comma expected in
   let (_root_iface, root_expected_version) = List.hd expected_items in
 
-  let open Solver in
-
   let impl_provider = new impl_provider in
 
   ListLabels.iter problem ~f:(fun line ->
@@ -134,12 +132,12 @@ let run_sat_test expected problem =
     )
   );
 
-  let root_req = ReqIface (fst @@ List.hd expected_items, false) in
-  let result = do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:false in
+  let root_req = Solver.ReqIface (fst @@ List.hd expected_items, false) in
+  let result = Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:false in
 
   match result, root_expected_version with
   | None, "FAIL" ->
-      let result = do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:true in
+      let result = Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:true in
       Fake_system.expect result
   | None, _ -> assert_failure "Expected success, but failed"
   | Some _, "FAIL" -> assert_failure "Expected failure, but found solution!"

@@ -6,6 +6,7 @@
 
 open General
 open Support.Common
+module U = Support.Utils
 module Qdom = Support.Qdom
 module FeedAttr = Constants.FeedAttr
 module AttrMap = Qdom.AttrMap
@@ -206,13 +207,6 @@ class type result =
 
 (** Create a <selections> document from the result of a solve. *)
 let get_selections dep_in_use root_req impl_cache command_cache =
-  let root =
-    let root_attrs =
-      match root_req with
-      | ReqCommand (command, iface, _source) -> [("command", command); ("interface", iface)]
-      | ReqIface (iface, _source) -> [("interface", iface)] in
-    ZI.make ~attrs:(Qdom.attrs_of_list root_attrs) "selections" in
-
   let was_selected (_, candidates) =
     match candidates#get_clause with
     | None -> false
@@ -234,9 +228,9 @@ let get_selections dep_in_use root_req impl_cache command_cache =
     | x -> x in
   let impls = List.sort cmp impls in
 
-  let add_impl ((iface, _source), impls) : unit =
+  let selections = impls |> U.filter_map (fun ((iface, _source), impls) ->
     match impls#get_selected with
-    | None -> ()      (* This interface wasn't used *)
+    | None -> None      (* This interface wasn't used *)
     | Some (_lit, impl) ->
         let attrs = ref impl.Feed.props.Feed.attrs in
         let set_attr name value =
@@ -255,18 +249,18 @@ let get_selections dep_in_use root_req impl_cache command_cache =
 
         set_attr "interface" iface;
 
-        let sel = ZI.insert_first ~source_hint:impl.Feed.qdom "selection" root in
+        let child_nodes = ref [] in
         if impl != dummy_impl then (
           let commands = Hashtbl.find_all commands_needed iface in
           let commands = List.sort compare commands in
 
-          let copy_elem parent elem =
+          let copy_elem elem =
             (* Copy elem into parent (and strip out <version> elements). *)
             let open Qdom in
             let imported = {elem with
               child_nodes = List.filter (fun c -> ZI.tag c <> Some "version") elem.child_nodes;
             } in
-            prepend_child imported parent in
+            child_nodes := imported :: !child_nodes in
 
           let add_command name =
             let command = Feed.get_command_ex impl name in
@@ -285,24 +279,29 @@ let get_selections dep_in_use root_req impl_cache command_cache =
                 child_nodes in
             let child_nodes = List.fold_left add_command_dep child_nodes command.Feed.command_requires in
             let command_elem = {command_elem with Qdom.child_nodes = child_nodes} in
-            copy_elem sel command_elem in
+            copy_elem command_elem in
           List.iter add_command commands;
 
-          List.iter (copy_elem sel) impl.Feed.props.Feed.bindings;
+          List.iter copy_elem impl.Feed.props.Feed.bindings;
           ListLabels.iter impl.Feed.props.Feed.requires ~f:(fun dep ->
             if dep_in_use dep && dep.Feed.dep_importance <> Feed.Dep_restricts then
-              copy_elem sel (dep.Feed.dep_qdom)
+              copy_elem (dep.Feed.dep_qdom)
           );
 
-          impl.Feed.qdom |> ZI.iter ~name:"manifest-digest" (copy_elem sel);
-
-          sel.Qdom.child_nodes <- List.rev sel.Qdom.child_nodes
+          impl.Feed.qdom |> ZI.iter ~name:"manifest-digest" copy_elem;
         );
-        assert (Qdom.AttrMap.is_empty sel.Qdom.attrs);
-        sel.Qdom.attrs <- !attrs
-    in
-  List.iter add_impl impls;
-  root
+        let sel = ZI.make
+          ~attrs:!attrs
+          ~child_nodes:(List.rev !child_nodes)
+          ~source_hint:impl.Feed.qdom "selection" in
+        Some sel
+  ) in
+
+  let root_attrs =
+    match root_req with
+    | ReqCommand (command, iface, _source) -> [("command", command); ("interface", iface)]
+    | ReqIface (iface, _source) -> [("interface", iface)] in
+  ZI.make ~attrs:(Qdom.attrs_of_list root_attrs) ~child_nodes:(List.rev selections) "selections"
 
 (* [closest_match] is used internally. It adds a lowest-ranked
    (but valid) implementation to every interface, so we can always
