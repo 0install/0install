@@ -23,7 +23,7 @@ type attributes = (string * string) AttrMap.t
 type element = {
   prefix_hint : string;               (* Suggested prefix when serialising this element *)
   tag: Xmlm.name;
-  mutable attrs: attributes;
+  attrs: attributes;
   child_nodes: element list;
   text_before: string;                (** The text node immediately before us *)
   last_text_inside: string;           (** The last text node inside us with no following element *)
@@ -62,9 +62,6 @@ val output : Xmlm.output -> element -> unit
 
 (** Write a (sub)tree to a string. *)
 val to_utf8 : element -> string
-
-(** Sets the given non-namespaced attribute. *)
-val set_attribute : string -> string -> element -> unit
 
 (** Compare two elements and return -1, 0 or 1.
     Namespace prefixes, row/column source position and attribute order are ignored. *)

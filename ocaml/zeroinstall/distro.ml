@@ -149,9 +149,11 @@ class virtual distribution config =
            cache this information on disk. *)
         Lazy.force python_info |> List.map (fun ((path, version), _) ->
           let id = "package:host:python:" ^ version in
-          let run = ZI.make "command" in
-          run |> Q.set_attribute "name" "run";
-          run |> Q.set_attribute "path" path;
+          let run = ZI.make "command"
+            ~attrs:(Q.attrs_of_list [
+              ("name", "run");
+              ("path", path);
+            ]) in
           let commands = StringMap.singleton "run" Feed.({command_qdom = run; command_requires = []}) in
           (id, make_host_impl path version ~commands url id)
         )
@@ -172,7 +174,10 @@ class virtual distribution config =
     | Some run ->
         match distro_get_correct_main impl run with
         | None -> ()
-        | Some new_main -> Qdom.set_attribute "path" new_main run.command_qdom in
+        | Some new_main ->
+            run.command_qdom <- {run.command_qdom with
+              Q.attrs = run.command_qdom.Q.attrs |> Q.AttrMap.add_no_ns "path" new_main
+            } in
 
   object (self)
     val virtual distro_name : string
@@ -212,9 +217,11 @@ class virtual distribution config =
             let run_command =
               match StringMap.find "run" props.commands with
               | Some command ->
-                  let new_elem = {command.command_qdom with Qdom.attrs = command.command_qdom.Qdom.attrs} in
-                  Qdom.set_attribute "path" path new_elem;
-                  {command with command_qdom = new_elem}
+                  {command with command_qdom = 
+                    {command.command_qdom with
+                      Qdom.attrs = command.command_qdom.Qdom.attrs |> Qdom.AttrMap.add_no_ns "path" path
+                    }
+                  };
               | None ->
                   make_command "run" path in
             {props with commands = StringMap.add "run" run_command props.commands} in

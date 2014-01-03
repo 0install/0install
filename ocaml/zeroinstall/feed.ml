@@ -53,7 +53,7 @@ and dependency = {
 }
 
 and command = {
-  command_qdom : Q.element;
+  mutable command_qdom : Q.element;
   command_requires : dependency list;
   (* command_bindings : binding list; - not needed by solver; just copies the element *)
 }
@@ -195,18 +195,17 @@ let make_version_restriction expr =
     make_impossible_restriction msg
 
 let parse_dep local_dir dep =
-  let iface =
+  let iface, dep =
     let raw_iface = ZI.get_attribute "interface" dep in
     if U.starts_with raw_iface "." then (
       match local_dir with
       | Some dir ->
           let iface = U.normpath @@ dir +/ raw_iface in
-          Q.set_attribute "interface" iface dep;
-          iface
+          (iface, {dep with Q.attrs = dep.Q.attrs |> Q.AttrMap.add_no_ns "interface" iface})
       | None ->
           raise_safe "Relative interface URI '%s' in non-local feed" raw_iface
     ) else (
-      raw_iface
+      (raw_iface, dep)
     ) in
 
   let commands = ref StringSet.empty in

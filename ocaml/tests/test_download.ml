@@ -620,13 +620,18 @@ let suite = "download">::: [
 
     (* Replace the selection with a bogus and unusable <package-implementation> *)
     let sels = Q.parse_file system selections_path in
-    begin match sels.Q.child_nodes with
-    | [sel] ->
-        sel |> Q.set_attribute "id" "package:dummy:badpackage";
-        sel |> Q.set_attribute "from-feed" "distribution:http://example.com:8000/Hello.xml";
-        sel |> Q.set_attribute "package" "badpackage";
-        sel |> Q.set_attribute "main" "/i/dont/exist"
-    | _ -> assert false end;
+    let sels = {sels with
+      Q.child_nodes =
+        begin match sels.Q.child_nodes with
+        | [sel] -> [{sel with
+            Q.attrs = sel.Q.attrs
+            |> Q.AttrMap.add_no_ns "id" "package:dummy:badpackage"
+            |> Q.AttrMap.add_no_ns "from-feed" "distribution:http://example.com:8000/Hello.xml"
+            |> Q.AttrMap.add_no_ns "package" "badpackage"
+            |> Q.AttrMap.add_no_ns "main" "/i/dont/exist"
+        }]
+        | _ -> assert false end;
+    } in
     selections_path |> system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
       Q.to_utf8 sels |> output_string ch
     );

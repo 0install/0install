@@ -208,9 +208,9 @@ let suite = "distro">::: [
       match host_gobject.props.requires with
       | [ {dep_importance = Dep_restricts; dep_iface = "http://repo.roscidus.com/python/python"; dep_restrictions = [_]; _ } ] -> ()
       | _ -> assert_failure "No host restriction for host python-gobject" in
-    let sel = ZI.make "selection" in
-    sel.Q.attrs <- host_gobject.props.attrs;
-    Q.set_attribute "from-feed" (Zeroinstall.Feed_url.format_url (`distribution_feed feed.url)) sel;
+    let from_feed = Zeroinstall.Feed_url.format_url (`distribution_feed feed.url) in
+    let sel = ZI.make "selection"
+      ~attrs:(host_gobject.props.attrs |> Q.AttrMap.add_no_ns "from-feed" from_feed) in
     assert (Distro.is_installed config distro sel)
   );
 

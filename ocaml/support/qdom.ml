@@ -40,7 +40,7 @@ type source_hint =
 and element = {
   prefix_hint : string;
   tag: Xmlm.name;
-  mutable attrs: attributes;
+  attrs: attributes;
   child_nodes: element list;
   text_before: string;        (** The text node immediately before us *)
   last_text_inside: string;   (** The last text node inside us with no following element *)
@@ -222,9 +222,6 @@ let to_utf8 elem =
   let out = Xmlm.make_output @@ `Buffer buf in
   output out elem;
   Buffer.contents buf
-
-let set_attribute name value element =
-  element.attrs <- element.attrs |> AttrMap.add_no_ns name value
 
 let reindent root =
   let rec process indent node = {node with

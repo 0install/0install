@@ -156,17 +156,15 @@ let add_import_elem feed_import =
   match feed_import.Feed.feed_type with
   | Feed.Distro_packages | Feed.Feed_import -> None
   | Feed.User_registered | Feed.Site_packages ->
-      let elem = ZI.make "feed" in
-      Q.set_attribute IfaceConfigAttr.src (Feed_url.format_url feed_import.Feed.feed_src) elem;
+      let attrs = ref [(IfaceConfigAttr.src, Feed_url.format_url feed_import.Feed.feed_src)] in
       if feed_import.Feed.feed_type = Feed.Site_packages then
-        Q.set_attribute IfaceConfigAttr.is_site_package "True" elem;
-      let () =
-        match feed_import.Feed.feed_os, feed_import.Feed.feed_machine with
-        | None, None -> ()
-        | os, machine ->
-            let arch = Arch.format_arch os machine in
-            Q.set_attribute IfaceConfigAttr.arch arch elem in
-      Some elem
+        attrs := (IfaceConfigAttr.is_site_package, "True") :: !attrs;
+      begin match feed_import.Feed.feed_os, feed_import.Feed.feed_machine with
+      | None, None -> ()
+      | os, machine ->
+          let arch = Arch.format_arch os machine in
+          attrs := (IfaceConfigAttr.arch, arch) :: !attrs end;
+      Some (ZI.make ~attrs:(Q.attrs_of_list !attrs) "feed")
 
 let save_iface_config config uri iface_config =
   let config_dir = Basedir.save_path config.system config_injector_interfaces config.basedirs.Basedir.config in

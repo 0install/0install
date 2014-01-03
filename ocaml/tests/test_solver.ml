@@ -169,10 +169,11 @@ let make_solver_test test_elem =
     | Some "import-interface" ->
         let leaf = ZI.get_attribute "from-python" child in
         let root = Support.Qdom.parse_file system @@ Test_0install.feed_dir +/ leaf in
-        if ZI.get_attribute_opt "uri" root = None then (
-          Support.Qdom.set_attribute "local-path" ("./" ^ leaf) root
-        );
-        feed_provider#add_iface root
+        let fix_path attrs =
+          if ZI.get_attribute_opt "uri" root = None then (
+            attrs |> Q.AttrMap.add_no_ns "local-path" ("./" ^ leaf)
+          ) else attrs in
+        feed_provider#add_iface {root with Q.attrs = fix_path root.Q.attrs}
     | Some "requirements" ->
         let iface = ZI.get_attribute "interface" child in
         let iface =

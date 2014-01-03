@@ -44,7 +44,7 @@ and dependency = {
   dep_use : string option;                  (* Deprecated 'use' attribute *)
 }
 and command = {
-  command_qdom : Support.Qdom.element;
+  mutable command_qdom : Support.Qdom.element;  (* Mutable because of distro's [fixup_main] *)
   command_requires : dependency list;
   (* command_bindings : binding list; - not needed by solver; just copies the element *)
 }
