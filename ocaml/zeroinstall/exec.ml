@@ -2,8 +2,6 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(** Executing a selections document *)
-
 open General
 open Support.Common
 module Basedir = Support.Basedir
@@ -112,9 +110,6 @@ let make_selection_map system stores sels =
   );
   !map
 
-(** Calculate the arguments and environment to pass to exec to run this
-    process. This also ensures any necessary launchers exist, creating them
-    if not. *)
 let get_exec_args config ?main sels args =
   let env = Env.copy_current_env config.system in
   let impls = make_selection_map config.system config.stores sels in
@@ -137,8 +132,6 @@ let get_exec_args config ?main sels args =
 
   (prog_args, (Env.to_array env))
 
-(** Run the given selections. If [wrapper] is given, run that command with the command we would have run as the arguments.
-    If [exec] is given, use that instead of config.system#exec. *)
 let execute_selections config ?exec ?wrapper ?main sels args =
   if main = None && Selections.root_command sels = None then
     raise_safe "Can't run: no command specified!";
