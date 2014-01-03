@@ -2,12 +2,12 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(** Support for 0install apps *)
-
 open General
 open Support.Common
 module Basedir = Support.Basedir
 module U = Support.Utils
+
+type app = filepath
 
 let re_app_name = Str.regexp "^[^./\\\\:=;'\"][^/\\\\:=;'\"]*$"
 
@@ -85,9 +85,6 @@ let set_mtime config path =
 let get_requirements (system:system) path =
   Requirements.load system (path +/ "requirements.json")
 
-let get_interface (system:system) path =
-  (get_requirements system path).Requirements.interface_uri
-
 let set_last_checked system app_dir =
   U.touch system @@ app_dir +/ "last-checked"
 
@@ -121,11 +118,11 @@ let set_selections config app_path sels ~touch_last_checked =
 let foreground_update tools app_path reqs =
   log_info "App '%s' needs to get new selections; current ones are not usable" app_path;
   let ui : Ui.ui_handler = tools#ui in
-  match ui#run_solver tools `Download_only reqs ~refresh:true |> Lwt_main.run with
+  match_lwt ui#run_solver tools `Download_only reqs ~refresh:true with
   | `Aborted_by_user -> raise_safe "Aborted by user"
   | `Success sels ->
       set_selections tools#config app_path sels ~touch_last_checked:true;
-      sels
+      Lwt.return sels
 
 type app_times = {
   last_check_time : float;              (* 0.0 => timestamp missing *)
@@ -192,19 +189,19 @@ let check_for_updates tools app_path sels =
   (* When we solve, we might also discover there are new things we could download and therefore
      do a background update anyway. *)
 
-  let sels =
+  lwt sels =
     if need_solve then (
       let reqs = get_requirements system app_path in
-      let new_sels =
+      lwt new_sels =
         match Driver.quick_solve tools reqs with
         | Some new_sels ->
             if Selections.equal new_sels sels then (
               log_info "Quick solve succeeded; no change needed";
-              sels
+              Lwt.return sels
             ) else (
               log_info "Quick solve succeeded; saving new selections";
               set_selections config app_path new_sels ~touch_last_checked:false;
-              new_sels
+              Lwt.return new_sels
             );
         | None ->
             log_info "Quick solve failed; we need to download something";
@@ -218,13 +215,13 @@ let check_for_updates tools app_path sels =
             ) else (
               (* Continue with the current (cached) selections while we download *)
               want_bg_update := true;
-              sels
+              Lwt.return sels
             ) in
       let () =
         try U.touch system (app_path +/ "last-solve");
         with ex -> log_warning ~ex "Error while checking for updates" in
-      new_sels
-    ) else sels in
+      Lwt.return new_sels
+    ) else Lwt.return sels in
 
   if !want_bg_update then (
     let last_check_attempt = get_mtime system last_check_path ~warn_if_missing:false in
@@ -237,8 +234,8 @@ let check_for_updates tools app_path sels =
         system#spawn_detach @@ [config.abspath_0install; "_update-bg"] @ extra_flags @ ["--"; "app"; app_path]
       with ex -> log_warning ~ex "Error starting background check for updates to %s" app_path
     );
-    sels
-  ) else sels
+    Lwt.return sels
+  ) else Lwt.return sels
 
 let get_selections_internal system app_path =
   let sels_path = app_path +/ "selections.xml" in
@@ -266,8 +263,8 @@ let get_selections_may_update tools app_path =
   | Some sels -> check_for_updates tools app_path sels
   | None -> foreground_update tools app_path (get_requirements system app_path)
 
-let get_selections_no_updates config app_path =
-  get_selections_internal config app_path |? lazy (raise_safe "App selections missing in %s" app_path)
+let get_selections_no_updates system app_path =
+  get_selections_internal system app_path |? lazy (raise_safe "App selections missing in %s" app_path)
 
 let set_requirements config path req =
   let reqs_file = path +/ "requirements.json" in
@@ -339,7 +336,6 @@ let find_bin_dir ?(warn_about_path=true) config =
 let command_template : (_,_,_) format = "#!/bin/sh\n\
 exec 0install run %s \"$@\"\n"
 
-(** Place an executable in $PATH that will launch this app. *)
 let integrate_shell config app executable_name =
   (* todo: remember which commands we create *)
   validate_name "executable" executable_name;
@@ -383,7 +379,6 @@ let destroy config app =
     else
       U.rmtree ~even_if_locked:false system app
 
-(** Get the dates of the available snapshots, starting with the most recent. *)
 let get_history config app =
   let re_date = Str.regexp "selections-\\([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]\\).xml" in
   match config.system#readdir app with

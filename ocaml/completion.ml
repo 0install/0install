@@ -267,7 +267,7 @@ let complete_version completer ~range ~maybe_app target pre =
     if maybe_app then (
       match Apps.lookup_app config target with
       | None -> target
-      | Some path -> Apps.get_interface config.system path
+      | Some path -> (Apps.get_requirements config.system path).Zeroinstall.Requirements.interface_uri
     ) else target in
 
   match Zeroinstall.Feed_url.parse uri with
