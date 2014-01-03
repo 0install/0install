@@ -5,13 +5,12 @@
 open Common
 
 type document = {
-  source_name : filepath option;       (** For error messages *)
   mutable prefixes : string StringMap.t;
 }
 
 (* Used in diagnostic messages to show the source of an element. *)
 type source_hint =
-  | Pos of Xmlm.pos           (* A location in our document *)
+  | Pos of (Xmlm.pos * filepath option)  (* A location in our document *)
   | GeneratedFrom of element  (* Another element (which was used to generate this one) *)
   | Generated                 (* No further information *)
 
@@ -40,7 +39,6 @@ let register_prefix doc prefix uri =
 
 let parse_input source_name i = try (
   let doc = {
-    source_name;
     prefixes = StringMap.empty;
   } in
 
@@ -72,7 +70,7 @@ let parse_input source_name i = try (
             text_before = prev_text;
             last_text_inside = trailing_text;
             doc;
-            source_hint = Pos pos;
+            source_hint = Pos (pos, source_name);
           } in parse_nodes i (new_node :: prev_siblings) ""
         )
   in
@@ -119,14 +117,12 @@ let import_node elem doc =
 let rec show_with_loc elem =
   match elem.source_hint with
   | GeneratedFrom source -> show_with_loc source
-  | Generated ->
+  | Generated | Pos (_, None) ->
       let (_ns, name) = elem.tag in
       Printf.sprintf "<%s> (generated)" name
-  | Pos (line, col) ->
+  | Pos ((line, col), Some path) ->
       let (_ns, name) = elem.tag in
-      match elem.doc.source_name with
-      | Some path -> Printf.sprintf "<%s> at %s:%d:%d" name path line col
-      | None -> Printf.sprintf "<%s> (generated)" name
+      Printf.sprintf "<%s> at %s:%d:%d" name path line col
 
 module type NsType = sig
   val ns : string
@@ -303,7 +299,6 @@ module NsQuery (Ns : NsType) = struct
 
   let make_root tag =
     let doc = {
-      source_name = None;
       prefixes = StringMap.singleton "xmlns" Ns.ns
     } in
     make doc tag
