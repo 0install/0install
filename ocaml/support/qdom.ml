@@ -226,9 +226,6 @@ let to_utf8 elem =
 let set_attribute name value element =
   element.attrs <- element.attrs |> AttrMap.add_no_ns name value
 
-let set_attribute_ns ~prefix name value element =
-  element.attrs <- element.attrs |> AttrMap.add name (prefix, value)
-
 let reindent root =
   let rec process indent node = {node with
     text_before = indent ^ trim node.text_before;

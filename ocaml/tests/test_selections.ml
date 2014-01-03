@@ -27,10 +27,15 @@ let suite = "selections">::: [
     import "Compiler.xml";
     fake_system#set_argv [| Test_0install.test_0install; "select"; "--xml";  "--command=compile"; "--source"; "http://foo/Source.xml" |];
     let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
-    let old_sels = `String (0, output) |> Xmlm.make_input |> Q.parse_input None |> Selections.create in
-    let index = Selections.make_selection_map old_sels in
-    let source_sel = StringMap.find_safe "http://foo/Source.xml" index in
-    Q.set_attribute_ns ~prefix:"foo" ("http://namespace", "foo") "bar" source_sel;
+    let old_sels = `String (0, output) |> Xmlm.make_input |> Q.parse_input None in
+    let old_sels = {old_sels with
+      Q.child_nodes = old_sels.Q.child_nodes |> List.map (fun sel ->
+        if sel |> ZI.get_attribute "interface" = "http://foo/Source.xml" then
+          {sel with Q.attrs = Q.AttrMap.add ("http://namespace", "foo") ("foo", "bar") sel.Q.attrs}
+        else sel
+      )
+    }
+    |> Selections.create in
 
     (* Convert to string and back to XML to check we don't lose anything. *)
     let old_xml = Selections.as_xml old_sels in
