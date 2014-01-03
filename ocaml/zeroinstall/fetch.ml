@@ -52,14 +52,12 @@ let rec join_errors = function
         ex :: exs |> Lwt.return
 
 let parse_key_info xml =
-  if xml.Q.tag <> ("", "key-lookup") then (
-    Q.raise_elem "Expected <key-lookup>, not " xml
-  );
+  Empty.check_tag "key-lookup" xml;
   xml.Q.child_nodes |> U.filter_map (fun child ->
-    match child.Q.tag with
-    | ("", "item") ->
+    match Empty.tag child with
+    | Some "item" ->
         let msg = child.Q.last_text_inside in
-        if Q.get_attribute_opt ("", "vote") child = Some "good" then
+        if Empty.get_attribute_opt "vote" child = Some "good" then
           Some (Progress.Good, msg)
         else
           Some (Progress.Bad, msg)

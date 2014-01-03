@@ -6,9 +6,6 @@
 
 (** {2 Types} **)
 
-module AttrType : sig type t = Xmlm.name val compare : 'a -> 'a -> int end
-module AttrMap : (Map.S with type key = AttrType.t)
-
 type importance =
   | Dep_essential       (* Must select a version of the dependency *)
   | Dep_recommended     (* Prefer to select a version, if possible *)
@@ -47,12 +44,12 @@ and dependency = {
   dep_use : string option;                  (* Deprecated 'use' attribute *)
 }
 and command = {
-  command_qdom : Support.Qdom.element;
+  mutable command_qdom : Support.Qdom.element;  (* Mutable because of distro's [fixup_main] *)
   command_requires : dependency list;
   (* command_bindings : binding list; - not needed by solver; just copies the element *)
 }
 and properties = {
-  attrs : string AttrMap.t;
+  attrs : (string * string) Support.Qdom.AttrMap.t; (* (prefix_hint, value) *)
   requires : dependency list;
   bindings : binding list;
   commands : command Support.Common.StringMap.t;
@@ -112,14 +109,12 @@ val parse_stability : from_user:bool -> string -> General.stability_level
 val format_stability : General.stability_level -> string
 
 val make_command :
-  Support.Qdom.document ->
   ?source_hint:Support.Qdom.element ->
   string -> ?new_attr:string -> Support.Common.filepath -> command
 
 val make_distribtion_restriction : string -> restriction
 val make_version_restriction : string -> restriction
 
-val get_attr_opt : string -> string AttrMap.t -> string option
 val get_attr_ex : string -> _ implementation -> string
 
 val get_implementations : feed -> generic_implementation list

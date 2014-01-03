@@ -11,13 +11,6 @@ open Support.Common
 module Q = Support.Qdom
 module U = Support.Utils
 
-module EmptyNS =
-  struct
-    let ns = ""
-  end
-
-module Empty = Q.NsQuery(EmptyNS)
-
 let handle options flags args =
   let config = options.config in
   let tools = options.tools in

@@ -285,7 +285,7 @@ let compile config feed_provider iface ~autocompile =
       let sel = Selections.find iface sels in
       let sel = sel |? lazy (raise_safe "No implementation of root (%s)!" iface) in
       let min_version =
-        match Q.get_attribute_opt (COMPILE_NS.ns, "min-version") sel with
+        match sel.Q.attrs |> Q.AttrMap.get (COMPILE_NS.ns, "min-version") with
         | None -> our_min_version
         | Some min_version -> max our_min_version (Versions.parse_version min_version) in
       build_and_register config iface min_version

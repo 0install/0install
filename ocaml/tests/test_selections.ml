@@ -27,10 +27,15 @@ let suite = "selections">::: [
     import "Compiler.xml";
     fake_system#set_argv [| Test_0install.test_0install; "select"; "--xml";  "--command=compile"; "--source"; "http://foo/Source.xml" |];
     let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
-    let old_sels = `String (0, output) |> Xmlm.make_input |> Q.parse_input None |> Selections.create in
-    let index = Selections.make_selection_map old_sels in
-    let source_sel = StringMap.find_safe "http://foo/Source.xml" index in
-    Q.set_attribute_ns ~prefix:"foo" ("http://namespace", "foo") "bar" source_sel;
+    let old_sels = `String (0, output) |> Xmlm.make_input |> Q.parse_input None in
+    let old_sels = {old_sels with
+      Q.child_nodes = old_sels.Q.child_nodes |> List.map (fun sel ->
+        if sel |> ZI.get_attribute "interface" = "http://foo/Source.xml" then
+          {sel with Q.attrs = Q.AttrMap.add ("http://namespace", "foo") ("foo", "bar") sel.Q.attrs}
+        else sel
+      )
+    }
+    |> Selections.create in
 
     (* Convert to string and back to XML to check we don't lose anything. *)
     let old_xml = Selections.as_xml old_sels in
@@ -55,9 +60,9 @@ let suite = "selections">::: [
 
         assert_str_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" @@ ZI.get_attribute "id" src;
         assert_str_equal "1.0" @@ ZI.get_attribute "version" src;
-        assert_str_equal "bar" @@ List.assoc ("http://namespace", "foo") src.Q.attrs;
+        src.Q.attrs |> Q.AttrMap.get ("http://namespace", "foo") |> Fake_system.expect |> assert_str_equal "bar";
         assert_str_equal "1.0" @@ ZI.get_attribute "version" src;
-        assert (not (List.mem_assoc ("", "version-modifier") src.Q.attrs));
+        src.Q.attrs |> Q.AttrMap.get_no_ns "version-modifier" |> assert_equal None;
 
         let comp_bindings = comp |> ZI.filter_map Binding.parse_binding in
         let comp_deps = Selections.get_dependencies ~restricts:true comp in
@@ -137,7 +142,7 @@ let suite = "selections">::: [
     assert_equal "c" @@ ZI.get_attribute "id" sel;
     let run = Command.get_command_ex "run" sel in
     assert_equal "test-gui" @@ ZI.get_attribute "path" run;
-    assert_equal "namespaced" @@ List.assoc ("http://custom", "attr") run.Q.attrs;
+    run.Q.attrs |> Q.AttrMap.get ("http://custom", "attr") |> assert_equal (Some "namespaced");
     assert_equal 1 @@ List.length (run.Q.child_nodes |> List.filter (fun node -> snd node.Q.tag = "child"));
 
     let () =

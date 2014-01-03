@@ -46,9 +46,14 @@ let suite = "apps">::: [
     let () =
       match Zeroinstall.Solver.solve_for config feed_provider r with
       | (true, results) ->
-          let sels = results#get_selections in
-          sels |> Zeroinstall.Selections.iter (Q.set_attribute "version" "0.1-pre");
-          Apps.set_selections config app sels ~touch_last_checked:true
+          let sels = results#get_selections |> Zeroinstall.Selections.as_xml in
+          {sels with
+            Q.child_nodes = sels.Q.child_nodes |> List.map (fun child ->
+              {child with Q.attrs = child.Q.attrs |> Q.AttrMap.add_no_ns "version" "0.1-pre"}
+            )
+          }
+          |> Zeroinstall.Selections.create
+          |> Apps.set_selections config app ~touch_last_checked:true
       | _ -> assert_failure "Solve failed" in
 
     (* Get selections without updating. *)

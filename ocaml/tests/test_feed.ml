@@ -242,8 +242,8 @@ let suite = "feed">::: [
             | _ -> assert false end;
             assert_equal [] dep2.F.dep_restrictions;
 
-            assert_equal (Some "test") @@ Q.get_attribute_opt ("http://my/namespace", "foo") dep.F.dep_qdom;
-            assert_equal None @@ Q.get_attribute_opt ("http://my/namespace", "food") dep.F.dep_qdom;
+            dep.F.dep_qdom.Q.attrs |> Q.AttrMap.get ("http://my/namespace", "foo") |> assert_equal (Some "test");
+            dep.F.dep_qdom.Q.attrs |> Q.AttrMap.get ("http://my/namespace", "food") |> assert_equal None;
         | _ -> assert false end;
     | _ -> assert false
   );
@@ -287,9 +287,7 @@ let suite = "feed">::: [
     match feed.F.implementations |> StringMap.bindings with
     | [("sha1=123", impl1); ("sha1=124", impl2)] ->
         let check expected name impl =
-          let attr =
-            try F.AttrMap.find name impl.F.props.F.attrs
-            with Not_found -> "" in
+          let attr = Q.AttrMap.get name impl.F.props.F.attrs |> default "" in
           Fake_system.assert_str_equal expected attr in
 
         check "foovalue" ("", "foo") impl1;

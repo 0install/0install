@@ -9,6 +9,7 @@ open Zeroinstall.General
 
 module I = Impl_provider
 module U = Support.Utils
+module Q = Support.Qdom
 
 module StringData =
   struct
@@ -22,14 +23,14 @@ module S = Support.Sat.MakeSAT(StringData)
 let re_comma = Str.regexp_string ","
 
 class impl_provider =
-  let dummy_element = General.ZI.make_root "implementation" in
+  let dummy_element = General.ZI.make "implementation" in
 
   let make_impl arch v =
     let (os, machine) = Arch.parse_arch arch in
     Feed.({
       qdom = dummy_element;
       props = {
-        attrs = AttrMap.singleton ("", "version") v;
+        attrs = Q.AttrMap.empty |> Q.AttrMap.add_no_ns "version" v;
         requires = [];
         bindings = [];
         commands = StringMap.empty;
@@ -72,15 +73,13 @@ class impl_provider =
 
 let re_dep = Str.regexp "\\([a-z]+\\)\\[\\([0-9]+\\)\\(,[0-9]+\\)?\\] => \\([a-z]+\\) \\([0-9]+\\) \\([0-9]+\\)"
 
-let dummy_dep = General.ZI.make_root "requires"
+let dummy_dep = General.ZI.make "requires"
 
 let run_sat_test expected problem =
   let parse_id id =
     U.split_pair U.re_dash (trim id) in
   let expected_items = List.map parse_id @@ Str.split re_comma expected in
   let (_root_iface, root_expected_version) = List.hd expected_items in
-
-  let open Solver in
 
   let impl_provider = new impl_provider in
 
@@ -133,12 +132,12 @@ let run_sat_test expected problem =
     )
   );
 
-  let root_req = ReqIface (fst @@ List.hd expected_items, false) in
-  let result = do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:false in
+  let root_req = Solver.ReqIface (fst @@ List.hd expected_items, false) in
+  let result = Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:false in
 
   match result, root_expected_version with
   | None, "FAIL" ->
-      let result = do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:true in
+      let result = Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:true in
       Fake_system.expect result
   | None, _ -> assert_failure "Expected success, but failed"
   | Some _, "FAIL" -> assert_failure "Expected failure, but found solution!"

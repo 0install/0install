@@ -16,8 +16,7 @@ let show_human config sels =
 
 let show_xml sels =
   let out = Xmlm.make_output @@ `Channel stdout in
-  Qdom.reindent sels;
-  Qdom.output out sels;
+  Qdom.reindent sels |> Qdom.output out;
   output_string stdout "\n"
 
 let show_restrictions (system:system) r =

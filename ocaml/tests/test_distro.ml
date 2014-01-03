@@ -208,9 +208,9 @@ let suite = "distro">::: [
       match host_gobject.props.requires with
       | [ {dep_importance = Dep_restricts; dep_iface = "http://repo.roscidus.com/python/python"; dep_restrictions = [_]; _ } ] -> ()
       | _ -> assert_failure "No host restriction for host python-gobject" in
-    let sel = ZI.make host_gobject.qdom.Q.doc "selection" in
-    sel.Q.attrs <- AttrMap.bindings host_gobject.props.attrs;
-    Q.set_attribute "from-feed" (Zeroinstall.Feed_url.format_url (`distribution_feed feed.url)) sel;
+    let from_feed = Zeroinstall.Feed_url.format_url (`distribution_feed feed.url) in
+    let sel = ZI.make "selection"
+      ~attrs:(host_gobject.props.attrs |> Q.AttrMap.add_no_ns "from-feed" from_feed) in
     assert (Distro.is_installed config distro sel)
   );
 
@@ -285,7 +285,7 @@ let suite = "distro">::: [
         assert_equal ~msg:"Stability" Packaged impl.F.stability;
         assert_equal ~msg:"Requires" [] impl.F.props.F.requires;
         Fake_system.assert_str_equal "/usr/bin/pbt" (ZI.get_attribute_opt "main" impl.F.qdom |> Fake_system.expect);
-        assert_equal (Some "bar") @@ Q.get_attribute_opt ("", "foo") impl.F.qdom;
+        impl.F.qdom.Q.attrs |> Q.AttrMap.get_no_ns "foo" |> assert_equal (Some "bar");
         Fake_system.assert_str_equal "distribution:/local.xml" (F.get_attr_ex "from-feed" impl);
     | _ -> assert false end;
 
