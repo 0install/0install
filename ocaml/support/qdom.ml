@@ -135,10 +135,6 @@ let find pred node =
 let prepend_child child parent =
   parent.child_nodes <- child :: parent.child_nodes
 
-(** [import_node node] makes a copy of [node]. *)
-let import_node elem =
-  {elem with tag = elem.tag}    (* (make a copy) *)
-
 let rec show_with_loc elem =
   match elem.source_hint with
   | GeneratedFrom source -> show_with_loc source

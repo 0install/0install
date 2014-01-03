@@ -66,9 +66,6 @@ val to_utf8 : element -> string
 (** [prepend_child child parent] makes [child] the first child of [parent]. *)
 val prepend_child : element -> element -> unit
 
-(** [import_node node] makes a copy of [node]. *)
-val import_node : element -> element
-
 (** Sets the given non-namespaced attribute. *)
 val set_attribute : string -> string -> element -> unit
 

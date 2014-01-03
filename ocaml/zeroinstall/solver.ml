@@ -263,8 +263,9 @@ let get_selections dep_in_use root_req impl_cache command_cache =
           let copy_elem parent elem =
             (* Copy elem into parent (and strip out <version> elements). *)
             let open Qdom in
-            let imported = import_node elem in
-            imported.child_nodes <- List.filter (fun c -> ZI.tag c <> Some "version") imported.child_nodes;
+            let imported = {elem with
+              child_nodes = List.filter (fun c -> ZI.tag c <> Some "version") elem.child_nodes;
+            } in
             prepend_child imported parent in
 
           let add_command name =
