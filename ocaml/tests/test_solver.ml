@@ -7,6 +7,7 @@ open Support.Common
 open OUnit
 open Zeroinstall
 
+module Q = Support.Qdom
 module U = Support.Utils
 
 module StringData =
@@ -33,13 +34,13 @@ module ListString = OUnitDiff.ListSimpleMake(EString)
 let cache_path_for config url = Feed_cache.get_save_cache_path config (`remote_feed url)
 
 let set_of_attrs elem : string list =
-  let str_list = ListLabels.map elem.Support.Qdom.attrs ~f:(fun ((ns, name), value) ->
-    if ns <> "" then
-      Printf.sprintf "{%s}%s=%s" ns name value
-    else
-      Printf.sprintf "%s=%s" name value
-  ) in
-  List.sort compare str_list
+  let attrs = ref [] in
+  elem |> Q.iter_attrs (fun (ns, name) value ->
+    match ns with
+    | "" -> attrs := Printf.sprintf "%s=%s" name value :: !attrs
+    | ns -> attrs := Printf.sprintf "{%s}%s=%s" ns name value :: !attrs
+  );
+  List.sort compare !attrs
 
 let xml_diff exp actual =
   let open Support.Qdom in
@@ -76,11 +77,11 @@ let make_impl_provider config scope_filter =
 let rec make_all_downloable node =
   let open Support.Qdom in
   if ZI.tag node = Some "implementation" then (
-    let archive = ZI.make (node.doc) "archive" in
-    archive.attrs <- [
-      (("", "size"), "100");
-      (("", "href"), "http://example.com/download.tgz");
-    ];
+    let attrs = [
+      ("size", "100");
+      ("href", "http://example.com/download.tgz");
+    ] |> Q.attrs_of_list in
+    let archive = ZI.make ~attrs "archive" in
     node.child_nodes <- archive :: node.child_nodes
   ) else (
     List.iter make_all_downloable node.child_nodes
@@ -155,7 +156,7 @@ let make_solver_test test_elem =
     let system = (fake_system :> system) in
     let reqs = ref (Zeroinstall.Requirements.default_requirements "") in
     let fails = ref false in
-    let expected_selections = ref (ZI.make_root "missing") in
+    let expected_selections = ref (ZI.make "missing") in
     let expected_problem = ref "missing" in
     let justifications = ref [] in
     let feed_provider = new fake_feed_provider system None in

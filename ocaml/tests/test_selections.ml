@@ -55,9 +55,9 @@ let suite = "selections">::: [
 
         assert_str_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" @@ ZI.get_attribute "id" src;
         assert_str_equal "1.0" @@ ZI.get_attribute "version" src;
-        assert_str_equal "bar" @@ List.assoc ("http://namespace", "foo") src.Q.attrs;
+        src.Q.attrs |> Q.AttrMap.get ("http://namespace", "foo") |> Fake_system.expect |> assert_str_equal "bar";
         assert_str_equal "1.0" @@ ZI.get_attribute "version" src;
-        assert (not (List.mem_assoc ("", "version-modifier") src.Q.attrs));
+        src.Q.attrs |> Q.AttrMap.get_no_ns "version-modifier" |> assert_equal None;
 
         let comp_bindings = comp |> ZI.filter_map Binding.parse_binding in
         let comp_deps = Selections.get_dependencies ~restricts:true comp in
@@ -137,7 +137,7 @@ let suite = "selections">::: [
     assert_equal "c" @@ ZI.get_attribute "id" sel;
     let run = Command.get_command_ex "run" sel in
     assert_equal "test-gui" @@ ZI.get_attribute "path" run;
-    assert_equal "namespaced" @@ List.assoc ("http://custom", "attr") run.Q.attrs;
+    run.Q.attrs |> Q.AttrMap.get ("http://custom", "attr") |> assert_equal (Some "namespaced");
     assert_equal 1 @@ List.length (run.Q.child_nodes |> List.filter (fun node -> snd node.Q.tag = "child"));
 
     let () =

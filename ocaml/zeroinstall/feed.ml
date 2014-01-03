@@ -10,14 +10,7 @@ module Q = Support.Qdom
 module U = Support.Utils
 open Constants
 
-module AttrType =
-  struct
-    type t = Xmlm.name
-
-    let compare a b = compare a b
-  end
-
-module AttrMap = Map.Make(AttrType)
+module AttrMap = Support.Qdom.AttrMap
 
 type importance =
   | Dep_essential       (* Must select a version of the dependency *)
@@ -66,7 +59,7 @@ and command = {
 }
 
 and properties = {
-  attrs : string AttrMap.t;
+  attrs : (string * string) AttrMap.t;
   requires : dependency list;
   bindings : binding list;
   commands : command StringMap.t;
@@ -143,9 +136,9 @@ type feed = {
 
 let value_testing = "testing"
 
-let make_command doc ?source_hint name ?(new_attr="path") path : command =
-  let elem = ZI.make doc ?source_hint "command" in
-  elem.Q.attrs <- [(("", "name"), name); (("", new_attr), path)];
+let make_command ?source_hint name ?(new_attr="path") path : command =
+  let attrs = [("name", name); (new_attr, path)] |> Q.attrs_of_list in
+  let elem = ZI.make ?source_hint ~attrs "command" in
   {
     command_qdom = elem;
     command_requires = [];
@@ -167,12 +160,7 @@ let make_distribtion_restriction distros =
   end
 
 let get_attr_ex name impl =
-  try AttrMap.find ("", name) impl.props.attrs
-  with Not_found -> Q.raise_elem "Missing '%s' attribute for " name impl.qdom
-
-let get_attr_opt key map =
-  try Some (AttrMap.find ("", key) map)
-  with Not_found -> None
+  AttrMap.get_no_ns name impl.props.attrs |? lazy (Q.raise_elem "Missing '%s' attribute for " name impl.qdom)
 
 let parse_version_element elem =
   let before = ZI.get_attribute_opt "before" elem in
@@ -285,11 +273,11 @@ let parse_command local_dir elem : command =
   }
 
 let rec filter_if_0install_version node =
-  match Q.get_attribute_opt ("", FeedAttr.if_0install_version) node with
+  match node.Q.attrs |> AttrMap.get_no_ns FeedAttr.if_0install_version with
   | Some expr when not (Versions.parse_expr expr About.parsed_version) -> None
   | Some _expr -> Some {
     node with Q.child_nodes = U.filter_map filter_if_0install_version node.Q.child_nodes;
-    attrs = List.remove_assoc ("", FeedAttr.if_0install_version) node.Q.attrs
+    attrs = node.Q.attrs |> AttrMap.remove ("", FeedAttr.if_0install_version) 
   }
   | None -> Some {
     node with Q.child_nodes = U.filter_map filter_if_0install_version node.Q.child_nodes;
@@ -303,12 +291,11 @@ let parse_implementations (system:system) url root local_dir =
     let s = ref state in
 
     let set_attr name value =
-      let new_attrs = AttrMap.add ("", name) value !s.attrs in
+      let new_attrs = AttrMap.add_no_ns name value !s.attrs in
       s := {!s with attrs = new_attrs} in
 
     let get_required_attr name =
-      try AttrMap.find ("", name) !s.attrs
-      with Not_found -> Q.raise_elem "Missing attribute '%s' on" name node in
+      AttrMap.get_no_ns name !s.attrs |? lazy (Q.raise_elem "Missing attribute '%s' on" name node) in
 
     let id = ZI.get_attribute "id" node in
 
@@ -323,7 +310,7 @@ let parse_implementations (system:system) url root local_dir =
               set_attr FeedAttr.local_path @@ Support.Utils.abspath system @@ dir +/ rel_path
             else
               set_attr FeedAttr.local_path rel_path in
-          match get_attr_opt FeedAttr.local_path !s.attrs with
+          match AttrMap.get_no_ns FeedAttr.local_path !s.attrs with
           | Some path -> use path
           | None ->
               if Support.Utils.starts_with id "/" || Support.Utils.starts_with id "." then
@@ -332,32 +319,33 @@ let parse_implementations (system:system) url root local_dir =
     if StringMap.mem id !implementations then
       Q.raise_elem "Duplicate ID '%s' in:" id node;
     (* version-modifier *)
-    let () = match get_attr_opt FeedAttr.version_modifier !s.attrs with
-    | Some modifier ->
+    AttrMap.get_no_ns FeedAttr.version_modifier !s.attrs
+    |> if_some (fun modifier ->
         let real_version = get_required_attr FeedAttr.version ^ modifier in
-        let new_attrs = AttrMap.add ("", FeedAttr.version) real_version (AttrMap.remove ("", FeedAttr.version_modifier) !s.attrs) in
+        let new_attrs = AttrMap.add_no_ns FeedAttr.version real_version (AttrMap.remove ("", FeedAttr.version_modifier) !s.attrs) in
         s := {!s with attrs = new_attrs}
-    | None -> () in
+    );
 
     let get_prop key =
-      match get_attr_opt key !s.attrs with
-      | Some value -> value
-      | None -> Q.raise_elem "Missing attribute '%s' on" key node in
+      AttrMap.get_no_ns key !s.attrs |? lazy (Q.raise_elem "Missing attribute '%s' on" key node) in
 
     let (os, machine) =
-      try Arch.parse_arch @@ default "*-*" @@ get_attr_opt "arch" !s.attrs
+      try Arch.parse_arch @@ default "*-*" @@ AttrMap.get_no_ns "arch" !s.attrs
       with Safe_exception _ as ex -> reraise_with_context ex "... processing %s" (Q.show_with_loc node) in
 
     let stability =
-      match get_attr_opt FeedAttr.stability !s.attrs with
+      match AttrMap.get_no_ns FeedAttr.stability !s.attrs with
       | None -> Testing
       | Some s -> parse_stability ~from_user:false s in
 
     let impl_type =
-      try `local_impl (AttrMap.find ("", FeedAttr.local_path) !s.attrs)
-      with Not_found ->
-        let retrieval_methods = List.filter Recipe.is_retrieval_method node.Q.child_nodes in
-        `cache_impl { digests = Stores.get_digests node; retrieval_methods; } in
+      match AttrMap.get_no_ns FeedAttr.local_path !s.attrs with
+      | Some local_path ->
+          assert (local_dir <> None);
+          `local_impl local_path
+      | None ->
+          let retrieval_methods = List.filter Recipe.is_retrieval_method node.Q.child_nodes in
+          `cache_impl { digests = Stores.get_digests node; retrieval_methods; } in
 
     let impl = {
       qdom = node;
@@ -387,17 +375,15 @@ let parse_implementations (system:system) url root local_dir =
             match ZI.get_attribute_opt attr_name item with
             | None -> ()
             | Some path ->
-                let new_command = make_command root.Q.doc ~source_hint:item command_name path in
+                let new_command = make_command ~source_hint:item command_name path in
                 s := {!s with commands = StringMap.add command_name new_command !s.commands} in
           handle_old_command FeedAttr.main "run";
           handle_old_command FeedAttr.self_test "test";
 
-          let () =
-            match Q.get_attribute_opt (COMPILE_NS.ns, "command") item with
-            | None -> ()
-            | Some command ->
-                let new_command = make_command root.Q.doc ~source_hint:item "compile" ~new_attr:"shell-command" command in
-                s := {!s with commands = StringMap.add "compile" new_command !s.commands} in
+          item.Q.attrs |> AttrMap.get (COMPILE_NS.ns, "command") |> if_some (fun command ->
+            let new_command = make_command ~source_hint:item "compile" ~new_attr:"shell-command" command in
+            s := {!s with commands = StringMap.add "compile" new_command !s.commands}
+          );
 
           let new_bindings = ref [] in
 
@@ -417,11 +403,15 @@ let parse_implementations (system:system) url root local_dir =
           if !new_bindings <> [] then
             s := {!s with bindings = !s.bindings @ (List.rev !new_bindings)};
 
-          let add_attr old (name_pair, value) =
-            AttrMap.add name_pair value old in
+          let new_attrs =
+            let attrs = ref !s.attrs in
+            item.Q.attrs |> AttrMap.iter (fun name_pair value ->
+              attrs := !attrs |> AttrMap.add name_pair value
+            );
+            !attrs in
 
           s := {!s with
-            attrs = List.fold_left add_attr !s.attrs item.Q.attrs;
+            attrs = new_attrs;
             requires = !s.requires;
           };
 
@@ -435,13 +425,15 @@ let parse_implementations (system:system) url root local_dir =
     )
   in
 
-  let root_attrs = AttrMap.add ("", FeedAttr.from_feed) url @@ AttrMap.singleton ("", FeedAttr.stability) value_testing in
+  let root_attrs = AttrMap.empty
+    |> AttrMap.add_no_ns FeedAttr.stability value_testing
+    |> AttrMap.add_no_ns FeedAttr.from_feed url in
 
   (* 'main' on the <interface> (deprecated) *)
   let root_commands = match ZI.get_attribute_opt FeedAttr.main root with
     | None -> StringMap.empty
     | Some path ->
-        let new_command = make_command root.Q.doc ~source_hint:root "run" path in
+        let new_command = make_command ~source_hint:root "run" path in
         StringMap.singleton "run" new_command in
 
   let root_state = {
@@ -584,7 +576,7 @@ let save_feed_overrides config feed_url overrides =
   let {last_checked; user_stability} = overrides in
   let feeds = B.save_path config.system (config_site +/ config_prog +/ "feeds") config.basedirs.B.config in
 
-  let root = ZI.make_root "feed-preferences" in
+  let root = ZI.make "feed-preferences" in
   let () =
     match last_checked with
     | None -> ()
@@ -607,8 +599,9 @@ let update_last_checked_time config url =
 (** The list of languages provided by this implementation. *)
 let get_langs impl =
   let langs =
-    try Str.split U.re_space @@ AttrMap.find ("", "langs") impl.props.attrs
-    with Not_found -> ["en"] in
+    match AttrMap.get_no_ns "langs" impl.props.attrs with
+    | Some langs -> Str.split U.re_space langs
+    | None -> ["en"] in
   Support.Utils.filter_map Support.Locale.parse_lang langs
 
 (** Is this implementation in the cache? *)
@@ -635,7 +628,7 @@ let get_id impl =
 let get_text tag langs feed =
   let best = ref None in
   feed.root |> ZI.iter ~name:tag (fun elem ->
-    let new_score = Support.Locale.score_lang langs (Q.get_attribute_opt (xml_ns, FeedAttr.lang) elem) in
+    let new_score = elem.Q.attrs |> AttrMap.get (xml_ns, FeedAttr.lang) |> Support.Locale.score_lang langs in
     match !best with
     | Some (_old_summary, old_score) when new_score <= old_score -> ()
     | _ -> best := Some (elem.Q.last_text_inside, new_score)

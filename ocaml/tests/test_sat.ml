@@ -9,6 +9,7 @@ open Zeroinstall.General
 
 module I = Impl_provider
 module U = Support.Utils
+module Q = Support.Qdom
 
 module StringData =
   struct
@@ -22,14 +23,14 @@ module S = Support.Sat.MakeSAT(StringData)
 let re_comma = Str.regexp_string ","
 
 class impl_provider =
-  let dummy_element = General.ZI.make_root "implementation" in
+  let dummy_element = General.ZI.make "implementation" in
 
   let make_impl arch v =
     let (os, machine) = Arch.parse_arch arch in
     Feed.({
       qdom = dummy_element;
       props = {
-        attrs = AttrMap.singleton ("", "version") v;
+        attrs = Q.AttrMap.empty |> Q.AttrMap.add_no_ns "version" v;
         requires = [];
         bindings = [];
         commands = StringMap.empty;
@@ -72,7 +73,7 @@ class impl_provider =
 
 let re_dep = Str.regexp "\\([a-z]+\\)\\[\\([0-9]+\\)\\(,[0-9]+\\)?\\] => \\([a-z]+\\) \\([0-9]+\\) \\([0-9]+\\)"
 
-let dummy_dep = General.ZI.make_root "requires"
+let dummy_dep = General.ZI.make "requires"
 
 let run_sat_test expected problem =
   let parse_id id =

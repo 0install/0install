@@ -19,11 +19,12 @@ let download_impls fetcher impls =
   | `aborted_by_user -> assert false
 
 let impl_template = F.({
-  qdom = ZI.make_root "implementation";
+  qdom = ZI.make "implementation";
   props = {
-    attrs = F.AttrMap.singleton ("", "id") "test1"
-      |> F.AttrMap.add ("", "version") "1.0"
-      |> F.AttrMap.add ("", "from-feed") (Test_0install.feed_dir +/ "test.xml");
+    attrs = Q.AttrMap.empty
+      |> Q.AttrMap.add_no_ns "id" "test1"
+      |> Q.AttrMap.add_no_ns "version" "1.0"
+      |> Q.AttrMap.add_no_ns "from-feed" (Test_0install.feed_dir +/ "test.xml");
     requires = [];
     bindings = [];
     commands = StringMap.empty;
@@ -101,7 +102,7 @@ let suite = "fetch">::: [
     Fake_system.assert_raises_safe "Missing attribute 'dest' on <file> (generated)" @@
       lazy (try_with "<file href='mylib-1.0.jar'/>");
 
-    let attrs = F.(impl_template.props.attrs |> AttrMap.add ("", "from-feed") "http://example.com/feed.xml") in
+    let attrs = F.(impl_template.props.attrs |> Q.AttrMap.add_no_ns "from-feed" "http://example.com/feed.xml") in
     let remote_impl = F.({impl_template with props = {impl_template.props with attrs}}) in
     Fake_system.assert_raises_safe "Relative URL 'mylib-1.0.jar' in non-local feed 'http://example.com/feed.xml'" @@
       lazy (try_with ~template:remote_impl "<file href='mylib-1.0.jar' dest='lib/mylib.jar' size='100'/>");

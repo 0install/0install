@@ -78,11 +78,12 @@ let python_test_code =
 (** Set quick-test-file and quick-test-mtime from path. *)
 let get_quick_test_attrs path =
   let mtime = (Unix.stat path).Unix.st_mtime in
-  Feed.AttrMap.singleton ("", FeedAttr.quick_test_file) path |>
-  Feed.AttrMap.add ("", FeedAttr.quick_test_mtime) (Printf.sprintf "%.0f" mtime)
+  Q.AttrMap.empty
+  |> Q.AttrMap.add_no_ns FeedAttr.quick_test_file path
+  |> Q.AttrMap.add_no_ns FeedAttr.quick_test_mtime (Printf.sprintf "%.0f" mtime)
 
-let make_restricts_distro doc iface_uri distros =
-  let elem = ZI.make doc "restricts" in
+let make_restricts_distro iface_uri distros =
+  let elem = ZI.make "restricts" in
   let open Feed in {
     dep_qdom = elem;
     dep_importance = Dep_restricts;
@@ -120,15 +121,15 @@ class virtual distribution config =
     let open Feed in
     let props = {
       attrs = get_quick_test_attrs path
-        |> AttrMap.add ("", FeedAttr.from_feed) (Feed_url.format_url (`distribution_feed from_feed))
-        |> AttrMap.add ("", FeedAttr.id) id
-        |> AttrMap.add ("", FeedAttr.stability) "packaged"
-        |> AttrMap.add ("", FeedAttr.version) version;
+        |> Q.AttrMap.add_no_ns FeedAttr.from_feed (Feed_url.format_url (`distribution_feed from_feed))
+        |> Q.AttrMap.add_no_ns FeedAttr.id id
+        |> Q.AttrMap.add_no_ns FeedAttr.stability "packaged"
+        |> Q.AttrMap.add_no_ns FeedAttr.version version;
       requires;
       bindings = [];
       commands;
     } in {
-      qdom = ZI.make_root "host-package-implementation";
+      qdom = ZI.make "host-package-implementation";
       props;
       stability = Packaged;
       os = None;
@@ -141,8 +142,6 @@ class virtual distribution config =
       }
     } in
 
-  let fake_host_doc = (ZI.make_root "<fake-host-root>").Qdom.doc in
-
   let get_host_impls = function
     | `remote_feed "http://repo.roscidus.com/python/python" as url ->
         (* We support Python on platforms with unsupported package managers
@@ -150,7 +149,7 @@ class virtual distribution config =
            cache this information on disk. *)
         Lazy.force python_info |> List.map (fun ((path, version), _) ->
           let id = "package:host:python:" ^ version in
-          let run = ZI.make_root "command" in
+          let run = ZI.make "command" in
           run |> Q.set_attribute "name" "run";
           run |> Q.set_attribute "path" path;
           let commands = StringMap.singleton "run" Feed.({command_qdom = run; command_requires = []}) in
@@ -160,7 +159,7 @@ class virtual distribution config =
         Lazy.force python_info |> U.filter_map (function
           | (_, Some (path, version)) ->
               let id = "package:host:python-gobject:" ^ version in
-              let requires = [make_restricts_distro fake_host_doc "http://repo.roscidus.com/python/python" "host"] in
+              let requires = [make_restricts_distro "http://repo.roscidus.com/python/python" "host"] in
               Some (id, make_host_impl path version ~requires url id)
           | (_, None) -> None
         )
@@ -217,15 +216,15 @@ class virtual distribution config =
                   Qdom.set_attribute "path" path new_elem;
                   {command with command_qdom = new_elem}
               | None ->
-                  make_command elem.Qdom.doc "run" path in
+                  make_command "run" path in
             {props with commands = StringMap.add "run" run_command props.commands} in
 
       let new_attrs = ref props.Feed.attrs in
       let set name value =
-        new_attrs := Feed.AttrMap.add ("", name) value !new_attrs in
+        new_attrs := Q.AttrMap.add_no_ns name value !new_attrs in
       set "id" id;
       set "version" version_str;
-      set "from-feed" @@ "distribution:" ^ (Feed.AttrMap.find ("", "from-feed") !new_attrs);
+      set "from-feed" @@ "distribution:" ^ (Q.AttrMap.get_no_ns "from-feed" !new_attrs |? lazy (raise_safe "BUG: Missing feed!"));
 
       begin match quick_test with
       | None -> ()

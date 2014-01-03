@@ -639,7 +639,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
             let stability_value =
               match StringMap.find impl_id overrides.F.user_stability with
               | Some user_stability -> F.format_stability user_stability |> String.uppercase
-              | None -> F.get_attr_opt FeedAttr.stability impl.F.props.F.attrs |> default "testing" in
+              | None -> Q.AttrMap.get_no_ns FeedAttr.stability impl.F.props.F.attrs |> default "testing" in
 
             let arch_value =
               match impl.F.os, impl.F.machine with
@@ -655,9 +655,9 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
 
             let row = model#append () in
             model#set ~row ~column:version @@ Zeroinstall.Versions.format_version impl.F.parsed_version;
-            model#set ~row ~column:released @@ default "-" @@ F.get_attr_opt FeedAttr.released impl.F.props.F.attrs;
+            model#set ~row ~column:released @@ default "-" @@ Q.AttrMap.get_no_ns FeedAttr.released impl.F.props.F.attrs;
             model#set ~row ~column:stability @@ stability_value;
-            model#set ~row ~column:langs @@ default "-" @@ F.get_attr_opt FeedAttr.langs impl.F.props.F.attrs;
+            model#set ~row ~column:langs @@ default "-" @@ Q.AttrMap.get_no_ns FeedAttr.langs impl.F.props.F.attrs;
             model#set ~row ~column:arch arch_value;
             model#set ~row ~column:notes notes_value;
             model#set ~row ~column:weight (if Some impl = selected then 700 else 400);

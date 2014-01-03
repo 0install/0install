@@ -87,7 +87,7 @@ let make_driver_test test_elem =
             let local_path = tmpdir +/ (ZI.get_attribute "local-path" child) in
             local_path |> fake_system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
               Support.Qdom.output (Xmlm.make_output @@ `Channel ch) child
-            );
+            )
     )
     | Some "requirements" ->
         let iface = ZI.get_attribute "interface" child in

@@ -1,16 +1,32 @@
 (** XML processing *)
 
-type document
 type source_hint
+type attr_value = (string * string)   (* (prefix_hint, value) *)
+
+module AttrType : sig type t = Xmlm.name val compare : 'a -> 'a -> int end
+module AttrMap :
+  sig
+    include Map.S with type key = AttrType.t
+
+    (* Add a binding with no namespace (and, therefore, no prefix) *)
+    val add_no_ns : string -> string -> attr_value t -> attr_value t
+
+    (* Get the value of this (namespaced) attribute, as an option. *)
+    val get : Xmlm.name -> attr_value t -> string option
+
+    (* Simple wrapper for [get] for non-namespaced attributes. *)
+    val get_no_ns : string -> attr_value t -> string option
+  end
+type attributes = (string * string) AttrMap.t
 
 (** An XML element node (and nearby text). *)
 type element = {
+  prefix_hint : string;               (* Suggested prefix when serialising this element *)
   tag: Xmlm.name;
-  mutable attrs: Xmlm.attribute list;
+  mutable attrs: attributes;
   mutable child_nodes: element list;
-  text_before: string;        (** The text node immediately before us *)
-  last_text_inside: string;   (** The last text node inside us with no following element *)
-  doc: document;
+  text_before: string;                (** The text node immediately before us *)
+  last_text_inside: string;           (** The last text node inside us with no following element *)
   source_hint: source_hint;           (** Location to report in error messages *)
 }
 
@@ -24,7 +40,7 @@ val parse_file : Common.system -> string -> element
 
 (** {2 Helper functions} *)
 
-(** [find fn parent] returns the first child of for which [fn child] is True. *)
+(** [find fn parent] returns the first child of [parent] for which [fn child] is True. *)
 val find : (element -> bool) -> element -> element option
 
 (** Generate a string identifying this element for use in error messages. Includes the source location, if known. *)
@@ -50,11 +66,8 @@ val to_utf8 : element -> string
 (** [prepend_child child parent] makes [child] the first child of [parent]. *)
 val prepend_child : element -> element -> unit
 
-(** [import_node node doc] makes a copy of [node] for use in [doc]. *)
-val import_node : element -> document -> element
-
-(** Get the value of an attribute. *)
-val get_attribute_opt : Xmlm.name -> element -> string option
+(** [import_node node] makes a copy of [node]. *)
+val import_node : element -> element
 
 (** Sets the given non-namespaced attribute. *)
 val set_attribute : string -> string -> element -> unit
@@ -65,14 +78,22 @@ val set_attribute : string -> string -> element -> unit
 val set_attribute_ns : prefix:string -> Xmlm.name -> string -> element -> unit
 
 (** Compare two elements and return -1, 0 or 1.
-    Owner document, namespace prefixes, row/column source position and attribute order are ignored. *)
+    Namespace prefixes, row/column source position and attribute order are ignored. *)
 val compare_nodes : ignore_whitespace:bool -> element -> element -> int
 
 (** Add or remove whitespace to indent the document nicely. Nodes with simple content
     (e.g. [<name>Bob</name>] do not have their content changed. *)
 val reindent : element -> element
 
-module type NsType = sig val ns : string end
+(* Convert a list of (name, value) pairs into a set of (non-namespaced) attributes. *)
+val attrs_of_list : (string * string) list -> attributes
+
+val iter_attrs : (Xmlm.name -> string -> unit) -> element -> unit
+
+module type NsType = sig
+  val ns : string
+  val prefix_hint : string      (* A suggested namespace prefix (for serialisation) *)
+end
 
 module NsQuery :
   functor (Ns : NsType) ->
@@ -94,8 +115,7 @@ module NsQuery :
       (** Call [fn] on each child node in our namespace (with name [name]) *)
       val iter : ?name:string -> (element -> unit) -> element -> unit
 
-      (** Get the value of the non-namespaced attribute [attr].
-          Throws an exception if [elem] isn't in our namespace. *)
+      (** Get the local name of this element, if it's in our namespace. *)
       val tag : element -> string option
 
       (** @raise Safe_exception if element does not have the expected name and namespace. *)
@@ -104,11 +124,9 @@ module NsQuery :
       (** @raise Safe_exception if element does not have the expected namespace. *)
       val check_ns : element -> unit
 
-      (** Create a new empty element with no source location. *)
-      val make : document -> ?source_hint:element -> string -> element
-
-      (** Create a new empty root element with its own document. *)
-      val make_root : string -> element
+      (** Create a new element in our namespace.
+       * @param source_hint will be used in error messages *)
+      val make : ?source_hint:element -> ?attrs:attributes -> string -> element
 
       (** Create a new element as the first child of the given element. *)
       val insert_first : ?source_hint:element -> string -> element -> element

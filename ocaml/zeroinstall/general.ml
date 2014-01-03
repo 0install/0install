@@ -60,13 +60,22 @@ let cache_icons = config_site +/ "interface_icons"
 
 module ZI_NS = struct
   let ns = "http://zero-install.sourceforge.net/2004/injector/interface"
+  let prefix_hint = "zi"
 end
 
 module ZI = Support.Qdom.NsQuery (ZI_NS)
 
 module COMPILE_NS = struct
   let ns = "http://zero-install.sourceforge.net/2006/namespaces/0compile"
+  let prefix_hint = "compile"
 end
+
+module Empty = Support.Qdom.NsQuery(
+  struct
+    let ns = ""
+    let prefix_hint = ""
+  end
+)
 
 let xml_ns = "http://www.w3.org/XML/1998/namespace"
 

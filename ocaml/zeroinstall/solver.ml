@@ -8,6 +8,7 @@ open General
 open Support.Common
 module Qdom = Support.Qdom
 module FeedAttr = Constants.FeedAttr
+module AttrMap = Qdom.AttrMap
 
 (** We attach this data to each SAT variable. *)
 module SolverData =
@@ -54,12 +55,12 @@ class type candidates =
    even conflicting ones. *)
 let dummy_impl =
   let open Feed in {
-    qdom = ZI.make_root "dummy";
+    qdom = ZI.make "dummy";
     os = None;
     machine = None;
     stability = Testing;
     props = {
-      attrs = AttrMap.empty;
+      attrs = Qdom.AttrMap.empty;
       requires = [];
       commands = StringMap.empty;   (* (not used; we can provide any command) *)
       bindings = [];
@@ -70,7 +71,7 @@ let dummy_impl =
 
 (** A fake <command> used to generate diagnostics if the solve fails. *)
 let dummy_command = {
-  Feed.command_qdom = ZI.make_root "dummy-command";
+  Feed.command_qdom = ZI.make "dummy-command";
   Feed.command_requires = [];
 }
 
@@ -205,14 +206,12 @@ class type result =
 
 (** Create a <selections> document from the result of a solve. *)
 let get_selections dep_in_use root_req impl_cache command_cache =
-  let root = ZI.make_root "selections" in
-  let root_iface =
-    match root_req with
-    | ReqCommand (command, iface, _source) ->
-        root.Qdom.attrs <- (("", "command"), command) :: root.Qdom.attrs;
-        iface
-    | ReqIface (iface, _source) -> iface in
-  root.Qdom.attrs <- (("", "interface"), root_iface) :: root.Qdom.attrs;
+  let root =
+    let root_attrs =
+      match root_req with
+      | ReqCommand (command, iface, _source) -> [("command", command); ("interface", iface)]
+      | ReqIface (iface, _source) -> [("interface", iface)] in
+    ZI.make ~attrs:(Qdom.attrs_of_list root_attrs) "selections" in
 
   let was_selected (_, candidates) =
     match candidates#get_clause with
@@ -241,17 +240,17 @@ let get_selections dep_in_use root_req impl_cache command_cache =
     | Some (_lit, impl) ->
         let attrs = ref impl.Feed.props.Feed.attrs in
         let set_attr name value =
-          attrs := Feed.AttrMap.add ("", name) value !attrs in
+          attrs := AttrMap.add_no_ns name value !attrs in
 
-        attrs := Feed.AttrMap.remove ("", FeedAttr.stability) !attrs;
+        attrs := AttrMap.remove ("", FeedAttr.stability) !attrs;
 
         (* Replaced by <command> *)
-        attrs := Feed.AttrMap.remove ("", FeedAttr.main) !attrs;
-        attrs := Feed.AttrMap.remove ("", FeedAttr.self_test) !attrs;
+        attrs := AttrMap.remove ("", FeedAttr.main) !attrs;
+        attrs := AttrMap.remove ("", FeedAttr.self_test) !attrs;
 
-        if Some iface = Feed.get_attr_opt FeedAttr.from_feed !attrs then (
+        if Some iface = AttrMap.get_no_ns FeedAttr.from_feed !attrs then (
           (* Don't bother writing from-feed attr if it's the same as the interface *)
-          attrs := Feed.AttrMap.remove ("", FeedAttr.from_feed) !attrs
+          attrs := AttrMap.remove ("", FeedAttr.from_feed) !attrs
         );
 
         set_attr "interface" iface;
@@ -264,7 +263,7 @@ let get_selections dep_in_use root_req impl_cache command_cache =
           let copy_elem parent elem =
             (* Copy elem into parent (and strip out <version> elements). *)
             let open Qdom in
-            let imported = import_node elem parent.doc in
+            let imported = import_node elem in
             imported.child_nodes <- List.filter (fun c -> ZI.tag c <> Some "version") imported.child_nodes;
             prepend_child imported parent in
 
@@ -298,8 +297,8 @@ let get_selections dep_in_use root_req impl_cache command_cache =
 
           sel.Qdom.child_nodes <- List.rev sel.Qdom.child_nodes
         );
-        assert (sel.Qdom.attrs = []);
-        sel.Qdom.attrs <- Feed.AttrMap.bindings !attrs
+        assert (Qdom.AttrMap.is_empty sel.Qdom.attrs);
+        sel.Qdom.attrs <- !attrs
     in
   List.iter add_impl impls;
   root

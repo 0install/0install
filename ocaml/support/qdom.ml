@@ -4,9 +4,31 @@
 
 open Common
 
-type document = {
-  mutable prefixes : string StringMap.t;
-}
+module AttrType =
+  struct
+    type t = Xmlm.name
+
+    let compare a b = compare a b
+  end
+
+module AttrMap =
+  struct
+    include Map.Make(AttrType)
+
+    let get name attrs =
+      try Some (find name attrs |> snd)
+      with Not_found -> None
+
+    let get_no_ns name attrs =
+      get ("", name) attrs
+
+    let add_no_ns name value attrs =
+      add ("", name) ("", value) attrs
+  end
+
+type attr_value = (string * string)   (* (prefix_hint, value) *)
+
+type attributes = attr_value AttrMap.t
 
 (* Used in diagnostic messages to show the source of an element. *)
 type source_hint =
@@ -16,39 +38,53 @@ type source_hint =
 
 (** An XML element node, including nearby text. *)
 and element = {
+  prefix_hint : string;
   tag: Xmlm.name;
-  mutable attrs: Xmlm.attribute list;
+  mutable attrs: attributes;
   mutable child_nodes: element list;
   text_before: string;        (** The text node immediately before us *)
   last_text_inside: string;   (** The last text node inside us with no following element *)
-  doc: document;
   source_hint: source_hint;
 }
 
-(** When serialising the document, use [prefix] as the prefix for the namespace [uri].
-    If [prefix] is already registered, find a free name ([prefix1], [prefix2], etc). *)
-let register_prefix doc prefix uri =
-  let p = ref prefix in
-  let i = ref 0 in
-  while StringMap.mem !p doc.prefixes do
-    i := !i + 1;
-    p := prefix ^ (string_of_int !i)
-  done;
-  (* log_info "New prefix: %s -> %s" !p uri; *)
-  doc.prefixes <- StringMap.add !p uri doc.prefixes
-
 let parse_input source_name i = try (
-  let doc = {
-    prefixes = StringMap.empty;
-  } in
+  (* When we see an xmlns attribute, store the prefix here as a hint.
+   * Each time we store a qname, we include a hint (which may or may not
+   * be the one it had originally). These are used during output to
+   * give sensible prefixes, if possible.
+   *)
+  let prefix_hints = Hashtbl.create 2 in
+
+  let get_hint ns =
+    try Hashtbl.find prefix_hints ns
+    with Not_found -> raise_safe "BUG: missing prefix '%s'" ns in
+
+  (* This is a dummy mapping for non-namespaced documents. It shouldn't be used, because the
+   * root must be non-namespaced too in that case, and therefore "" will be the default namespace
+   * anyway, and not need a prefix. *)
+  Hashtbl.add prefix_hints "" "nons";
+  Hashtbl.add prefix_hints Xmlm.ns_xml "xml";
 
   let extract_namespaces attrs =
-    ListLabels.filter attrs ~f:(fun ((ns, name), value) ->
-      if ns = Xmlm.ns_xmlns then (
-        register_prefix doc name value;
-        false
-      ) else true
-    ) in
+    let non_ns_attrs =
+      attrs |> List.filter (fun ((ns, name), value) ->
+        if ns = Xmlm.ns_xmlns then (
+          if name = "xmlns" then
+            Hashtbl.replace prefix_hints value ""
+          else
+            Hashtbl.replace prefix_hints value name;
+          false
+        ) else (
+          true
+        )
+      ) in
+    (* Now we have all the prefixes defined, attach them to the remaining attributes *)
+    let map = ref AttrMap.empty in
+    non_ns_attrs |> List.iter (fun ((ns, _name) as pair, value) ->
+      let prefix = if ns = "" then ns else get_hint ns in
+      map := !map |> AttrMap.add pair (prefix, value)
+    );
+    !map in
 
   (* Parse all elements from here to the next close tag and return those elements *)
   let rec parse_nodes i prev_siblings prev_text =
@@ -61,15 +97,15 @@ let parse_input source_name i = try (
         | `Dtd _dtd -> parse_nodes i prev_siblings prev_text
         | `El_end -> (prev_siblings, prev_text)
         | `El_start (tag, attrs) -> (
-          let child_nodes, trailing_text = parse_nodes i [] "" in
           let attrs = extract_namespaces attrs in
+          let child_nodes, trailing_text = parse_nodes i [] "" in
           let new_node = {
-            tag = tag;
-            attrs = attrs;
+            prefix_hint = get_hint (fst tag);
+            tag;
+            attrs;
             child_nodes = List.rev child_nodes;
             text_before = prev_text;
             last_text_inside = trailing_text;
-            doc;
             source_hint = Pos (pos, source_name);
           } in parse_nodes i (new_node :: prev_siblings) ""
         )
@@ -97,22 +133,11 @@ let find pred node =
 
 (** [prepend_child child parent] makes [child] the first child of [parent]. *)
 let prepend_child child parent =
-  assert (child.doc == parent.doc);
   parent.child_nodes <- child :: parent.child_nodes
 
-(** [import_node node doc] makes a copy of [node] for use in [doc]. *)
-let import_node elem doc =
-  let ensure_prefix prefix uri =
-    let current = StringMap.find prefix doc.prefixes in
-    if current <> Some uri then
-      register_prefix doc prefix uri in
-  StringMap.iter ensure_prefix elem.doc.prefixes;
-  let rec imp node = {node with
-      doc = doc;
-      child_nodes = List.map imp node.child_nodes;
-      source_hint = GeneratedFrom elem;
-    } in
-  imp elem
+(** [import_node node] makes a copy of [node]. *)
+let import_node elem =
+  {elem with tag = elem.tag}    (* (make a copy) *)
 
 let rec show_with_loc elem =
   match elem.source_hint with
@@ -126,6 +151,7 @@ let rec show_with_loc elem =
 
 module type NsType = sig
   val ns : string
+  val prefix_hint : string
 end
 
 let raise_elem fmt =
@@ -144,14 +170,56 @@ let simple_content element =
   else
     raise_elem "Non-text child nodes not permitted inside" element
 
+(* Walk the document and choose some prefix bindings from the hints.
+ * Every namespace will get exactly one (unique) prefix.
+ * The default namespace will be the namespace of the root element and will get prefix ""
+ * (unless some attribute requires the use of an explicit prefix). *)
+let choose_prefixes root =
+  let default_ns = fst root.tag in
+
+  let prefixes = ref StringSet.empty in
+  let prefix_of_ns = Hashtbl.create 2 in
+  let add_hint ns prefix_hint =
+    if ns = Xmlm.ns_xml then ()     (* Don't need to declare the built-in namespace *)
+    else if not (Hashtbl.mem prefix_of_ns ns) then (
+      (* Haven't seen this namespace before. Choose a unique prefix for it, based on the hint. *)
+      let p = ref (if prefix_hint = "" then "ns" else prefix_hint) in
+      let i = ref 0 in
+      while StringSet.mem !p !prefixes do
+        i := !i + 1;
+        p := prefix_hint ^ (string_of_int !i)
+      done;
+      let p = !p in
+      Hashtbl.add prefix_of_ns ns p;
+      prefixes := !prefixes |> StringSet.add p
+    ) in
+  let rec collect_hints elem =
+    let ns = fst elem.tag in
+    if ns <> default_ns then add_hint ns elem.prefix_hint;  (* (we ensure default_ns is bound at the end) *)
+    elem.attrs |> AttrMap.iter (fun (ns, _) (prefix_hint, _) ->
+      if ns <> "" then add_hint ns prefix_hint
+    );
+    elem.child_nodes |> List.iter collect_hints in
+  collect_hints root;
+  (* If any attribute is in default_ns, we'll have defined a prefix for it.
+   * If not, make default_ns the default (this is the common case). *)
+  if default_ns <> "" && not (Hashtbl.mem prefix_of_ns default_ns) then
+    Hashtbl.add prefix_of_ns default_ns "";
+  prefix_of_ns
+
 let output o root =
+  let prefix_of_ns = choose_prefixes root in
+
   let root_attrs = ref root.attrs in
-  StringMap.iter (fun k v -> root_attrs := ((Xmlm.ns_xmlns, k), v) :: !root_attrs) root.doc.prefixes;
+  prefix_of_ns |> Hashtbl.iter (fun ns prefix ->
+    let prefix = if prefix = "" then "xmlns" else prefix in
+    root_attrs := !root_attrs |> AttrMap.add (Xmlm.ns_xmlns, prefix) ("", ns)
+  );
     
   Xmlm.output o @@ `Dtd None;
   let rec output_node node =
     if node.text_before <> "" then Xmlm.output o @@ `Data node.text_before;
-    Xmlm.output o @@ `El_start (node.tag, node.attrs);
+    Xmlm.output o @@ `El_start (node.tag, node.attrs |> AttrMap.bindings |> List.map (fun (k, (_, v)) -> (k, v)));
     List.iter output_node node.child_nodes;
     if node.last_text_inside <> "" then Xmlm.output o @@ `Data node.last_text_inside;
     Xmlm.output o @@ `El_end in
@@ -163,19 +231,11 @@ let to_utf8 elem =
   output out elem;
   Buffer.contents buf
 
-let get_attribute_opt attr elem =
-  try
-    Some (List.assoc attr elem.attrs)
-  with
-    Not_found -> None
-
 let set_attribute name value element =
-  let pair = ("", name) in
-  element.attrs <- (pair, value) :: List.remove_assoc pair element.attrs
+  element.attrs <- element.attrs |> AttrMap.add_no_ns name value
 
-let set_attribute_ns ~prefix name value elem =
-  register_prefix elem.doc prefix (fst name);
-  elem.attrs <- (name, value) :: List.remove_assoc name elem.attrs
+let set_attribute_ns ~prefix name value element =
+  element.attrs <- element.attrs |> AttrMap.add name (prefix, value)
 
 let reindent root =
   let rec process indent node = {node with
@@ -187,6 +247,16 @@ let reindent root =
     } in
   process "\n" {root with text_before = ""}
 
+let attrs_of_list xs =
+  let map = ref AttrMap.empty in
+  xs |> List.iter (fun (name, value) ->
+    map := !map |> AttrMap.add_no_ns name value
+  );
+  !map
+
+let iter_attrs fn elem =
+  AttrMap.iter (fun tag (_prefix, value) -> fn tag value) elem.attrs
+
 exception Compare_result of int
 
 module AttrSet = Set.Make(
@@ -195,9 +265,6 @@ module AttrSet = Set.Make(
     let compare a b = compare a b
   end
 )
-
-let set_of_attrs elem : AttrSet.t =
-  List.fold_left (fun set attr -> AttrSet.add attr set) AttrSet.empty elem.attrs
 
 let compare_nodes ~ignore_whitespace a b =
   let test x y =
@@ -208,7 +275,8 @@ let compare_nodes ~ignore_whitespace a b =
   let rec find_diff a b =
     test a.tag b.tag;
     let () =
-      match AttrSet.compare (set_of_attrs a) (set_of_attrs b) with
+      (* (we compare namespace URIs but not prefix hints) *)
+      match AttrMap.compare (fun (_, a_value) (_, b_value) -> String.compare a_value b_value) a.attrs b.attrs with
       | 0 -> ()
       | x -> raise (Compare_result x) in
     if ignore_whitespace then (
@@ -257,17 +325,13 @@ module NsQuery (Ns : NsType) = struct
     if ns = Ns.ns then ()
     else raise_elem "Element not in namespace %s:" Ns.ns elem
 
-  let get_attribute attr elem = try
-      check_ns elem;
-      List.assoc ("", attr) elem.attrs
-    with
-      Not_found -> raise_elem "Missing attribute '%s' on" attr elem
+  let get_attribute attr elem =
+    check_ns elem;
+    AttrMap.get_no_ns attr elem.attrs |? lazy (raise_elem "Missing attribute '%s' on" attr elem)
 
-  let get_attribute_opt attr elem = try
-      check_ns elem;
-      Some (List.assoc ("", attr) elem.attrs)
-    with
-      Not_found -> None
+  let get_attribute_opt attr elem =
+    check_ns elem;
+    AttrMap.get_no_ns attr elem.attrs
 
   let iter ?name fn node =
     let fn2 elem =
@@ -285,26 +349,20 @@ module NsQuery (Ns : NsType) = struct
     else if name <> expected then raise_elem "Expected <%s> but found " expected elem
     else ()
 
-  let make doc ?source_hint tag = {
+  let make ?source_hint ?(attrs=AttrMap.empty) tag = {
+    prefix_hint = Ns.prefix_hint;
     tag = (Ns.ns, tag);
-    attrs = [];
+    attrs;
     child_nodes = [];
     text_before = "";
     last_text_inside = "";
-    doc;
     source_hint = match source_hint with
     | None -> Generated
     | Some elem -> GeneratedFrom elem
   }
 
-  let make_root tag =
-    let doc = {
-      prefixes = StringMap.singleton "xmlns" Ns.ns
-    } in
-    make doc tag
-
   let insert_first ?source_hint tag parent =
-    let child = make ?source_hint parent.doc tag in
+    let child = make ?source_hint tag in
     parent.child_nodes <- child :: parent.child_nodes;
     child
 end

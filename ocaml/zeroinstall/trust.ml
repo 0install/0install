@@ -13,6 +13,7 @@ module Q = Support.Qdom
 
 module TRUST_NS = struct
   let ns = "http://zero-install.sourceforge.net/2007/injector/trust"
+  let prefix_hint = "trust"
 end
 module TRUST = Support.Qdom.NsQuery (TRUST_NS)
 
@@ -58,7 +59,7 @@ class trust_db config =
       Dry_run.log "would update trust database %s" db_file;
       dry_run_db := Some db
     ) else (
-      let root = TRUST.make_root "trusted-keys" in
+      let root = TRUST.make "trusted-keys" in
       db |> StringMap.iter (fun fingerprint domains ->
         let key = TRUST.insert_first "key" root in
         Q.set_attribute "fingerprint" fingerprint key;

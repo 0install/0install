@@ -169,7 +169,7 @@ let add_import_elem parent feed_import =
 let save_iface_config config uri iface_config =
   let config_dir = Basedir.save_path config.system config_injector_interfaces config.basedirs.Basedir.config in
 
-  let root = ZI.make_root "interface-preferences" in
+  let root = ZI.make "interface-preferences" in
   Q.set_attribute FeedAttr.uri uri root;
 
   let () =

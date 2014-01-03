@@ -6,6 +6,7 @@
 
 open General
 open Support.Common
+module Q = Support.Qdom
 module U = Support.Utils
 
 type stores = string list
@@ -54,17 +55,19 @@ let check_available available_digests digests =
   List.exists (fun d -> Hashtbl.mem available_digests (Manifest.format_digest d)) digests
 
 let get_digests elem =
-  let id = ZI.get_attribute "id" elem in
-  let init = match Str.bounded_split_delim U.re_equals id 2 with
-  | [key; value] when key = "sha1" || key = "sha1new" || key = "sha256" -> [(key, value)]
-  | _ -> [] in
+  let digests = ref [] in
 
-  let check_attr init ((ns, name), value) = match ns with
-    | "" -> (name, value) :: init
-    | _ -> init in
-  let extract_digests init elem =
-    List.fold_left check_attr init elem.Support.Qdom.attrs in
-  ZI.fold_left ~f:extract_digests init elem "manifest-digest"
+  let id = ZI.get_attribute "id" elem in
+  begin match Str.bounded_split_delim U.re_equals id 2 with
+  | [key; value] when key = "sha1" || key = "sha1new" || key = "sha256" -> digests := [(key, value)]
+  | _ -> () end;
+
+  elem |> ZI.iter ~name:"manifest-digest" (
+    Q.iter_attrs (fun (ns, name) value ->
+      if ns = "" then digests := (name, value) :: !digests
+    )
+  );
+  !digests
 
 (* Preferred algorithms score higher. None if we don't support this algorithm at all. *)
 let score_alg = function

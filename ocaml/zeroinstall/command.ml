@@ -73,7 +73,7 @@ let rec build_command ?main ?(dry_run=false) impls command_iface command_name en
     let (command_sel, command_impl_path) = find_ex command_iface impls in
     let command =
       match command_name with
-      | None -> ZI.make command_sel.Q.doc ~source_hint:command_sel "command"
+      | None -> ZI.make ~source_hint:command_sel "command"
       | Some command_name -> get_command_ex command_name command_sel in
     let command_rel_path =
       let path = ZI.get_attribute_opt "path" command in
