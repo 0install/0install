@@ -24,7 +24,7 @@ type element = {
   prefix_hint : string;               (* Suggested prefix when serialising this element *)
   tag: Xmlm.name;
   mutable attrs: attributes;
-  mutable child_nodes: element list;
+  child_nodes: element list;
   text_before: string;                (** The text node immediately before us *)
   last_text_inside: string;           (** The last text node inside us with no following element *)
   source_hint: source_hint;           (** Location to report in error messages *)
@@ -62,9 +62,6 @@ val output : Xmlm.output -> element -> unit
 
 (** Write a (sub)tree to a string. *)
 val to_utf8 : element -> string
-
-(** [prepend_child child parent] makes [child] the first child of [parent]. *)
-val prepend_child : element -> element -> unit
 
 (** Sets the given non-namespaced attribute. *)
 val set_attribute : string -> string -> element -> unit
@@ -124,7 +121,4 @@ module NsQuery :
       (** Create a new element in our namespace.
        * @param source_hint will be used in error messages *)
       val make : ?source_hint:element -> ?attrs:attributes -> ?child_nodes:element list -> string -> element
-
-      (** Create a new element as the first child of the given element. *)
-      val insert_first : ?source_hint:element -> string -> element -> element
     end

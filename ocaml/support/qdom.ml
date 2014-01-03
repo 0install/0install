@@ -41,7 +41,7 @@ and element = {
   prefix_hint : string;
   tag: Xmlm.name;
   mutable attrs: attributes;
-  mutable child_nodes: element list;
+  child_nodes: element list;
   text_before: string;        (** The text node immediately before us *)
   last_text_inside: string;   (** The last text node inside us with no following element *)
   source_hint: source_hint;
@@ -130,10 +130,6 @@ let parse_file (system:system) path =
 let find pred node =
   try Some (List.find pred node.child_nodes)
   with Not_found -> None
-
-(** [prepend_child child parent] makes [child] the first child of [parent]. *)
-let prepend_child child parent =
-  parent.child_nodes <- child :: parent.child_nodes
 
 let rec show_with_loc elem =
   match elem.source_hint with
@@ -356,9 +352,4 @@ module NsQuery (Ns : NsType) = struct
     | None -> Generated
     | Some elem -> GeneratedFrom elem
   }
-
-  let insert_first ?source_hint tag parent =
-    let child = make ?source_hint tag in
-    parent.child_nodes <- child :: parent.child_nodes;
-    child
 end

@@ -576,17 +576,18 @@ let save_feed_overrides config feed_url overrides =
   let {last_checked; user_stability} = overrides in
   let feeds = B.save_path config.system (config_site +/ config_prog +/ "feeds") config.basedirs.B.config in
 
-  let root = ZI.make "feed-preferences" in
-  let () =
+  let attrs =
     match last_checked with
-    | None -> ()
+    | None -> AttrMap.empty
     | Some last_checked ->
-        Q.set_attribute "last-checked" (Printf.sprintf "%.0f" last_checked) root in
-  user_stability |> StringMap.iter (fun id stability ->
-    let impl = ZI.insert_first "implementation" root in
-    Q.set_attribute FeedAttr.id id impl;
-    Q.set_attribute FeedConfigAttr.user_stability (format_stability stability) impl
-  );
+        [("last-checked", (Printf.sprintf "%.0f" last_checked))] |> Q.attrs_of_list in
+  let child_nodes = user_stability |> StringMap.map_bindings (fun id stability ->
+    ZI.make "implementation" ~attrs:(Q.attrs_of_list [
+      (FeedAttr.id, id);
+      (FeedConfigAttr.user_stability, (format_stability stability));
+    ])
+  ) in
+  let root = ZI.make ~attrs ~child_nodes "feed-preferences" in
   let url = Feed_url.format_url feed_url in
   feeds +/ Escape.pretty url |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
     Q.output (`Channel ch |> Xmlm.make_output) root;

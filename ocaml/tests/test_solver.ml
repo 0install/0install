@@ -82,9 +82,9 @@ let rec make_all_downloable node =
       ("href", "http://example.com/download.tgz");
     ] |> Q.attrs_of_list in
     let archive = ZI.make ~attrs "archive" in
-    node.child_nodes <- archive :: node.child_nodes
+    {node with child_nodes = archive :: node.child_nodes}
   ) else (
-    List.iter make_all_downloable node.child_nodes
+    {node with child_nodes = List.map make_all_downloable node.child_nodes}
   )
 
 class fake_feed_provider system (distro:Distro.distribution option) =
@@ -164,7 +164,7 @@ let make_solver_test test_elem =
     | Some "suppress-warnings" ->
         Fake_system.forward_to_real_log := false;
     | Some "interface" ->
-        if add_downloads then make_all_downloable child;
+        let child = if add_downloads then make_all_downloable child else child in
         feed_provider#add_iface child
     | Some "import-interface" ->
         let leaf = ZI.get_attribute "from-python" child in

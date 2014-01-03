@@ -152,32 +152,32 @@ let load_iface_config config uri : interface_config =
         | Some path -> load path
   with Safe_exception _ as ex -> reraise_with_context ex "... reading configuration settings for interface %s" uri
 
-let add_import_elem parent feed_import =
+let add_import_elem feed_import =
   match feed_import.Feed.feed_type with
-  | Feed.Distro_packages | Feed.Feed_import -> ()
+  | Feed.Distro_packages | Feed.Feed_import -> None
   | Feed.User_registered | Feed.Site_packages ->
-      let elem = ZI.insert_first "feed" parent in
+      let elem = ZI.make "feed" in
       Q.set_attribute IfaceConfigAttr.src (Feed_url.format_url feed_import.Feed.feed_src) elem;
       if feed_import.Feed.feed_type = Feed.Site_packages then
         Q.set_attribute IfaceConfigAttr.is_site_package "True" elem;
-      match feed_import.Feed.feed_os, feed_import.Feed.feed_machine with
-      | None, None -> ()
-      | os, machine ->
-          let arch = Arch.format_arch os machine in
-          Q.set_attribute IfaceConfigAttr.arch arch elem
+      let () =
+        match feed_import.Feed.feed_os, feed_import.Feed.feed_machine with
+        | None, None -> ()
+        | os, machine ->
+            let arch = Arch.format_arch os machine in
+            Q.set_attribute IfaceConfigAttr.arch arch elem in
+      Some elem
 
 let save_iface_config config uri iface_config =
   let config_dir = Basedir.save_path config.system config_injector_interfaces config.basedirs.Basedir.config in
 
-  let root = ZI.make "interface-preferences" in
-  Q.set_attribute FeedAttr.uri uri root;
+  let attrs = ref [(FeedAttr.uri, uri)] in
+  iface_config.stability_policy |> if_some (fun policy ->
+    attrs := (IfaceConfigAttr.stability_policy, Feed.format_stability policy) :: !attrs
+  );
 
-  let () =
-    match iface_config.stability_policy with
-    | Some policy -> Q.set_attribute IfaceConfigAttr.stability_policy (Feed.format_stability policy) root
-    | None -> () in
-
-  iface_config.extra_feeds |> List.iter (add_import_elem root);
+  let child_nodes = iface_config.extra_feeds |> U.filter_map add_import_elem in
+  let root = ZI.make ~attrs:(Q.attrs_of_list !attrs) ~child_nodes "interface-preferences" in
 
   config_dir +/ Escape.pretty uri |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
     Q.output (`Channel ch |> Xmlm.make_output) root;
