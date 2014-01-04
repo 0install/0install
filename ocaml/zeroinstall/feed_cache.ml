@@ -20,14 +20,9 @@ type interface_config = {
 (* If we started a check within this period, don't start another one *)
 let failed_check_delay = 1. *. hours
 
-let is_local_feed uri = U.path_is_absolute uri
-
-(* For local feeds, returns the absolute path. *)
-let get_cached_feed_path config = function
-  | `local_feed path -> Some path
-  | `remote_feed url ->
-      let cache = config.basedirs.Basedir.cache in
-      Basedir.load_first config.system (config_site +/ "interfaces" +/ Escape.escape url) cache
+let get_cached_feed_path config (`remote_feed url) =
+  let cache = config.basedirs.Basedir.cache in
+  Basedir.load_first config.system (config_site +/ "interfaces" +/ Escape.escape url) cache
 
 let get_save_cache_path config (`remote_feed url) =
   let cache = config.basedirs.Support.Basedir.cache in
@@ -55,9 +50,6 @@ let list_all_feeds config =
   List.iter scan_dir config.basedirs.Basedir.cache;
 
   !feeds
-
-(** Actually, we list all the cached feeds. Close enough. *)
-let list_all_interfaces = list_all_feeds
 
 (* Note: this was called "update_user_overrides" in the Python *)
 let load_iface_config config uri : interface_config =
@@ -209,44 +201,36 @@ let get_last_check_attempt config (`remote_feed url) =
       | None -> None
       | Some info -> Some info.Unix.st_mtime
 
-let internal_is_stale config feed_url overrides =
-  match feed_url with
-  | `local_feed _ -> false                    (* Local feeds are never stale *)
-  | `remote_feed url as feed_url ->
-    let now = config.system#time in
+let internal_is_stale config (`remote_feed url as feed_url) overrides =
+  let now = config.system#time in
 
-    let is_stale () =
-      match get_last_check_attempt config feed_url with
-      | Some last_check_attempt when last_check_attempt > now -. failed_check_delay ->
-          log_debug "Stale, but tried to check recently (%s) so not rechecking now." (U.format_time (Unix.localtime last_check_attempt));
-          false
-      | _ -> true in
+  let is_stale () =
+    match get_last_check_attempt config feed_url with
+    | Some last_check_attempt when last_check_attempt > now -. failed_check_delay ->
+        log_debug "Stale, but tried to check recently (%s) so not rechecking now." (U.format_time (Unix.localtime last_check_attempt));
+        false
+    | _ -> true in
 
-    match overrides with
-    | None -> is_stale ()
-    | Some overrides ->
-        match overrides.Feed.last_checked with
-        | None ->
-            log_debug "Feed '%s' has no last checked time, so needs update" url;
-            is_stale ()
-        | Some checked ->
-            let staleness = now -. checked in
-            log_debug "Staleness for %s is %.2f hours" url (staleness /. 3600.0);
+  match overrides with
+  | None -> is_stale ()
+  | Some overrides ->
+      match overrides.Feed.last_checked with
+      | None ->
+          log_debug "Feed '%s' has no last checked time, so needs update" url;
+          is_stale ()
+      | Some checked ->
+          let staleness = now -. checked in
+          log_debug "Staleness for %s is %.2f hours" url (staleness /. 3600.0);
 
-            match config.freshness with
-            | None -> log_debug "Checking for updates is disabled"; false
-            | Some threshold when staleness >= threshold -> is_stale ()
-            | _ -> false
+          match config.freshness with
+          | None -> log_debug "Checking for updates is disabled"; false
+          | Some threshold when staleness >= threshold -> is_stale ()
+          | _ -> false
 
-(** Check whether feed [url] is stale.
- * Returns false if it's stale but last-check-attempt is recent *)
 let is_stale config url =
   let overrides = Feed.load_feed_overrides config url in
   internal_is_stale config url (Some overrides)
 
-(** Touch a 'last-check-attempt' timestamp file for this feed.
-    This prevents us from repeatedly trying to download a failing feed many
-    times in a short period. *)
 let mark_as_checking config (`remote_feed url) =
   let timestampts_dir = Basedir.save_path config.system cache_last_check_attempt config.basedirs.Basedir.cache in
   let timestamp_path = timestampts_dir +/ Escape.pretty url in

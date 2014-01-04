@@ -79,7 +79,7 @@ let suite = "feed-cache">::: [
     let feed_url = `remote_feed "http://foo/" in
     fetcher#import_feed feed_url foo_signed_xml |> Lwt_main.run;
 
-    assert_equal ["http://foo/"] @@ StringSet.elements @@ Feed_cache.list_all_interfaces config;
+    assert_equal ["http://foo/"] @@ StringSet.elements @@ Feed_cache.list_all_feeds config;
 
     let new_xml = Feed_cache.get_cached_feed_path config feed_url |> Fake_system.expect |> U.read_file config.system in
     let (sigs, _) = G.verify config.system new_xml |> Lwt_main.run in
@@ -108,10 +108,10 @@ let suite = "feed-cache">::: [
   );
 
   "test-list">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
-    assert (StringSet.is_empty @@ Feed_cache.list_all_interfaces config);
+    assert (StringSet.is_empty @@ Feed_cache.list_all_feeds config);
     let iface_dir = Basedir.save_path config.system (config_site +/ "interfaces") config.basedirs.Basedir.cache in
     U.touch config.system (iface_dir +/ "http%3a%2f%2ffoo");
-    Fake_system.equal_str_lists ["http://foo"] @@ (StringSet.elements @@ Feed_cache.list_all_interfaces config)
+    Fake_system.equal_str_lists ["http://foo"] @@ (StringSet.elements @@ Feed_cache.list_all_feeds config)
   );
 
   "extra-feeds">:: Fake_system.with_fake_config (fun (config, _fake_system) ->

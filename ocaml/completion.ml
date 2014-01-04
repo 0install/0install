@@ -18,6 +18,8 @@ let slice = Support.Utils.slice
 
 type ctype = Add | Prefix
 
+let list_all_interfaces = Feed_cache.list_all_feeds (* (close enough) *)
+
 (** There is one subclass of this for each supported shell. *)
 class virtual completer command config =
   let print_endline s = config.system#print_string (s ^ "\n") in
@@ -70,7 +72,7 @@ class virtual completer command config =
         if Str.string_match re_start prefix 0 then (
           let add_if_matches uri =
             if starts_with uri prefix then self#add Add uri in
-          StringSet.iter add_if_matches (Feed_cache.list_all_interfaces config)
+          StringSet.iter add_if_matches (list_all_interfaces config)
         ) else (
           (* Start with just the domains *)
           let add_matching_domain uri s =
@@ -79,7 +81,7 @@ class virtual completer command config =
             else
               s
           in
-          let domains = StringSet.fold add_matching_domain (Feed_cache.list_all_interfaces config) StringSet.empty in
+          let domains = StringSet.fold add_matching_domain (list_all_interfaces config) StringSet.empty in
           List.iter (self#add Prefix) (StringSet.elements domains)
         )
       );
@@ -134,7 +136,7 @@ let complete_interfaces_with_feeds config completer pre =
       if iface_config.Feed_cache.extra_feeds <> [] then
         completer#add Add uri
     ) in
-  StringSet.iter check_iface (Feed_cache.list_all_interfaces config)
+  StringSet.iter check_iface (list_all_interfaces config)
 
 (* 0install remove-feed iface <Tab> *)
 let complete_extra_feed config completer iface pre =

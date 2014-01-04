@@ -8,13 +8,11 @@ open Support.Common
 
 type env = (string, string) Hashtbl.t
 
-let re_equals = Str.regexp_string "="
-
 let copy_current_env system : env =
   let env = Hashtbl.create 1000 in
 
   let parse_env line =
-    match Str.bounded_split_delim re_equals line 2 with
+    match Str.bounded_split_delim Support.Utils.re_equals line 2 with
     | [key; value] -> Hashtbl.replace env key value
     | _ -> failwith (Printf.sprintf "Invalid environment mapping '%s'" line)
   in

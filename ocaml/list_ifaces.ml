@@ -12,7 +12,8 @@ let handle options flags args =
   Support.Argparse.iter_options flags (function
     | #common_option as o -> Common_options.process_common_option options o
   );
-  let ifaces = Zeroinstall.Feed_cache.list_all_interfaces options.config in
+  (* Actually, we list all the cached feeds. Close enough. *)
+  let ifaces = Zeroinstall.Feed_cache.list_all_feeds options.config in
   let results =
     match args with
     | [] -> ifaces

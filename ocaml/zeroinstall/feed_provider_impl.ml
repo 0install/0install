@@ -53,9 +53,11 @@ class feed_provider config (distro:Distro.distribution) =
     method was_used feed = FeedMap.mem feed cache
 
     method have_stale_feeds =
-      let check url = function
-        | None -> Feed_cache.internal_is_stale config url None
-        | Some (_feed, overrides) -> Feed_cache.internal_is_stale config url (Some overrides) in
+      let check url info =
+        match url, info with
+        | `local_feed _, _ -> false
+        | `remote_feed _ as url, None -> Feed_cache.internal_is_stale config url None
+        | `remote_feed _ as url, Some (_feed, overrides) -> Feed_cache.internal_is_stale config url (Some overrides) in
       FeedMap.exists check cache
 
     method replace_feed url new_feed =
