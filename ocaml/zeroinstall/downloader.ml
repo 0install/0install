@@ -39,7 +39,7 @@ let interceptor = ref None        (* (for unit-tests) *)
 
 (** Download the contents of [url] into [ch].
  * This runs in a separate (real) thread. *)
-let download_no_follow ?size ?modification_time ?(start_offset=Int64.zero) ~progress connection ch url =
+let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.zero) ~progress connection ch url =
   let skip_bytes = ref (Int64.to_int start_offset) in
   let error_buffer = ref "" in
   try
@@ -53,20 +53,22 @@ let download_no_follow ?size ?modification_time ?(start_offset=Int64.zero) ~prog
     if Support.Logging.will_log Support.Logging.Debug then Curl.set_verbose connection true;
     Curl.set_errorbuffer connection error_buffer;
     Curl.set_writefunction connection (fun data ->
-      try
-        let l = String.length data in
-        if !skip_bytes >= l then (
-          skip_bytes := !skip_bytes - l
-        ) else (
-          output ch data !skip_bytes (l - !skip_bytes);
-          skip_bytes := 0
-        );
-        l
-      with ex ->
-        (* (probably because we cancelled the download) *)
-        log_info ~ex "Failed to write download data to temporary file";
-        error_buffer := !error_buffer ^ Printexc.to_string ex;
-        0
+      if !cancelled then 0
+      else (
+        try
+          let l = String.length data in
+          if !skip_bytes >= l then (
+            skip_bytes := !skip_bytes - l
+          ) else (
+            output ch data !skip_bytes (l - !skip_bytes);
+            skip_bytes := 0
+          );
+          l
+        with ex ->
+          log_warning ~ex "Failed to write download data to temporary file";
+          error_buffer := !error_buffer ^ Printexc.to_string ex;
+          0
+      )
     );
     Curl.set_maxfilesizelarge connection (default Int64.zero size);
 
@@ -82,13 +84,16 @@ let download_no_follow ?size ?modification_time ?(start_offset=Int64.zero) ~prog
     Curl.set_headerfunction connection check_header;
     Curl.set_progressfunction connection (fun dltotal dlnow _ultotal _ulnow ->
       Support.Lwt_preemptive_copy.run_in_main (fun () ->
-        let dlnow = Int64.of_float dlnow in
-        begin match size with
-        | Some _ -> progress (dlnow, size, false)
-        | None ->
-            let total = if dltotal = 0.0 then None else Some (Int64.of_float dltotal) in
-            progress (dlnow, total, false) end;
-        Lwt.return false  (* (continue download) *)
+        if !cancelled then Lwt.return true    (* Don't override the finished=true signal *)
+        else (
+          let dlnow = Int64.of_float dlnow in
+          begin match size with
+          | Some _ -> progress (dlnow, size, false)
+          | None ->
+              let total = if dltotal = 0.0 then None else Some (Int64.of_float dltotal) in
+              progress (dlnow, total, false) end;
+          Lwt.return false  (* (continue download) *)
+        )
       )
     );
     Curl.set_noprogress connection false; (* progress = true *)
@@ -121,9 +126,12 @@ let download_no_follow ?size ?modification_time ?(start_offset=Int64.zero) ~prog
           `success
         )
   with Curl.CurlException _ as ex ->
-    log_info ~ex "Curl error: %s" !error_buffer;
-    let msg = Printf.sprintf "Error downloading '%s': %s" url !error_buffer in
-    `network_failure msg
+    if !cancelled then `aborted_by_user
+    else (
+      log_info ~ex "Curl error: %s" !error_buffer;
+      let msg = Printf.sprintf "Error downloading '%s': %s" url !error_buffer in
+      `network_failure msg
+    )
 
 (** Rate-limits downloads within a site.
  * [domain] is e.g. "http://site:port" - the URL before the path *)
@@ -138,7 +146,7 @@ let make_site max_downloads_per_site =
   let pool = Lwt_pool.create max_downloads_per_site create_connection in
 
   object
-    method schedule_download ?if_slow ?size ?modification_time ?start_offset ~progress ch url =
+    method schedule_download ~cancelled ?if_slow ?size ?modification_time ?start_offset ~progress ch url =
       log_debug "Scheduling download of %s" url;
       if not (List.exists (U.starts_with url) ["http://"; "https://"; "ftp://"]) then (
         raise_safe "Invalid scheme in URL '%s'" url
@@ -155,7 +163,7 @@ let make_site max_downloads_per_site =
               Some timeout;
             ) in
 
-            let download () = download_no_follow ?modification_time ?size ?start_offset ~progress connection ch url in
+            let download () = download_no_follow ~cancelled ?modification_time ?size ?start_offset ~progress connection ch url in
 
             try_lwt
               Lwt_preemptive.detach download ()
@@ -205,6 +213,8 @@ let make_pool ~max_downloads_per_site : download_pool =
 
           let progress, set_progress = Lwt_react.S.create (Int64.zero, size, false) in
 
+          let cancelled = ref false in
+
           let tmpfile, ch = Filename.open_temp_file ~mode:[Open_binary] "0install-" "-download" in
           Lwt_switch.add_hook (Some switch) (fun () -> Unix.unlink tmpfile |> Lwt.return);
 
@@ -216,13 +226,13 @@ let make_pool ~max_downloads_per_site : download_pool =
                 let site = make_site max_downloads_per_site in
                 Hashtbl.add sites domain site;
                 site in
-            match_lwt site#schedule_download ?if_slow ?size ?modification_time ?start_offset ~progress:set_progress ch url with
+            match_lwt site#schedule_download ~cancelled ?if_slow ?size ?modification_time ?start_offset ~progress:set_progress ch url with
             | `success ->
                 close_out ch;
                 `tmpfile tmpfile |> Lwt.return
-            | `network_failure _ as failure ->
+            | (`network_failure _ | `aborted_by_user) as result ->
                 close_out ch;
-                Lwt.return failure
+                Lwt.return result
             | `redirect target ->
                 flush ch;
                 Unix.ftruncate (Unix.descr_of_out_channel ch) 0;
@@ -232,12 +242,15 @@ let make_pool ~max_downloads_per_site : download_pool =
                 else raise_safe "Too many redirections (next: %s)" target in
 
           (* Cancelling:
-           * ocurl is missing OPENSOCKETFUNCTION, but we can get close by closing tmpfile so that it
+           * ocurl is missing OPENSOCKETFUNCTION, but we can get close by setting a flag so that it
            * aborts on the next write. In any case, we don't wait for the thread exit, as it may be
            * blocked on a DNS lookup, etc. *)
           let task, waker = Lwt.task () in
-          Lwt.on_cancel task (fun () -> log_info "Cancelling download %s" tmpfile; close_out ch);
-          let cancel () = Lwt.cancel task; Lwt.return () in
+          let cancel () =
+            log_info "Cancelling download %s" url;
+            cancelled := true;
+            Lwt.cancel task;
+            Lwt.return () in
           monitor {cancel; url; progress; hint};
 
           U.async (fun () ->
@@ -246,6 +259,7 @@ let make_pool ~max_downloads_per_site : download_pool =
               Lwt.wakeup waker result;
               Lwt.return ()
             with ex ->
+              log_info ~ex "Download failed";
               Lwt.wakeup_exn waker ex; Lwt.return ()
           );
 

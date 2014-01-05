@@ -29,7 +29,7 @@ val interceptor :
    ?modification_time:float ->
    out_channel ->
    string ->
-   [ `network_failure of string | `redirect of string | `success ] Lwt.t)
+   [ `network_failure of string | `redirect of string | `success | `aborted_by_user ] Lwt.t)
   option ref
 
 type monitor = download -> unit
