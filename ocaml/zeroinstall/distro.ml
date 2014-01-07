@@ -66,6 +66,8 @@ let python_test_code =
   "    import gobject\n" ^
   "  if gobject.__file__.startswith('<'):\n" ^
   "    path = gobject.__path__    # Python 3\n" ^
+  "    if type(path) is bytes:\n" ^
+  "        path = path.decode(sys.getfilesystemencoding())\n" ^
   "  else:\n" ^
   "    path = gobject.__file__    # Python 2\n" ^
   "  version = '.'.join(str(x) for x in gobject.pygobject_version)\n" ^
