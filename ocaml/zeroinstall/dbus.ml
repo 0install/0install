@@ -22,6 +22,10 @@ module OBus_signal = OBus_signal
 module OBus_error = OBus_error
 module OBus_object = OBus_object
 
+let () =
+  (* Don't log a warning if we can't find a bus. *)
+  Lwt_log.add_rule "obus(bus)" Lwt_log.Error
+
 let session ?switch () =
   Lwt.catch (fun () ->
     (* Prevent OBus from killing us. *)
