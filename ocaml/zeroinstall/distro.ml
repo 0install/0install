@@ -263,7 +263,6 @@ class virtual distribution config =
      * feed cache, calls [distribution#get_impls_for_feed] on it and checks whether the required implementation ID is in the
      * returned map. Override this if you can provide a more efficient implementation. *)
     method is_installed elem =
-      log_info "No is_installed implementation for '%s'; using slow Python fallback instead!" distro_name;
       let master_feed =
         match ZI.get_attribute_opt FeedAttr.from_feed elem with
         | None -> ZI.get_attribute FeedAttr.interface elem |> Feed_url.parse_non_distro (* (for very old selections documents) *)
