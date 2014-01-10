@@ -142,7 +142,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
         try
           let open Feed in
           match impl.impl_type with
-          | `package_impl {package_installed;_} -> package_installed
+          | `package_impl {package_state;_} -> package_state = `installed
           | `local_impl path -> config.system#file_exists path
           | `cache_impl {digests;_} -> Stores.check_available cached_digests digests
         with Safe_exception _ as ex ->
@@ -199,7 +199,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
 
         let score_requires_root_install i =
           match i.impl_type with
-          | `package_impl {Feed.package_installed = false;_} -> 0   (* Bad - needs root install *)
+          | `package_impl {Feed.package_state = `uninstalled _;_} -> 0   (* Bad - needs root install *)
           | _ -> 1 in
 
         ignore (

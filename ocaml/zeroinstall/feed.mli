@@ -16,10 +16,13 @@ type distro_retrieval_method = {
   distro_install_info : (string * string);        (* In some format meaningful to the distribution *)
 }
 
+type package_state =
+  [ `installed
+  | `uninstalled of distro_retrieval_method ]
+
 type package_impl = {
   package_distro : string;
-  mutable package_installed : bool;
-  retrieval_method : distro_retrieval_method option;
+  mutable package_state : package_state;
 }
 
 type cache_impl = {

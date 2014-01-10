@@ -139,8 +139,7 @@ class virtual distribution config =
       parsed_version = Versions.parse_version version;
       impl_type = `package_impl {
         package_distro = "host";
-        package_installed = true;
-        retrieval_method = None;
+        package_state = `installed;
       }
     } in
 
@@ -204,7 +203,7 @@ class virtual distribution config =
     method match_name name = (name = distro_name)
 
     (** Convenience wrapper for [add_result] that builds a new implementation from the given attributes. *)
-    method private add_package_implementation ?id ?main ?retrieval_method (query:query) ~version ~machine ~quick_test ~is_installed ~distro_name =
+    method private add_package_implementation ?id ?main (query:query) ~version ~machine ~quick_test ~package_state ~distro_name =
       let version_str = Versions.format_version version in
       let id = id |? lazy (Printf.sprintf "%s:%s:%s:%s" id_prefix query.package_name version_str (default "*" machine)) in
       let props = query.elem_props in
@@ -252,10 +251,10 @@ class virtual distribution config =
         stability = Packaged;
         props = {props with attrs = !new_attrs};
         parsed_version = version;
-        impl_type = `package_impl { package_installed = is_installed; package_distro = distro_name; retrieval_method };
+        impl_type = `package_impl { package_state; package_distro = distro_name };
       } in
 
-      if is_installed then fixup_main self#get_correct_main impl;
+      if package_state = `installed then fixup_main self#get_correct_main impl;
 
       query.results := StringMap.add id impl !(query.results)
 
@@ -277,7 +276,7 @@ class virtual distribution config =
           let impls = self#get_impls_for_feed master_feed in
           match StringMap.find wanted_id impls with
           | None -> false
-          | Some {Feed.impl_type = `package_impl {Feed.package_installed; _}; _} -> package_installed
+          | Some {Feed.impl_type = `package_impl {Feed.package_state; _}; _} -> package_state = `installed
 
     (** Get the native implementations (installed or candidates for installation) for this feed.
      * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one. *)
@@ -300,12 +299,14 @@ class virtual distribution config =
       let package_name = query.package_name in
       packagekit#get_impls package_name |> List.iter (fun info ->
         let {Packagekit.version; Packagekit.machine; Packagekit.installed; Packagekit.retrieval_method} = info in
+        let package_state =
+          if installed then `installed
+          else `uninstalled retrieval_method in
         self#add_package_implementation
           ~version
           ~machine
-          ~retrieval_method
+          ~package_state
           ~quick_test:None
-          ~is_installed:installed
           ~distro_name:distro_name
           query
       )
@@ -380,11 +381,13 @@ let is_installed config (distro:distribution) elem =
 let install_distro_packages (distro:distribution) ui impls : [ `ok | `cancel ] Lwt.t =
   let groups = ref StringMap.empty in
   impls |> List.iter (fun impl ->
-    let `package_impl {Feed.retrieval_method = rm; _} = impl.Feed.impl_type in
-    let rm = rm |? lazy (raise_safe "Missing retrieval method for package '%s'" (Feed.get_attr_ex FeedAttr.id impl)) in
-    let (typ, _info) = rm.Feed.distro_install_info in
-    let items = default [] @@ StringMap.find typ !groups in
-    groups := StringMap.add typ ((impl, rm) :: items) !groups
+    let `package_impl {Feed.package_state; _} = impl.Feed.impl_type in
+    match package_state with
+    | `installed -> raise_safe "BUG: package %s already installed!" (Feed.get_id impl).Feed_url.id
+    | `uninstalled rm ->
+        let (typ, _info) = rm.Feed.distro_install_info in
+        let items = default [] @@ StringMap.find typ !groups in
+        groups := StringMap.add typ ((impl, rm) :: items) !groups
   );
 
   let rec loop = function

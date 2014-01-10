@@ -22,10 +22,13 @@ type distro_retrieval_method = {
   distro_install_info : (string * string);        (* In some format meaningful to the distribution *)
 }
 
+type package_state =
+  [ `installed
+  | `uninstalled of distro_retrieval_method ]
+
 type package_impl = {
   package_distro : string;
-  mutable package_installed : bool;
-  retrieval_method : distro_retrieval_method option;
+  mutable package_state : package_state;
 }
 
 type cache_impl = {
@@ -607,7 +610,7 @@ let get_langs impl =
 (** Is this implementation in the cache? *)
 let is_available_locally config impl =
   match impl.impl_type with
-  | `package_impl {package_installed;_} -> package_installed
+  | `package_impl {package_state;_} -> package_state = `installed
   | `local_impl path -> config.system#file_exists path
   | `cache_impl {digests;_} ->
       match Stores.lookup_maybe config.system digests config.stores with

@@ -76,12 +76,11 @@ class virtual distribution : General.config ->
     method private add_package_implementation :
       ?id:string ->
       ?main:string ->
-      ?retrieval_method:(Feed.distro_retrieval_method) ->
       query ->
       version:Versions.parsed_version ->
       machine:(string option) ->
       quick_test:(quick_test option) ->  (* The result is valid while this condition holds *)
-      is_installed:bool ->
+      package_state:Feed.package_state ->
       distro_name:string ->
       unit
   end

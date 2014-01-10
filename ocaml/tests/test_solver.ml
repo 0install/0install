@@ -360,7 +360,7 @@ let suite = "solver">::: [
         method! private get_package_impls query =
           let machine = Some "x86_64" in
           self#add_package_implementation
-            ~is_installed:true
+            ~package_state:`installed
             ~id:"package:is_distro_v1-1"
             ~machine
             ~version:(Versions.parse_version "1-1")
@@ -368,7 +368,7 @@ let suite = "solver">::: [
             ~distro_name
             query;
           self#add_package_implementation
-            ~is_installed:false
+            ~package_state:(`uninstalled Feed.({distro_size = None; distro_install_info = ("dummy", "root_install_needed_2")}))
             ~id:"package:root_install_needed_2"
             ~machine
             ~version:(Versions.parse_version "1-1")
@@ -376,7 +376,7 @@ let suite = "solver">::: [
             ~distro_name
             query;
           self#add_package_implementation
-            ~is_installed:false
+            ~package_state:(`uninstalled Feed.({distro_size = None; distro_install_info = ("dummy", "root_install_needed_1")}))
             ~id:"package:root_install_needed_1"
             ~machine
             ~version:(Versions.parse_version "1-1")
@@ -384,7 +384,7 @@ let suite = "solver">::: [
             ~distro_name
             query;
           self#add_package_implementation
-            ~is_installed:true
+            ~package_state:`installed
             ~id:"package:buggy"
             ~machine
             ~version:(Versions.parse_version "1-1")

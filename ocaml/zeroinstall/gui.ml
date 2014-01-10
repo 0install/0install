@@ -67,18 +67,16 @@ let get_fetch_info config impl =
         | Some path -> ("(cached)", "This version is already stored on your computer:\n" ^ path)
     )
     | `package_impl info ->
-        if info.F.package_installed then ("(package)", "This distribution-provided package is already installed.")
-        else (
-          let size =
-            match info.F.retrieval_method with
-            | None -> None
-            | Some retrieval_method -> retrieval_method.F.distro_size |> pipe_some (fun s -> Some (Int64.to_float s)) in
+        begin match info.F.package_state with
+        | `installed -> ("(package)", "This distribution-provided package is already installed.")
+        | `uninstalled retrieval_method ->
+          let size = retrieval_method.F.distro_size |> pipe_some (fun s -> Some (Int64.to_float s)) in
           match size with
           | None -> ("(install)", "No size information available for this download")
           | Some size ->
               let pretty = U.format_size (Int64.of_float size) in
               (pretty, Printf.sprintf "Distribution package: need to download %s (%s bytes)" pretty (string_of_float size))
-        )
+        end
   with Safe_exception (msg, _) as ex ->
     log_warning ~ex "get_fetch_info";
     ("ERROR", msg)

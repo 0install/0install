@@ -168,7 +168,7 @@ let install (ui:#ui) pk items =
     (* Mark each package as now installed (possibly we should do this individually in a signal callback instead). *)
     items |> List.iter (fun (impl, _rm) ->
       let `package_impl info = impl.Feed.impl_type in
-      info.Feed.package_installed <- true
+      info.Feed.package_state <- `installed
     );
     Lwt.return (if !cancelled then `cancel else `ok)
   finally

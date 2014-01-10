@@ -317,13 +317,14 @@ module Debian = struct
         entry |> if_some (fun {version; machine; size = _} ->
           let version = Versions.parse_version version in
           let machine = Arch.none_if_star machine in
-          self#add_package_implementation ~is_installed:false ~version ~machine ~quick_test:None ~distro_name query
+          let package_state = `uninstalled Feed.({distro_size = None; distro_install_info = ("apt-get install", package_name)}) in
+          self#add_package_implementation ~package_state ~version ~machine ~quick_test:None ~distro_name query
         );
 
         (* Add installed packages by querying dpkg. *)
         let infos, quick_test = cache#get ~if_missing:query_dpkg package_name in
         infos |> List.iter (fun (version, machine) ->
-          self#add_package_implementation ~is_installed:true ~version ~machine ~quick_test ~distro_name query
+          self#add_package_implementation ~package_state:`installed ~version ~machine ~quick_test ~distro_name query
         )
 
       method! check_for_candidates feed =
@@ -339,7 +340,7 @@ module Debian = struct
               query_apt_cache (matches |> List.map (fun (elem, _props) -> (ZI.get_attribute "package" elem)))
             )
 
-      method! private add_package_implementation ?id ?main ?retrieval_method query ~version ~machine ~quick_test ~is_installed ~distro_name =
+      method! private add_package_implementation ?id ?main query ~version ~machine ~quick_test ~package_state ~distro_name =
         let version =
           match query.package_name, version with
           | ("openjdk-6-jre" | "openjdk-7-jre"), (([major], Versions.Pre) :: (minor, mmod) :: rest) ->
@@ -348,7 +349,7 @@ module Debian = struct
             (major :: minor, mmod) :: rest
           | _ -> version in
 
-        super#add_package_implementation ?id ?main ?retrieval_method query ~version ~machine ~quick_test ~is_installed ~distro_name
+        super#add_package_implementation ?id ?main query ~version ~machine ~quick_test ~package_state ~distro_name
 
       method! private get_correct_main impl run_command =
         let id = Feed.get_attr_ex Constants.FeedAttr.id impl in
@@ -418,7 +419,7 @@ module RPM = struct
         (* Add installed packages by querying rpm *)
         let infos, quick_test = cache#get query.package_name in
         infos |> List.iter (fun (version, machine) ->
-          self#add_package_implementation ~is_installed:true ~version ~machine ~quick_test ~distro_name query
+          self#add_package_implementation ~package_state:`installed ~version ~machine ~quick_test ~distro_name query
         )
 
       method! is_installed elem =
@@ -435,7 +436,7 @@ module RPM = struct
         else
           super#get_correct_main impl run_command
 
-      method! private add_package_implementation ?id ?main ?retrieval_method query ~version ~machine ~quick_test ~is_installed ~distro_name =
+      method! private add_package_implementation ?id ?main query ~version ~machine ~quick_test ~package_state ~distro_name =
         let version =
           (* OpenSUSE uses _, Fedora uses . *)
           let package_name = String.copy query.package_name in
@@ -451,7 +452,7 @@ module RPM = struct
               | _ -> version end;
           | _ -> version in
 
-        super#add_package_implementation ?id ?main ?retrieval_method query ~version ~machine ~quick_test ~is_installed ~distro_name
+        super#add_package_implementation ?id ?main query ~version ~machine ~quick_test ~package_state ~distro_name
     end
 end
 
@@ -534,7 +535,7 @@ module ArchLinux = struct
                 | Some version ->
                     let machine = Arch.none_if_star machine in
                     let quick_test = Some (desc_path, Exists) in
-                    self#add_package_implementation ~is_installed:true ~version ~machine ~quick_test ~distro_name query
+                    self#add_package_implementation ~package_state:`installed ~version ~machine ~quick_test ~distro_name query
     end
 end
 
@@ -577,7 +578,7 @@ module Mac = struct
             try_cleanup_distro_version_warn (get_version main) query.package_name |> if_some (fun version ->
               self#add_package_implementation
                 ~main
-                ~is_installed:true
+                ~package_state:`installed
                 ~version
                 ~machine:(Some config.system#platform.Platform.machine)
                 ~quick_test:(Some (main, UnchangedSince info.Unix.st_mtime))
@@ -595,7 +596,7 @@ module Mac = struct
           | Some info ->
               self#add_package_implementation
                 ~main
-                ~is_installed:true
+                ~package_state:`installed
                 ~version:(Versions.parse_version zero_version)
                 ~machine:(Some machine)
                 ~quick_test:(Some (main, UnchangedSince info.Unix.st_mtime))
@@ -671,7 +672,7 @@ module Mac = struct
 
         let infos, quick_test = cache#get query.package_name in
         infos |> List.iter (fun (version, machine) ->
-          self#add_package_implementation ~is_installed:true ~version ~machine ~quick_test ~distro_name query
+          self#add_package_implementation ~package_state:`installed ~version ~machine ~quick_test ~distro_name query
         )
     end
 
@@ -733,9 +734,12 @@ module Win = struct
           | None, _ -> ()
           | Some install, machine ->
               let version = Versions.parse_version zero_version in
+              let package_state =
+                if install = 1 then `installed
+                else `uninstalled Feed.({distro_size = None; distro_install_info = ("Windows installer", "NetFX")}) in
               self#add_package_implementation
                 ~main:""      (* .NET executables do not need a runner on Windows but they need one elsewhere *)
-                ~is_installed:(install = 1)
+                ~package_state
                 ~version
                 ~machine:(Some machine)
                 ~quick_test:None
@@ -751,9 +755,12 @@ module Win = struct
         [(netfx32_install, netfx32_release, "i486"); (netfx64_install, netfx64_release, "x86_64")] |> List.iter (function
           | Some install, Some release, machine ->
               let version = Versions.parse_version zero_version in
+              let package_state =
+                if install = 1 && release >= release_version then `installed
+                else `uninstalled Feed.({distro_size = None; distro_install_info = ("Windows installer", "NetFX")}) in
               self#add_package_implementation
                 ~main:""      (* .NET executables do not need a runner on Windows but they need one elsewhere *)
-                ~is_installed:(install = 1 && release >= release_version)
+                ~package_state
                 ~version
                 ~machine:(Some machine)
                 ~quick_test:None
@@ -777,7 +784,7 @@ module Win = struct
                   let quick_test = Some (java_bin, UnchangedSince info.Unix.st_mtime) in
                   self#add_package_implementation
                     ~main:java_bin
-                    ~is_installed:true
+                    ~package_state:`installed
                     ~version
                     ~machine:(Some machine)
                     ~quick_test
@@ -825,7 +832,7 @@ module Win = struct
       method! private get_package_impls query =
         let infos, quick_test = cache#get query.package_name in
         infos |> List.iter (fun (version, machine) ->
-          self#add_package_implementation ~is_installed:true ~version ~machine ~quick_test ~distro_name query
+          self#add_package_implementation ~package_state:`installed ~version ~machine ~quick_test ~distro_name query
         )
     end
 end
@@ -853,7 +860,7 @@ module Ports = struct
                 try_cleanup_distro_version_warn version query.package_name |> if_some (fun version ->
                   let machine = Some config.system#platform.Platform.machine in
                   self#add_package_implementation
-                    ~is_installed:true
+                    ~package_state:`installed
                     ~version
                     ~machine
                     ~quick_test:None
@@ -912,7 +919,7 @@ module Gentoo = struct
                       ) in
                     let machine = Arch.none_if_star (Support.System.canonical_machine machine) in
                     self#add_package_implementation
-                      ~is_installed:true
+                      ~package_state:`installed
                       ~version
                       ~machine
                       ~quick_test:(Some (pf_path, UnchangedSince pf_mtime))
@@ -942,7 +949,7 @@ module Slackware = struct
               let machine = Arch.none_if_star (Support.System.canonical_machine arch) in
               try_cleanup_distro_version_warn (version ^ "-" ^ build) query.package_name |> if_some (fun version ->
               self#add_package_implementation
-                ~is_installed:true
+                ~package_state:`installed
                 ~version
                 ~machine
                 ~quick_test:(Some (packages_dir +/ entry, Exists))

@@ -67,7 +67,7 @@ let dummy_impl =
       bindings = [];
     };
     parsed_version = Versions.dummy;
-    impl_type = `package_impl { package_installed = true; package_distro = "dummy"; retrieval_method = None };
+    impl_type = `local_impl "/dummy";
   }
 
 (** A fake <command> used to generate diagnostics if the solve fails. *)
