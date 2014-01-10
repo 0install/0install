@@ -74,35 +74,38 @@ module Cache =
           Hashtbl.clear data.contents;
 
           if Sys.file_exists cache_path then (
-            cache_path |> config.system#with_open_in [Open_rdonly; Open_text] (fun ch ->
-              let headers = ref true in
-              while !headers do
-                match input_line ch with
-                | "" -> headers := false
-                | line ->
-                    (* log_info "Cache header: %s" line; *)
-                    match Utils.split_pair re_metadata_sep line, cache_format with
-                    | ("mtime", mtime), _ -> data.mtime <- float_of_string mtime
-                    | ("size", size), _ -> data.size <- U.safe_int_of_string size
-                    | ("version", rev), Old -> data.rev <- U.safe_int_of_string rev
-                    | ("format", rev), New -> data.rev <- U.safe_int_of_string rev
-                    | _ -> ()
-              done;
+            try
+              cache_path |> config.system#with_open_in [Open_rdonly; Open_text] (fun ch ->
+                let headers = ref true in
+                while !headers do
+                  match input_line ch with
+                  | "" -> headers := false
+                  | line ->
+                      (* log_info "Cache header: %s" line; *)
+                      match Utils.split_pair re_metadata_sep line, cache_format with
+                      | ("mtime", mtime), _ -> data.mtime <- float_of_string mtime
+                      | ("size", size), _ -> data.size <- U.safe_int_of_string size
+                      | ("version", rev), Old -> data.rev <- U.safe_int_of_string rev
+                      | ("format", rev), New -> data.rev <- U.safe_int_of_string rev
+                      | _ -> ()
+                done;
 
-              try
-                while true do
-                  let line = input_line ch in
-                  let key, value = Utils.split_pair re_key_value_sep line in
-                  let prev = try Hashtbl.find data.contents key with Not_found -> [] in
-                  if value = "-" then (
-                    Hashtbl.replace data.contents key prev    (* Ensure empty list is in the table *)
-                  ) else (
-                    let version, machine = Utils.split_pair U.re_tab value in
-                    Hashtbl.replace data.contents key @@ (Versions.parse_version version, Arch.none_if_star machine) :: prev
-                  )
-                done
-              with End_of_file -> ()
-            )
+                try
+                  while true do
+                    let line = input_line ch in
+                    let key, value = Utils.split_pair re_key_value_sep line in
+                    let prev = try Hashtbl.find data.contents key with Not_found -> [] in
+                    if value = "-" then (
+                      Hashtbl.replace data.contents key prev    (* Ensure empty list is in the table *)
+                    ) else (
+                      let version, machine = Utils.split_pair U.re_tab value in
+                      Hashtbl.replace data.contents key @@ (Versions.parse_version version, Arch.none_if_star machine) :: prev
+                    )
+                  done
+                with End_of_file -> ()
+              )
+            with ex ->
+              log_warning ~ex "Failed to load cache file '%s' (maybe corrupted; try deleting it)" cache_path
           )
 
         (** Add some entries to the cache.
@@ -113,10 +116,10 @@ module Cache =
             Hashtbl.replace data.contents key values;
             cache_path |> config.system#with_open_out [Open_append; Open_creat] ~mode:0o644 (fun ch ->
               if values = [] then (
-                output_string ch @@ Printf.sprintf "%s=-" key (* Cache negative results too *)
+                output_string ch @@ Printf.sprintf "%s=-\n" key (* Cache negative results too *)
               ) else (
                 values |> List.iter (fun (version, machine) ->
-                  output_string ch @@ Printf.sprintf "%s=%s\t%s" key (Versions.format_version version) (default "*" machine)
+                  output_string ch @@ Printf.sprintf "%s=%s\t%s\n" key (Versions.format_version version) (default "*" machine)
                 )
               )
             )

@@ -366,6 +366,13 @@ let suite = "distro">::: [
     | [impl] -> Fake_system.assert_str_equal "7.3-2.1.1-3" @@ F.get_attr_ex "version" impl
     | _ -> assert false end;
 
+    (* Check the disk cache works *)
+    fake_system#set_spawn_handler None;
+    let deb = Distro_impls.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") config in
+    begin match to_impl_list @@ deb#get_impls_for_feed feed with
+    | [impl] -> Fake_system.assert_str_equal "7.3-2.1.1-3" @@ F.get_attr_ex "version" impl
+    | _ -> assert false end;
+
     Unix.putenv "PATH" old_path;
   );
 ]
