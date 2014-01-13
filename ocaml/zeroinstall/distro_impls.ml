@@ -24,7 +24,10 @@ let generic_distribution config =
 let try_cleanup_distro_version_warn version package_name =
   match Versions.try_cleanup_distro_version version with
   | None -> log_warning "Can't parse distribution version '%s' for package '%s'" version package_name; None
-  | Some version -> Some (Versions.parse_version version)
+  | Some zi_version ->
+      try Some (Versions.parse_version zi_version)
+      with ex ->
+        log_warning ~ex "Failed to parse distribution version '%s' for package '%s'" version package_name; None
 
 let iter_dir system fn path =
   match system#readdir path with

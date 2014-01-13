@@ -161,6 +161,7 @@ let suite = "versions">::: [
     check "6.17" "6b17";
     check "20-1" "b20_1";
     check "17" "p17";
+    check "93-28.2.2" "93u-28.2.2";
     check "7-pre3-2.1.1-3" "7~u3-2.1.1-3";	(* Debian snapshot *)
     check "7-pre3-2.1.1-pre1-1" "7~u3-2.1.1~pre1-1ubuntu2";
 

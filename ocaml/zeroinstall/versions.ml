@@ -196,6 +196,7 @@ let rec try_cleanup_distro_version version =
     (* This is for Java-style 6b17 or 7u9 syntax *)
     match Stream.npeek 2 stream with
     | ['.'; 'b'] | ['.'; 'u'] -> copy 1; Stream.junk stream
+    | [('b' | 'u'); ('.' | '-') as d] -> Stream.junk stream; Stream.junk stream; Buffer.add_char b d
     | 'b' :: _ | 'u' :: _ -> Stream.junk stream; Buffer.add_char b '.'
     | _  -> ignore @@ accept_mod ()
   );
