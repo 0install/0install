@@ -152,18 +152,18 @@ let suite = "versions">::: [
     let check expected messy =
       match Versions.try_cleanup_distro_version messy with
       | None -> failwith messy
-      | Some clean -> assert_str_equal expected clean in
+      | Some clean -> assert_str_equal expected (Versions.format_version clean) in
 
     check "0.3.1-1" "1:0.3.1-1";
-    check "0.3.1-1" "0.3.1-1ubuntu0";
+    check "0.3.1-1-0" "0.3.1-1ubuntu0";
     check "0.3-post1-rc2" "0.3-post1-rc2";
-    check "0.3.1-2" "0.3.1-r2-r3";
+    check "0.3.1-2-3" "0.3.1-r2-r3";
     check "6.17" "6b17";
     check "20-1" "b20_1";
     check "17" "p17";
     check "93-28.2.2" "93u-28.2.2";
     check "7-pre3-2.1.1-3" "7~u3-2.1.1-3";	(* Debian snapshot *)
-    check "7-pre3-2.1.1-pre1-1" "7~u3-2.1.1~pre1-1ubuntu2";
+    check "7-pre3-2.1.1-pre1-1-2" "7~u3-2.1.1~pre1-1ubuntu2";
 
     assert_equal None (Versions.try_cleanup_distro_version "cvs");
   );

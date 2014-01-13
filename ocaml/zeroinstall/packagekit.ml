@@ -74,7 +74,7 @@ let resolve pk package_names =
         | Some version ->
             let machine = Support.System.canonical_machine machine in
             let info = {
-              version = Versions.parse_version version;
+              version;
               machine = (if machine = "*" then None else Some machine);
               installed = (repo = "installed");
               retrieval_method = {

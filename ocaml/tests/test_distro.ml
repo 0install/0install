@@ -286,7 +286,7 @@ let suite = "distro">::: [
     let deb = Distro_impls.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") config in
     begin match to_impl_list @@ deb#get_impls_for_feed feed with
     | [impl] ->
-        Fake_system.assert_str_equal "package:deb:python-bittorrent:3.4.2-10:*" (F.get_attr_ex "id" impl);
+        Fake_system.assert_str_equal "package:deb:python-bittorrent:3.4.2-10-2:*" (F.get_attr_ex "id" impl);
         assert_equal ~msg:"Stability" Packaged impl.F.stability;
         assert_equal ~msg:"Requires" [] impl.F.props.F.requires;
         Fake_system.assert_str_equal "/usr/bin/pbt" (ZI.get_attribute_opt "main" impl.F.qdom |> Fake_system.expect);
@@ -350,7 +350,7 @@ let suite = "distro">::: [
           | [{F.dep_iface = "http://python.org/python"; _}] -> ()
           | _ -> assert false
         );
-        Fake_system.assert_str_equal "3.4.2-10" (F.get_attr_ex "version" installed);
+        Fake_system.assert_str_equal "3.4.2-10-2" (F.get_attr_ex "version" installed);
         assert_equal true @@ F.is_available_locally config installed;
         assert_equal false @@ F.is_available_locally config uninstalled;
         assert_equal None installed.F.machine;
