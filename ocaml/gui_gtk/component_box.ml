@@ -364,12 +364,12 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
   let heading_style = buffer#create_tag [`UNDERLINE `SINGLE; `SCALE `LARGE] in
   let link_style = buffer#create_tag [`UNDERLINE `SINGLE; `FOREGROUND "blue"] in
 
-  let limit_updates = Limiter.make_limiter () in  (* Prevent updates in parallel *)
+  let limit_updates = Limiter.make_limiter ~parent:window in  (* Prevent updates in parallel *)
   let clear () = buffer#delete ~start:buffer#start_iter ~stop:buffer#end_iter in
 
   (* Update description when a feed is selected *)
   selection#connect#changed ~callback:(fun () ->
-    limit_updates ~parent:window (fun () ->
+    limit_updates (fun () ->
       match selection#get_selected_rows with
       | [] -> clear (); Lwt.return ()
       | [path] ->
