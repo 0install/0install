@@ -392,13 +392,16 @@ let try_get_gui config ~use_gui =
                 log_warning ~ex "Failed to load GTK GUI plugin"
         );
 
-        !gui_plugin |> pipe_some (fun gui_plugin ->
-          try
-            gui_plugin config use_gui
-          with ex ->
-            log_warning ~ex "Failed to create GTK GUI";
-            None
-        )
+        match !gui_plugin with
+        | None ->
+            if use_gui = Maybe then None
+            else raise_safe "Can't use GUI - plugin cannot be loaded"
+        | Some gui_plugin ->
+            try
+              gui_plugin config use_gui
+            with ex ->
+              log_warning ~ex "Failed to create GTK GUI";
+              None
   )
 
 let send_bug_report iface_uri message : string Lwt.t =
