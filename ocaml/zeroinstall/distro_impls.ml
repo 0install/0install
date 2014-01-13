@@ -141,7 +141,7 @@ module Cache =
                 cache_path |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
                   let mtime = Int64.of_float info.Unix.st_mtime |> Int64.to_string in
                   begin match cache_format with
-                  | Old -> Printf.fprintf ch "mtime: %s\nsize: %d\nformat: %d\n\n" mtime info.Unix.st_size format_version
+                  | Old -> Printf.fprintf ch "mtime: %s\nsize: %d\nversion: %d\n\n" mtime info.Unix.st_size format_version
                   | New -> Printf.fprintf ch "mtime=%s\nsize=%d\nformat=%d\n\n" mtime info.Unix.st_size format_version end;
                   self#regenerate_cache ch
                 );

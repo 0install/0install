@@ -253,6 +253,11 @@ let suite = "distro">::: [
     let impls = to_impl_list @@ rpm#get_impls_for_feed feed in
     assert_equal 1 (List.length impls);
 
+    (* Check the caching worked *)
+    fake_system#set_spawn_handler None;
+    let impls = to_impl_list @@ rpm#get_impls_for_feed feed in
+    assert_equal 1 (List.length impls);
+
     Unix.putenv "PATH" old_path;
   );
 
