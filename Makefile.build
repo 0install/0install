@@ -7,8 +7,6 @@ MANPAGES = 0launch.1 0store-secure-add.1 0store.1 0desktop.1 0install.1
 
 vpath %.po ${SRCDIR}
 
-PYTHON=$(shell which python3 || which python2 || echo python)
-
 MO = $(shell cd ${SRCDIR}; find share/locale -name '*.po' | sort | sed -e 's/\.po/\.mo/')
 
 YOJSON = $(shell ocamlfind query yojson)
@@ -35,7 +33,7 @@ all: translations
 
 translations: $(MO)
 
-install: install_system
+install: install_local
 
 install_home:
 	(cd "${DISTDIR}" && ./install.sh home)

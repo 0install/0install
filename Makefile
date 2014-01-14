@@ -6,11 +6,6 @@ SRCDIR = $(abspath .)
 DISTDIR = $(abspath dist)
 BUILDDIR = $(abspath build)
 
-# Default to /usr because Python doesn't look in /usr/local by default on all systems.
-PREFIX = /usr
-
-PYTHON=`which python3 2>/dev/null || which python2 2>/dev/null || echo python`
-
 SH = ${SRCDIR}/share/0install.net/unlzma
 
 # There are several things you might want to do:
@@ -54,7 +49,7 @@ default: all
 %::
 	[ -d "${BUILDDIR}" ] || mkdir "${BUILDDIR}"
 	[ -d "${DISTDIR}" ] || mkdir "${DISTDIR}"
-	make -C "${BUILDDIR}" -f "${SRCDIR}/Makefile.build" "$@" SRCDIR="${SRCDIR}" BUILDDIR="${BUILDDIR}" DISTDIR="${DISTDIR}" PREFIX="${PREFIX}" PYTHON="${PYTHON}" DESTDIR="${DESTDIR}"
+	make -C "${BUILDDIR}" -f "${SRCDIR}/Makefile.build" "$@" SRCDIR="${SRCDIR}" BUILDDIR="${BUILDDIR}" DISTDIR="${DISTDIR}" DESTDIR="${DESTDIR}"
 
 share/locale/zero-install.pot: $(SH)
 	xgettext --sort-by-file --language=Shell -j --output=$@ $(SH)

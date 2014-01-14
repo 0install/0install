@@ -12,8 +12,8 @@ echo
 # from there to install everything.
 
 if [ $# != 1 ]; then
-	echo "To install to the default location (recommended):"
-	echo "./install.sh system"
+	echo "To install to /usr/local:"
+	echo "./install.sh local"
 	echo
 	echo "To install to your home directory:"
 	echo "./install.sh home"
@@ -29,13 +29,6 @@ PLUGIN=`echo gui_gtk.c*[sa]`
 
 # Use "share/zsh/vendor-completions" on Debian
 ZSHFUNCTIONS="share/zsh/site-functions"
-
-test -z "$PYTHON" && \
-PYTHON=`which python3 2>/dev/null || which python2 2>/dev/null || echo python`
-
-ROOT=""
-test -n "$DESTDIR" && \
-ROOT="--root $DESTDIR"
 
 case "$1" in
 home)
@@ -61,12 +54,12 @@ local)
 	PREFIX_MAN="${PREFIX_SHARE}/man"
 	;;
 *)
-	echo "Use: \"./install.sh system\" to install"
+	echo "Use: \"./install.sh local\" to install"
 	exit 1
 	;;
 esac
 
-echo "Installing to $DESTDIR$PREFIX/..."
+echo "Installing to ${DESTDIR:=""}$PREFIX/..."
 
 install -d "$DESTDIR${PREFIX}/bin"
 install 0install "$DESTDIR${PREFIX}/bin/0install"
