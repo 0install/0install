@@ -43,6 +43,9 @@ install_home:
 install_system:
 	(cd "${DISTDIR}" && ./install.sh system)
 
+install_local:
+	(cd "${DISTDIR}" && ./install.sh local)
+
 %.mo: %.po
 	mkdir -p `dirname "$@"`
 	msgfmt -o "$@" "$<"
