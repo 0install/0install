@@ -468,12 +468,12 @@ let get_fake_config tmpdir =
   system#putenv "HOME" home;
   if on_windows then (
     system#add_file (src_dir +/ "0install-runenv.exe") (build_dir +/ "0install-runenv.exe");
-    let python = expect @@ U.find_in_path real_system "python" in
-    system#add_file python python;
-    system#putenv "PATH" @@ Sys.getenv "PATH" ^ ";" ^ Filename.dirname python;
   ) else (
     system#putenv "PATH" @@ (home +/ "bin") ^ ":" ^ (Sys.getenv "PATH");
     system#add_file test_0install (build_dir +/ "0install");
+    system#add_file "/usr/bin/0install" (build_dir +/ "0install");
+    system#add_file "/usr/bin/0launch" (build_dir +/ "0install");
+    system#add_file "/usr/bin/0alias" (build_dir +/ "0install");
   );
   system#allow_read src_dir;
   (* Allow reading from all PATH directories *)
