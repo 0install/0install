@@ -49,7 +49,7 @@ The easiest way to get the dependencies is using [OPAM](http://opam.ocamlpro.com
 
     $ opam sw 4.01.0
     $ eval `opam config env`
-    $ opam install yojson xmlm ounit lwt extlib ssl ocurl obus lablgtk
+    $ opam install yojson xmlm ounit react lwt extlib ssl ocurl obus lablgtk
 
 (obus and lablgtk are optional. obus is used on Linux to add support for D-BUS notifications,
 installing native packages using PackageKit, and using NetworkManager to check
