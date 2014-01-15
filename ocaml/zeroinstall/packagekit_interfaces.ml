@@ -61,7 +61,7 @@ struct
     Method.interface = interface;
     Method.member = "InstallPackages";
     Method.i_args = (arg2
-                       (Some "flags", basic_uint32)
+                       (Some "transaction_flags", basic_uint64)
                        (Some "package_ids", array basic_string));
     Method.o_args = (arg0);
     Method.annotations = [];
@@ -131,7 +131,7 @@ struct
                        (Some "details", basic_string));
     Signal.annotations = [];
   }
-  let s_Finished = {
+  let s_Finished1 = {  (* ..!0.8.1 *)
     Signal.interface = interface;
     Signal.member = "Finished";
     Signal.args = (arg2
@@ -139,7 +139,15 @@ struct
                        (Some "runtime", basic_uint32));
     Signal.annotations = [];
   }
-  let s_Package = {
+  let s_Finished2 = {  (* 0.8.1.. *)
+    Signal.interface = interface;
+    Signal.member = "Finished";
+    Signal.args = (arg2
+                       (Some "exit", basic_uint32)
+                       (Some "runtime", basic_uint32));
+    Signal.annotations = [];
+  }
+  let s_Package1 = {  (* ..!0.8.1 *)
     Signal.interface = interface;
     Signal.member = "Package";
     Signal.args = (arg3
@@ -148,13 +156,34 @@ struct
                        (Some "summary", basic_string));
     Signal.annotations = [];
   }
-  let s_Details = {
+  let s_Package2 = {  (* 0.8.1.. *)
+    Signal.interface = interface;
+    Signal.member = "Package";
+    Signal.args = (arg3
+                       (Some "info", basic_uint32)
+                       (Some "package_id", basic_string)
+                       (Some "summary", basic_string));
+    Signal.annotations = [];
+  }
+  let s_Details1 = {
     Signal.interface = interface;
     Signal.member = "Details";
     Signal.args = (arg6
                        (Some "package_id", basic_string)
                        (Some "license", basic_string)
                        (Some "group", basic_string)
+                       (Some "detail", basic_string)
+                       (Some "url", basic_string)
+                       (Some "size", basic_uint64));
+    Signal.annotations = [];
+  }
+  let s_Details2 = {
+    Signal.interface = interface;
+    Signal.member = "Details";
+    Signal.args = (arg6
+                       (Some "package_id", basic_string)
+                       (Some "license", basic_string)
+                       (Some "group", basic_uint32)
                        (Some "detail", basic_string)
                        (Some "url", basic_string)
                        (Some "size", basic_uint64));

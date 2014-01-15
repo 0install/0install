@@ -53,25 +53,37 @@ let start version : (unit -> unit) Lwt.t =
     let impl_m_InstallPackages obj ((_:bool), x) = match x with
       | ["gnupg;2.0.22;x86_64;arch"] ->
           log_info "Installing package...";
-          lwt () = D.OBus_signal.emit s_Package obj ("installing", "gnupg;2.0.22;x86_64;arch", "summary") in
+          lwt () =
+            if version >= [| 0; 8; 1 |] then
+              D.OBus_signal.emit s_Package2 obj (Int32.of_int 12, "gnupg;2.0.22;x86_64;arch", "summary")
+            else
+              D.OBus_signal.emit s_Package1 obj ("installing", "gnupg;2.0.22;x86_64;arch", "summary") in
           set_percentage (Int32.of_int 1);
           lwt () = Lwt_main.yield () in
           set_percentage (Int32.of_int 50);
           lwt () = Lwt_main.yield () in
           set_percentage (Int32.of_int 100);
           lwt () = Lwt_main.yield () in
-          D.OBus_signal.emit s_Package obj ("finished", "gnupg;2.0.22;x86_64;arch", "summary") >>
-          D.OBus_signal.emit s_Finished obj ("success", Int32.of_int 5)
+          if version >= [| 0; 8; 1 |] then (
+            D.OBus_signal.emit s_Package2 obj (Int32.of_int 18, "gnupg;2.0.22;x86_64;arch", "summary") >>
+            D.OBus_signal.emit s_Finished2 obj (Int32.of_int 1, Int32.of_int 5)
+          ) else (
+            D.OBus_signal.emit s_Package1 obj ("finished", "gnupg;2.0.22;x86_64;arch", "summary") >>
+            D.OBus_signal.emit s_Finished1 obj ("success", Int32.of_int 5)
+          )
       | _-> assert false in
 
-    let impl_m_InstallPackages2 obj ((_:Int32.t), x) = impl_m_InstallPackages obj (false, x) in
+    let impl_m_InstallPackages2 obj ((_:Int64.t), x) = impl_m_InstallPackages obj (false, x) in
 
     let impl_m_Resolve obj (flags, package_names) =
       assert (flags = "none");
       let status = ref "success" in
       lwt () = package_names |> Lwt_list.iter_s (function
         | "gnupg" ->
-            D.OBus_signal.emit s_Package obj ("available", "gnupg;2.0.22;x86_64;arch", "my summary")
+            if version >= [| 0;8;1 |] then
+              D.OBus_signal.emit s_Package2 obj (Int32.of_int 2, "gnupg;2.0.22;x86_64;arch", "my summary")
+            else
+              D.OBus_signal.emit s_Package1 obj ("available", "gnupg;2.0.22;x86_64;arch", "my summary")
         | id ->
             status := "failed";
             if version >= [| 0;8;1 |] then
@@ -80,7 +92,16 @@ let start version : (unit -> unit) Lwt.t =
               D.OBus_signal.emit s_ErrorCode obj ("package-not-found", Printf.sprintf "Package name %s could not be resolved" id)
       ) in
       let runtime = Int32.of_int 5 in
-      D.OBus_signal.emit s_Finished obj (!status, runtime) in
+      if version >= [| 0;8;1 |] then (
+        let status =
+          match !status with
+          | "success" -> 1
+          | "failed" -> 2
+          | _ -> assert false in
+        D.OBus_signal.emit s_Finished2 obj (Int32.of_int status, runtime)
+      ) else (
+        D.OBus_signal.emit s_Finished1 obj (!status, runtime)
+      ) in
 
     let impl_m_Resolve2 obj (flags, package_names) =
       assert (flags = Int64.zero);
@@ -89,11 +110,18 @@ let start version : (unit -> unit) Lwt.t =
     let impl_m_GetDetails obj package_ids =
       lwt () = package_ids |> Lwt_list.iter_s (function
         | "gnupg;2.0.22;x86_64;arch" ->
-            D.OBus_signal.emit s_Details obj ("gnupg;2.0.22;x86_64;arch", "License", "Category", "detail", "http://foo", Int64.of_int 100)
+            if version >= [| 0;8;1 |] then
+              D.OBus_signal.emit s_Details2 obj ("gnupg;2.0.22;x86_64;arch", "License", Int32.zero, "detail", "http://foo", Int64.of_int 100)
+            else
+              D.OBus_signal.emit s_Details1 obj ("gnupg;2.0.22;x86_64;arch", "License", "Category", "detail", "http://foo", Int64.of_int 100)
         | id -> raise_safe "Bad ID '%s'" id
       ) in
       let runtime = Int32.of_int 5 in
-      D.OBus_signal.emit s_Finished obj ("success", runtime) in
+      if version >= [| 0;8;1 |] then (
+        D.OBus_signal.emit s_Finished2 obj (Int32.one, runtime)
+      ) else (
+        D.OBus_signal.emit s_Finished1 obj ("success", runtime)
+      ) in
 
     D.OBus_object.make_interface_unsafe interface
       [
@@ -114,15 +142,17 @@ let start version : (unit -> unit) Lwt.t =
         else
           method_info m_SetLocale impl_m_SetLocale);
       |]
-      [|
-        (if version >= [| 0; 8; 1 |] then
-          signal_info s_ErrorCode
-         else
-          signal_info s_ErrorCode2);
-        signal_info s_Finished;
-        signal_info s_Package;
-        signal_info s_Details;
-      |]
+      (if version >= [| 0; 8; 1 |] then [|
+        signal_info s_ErrorCode2;
+        signal_info s_Finished2;
+        signal_info s_Package2;
+        signal_info s_Details2;
+      |] else [|
+        signal_info s_ErrorCode;
+        signal_info s_Finished1;
+        signal_info s_Package1;
+        signal_info s_Details1;
+      |])
       [|
         property_r_info p_Percentage (fun _ -> impl_p_Percentage);
       |] in

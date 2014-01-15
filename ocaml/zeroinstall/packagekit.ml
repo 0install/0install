@@ -65,8 +65,8 @@ let make_signal_request signal handler switch proxy =
 let resolve pk package_names =
   let details = Hashtbl.create 10 in
 
-  let package (info, package_id, summary) =
-    log_info "packagekit: resolved %s: %s (%s)" package_id summary info;
+  let package (_info, package_id, summary) =
+    log_info "packagekit: resolved %s: %s" package_id summary;
     match Str.bounded_split_delim U.re_semicolon package_id 4 with
     | [package_name; version; machine; repo] ->
         begin match Versions.try_cleanup_distro_version version with
@@ -87,7 +87,10 @@ let resolve pk package_names =
 
   lwt () =
     try_lwt
-      pk#run_transaction [make_signal_request ITrans.s_Package package] (fun _switch proxy ->
+      let package_signal =
+        if pk#version >= [0; 8; 1] then make_signal_request ITrans.s_Package2 package
+        else make_signal_request ITrans.s_Package1 package in
+      pk#run_transaction [package_signal] (fun _switch proxy ->
         if pk#version >= [0; 8; 1] then
           Dbus.OBus_method.call ITrans.m_Resolve2 proxy (Int64.zero, package_names)
         else
@@ -113,7 +116,10 @@ let get_sizes pk = function
         log_info "packagekit: got size %s: %s" package_id (Int64.to_string size);
         details := !details |> StringMap.add package_id size in
 
-      lwt () = pk#run_transaction [make_signal_request ITrans.s_Details update] (fun _switch proxy ->
+      let details_signal =
+        if pk#version >= [0; 8; 1] then make_signal_request ITrans.s_Details2 update
+        else make_signal_request ITrans.s_Details1 update in
+      lwt () = pk#run_transaction [details_signal] (fun _switch proxy ->
         Dbus.OBus_method.call ITrans.m_GetDetails proxy package_ids
       ) in
       Lwt.return !details
@@ -161,7 +167,7 @@ let install (ui:#ui) pk items =
       );
 
       if pk#version >= [0;8;1] then
-        Dbus.OBus_method.call ITrans.m_InstallPackages2 proxy (Int32.zero, packagekit_ids)
+        Dbus.OBus_method.call ITrans.m_InstallPackages2 proxy (Int64.zero, packagekit_ids)
       else
         Dbus.OBus_method.call ITrans.m_InstallPackages proxy (false, packagekit_ids)
     ) in
@@ -219,6 +225,10 @@ let packagekit_service config proxy version =
               let ex = Safe_exception (code ^ ": " ^ msg, ref []) in
               Lwt.wakeup_exn waker ex in
 
+        let finish2 (status, runtime) =
+          let status = if status = Int32.one then "success" else Printf.sprintf "failed (PkExitEnum=%ld)" status in
+          finish (status, runtime) in
+
         let error (code, details) =
           log_info "packagekit error: %s: %s" code details;
           error := Some (code, details) in
@@ -231,7 +241,11 @@ let packagekit_service config proxy version =
           else make_signal_request ITrans.s_ErrorCode error in
 
         (* Connect signals *)
-        let signals = make_signal_request ITrans.s_Finished finish :: connect_error :: signals in
+        let finished_signal =
+          if version >= [0;8;1] then make_signal_request ITrans.s_Finished2 finish2
+          else make_signal_request ITrans.s_Finished1 finish in
+
+        let signals = finished_signal :: connect_error :: signals in
         lwt () = signals |> Lwt_list.iter_p (fun request -> request switch trans_proxy) in
 
         (* Start operation *)
