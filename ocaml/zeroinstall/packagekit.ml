@@ -273,6 +273,13 @@ let packagekit = ref (fun config ->
           lwt version = version in
           let version = version |> List.map Int32.to_int in
           log_info "Found PackageKit D-BUS service, version %s" (String.concat "." (List.map string_of_int version));
+
+          let version =
+            if version > [6] then (
+              log_info "PackageKit version number suspiciously high; assuming buggy Ubuntu aptdaemon and adding 0. to start";
+              0 :: version
+            ) else version in
+
           let p = packagekit_service config proxy version in
           Lwt.return (Some p)
         with
