@@ -156,7 +156,7 @@ let solve_with_downloads config distro fetcher ~(watcher:#Progress.watcher) requ
             | Some (master_feed, _) ->
                 let distro_f = `distribution_feed f in
                 if not (already_seen distro_f) then (
-                    add_download distro_f (distro#check_for_candidates master_feed >|= fun () () ->
+                    add_download distro_f (distro#check_for_candidates ~ui:watcher master_feed >|= fun () () ->
                       feed_provider#forget_distro f
                     )
                 )
@@ -278,7 +278,7 @@ let download_selections config distro fetcher ~include_packages ~(feed_provider:
         | `local_feed _ -> Lwt.return ()
         | `distribution_feed master_feed_url ->
             lwt master_feed = get_latest_feed master_feed_url in
-            distro#check_for_candidates master_feed
+            distro#check_for_candidates ~ui:fetcher#ui master_feed
         | `remote_feed _ as feed_url ->
             lwt _ = get_latest_feed feed_url in
             Lwt.return () in

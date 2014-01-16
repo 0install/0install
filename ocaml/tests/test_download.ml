@@ -301,7 +301,7 @@ let suite = "download">::: [
     let deb = Zeroinstall.Distro_impls.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") config in
 
     Fake_system.fake_log#reset;
-    Lwt_main.run @@ deb#check_for_candidates feed;
+    Lwt_main.run @@ deb#check_for_candidates ~ui:Fake_system.null_ui feed;
     begin match Test_distro.to_impl_list @@ deb#get_impls_for_feed feed with
     | [_impl1; _impl2] -> ()
     | items -> raise_safe "Got %d!" (List.length items) end;

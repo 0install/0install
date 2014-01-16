@@ -31,7 +31,7 @@ let test ?(package="gnupg") config fake_system =
   <name>Gpg</name>\n\
   <package-implementation package='%s'/>\n\
 </interface>" package) in
-  distro#check_for_candidates feed |> Lwt_main.run;
+  distro#check_for_candidates ~ui:Fake_system.null_ui feed |> Lwt_main.run;
   log_info "done check_for_candidates";
   let impls = distro#get_impls_for_feed feed |> Test_distro.to_impl_list in
   impls |> List.iter (function

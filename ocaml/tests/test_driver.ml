@@ -22,8 +22,8 @@ let make_packagekit get_distro_candidates _config =
     method get_impls (package_name:string) : Zeroinstall.Packagekit.package_info list =
       log_info "packagekit: get_impls(%s)" package_name;
       try Hashtbl.find candidates package_name with Not_found -> []
-    method check_for_candidates (package_names:string list) : unit Lwt.t =
-      log_info "packagekit: check_for_candidates(%s)" (String.concat ", " package_names);
+    method check_for_candidates ~ui:_ ~hint (package_names:string list) : unit Lwt.t =
+      log_info "packagekit: check_for_candidates(%s) for %s" (String.concat ", " package_names) hint;
       package_names |> List.iter (fun package_name ->
         Hashtbl.replace candidates package_name (get_distro_candidates package_name)
       );
@@ -49,6 +49,7 @@ let fake_fetcher config handler (distro:Zeroinstall.Distro.distribution) =
 
       method import_feed = failwith "import_feed"
       method download_icon = failwith "download_icon"
+      method ui = (Fake_system.null_ui :> Zeroinstall.Progress.watcher)
     end in
 
   object
@@ -242,6 +243,7 @@ let suite = "driver">::: [
         method download_impls = failwith "download_impls"
         method import_feed = failwith "import_feed"
         method download_icon = failwith "download_icon"
+        method ui = (Fake_system.null_ui :> Zeroinstall.Progress.watcher)
       end in
     let (ready, result, _fp) = Driver.solve_with_downloads config distro fetcher ~watcher:Fake_system.null_ui#watcher reqs ~force:false ~update_local:false |> Lwt_main.run in
     assert (ready = true);

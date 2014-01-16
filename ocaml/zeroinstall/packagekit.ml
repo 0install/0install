@@ -28,7 +28,7 @@ class type packagekit =
   object
     method is_available : bool Lwt.t
     method get_impls : string -> package_info list
-    method check_for_candidates : string list -> unit Lwt.t
+    method check_for_candidates : 'a. ui:(#ui as 'a) -> hint:string -> string list -> unit Lwt.t
     method install_packages : 'a. (#ui as 'a) -> (Feed.distro_implementation * Feed.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
   end
 
@@ -367,12 +367,16 @@ let packagekit = ref (fun config ->
       | Lwt.Return packages -> packages
 
     (** Request information about this package from PackageKit. *)
-    method check_for_candidates package_names : unit Lwt.t =
+    method check_for_candidates ~ui ~hint package_names =
       match_lwt Lazy.force proxy with
       | None -> Lwt.return ()
       | Some proxy ->
+          let progress, set_progress = Lwt_react.S.create (Int64.zero, None, false) in
           try_lwt
             let waiting_for = ref [] in
+
+            let cancel () = !waiting_for |> List.iter Lwt.cancel; Lwt.return () in
+            ui#monitor Downloader.({cancel; url = "(packagekit query)"; progress; hint = Some hint});
 
             log_info "Querying PackageKit for '%s'" (String.concat ", " package_names);
 
@@ -419,6 +423,9 @@ let packagekit = ref (fun config ->
           | ex ->
               log_warning ~ex "Error querying PackageKit";
               Lwt.return ()
+          finally
+            set_progress (Int64.zero, None, true); (* Stop progress indicator *)
+            Lwt.return ()
 
     method install_packages (ui:#ui) items : [ `ok | `cancel ] Lwt.t =
       lwt response =

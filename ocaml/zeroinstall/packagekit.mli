@@ -30,7 +30,7 @@ type packagekit = <
   get_impls : string -> package_info list;
 
   (** Request information about these packages from PackageKit. *)
-  check_for_candidates : string list -> unit Lwt.t;
+  check_for_candidates : 'a. ui:(#ui as 'a) -> hint:string -> string list -> unit Lwt.t;
 
   (** Install packages. Will confirm first with the user. *)
   install_packages : 'a. (#ui as 'a) -> (Feed.distro_implementation * Feed.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t;

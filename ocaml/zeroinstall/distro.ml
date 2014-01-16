@@ -336,14 +336,15 @@ class virtual distribution config =
       )
 
     (* This default implementation queries PackageKit, if available. *)
-    method check_for_candidates feed =
+    method check_for_candidates : 'a. ui:(#Packagekit.ui as 'a) -> Feed.feed -> unit Lwt.t = fun ~ui feed ->
       match get_matching_package_impls self feed with
       | [] -> Lwt.return ()
       | matches ->
           lwt available = packagekit#is_available in
           if available then (
             let package_names = matches |> List.map (fun (elem, _props) -> ZI.get_attribute "package" elem) in
-            packagekit#check_for_candidates package_names
+            let hint = Feed_url.format_url feed.Feed.url in
+            packagekit#check_for_candidates ~ui ~hint package_names
           ) else Lwt.return ()
 
     method install_distro_packages : 'a. (#Packagekit.ui as 'a) -> string -> _ list -> [ `ok | `cancel ] Lwt.t =

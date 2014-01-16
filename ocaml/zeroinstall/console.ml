@@ -105,6 +105,7 @@ class console_ui =
     constraint 'a = #Progress.watcher
 
     method run_solver tools ?test_callback ?systray mode reqs ~refresh =
+      try_lwt
         let config = tools#config in
         ignore test_callback;
         ignore systray;
@@ -120,6 +121,9 @@ class console_ui =
                 match_lwt Driver.download_selections config tools#distro fetcher ~feed_provider ~include_packages:true sels with
                 | `success -> Lwt.return (`Success sels)
                 | `aborted_by_user -> Lwt.return `Aborted_by_user
+      finally
+        if find_most_progress () = None then clear ();
+        Lwt.return ()
 
     method update _ = ()
 

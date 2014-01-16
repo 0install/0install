@@ -769,4 +769,6 @@ class fetcher config trust_db (distro:Distro.distribution) (download_pool:Downlo
             Lwt.return ()
       with Downloader.Unmodified -> Lwt.return ()
       finally Lwt_switch.turn_off switch
+
+    method ui = (ui :> Progress.watcher)
   end

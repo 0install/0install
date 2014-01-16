@@ -327,14 +327,15 @@ module Debian = struct
           self#add_package_implementation ~package_state:`installed ~version ~machine ~quick_test ~distro_name query
         )
 
-      method! check_for_candidates feed =
+      method! check_for_candidates ~ui feed =
         match Distro.get_matching_package_impls self feed with
         | [] -> Lwt.return ()
         | matches ->
             lwt available = packagekit#is_available in
             if available then (
               let package_names = matches |> List.map (fun (elem, _props) -> ZI.get_attribute "package" elem) in
-              packagekit#check_for_candidates package_names
+              let hint = Feed_url.format_url feed.Feed.url in
+              packagekit#check_for_candidates ~ui ~hint package_names
             ) else (
               (* No PackageKit. Use apt-cache directly. *)
               query_apt_cache (matches |> List.map (fun (elem, _props) -> (ZI.get_attribute "package" elem)))
@@ -724,7 +725,7 @@ module Win = struct
         | _ -> ()
 
         (* No PackageKit support on Windows *)
-      method! check_for_candidates _feed = Lwt.return ()
+      method! check_for_candidates ~ui:_ _feed = Lwt.return ()
 
       method private find_netfx win_version zero_version query =
         let reg_path = "SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\" ^ win_version in

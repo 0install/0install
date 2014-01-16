@@ -19,4 +19,6 @@ class fetcher : General.config -> Trust.trust_db -> Distro.distribution -> Downl
 
     (** Download the icon and add it to the disk cache as the icon for the given feed. *)
     method download_icon : Feed_url.non_distro_feed -> string -> unit Lwt.t
+
+    method ui : Progress.watcher
   end

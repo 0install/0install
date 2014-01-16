@@ -504,8 +504,8 @@ let fake_packagekit _config =
     method get_impls (package_name:string) : Zeroinstall.Packagekit.package_info list =
       log_info "packagekit: get_impls(%s)" package_name;
       []
-    method check_for_candidates (package_names:string list) : unit Lwt.t =
-      log_info "packagekit: check_for_candidates(%s)" (String.concat ", " package_names);
+    method check_for_candidates ~ui:_ ~hint (package_names:string list) : unit Lwt.t =
+      log_info "packagekit: check_for_candidates(%s) for %s" (String.concat ", " package_names) hint;
       Lwt.return ()
     method install_packages _ui _names = failwith "install_packages"
   end
