@@ -214,13 +214,18 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
 
     let rec process_tree parent (uri, details) =
       let (name, summary, feed_imports) =
-        match feed_provider#get_feed (Zeroinstall.Feed_url.master_feed_of_iface uri) with
+        let master_feed = Zeroinstall.Feed_url.master_feed_of_iface uri in
+        match feed_provider#get_feed master_feed with
         | Some (main_feed, _overrides) ->
             (main_feed.F.name,
              default "-" @@ F.get_summary config.langs main_feed,
              main_feed.F.imported_feeds);
         | None ->
-          (uri, "", []) in
+            let name =
+              match master_feed with
+              | `remote_feed url -> U.string_tail url (String.rindex url '/' + 1)
+              | `local_feed path -> path in
+            (name, "", []) in
 
       let user_feeds = (feed_provider#get_iface_config uri).FC.extra_feeds in
       let all_feeds = uri :: (user_feeds @ feed_imports |> List.map (fun {F.feed_src; _} -> Zeroinstall.Feed_url.format_url feed_src)) in
