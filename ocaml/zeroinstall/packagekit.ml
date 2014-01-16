@@ -162,8 +162,11 @@ let install (ui:#ui) pk items =
 
       (* Notify the start of all downloads (we share the overall progress between them currently). *)
       items |> List.iter (fun (impl, _rm) ->
-        let hint = Feed.get_attr_ex Constants.FeedAttr.from_feed impl in
-        ui#monitor Downloader.({cancel; url = "(packagekit)"; progress; hint = Some hint})
+        let main_feed =
+          match Feed.get_attr_ex Constants.FeedAttr.from_feed impl |> Feed_url.parse with
+          | `distribution_feed main_feed -> main_feed
+          | (`local_feed x | `remote_feed x) as main_feed -> log_warning "Not a distribution feed: %s" x; main_feed in
+        ui#monitor Downloader.({cancel; url = "(packagekit)"; progress; hint = Some (Feed_url.format_url main_feed)})
       );
 
       if pk#version >= [0;8;1] then
