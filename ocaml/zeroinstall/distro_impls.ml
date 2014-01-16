@@ -510,9 +510,6 @@ module ArchLinux = struct
       val distro_name = "Arch"
       val id_prefix = "package:arch"
 
-      (* We should never get here for an installed package, because we always set quick-test-* *)
-      method! is_installed _elem = false
-
       method! private get_package_impls query =
         (* Start with impls from PackageKit *)
         super#get_package_impls query;

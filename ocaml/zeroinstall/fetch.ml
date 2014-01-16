@@ -705,9 +705,11 @@ class fetcher config trust_db (distro:Distro.distribution) (download_pool:Downlo
         log_debug "download_impls: for %s get %s" (Feed_url.format_url feed) version;
 
         match impl with
-        | {Feed.impl_type = `package_impl _; _} as impl ->
-            (* Any package without a retrieval method should be already installed *)
-            package_impls := impl :: !package_impls
+        | {Feed.impl_type = `package_impl info; _} as impl ->
+            if info.Feed.package_state = `installed then
+              log_warning "Package '%s' already installed; skipping" (Feed.get_id impl).Feed_url.id
+            else
+              package_impls := impl :: !package_impls
         | {Feed.impl_type = `local_impl path; _} -> raise_safe "Can't fetch a missing local impl (%s from %s)!" path (Feed_url.format_url feed)
         | {Feed.impl_type = `cache_impl info; _} ->
             (* Choose the best digest algorithm we support *)
