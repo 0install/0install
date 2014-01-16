@@ -22,6 +22,7 @@ class type ui =
   object
     method monitor : Downloader.download -> unit
     method confirm : string -> [`ok | `cancel] Lwt.t
+    method impl_added_to_store : unit
   end
 
 class type packagekit =
@@ -179,6 +180,7 @@ let install (ui:#ui) pk items =
       let `package_impl info = impl.Feed.impl_type in
       info.Feed.package_state <- `installed
     );
+    ui#impl_added_to_store;
     Lwt.return (if !cancelled then `cancel else `ok)
   finally
     set_finished true;
