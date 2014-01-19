@@ -56,6 +56,7 @@ let canonical_machines = List.fold_left (fun map (k, v) -> StringMap.add k v map
   ("x86", "i386");
   ("i86pc", "i686");
   ("Power Macintosh", "ppc");
+  ("armhf", "armv6l");  (* Not sure what version it should be, but unlikely apt-cache will report an incompatible arch anyway *)
 ]
 
 (** Return the canonical name for this CPU, or [s] if we don't know one. *)
