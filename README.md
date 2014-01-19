@@ -166,7 +166,7 @@ This shows that ROX-Lib, a library rox-edit uses, was upgraded.
 
 If an upgrade stops a program from working, use "0install whatchanged".
 This will tell you when the application was last upgraded and what changed, and
-tell you how to revert to the previous version:
+tells you how to revert to the previous version:
 
     $ 0install whatchanged rox-edit
     Last checked    : Tue Sep 25 09:45:19 2012
