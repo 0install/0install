@@ -942,9 +942,12 @@ let suite = "0install">::: [
   );
 
   "alias">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    let tmpdir = fake_system#tmpdir in
+    Unix.mkdir (tmpdir +/ "bin") 0o700;
+    fake_system#putenv "PATH" ((tmpdir +/ "bin") ^ path_sep ^ U.getenv_ex fake_system "PATH");
+
     let local_feed = feed_dir +/ "Local.xml" in
-    Fake_system.assert_raises_safe "ERROR: '0alias' has been removed; use '0install add' instead" (lazy (
-      run_0install fake_system ~binary:"0alias" ["local-app"; local_feed] |> ignore
-    ));
+    let out = run_0install fake_system ~binary:"0alias" ["local-app"; local_feed] in
+    assert_str_equal "(\"0alias\" is deprecated; using \"0install add\" instead)\n" out;
   );
 ]
