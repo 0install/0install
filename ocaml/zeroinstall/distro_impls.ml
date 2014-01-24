@@ -960,7 +960,7 @@ module Slackware = struct
 end
 
 let get_host_distribution config : Distro.distribution =
-  let exists = Sys.file_exists in
+  let exists = config.system#file_exists in
 
   match Sys.os_type with
   | "Unix" ->

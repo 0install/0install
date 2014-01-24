@@ -202,6 +202,7 @@ class fake_system tmpdir =
       else if StringMap.mem path !extra_files then true
       else if StringSet.mem path !hidden_files then (log_info "hide %s" path; false)
       else if tmpdir = None then false
+      else if hidden_subtree path then false
       else real_system#file_exists (check_read path)
 
     method lstat path =
