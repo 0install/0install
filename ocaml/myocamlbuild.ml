@@ -127,7 +127,7 @@ let () =
     let defines_native = ref !defines_portable in
     if on_windows then add "-DWINDOWS" defines_native;
 
-    if not on_windows then (
+    if gtk_dir <> None then (
       let add_glib tag =
         flag ["ocaml"; tag] (S[A"-package"; A "lwt.glib"]);
         flag ["ocaml"; tag] (S[A"-package"; A "dynlink"]) in
