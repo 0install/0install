@@ -244,6 +244,8 @@ let download_selections config distro fetcher ~include_packages ~(feed_provider:
      * should check it has the same digest(s) too?
      *)
 
+    let fetcher = Lazy.force fetcher in
+
     (* Return the latest version of this feed, refreshing if possible. *)
     let get_latest_feed = function
       | `local_feed path as parsed_feed_url ->

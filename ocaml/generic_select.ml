@@ -273,7 +273,7 @@ let handle options flags arg ?test_callback for_op =
         if for_op = `Select_only then old_sels else (
           (* Download if missing. Ignore distribution packages, because the version probably won't match exactly. *)
           let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config tools#distro in
-          let fetcher = tools#make_fetcher tools#ui#watcher in
+          let fetcher = lazy (tools#make_fetcher tools#ui#watcher) in
           match Zeroinstall.Driver.download_selections ~feed_provider ~include_packages:false config tools#distro fetcher old_sels |> Lwt_main.run with
           | `success -> old_sels
           | `aborted_by_user -> raise_safe "Aborted by user"

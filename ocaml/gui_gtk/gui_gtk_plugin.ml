@@ -63,7 +63,7 @@ let make_gtk_ui config =
     method open_cache_explorer = Cache_explorer_box.open_cache_explorer config
 
     method watcher =
-      log_warning "GUI download not in the context of any window!";
+      log_info "GUI download not in the context of any window";
       (Lazy.force batch_ui)#watcher
   end
 

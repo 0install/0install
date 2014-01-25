@@ -47,7 +47,8 @@ val download_and_import_feed :
  * @param feed_provider it's more efficient to reuse the provider returned by [solve_with_downloads], if possible
  *)
 val download_selections :
-  General.config -> Distro.distribution -> Fetch.fetcher ->
+  General.config -> Distro.distribution ->
+  Fetch.fetcher Lazy.t ->
   include_packages:bool ->
   feed_provider:Feed_provider.feed_provider ->
   Selections.t -> [ `aborted_by_user | `success ] Lwt.t

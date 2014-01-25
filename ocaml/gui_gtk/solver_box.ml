@@ -233,7 +233,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
           | `Select_only -> on_success ()
           | `Download_only | `Select_for_run ->
               let sels = results#get_selections in
-              match_lwt Driver.download_selections config tools#distro fetcher ~include_packages:true ~feed_provider:watcher#feed_provider sels with
+              match_lwt Driver.download_selections config tools#distro (lazy fetcher) ~include_packages:true ~feed_provider:watcher#feed_provider sels with
               | `aborted_by_user -> widgets.ok_button#set_active false; Lwt.return ()
               | `success -> on_success ()
         with Safe_exception _ as ex ->

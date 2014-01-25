@@ -118,7 +118,7 @@ class console_ui =
             match mode with
             | `Select_only -> Lwt.return (`Success sels)
             | `Download_only | `Select_for_run ->
-                match_lwt Driver.download_selections config tools#distro fetcher ~feed_provider ~include_packages:true sels with
+                match_lwt Driver.download_selections config tools#distro (lazy fetcher) ~feed_provider ~include_packages:true sels with
                 | `success -> Lwt.return (`Success sels)
                 | `aborted_by_user -> Lwt.return `Aborted_by_user
       finally
