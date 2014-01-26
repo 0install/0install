@@ -48,7 +48,7 @@ let partition fn lst =
 class type candidates =
   object
     method get_clause : S.at_most_one_clause option
-    method get_vars : S.var list
+    method get_vars : S.lit list
     method get_state : decision_state
   end
 
@@ -76,7 +76,7 @@ let dummy_command = {
   Feed.command_requires = [];
 }
 
-class impl_candidates sat (clause : S.at_most_one_clause option) (vars : (S.var * Feed.generic_implementation) list) =
+class impl_candidates sat (clause : S.at_most_one_clause option) (vars : (S.lit * Feed.generic_implementation) list) =
   object (_ : #candidates)
     method get_clause = clause
 
@@ -106,7 +106,7 @@ class impl_candidates sat (clause : S.at_most_one_clause option) (vars : (S.var 
           match S.get_selected clause with
           | None -> None
           | Some lit ->
-              match (S.get_varinfo_for_lit sat lit).S.obj with
+              match S.get_user_data_for_lit sat lit with
                 | SolverData.ImplElem impl -> Some (lit, impl)
                 | _ -> assert false
 
@@ -117,7 +117,7 @@ class impl_candidates sat (clause : S.at_most_one_clause option) (vars : (S.var 
           match S.get_selected clause with
           | Some lit ->
               (* We've already chosen which <implementation> to use. Follow dependencies. *)
-              let impl = match (S.get_varinfo_for_lit sat lit).S.obj with
+              let impl = match S.get_user_data_for_lit sat lit with
                 | SolverData.ImplElem impl -> impl
                 | _ -> assert false in
               Selected impl.Feed.props.Feed.requires
@@ -132,7 +132,7 @@ class impl_candidates sat (clause : S.at_most_one_clause option) (vars : (S.var 
   end
 
 (** Holds all the commands with a given name within an interface. *)
-class command_candidates sat (clause : S.at_most_one_clause option) (vars : (S.var * Feed.command) list) =
+class command_candidates sat (clause : S.at_most_one_clause option) (vars : (S.lit * Feed.command) list) =
   object (_ : #candidates)
     method get_clause = clause
 
@@ -146,7 +146,7 @@ class command_candidates sat (clause : S.at_most_one_clause option) (vars : (S.v
           match S.get_selected clause with
           | Some lit ->
               (* We've already chosen which <command> to use. Follow dependencies. *)
-              let command = match (S.get_varinfo_for_lit sat lit).S.obj with
+              let command = match S.get_user_data_for_lit sat lit with
                 | SolverData.CommandElem command -> command
                 | _ -> assert false in
               Selected command.Feed.command_requires
@@ -375,7 +375,7 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
         if essential then (
           (*
           if pass = [] then (
-            let impl_str = SolverData.to_string (S.get_varinfo_for_lit sat user_var).S.obj in
+            let impl_str = SolverData.to_string (S.get_user_data_for_lit sat user_var) in
             log_warning "Discarding candidate '%s' because dep %s cannot be satisfied. %d/%d candidates pass the restrictions."
               impl_str (Qdom.show_with_loc dep.Feed.dep_qdom) (List.length pass) (List.length fail)
           );

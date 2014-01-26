@@ -136,9 +136,6 @@ module MakeSAT(User : USER) =
       | False -> "false"
       | Undecided -> "undecided"
 
-    let string_of_var info =
-      Printf.sprintf "%s=%s" (User.to_string info.obj) (string_of_value info.value)
-
     exception ConflictingClause of clause
     exception SolveDone of solution option
 
@@ -183,6 +180,9 @@ module MakeSAT(User : USER) =
 
     let get_varinfo_for_lit problem lit =
       DynArray.get problem.assigns (var_of_lit lit)
+
+    let get_user_data_for_lit problem lit =
+      (get_varinfo_for_lit problem lit).obj
 
     (* Why is [lit] assigned the way it is? For debugging. *)
     let explain_reason problem lit =
@@ -734,8 +734,7 @@ module MakeSAT(User : USER) =
       (learnt, !btlevel)
 
     let get_assignment solution var =
-      assert (var >= 0);
-      match (get_varinfo_for_lit solution var).value with
+      match lit_value solution var with
       | True -> true
       | False -> false
       | Undecided -> assert false

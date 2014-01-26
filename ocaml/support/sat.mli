@@ -16,16 +16,13 @@ module MakeSAT :
       (** A SAT problem consists of a set of variables and a set of clauses which must be satisfied. *)
       type sat_problem
 
-      type var
-      val add_variable : sat_problem -> User.t -> var
       type var_value = True | False | Undecided
 
-      (** A literal is either a variable (e.g. [A]) or a negated variable ([not A]).
-          A variable is equal to its corresponding positive literal (so [var] is really
-          a subset of [lit]). *)
-      type lit = var
+      (** A literal is either a variable (e.g. [A]) or a negated variable ([not A]). *)
+      type lit
       val neg : lit -> lit
-      val var_of_lit : lit -> var
+
+      val add_variable : sat_problem -> User.t -> lit
 
       (** A clause is a boolean expression made up of literals. e.g. [A and B and not(C)] *)
       type clause
@@ -35,8 +32,8 @@ module MakeSAT :
       (* Create a problem. *)
       val create : unit -> sat_problem
 
-      (** Get the assignment for this variable in the discovered solution. *)
-      type solution = var -> bool
+      (** Get the assignment for this literal in the discovered solution. *)
+      type solution = lit -> bool
 
       (** Indicate that the problem is unsolvable, before even starting. This is a convenience
           feature so that clients don't need a separate code path for problems they discover
@@ -75,21 +72,13 @@ module MakeSAT :
       (** {2 Debugging} *)
 
       type reason = Clause of clause | External of string
-      type var_info = {
-        mutable value : var_value;
-        mutable reason : reason option;
-        mutable level : int;
-        mutable undo : (lit -> unit) list;
-        obj : User.t;
-      }
 
       val string_of_clause : clause -> string
       val string_of_reason : reason -> string
       val string_of_value : var_value -> string
-      val string_of_var : var_info -> string
       val name_lit : sat_problem -> lit -> string
       val string_of_lits : sat_problem -> lit list -> string
       val lit_value : sat_problem -> lit -> var_value
-      val get_varinfo_for_lit : sat_problem -> lit -> var_info
+      val get_user_data_for_lit : sat_problem -> lit -> User.t
       val explain_reason : sat_problem -> lit -> string
     end
