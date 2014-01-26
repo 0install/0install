@@ -248,9 +248,9 @@ let examine_selection report (iface_uri, source) component =
       (* For each of our remaining unrejected impls, check whether a dependency prevented its selection. *)
       component#filter_impls (get_dependency_problem report)
 
-let reject_if_unselected sat _key component =
+let reject_if_unselected _key component =
   if component#impl = None then (
-    component#reject_all (`DiagnosticsFailure (S.explain_reason sat component#lit));
+    component#reject_all (`DiagnosticsFailure (S.explain_reason component#lit));
     component#note NoCandidates;
   )
 
@@ -300,7 +300,7 @@ let check_machine_groups report =
     SelMap.iter filter report
 
 let get_failure_report (result:Solver.result) : component SelMap.t =
-  let (sat, impl_provider, impl_cache, root_req) = result#get_details in
+  let (impl_provider, impl_cache, root_req) = result#get_details in
 
   let report =
     let get_selected map ((iface, source) as key, candidates) =
@@ -317,7 +317,7 @@ let get_failure_report (result:Solver.result) : component SelMap.t =
   examine_extra_restrictions report impl_provider#extra_restrictions;
   check_machine_groups report;
   SelMap.iter (examine_selection report) report;
-  SelMap.iter (reject_if_unselected sat) report;
+  SelMap.iter reject_if_unselected report;
 
   report
 

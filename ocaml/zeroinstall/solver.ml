@@ -76,7 +76,7 @@ let dummy_command = {
   Feed.command_requires = [];
 }
 
-class impl_candidates sat (clause : S.at_most_one_clause option) (vars : (S.lit * Feed.generic_implementation) list) =
+class impl_candidates (clause : S.at_most_one_clause option) (vars : (S.lit * Feed.generic_implementation) list) =
   object (_ : #candidates)
     method get_clause = clause
 
@@ -106,7 +106,7 @@ class impl_candidates sat (clause : S.at_most_one_clause option) (vars : (S.lit 
           match S.get_selected clause with
           | None -> None
           | Some lit ->
-              match S.get_user_data_for_lit sat lit with
+              match S.get_user_data_for_lit lit with
                 | SolverData.ImplElem impl -> Some (lit, impl)
                 | _ -> assert false
 
@@ -117,7 +117,7 @@ class impl_candidates sat (clause : S.at_most_one_clause option) (vars : (S.lit 
           match S.get_selected clause with
           | Some lit ->
               (* We've already chosen which <implementation> to use. Follow dependencies. *)
-              let impl = match S.get_user_data_for_lit sat lit with
+              let impl = match S.get_user_data_for_lit lit with
                 | SolverData.ImplElem impl -> impl
                 | _ -> assert false in
               Selected impl.Feed.props.Feed.requires
@@ -132,7 +132,7 @@ class impl_candidates sat (clause : S.at_most_one_clause option) (vars : (S.lit 
   end
 
 (** Holds all the commands with a given name within an interface. *)
-class command_candidates sat (clause : S.at_most_one_clause option) (vars : (S.lit * Feed.command) list) =
+class command_candidates (clause : S.at_most_one_clause option) (vars : (S.lit * Feed.command) list) =
   object (_ : #candidates)
     method get_clause = clause
 
@@ -146,7 +146,7 @@ class command_candidates sat (clause : S.at_most_one_clause option) (vars : (S.l
           match S.get_selected clause with
           | Some lit ->
               (* We've already chosen which <command> to use. Follow dependencies. *)
-              let command = match S.get_user_data_for_lit sat lit with
+              let command = match S.get_user_data_for_lit lit with
                 | SolverData.CommandElem command -> command
                 | _ -> assert false in
               Selected command.Feed.command_requires
@@ -201,7 +201,7 @@ class type result =
     method get_selections : Selections.t
     method impl_cache : ((General.iface_uri * bool), impl_candidates) cache
     method impl_provider : Impl_provider.impl_provider
-    method get_details : (S.sat_problem * Impl_provider.impl_provider *
+    method get_details : (Impl_provider.impl_provider *
                           (General.iface_uri * bool, impl_candidates) cache * search_key)
   end
 
@@ -401,7 +401,7 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
     let matching_impls = maybe_add_dummy @@ impls in
     let pairs = List.map (fun impl -> (S.add_variable sat (SolverData.ImplElem impl), impl)) matching_impls in
     let impl_clause = if List.length pairs > 0 then Some (S.at_most_one sat (List.map fst pairs)) else None in
-    let data = new impl_candidates sat impl_clause pairs in
+    let data = new impl_candidates impl_clause pairs in
     (data, fun () ->
       (* Conflict with our replacements *)
       let () =
@@ -454,7 +454,7 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
       (var, elem) in
     let vars = List.map make_provides_command commands in
     let command_clause = if List.length vars > 0 then Some (S.at_most_one sat @@ List.map fst vars) else None in
-    let data = new command_candidates sat command_clause vars in
+    let data = new command_candidates command_clause vars in
 
     let process_commands () =
       let depend_on_impl (command_var, command) (impl_var, _command) =
@@ -551,7 +551,7 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
 
         method get_details =
           if closest_match then
-            (sat, impl_provider, impl_cache, root_req)
+            (impl_provider, impl_cache, root_req)
           else
             failwith "Can't diagnostic details: solve didn't fail!"
       end

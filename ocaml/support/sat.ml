@@ -25,6 +25,24 @@ module type USER =
     val to_string : t -> string
   end
 
+module VarID :
+  sig
+    type t
+    type mint
+    val compare : t -> t -> int
+    val make_mint : unit -> mint
+    val issue : mint -> t
+  end = struct
+    type t = int
+    type mint = int ref
+    let compare (a:int) (b:int) = compare a b
+    let make_mint () = ref 0
+    let issue mint =
+      let i = !mint in
+      incr mint;
+      i
+  end
+
 module MakeSAT(User : USER) =
   struct
     type var_value = True | False | Undecided
@@ -34,58 +52,86 @@ module MakeSAT(User : USER) =
         print_endline ("sat: " ^ msg) in
       Printf.ksprintf do_print fmt
 
-    type lit = int
-    type var = int
-    type solution = var -> bool
+    type sign = Pos | Neg
 
-    class type clause =
-      object
+    type clause = <
         (* [lit] is now [True]. Add any new deductions.
            @return false if there is a conflict. *)
-        method propagate : lit -> bool
+        propagate : lit -> bool;
 
         (** Why are we causing a conflict?
             @return a list of literals which caused the problem by all being True. *)
-        method calc_reason : lit list
+        calc_reason : lit list;
 
         (** Which literals caused [lit] to have its current value?
             @return a list of literals which caused the problem by all being True. *)
-        method calc_reason_for : lit -> lit list
+        calc_reason_for : lit -> lit list;
 
         (** For debugging *)
-        method to_string : string
-      end
+        to_string : string;
+      >
 
     (** The reason why a literal is set. *)
-    type reason =
+    and reason =
       | Clause of clause        (* the clause that caused this literal to be true *)
       | External of string      (* set externally (input fact or decider choice) *)
 
     (** Using an array of VarInfo objects is less efficient than using multiple arrays, but
         easier for me to understand. *)
-    type var_info = {
+    and var = {
+      id : VarID.t;                                       (* A unique ID, used to test identity *)
       mutable value : var_value;                          (* True/False/Undecided *)
       mutable reason : reason option;                     (* The constraint that implied our value, if True or False *)
       mutable level: int;                                 (* The decision level at which we got a value (when not Undecided) *)
       mutable undo: (lit -> unit) list;                   (* Functions to call if we become unbound (by backtracking) *)
+      watch_queue : clause Queue.t;                       (* Clauses to notify when var becomes True *)
+      neg_watch_queue : clause Queue.t;                   (* Clauses to notify when var becomes False *)
       obj: User.t;                                        (* The object this corresponds to (for our caller and for debugging) *)
     }
 
-    let make_var obj = {
-        value = Undecided;
-        reason = None;
-        level = -1;
-        undo = [];
-        obj;
-      }
+    and lit = (sign * var)
+
+    let lit_equal (s1, v1) (s2, v2) =
+      s1 == s2 && v1 == v2
+
+    module VarSet = Set.Make(
+      struct
+        type t = var
+        let compare a b = VarID.compare a.id b.id
+      end
+    )
+
+    module LitSet = Set.Make(
+      struct
+        type t = lit
+        let compare (s1, v1) (s2, v2) =
+          match VarID.compare v1.id v2.id with
+          | 0 -> compare s1 s2
+          | x -> x
+      end
+    )
+
+    type solution = lit -> bool
+
+    let make_var id obj = {
+      id;
+      value = Undecided;
+      reason = None;
+      level = -1;
+      undo = [];
+      watch_queue = Queue.create ();
+      neg_watch_queue = Queue.create ();
+      obj;
+    }
 
     type sat_problem = {
+      id_maker : VarID.mint;
+
       (* Propagation *)
-      watches : clause Queue.t DynArray.t;  (* watches[2i,2i+1] = constraints to check when literal[i] becomes True/False *)
+      mutable vars : var list;
       propQ : lit Queue.t;	        (* propagation queue *)
 
       (* Assignments *)
-      assigns : var_info DynArray.t;	(* the current values of the variables *)
       mutable trail : lit list;         (* order of assignments, most recent first *)
       mutable trail_lim : int list;     (* decision levels (len(trail) at each decision) *)
 
@@ -98,30 +144,24 @@ module MakeSAT(User : USER) =
       | Clause clause -> clause#to_string
       | External msg -> msg
 
-    (* Variables are numbered from 0
-       Literals have the same number as the corresponding variable,
-       except that for negatives they are (-1-v):
+    let neg = function
+      | (Pos, var) -> (Neg, var)
+      | (Neg, var) -> (Pos, var)
 
-       Variable    Literal     not(Literal)
-       0	       0	   -1
-       1	       1	   -2
-     *)
-    let neg lit = -1 - lit
+    let var_of_lit (_, var) = var
 
-    let var_of_lit lit = if lit >= 0 then lit else neg lit
-
-    let watch_index lit =
-        if lit >= 0 then lit * 2
-        else neg lit * 2 + 1
+    let watch_queue = function
+      | (Pos, var) -> var.watch_queue
+      | (Neg, var) -> var.neg_watch_queue
 
     let remove_duplicates lits =
-      let seen = Hashtbl.create (List.length lits) in
+      let seen = ref LitSet.empty in
 
       let rec find_unique = function
         | [] -> []
-        | (x::xs) when Hashtbl.mem seen x -> find_unique xs
+        | (x::xs) when LitSet.mem x !seen -> find_unique xs
         | (x::xs) ->
-            Hashtbl.add seen x true;
+            seen := LitSet.add x !seen;
             x :: find_unique xs in
 
       find_unique lits
@@ -146,10 +186,10 @@ module MakeSAT(User : USER) =
     let create () =
       if debug then log_debug "--- new SAT problem ---";
       {
-        watches = DynArray.make 100;
+        id_maker = VarID.make_mint ();
+        vars = [];
         propQ = Queue.create ();
 
-        assigns = DynArray.make 100;
         trail = [];
         trail_lim = [];
 
@@ -158,41 +198,36 @@ module MakeSAT(User : USER) =
       }
 
     (* For nicer if debug then log_debug messages *)
-    let name_lit problem lit =
-      if lit >= 0 then
-        User.to_string (DynArray.get problem.assigns lit).obj
-      else
-        let info = DynArray.get problem.assigns (neg lit) in
-        Printf.sprintf "not(%s)" (User.to_string info.obj)
+    let name_lit (sign, var) =
+      let name = User.to_string var.obj in
+      match sign with
+      | Pos -> name
+      | Neg -> Printf.sprintf "not(%s)" name
 
-    let string_of_lits problem lits =
-      "[" ^ (String.concat ", " (List.map (name_lit problem) lits)) ^ "]"
+    let string_of_lits lits =
+      "[" ^ (String.concat ", " (List.map name_lit lits)) ^ "]"
 
-    let lit_value (problem:sat_problem) lit =
-      if lit >= 0 then (
-        (DynArray.get problem.assigns lit).value
-      ) else (
-        match (DynArray.get problem.assigns (neg lit)).value with
-        | Undecided -> Undecided
-        | True -> False
-        | False -> True
-      )
+    let lit_value (sign, var) =
+      match sign with
+      | Pos -> var.value
+      | Neg ->
+          match var.value with
+          | Undecided -> Undecided
+          | True -> False
+          | False -> True
 
-    let get_varinfo_for_lit problem lit =
-      DynArray.get problem.assigns (var_of_lit lit)
-
-    let get_user_data_for_lit problem lit =
-      (get_varinfo_for_lit problem lit).obj
+    let get_user_data_for_lit lit =
+      (var_of_lit lit).obj
 
     (* Why is [lit] assigned the way it is? For debugging. *)
-    let explain_reason problem lit =
+    let explain_reason lit =
       let show_lit_assignment l =
-        let info = get_varinfo_for_lit problem l in
+        let info = var_of_lit l in
         (User.to_string info.obj) ^ "=" ^ (string_of_value info.value) in
-      let value = lit_value problem lit in
+      let value = lit_value lit in
       if value = Undecided then "undecided!"
       else (
-        let info = get_varinfo_for_lit problem lit in
+        let info = var_of_lit lit in
         let reason =
           match info.reason with
           | None -> "no reason (BUG)"
@@ -206,28 +241,25 @@ module MakeSAT(User : USER) =
 
     let get_decision_level problem = List.length problem.trail_lim
 
-    let add_variable problem obj : var =
+    let add_variable problem obj : lit =
       (* if debug then log_debug "add_variable('%s')" obj; *)
-      let index = DynArray.length problem.assigns in
-
-      DynArray.add problem.watches (Queue.create ());          (* Add watch lists for X and not(X) *)
-      DynArray.add problem.watches (Queue.create ());
-
-      DynArray.add problem.assigns (make_var obj);
-      index
+      let i = VarID.issue problem.id_maker in
+      let var = make_var i obj in
+      problem.vars <- var :: problem.vars;
+      (Pos, var)
 
     (* [lit] is now [True].
        [reason] is the clause that is asserting this.
        @return [false] if this immediately causes a conflict. *)
     let enqueue problem lit reason =
-      if debug then log_debug "enqueue: %s (%s)" (name_lit problem lit) (string_of_reason reason);
-      let old_value = lit_value problem lit in
+      if debug then log_debug "enqueue: %s (%s)" (name_lit lit) (string_of_reason reason);
+      let old_value = lit_value lit in
       match old_value with
       | False -> false      (* Conflict *)
       | True -> true        (* Already set (shouldn't happen) *)
       | Undecided ->
-          let var_info = get_varinfo_for_lit problem lit in
-          var_info.value <- if lit < 0 then False else True;
+          let var_info = var_of_lit lit in
+          var_info.value <- if fst lit == Neg then False else True;
           var_info.level <- get_decision_level problem;
           var_info.reason <- Some reason;
 
@@ -241,8 +273,8 @@ module MakeSAT(User : USER) =
       match problem.trail with
       | [] -> assert false
       | lit :: rest ->
-          (* if debug then log_debug "(pop %s)" (name_lit problem lit); *)
-          let var_info = get_varinfo_for_lit problem lit in
+          (* if debug then log_debug "(pop %s)" (name_lit lit); *)
+          let var_info = var_of_lit lit in
           var_info.value <- Undecided;
           var_info.reason <- None;
           var_info.level <- -1;
@@ -274,11 +306,11 @@ module MakeSAT(User : USER) =
       try
         while not (Queue.is_empty problem.propQ) do
           let lit = Queue.take problem.propQ in
-          let wi = watch_index lit in
-          let old_watches = DynArray.get problem.watches wi in
-          DynArray.set problem.watches wi (Queue.create ());
+          let old_watches = Queue.create () in
+          let watches = watch_queue lit in
+          Queue.transfer watches old_watches;
 
-          (* if debug then log_debug "%s -> True : watches: %d" (name_lit problem lit) (Queue.length old_watches); *)
+          (* if debug then log_debug "%s -> True : watches: %d" (name_lit lit) (Queue.length old_watches); *)
 
           (* Notifiy all watchers *)
           while not (Queue.is_empty old_watches) do
@@ -287,7 +319,7 @@ module MakeSAT(User : USER) =
               (* Conflict *)
 
               (* Re-add remaining watches *)
-              Queue.transfer old_watches (DynArray.get problem.watches wi);
+              Queue.transfer old_watches watches;
 
               (* No point processing the rest of the queue as
                  we'll have to backtrack now. *)
@@ -304,12 +336,12 @@ module MakeSAT(User : USER) =
       problem.toplevel_conflict <- true
 
     (* Call [clause#propagate lit] when lit becomes True *)
-    let watch_lit problem lit clause =
-      (* if debug then log_debug "%s is watching for %s to become True" clause#to_string (name_lit problem lit); *)
-      Queue.add clause (DynArray.get problem.watches (watch_index lit))
+    let watch_lit lit clause =
+      (* if debug then log_debug "%s is watching for %s to become True" clause#to_string (name_lit lit); *)
+      Queue.add clause (watch_queue lit)
 
-    class union_clause problem lits =
-      object (self : #clause)
+    let union_clause problem lits =
+      object (self : clause)
         (* Try to infer new facts.
            We can do this only when all of our literals are False except one,
            which is undecided. That is,
@@ -332,29 +364,29 @@ module MakeSAT(User : USER) =
              - value[lits[0]] = Undecided | True
              - value[lits[1]] = False
              If it's the other way around, just swap them before we start. *)
-          if lits.(0) = neg lit then swap lits 0 1;
+          if lit_equal lits.(0) (neg lit) then swap lits 0 1;
 
-          if lit_value problem lits.(0) = True then (
+          if lit_value lits.(0) = True then (
             (* We're already satisfied. Do nothing. *)
-            watch_lit problem lit (self :> clause);
+            watch_lit lit (self :> clause);
             true
           ) else (
-            assert (lit_value problem lits.(1) = False);
+            assert (lit_value lits.(1) = False);
 
             (* Find a new literal to watch now that lits[1] is resolved, *)
             (* swap it with lits[1], and start watching it. *)
             let rec find_not_false i =
               if i = Array.length lits then (
                 (* Only lits[0], is now undefined, so set it to True. *)
-                watch_lit problem lit (self :> clause);
+                watch_lit lit (self :> clause);
                 enqueue problem lits.(0) (Clause (self :> clause))
               ) else (
-                match lit_value problem lits.(i) with
+                match lit_value lits.(i) with
                 | Undecided | True ->
                     (* If it's True then we've already done our job,
                        so this means we don't get notified unless we backtrack, which is fine. *)
                     swap lits 1 i;
-                    watch_lit problem (neg lits.(1)) (self :> clause);
+                    watch_lit (neg lits.(1)) (self :> clause);
                     true
                 | False -> find_not_false (i + 1)
               ) in
@@ -368,19 +400,19 @@ module MakeSAT(User : USER) =
 
         (** Which literals caused [lit] to have its current value? *)
         method calc_reason_for lit =
-          assert (lit = lits.(0));
+          assert (lit_equal lit lits.(0));
           (* The cause is everything except lit. *)
           let rec get_cause i =
             if i = Array.length lits then []
             else (
               let l = lits.(i) in
-              if l = lit then get_cause (i + 1)
+              if lit_equal l lit then get_cause (i + 1)
               else neg l :: get_cause (i + 1)
             ) in
           get_cause 0
 
         method to_string =
-          Printf.sprintf "<some: %s>" (String.concat ", " (Array.to_list (Array.map (name_lit problem) lits)))
+          Printf.sprintf "<some: %s>" (String.concat ", " (Array.to_list (Array.map name_lit lits)))
       end
 
     exception Conflict
@@ -391,16 +423,15 @@ module MakeSAT(User : USER) =
       (* The single literal from our set that is True.
          We store this explicitly because the decider needs to know quickly. *)
       let current = ref None in
-      let lit_val = lit_value problem in
-      object (self : #clause)
+      object (self)
         method propagate lit =
           (* Re-add ourselves to the watch list.
             (we we won't get any more notifications unless we backtrack,
             in which case we'd need to get back on the list anyway) *)
-          watch_lit problem lit (self :> clause);
+          watch_lit lit (self :> clause);
 
           (* value[lit] has just become true *)
-          assert (lit_val lit = True);
+          assert (lit_value lit = True);
 
           (* if debug then log_debug("%s: noticed %s has become True" % (self, self.solver.name_lit(lit))) *)
 
@@ -416,26 +447,28 @@ module MakeSAT(User : USER) =
 
           (* If we later backtrack, unset current *)
           let undo lit =
-            if debug then log_debug "(backtracking: no longer selected %s)" (name_lit problem lit);
-            assert (Some lit = !current);
+            if debug then log_debug "(backtracking: no longer selected %s)" (name_lit lit);
+            begin match !current with
+            | Some l -> assert (lit_equal lit l)
+            | None -> assert false end;
             current := None in
-          let var_info = get_varinfo_for_lit problem lit in
+          let var_info = var_of_lit lit in
           var_info.undo <- undo :: var_info.undo;
 
           try
             (* We set all other literals to False. *)
             ListLabels.iter lits ~f:(fun l ->
-              match lit_val l with
-              | True when l <> lit ->
+              match lit_value l with
+              | True when not (lit_equal l lit) ->
                   (* Due to queuing, we might get called with current = None
                      and two versions already selected. *)
-                  if debug then log_debug "CONFLICT: already selected %s" (name_lit problem l);
+                  if debug then log_debug "CONFLICT: already selected %s" (name_lit l);
                   raise Conflict
               | Undecided ->
                 (* Since one of our lits is already true, all unknown ones
                    can be set to False. *)
                 if not (enqueue problem (neg l) (Clause (self :> clause))) then (
-                  if debug then log_debug "CONFLICT: enqueue failed for %s" (name_lit problem (neg l));
+                  if debug then log_debug "CONFLICT: enqueue failed for %s" (name_lit (neg l));
                   raise Conflict    (* Can't happen, since we already checked we're Undecided *)
                 )
               | _ -> ()
@@ -448,7 +481,7 @@ module MakeSAT(User : USER) =
           (* Find two True literals *)
           let rec find_two found = function
             | [] -> assert false      (* Don't know why! *)
-            | (x::xs) when lit_val x <> True -> find_two found xs
+            | (x::xs) when lit_value x <> True -> find_two found xs
             | (x::xs) ->
                 match found with
                 | None -> find_two (Some x) xs
@@ -459,18 +492,18 @@ module MakeSAT(User : USER) =
         (** Which literals caused [lit] to have its current value? *)
         method calc_reason_for lit =
           (* Find the True literal. Any true literal other than [lit] would do. *)
-          [List.find (fun l -> l <> lit && lit_val l = True) lits]
+          [List.find (fun l -> not (lit_equal l lit) && lit_value l = True) lits]
 
         method best_undecided =
-          (* if debug then log_debug "best_undecided: %s" (string_of_lits problem lits); *)
-          try Some (List.find (fun l -> lit_val l = Undecided) lits)
+          (* if debug then log_debug "best_undecided: %s" (string_of_lits lits); *)
+          try Some (List.find (fun l -> lit_value l = Undecided) lits)
           with Not_found -> None
 
         method get_selected =
           !current
 
         method to_string =
-          Printf.sprintf "<at most one: %s>" (string_of_lits problem lits)
+          Printf.sprintf "<at most one: %s>" (string_of_lits lits)
       end
 
     let get_best_undecided clause = clause#best_undecided
@@ -490,7 +523,7 @@ module MakeSAT(User : USER) =
           AddedFact (enqueue problem lit reason)
       | lits ->
           let lits = Array.of_list lits in
-          let clause = new union_clause problem lits in
+          let clause = union_clause problem lits in
 
           if learnt then (
             (* lits[0] is Undecided because we just backtracked.
@@ -499,7 +532,7 @@ module MakeSAT(User : USER) =
             let best_i = ref 1 in
             for i = 0 to (Array.length lits) - 1 do
               let lit = lits.(i) in
-              let level = (get_varinfo_for_lit problem lit).level in
+              let level = (var_of_lit lit).level in
               if level > !best_level then (
                 best_level := level;
                 best_i := i
@@ -510,7 +543,7 @@ module MakeSAT(User : USER) =
 
           (* Watch the first two literals in the clause (both must be
              undefined at this point). *)
-          let watch i = watch_lit problem (neg lits.(i)) clause in
+          let watch i = watch_lit (neg lits.(i)) clause in
           watch 0;
           watch 1;
 
@@ -521,21 +554,21 @@ module MakeSAT(User : USER) =
       if List.length lits = 0 then (
         problem.toplevel_conflict <- true;
       ) else (
-        (* if debug then log_debug "at_least_one(%s)" (string_of_lits problem lits); *)
+        (* if debug then log_debug "at_least_one(%s)" (string_of_lits lits); *)
 
-        if List.exists (fun l -> (lit_value problem l) = True) lits then (
+        if List.exists (fun l -> (lit_value l) = True) lits then (
           (* Trivially true already if any literal is True. *)
           ()
         ) else (
-          let seen = Hashtbl.create (List.length lits) in
+          let seen = ref LitSet.empty in
 
           let rec simplify unique = function
             | [] -> Some unique
-            | (x::_) when Hashtbl.mem seen (neg x) -> None                (* X or not(X) is always True *)
-            | (x::xs) when Hashtbl.mem seen x -> simplify unique xs       (* Skip duplicates *)
-            | (x::xs) when lit_value problem x = False -> simplify unique xs (* Skip values known to be False *)
+            | (x::_) when LitSet.mem (neg x) !seen -> None                (* X or not(X) is always True *)
+            | (x::xs) when LitSet.mem x !seen -> simplify unique xs       (* Skip duplicates *)
+            | (x::xs) when lit_value x = False -> simplify unique xs (* Skip values known to be False *)
             | (x::xs) ->
-                Hashtbl.add seen x true;
+                seen := LitSet.add x !seen;
                 simplify (x :: unique) xs in
 
           (* At this point, [unique] contains only [Undefined] literals. *)
@@ -554,7 +587,7 @@ module MakeSAT(User : USER) =
     let at_most_one problem lits =
       assert (List.length lits > 0);
 
-      (* if debug then log_debug "at_most_one(%s)" (string_of_lits problem lits); *)
+      (* if debug then log_debug "at_most_one(%s)" (string_of_lits lits); *)
 
       (* If we have zero or one literals then we're trivially true
          and not really needed for the solve. However, Zero Install
@@ -570,11 +603,11 @@ module MakeSAT(User : USER) =
       (* Ignore any literals already known to be False.
          If any are True then they're enqueued and we'll process them
          soon. *)
-      let lits = List.filter (fun l -> lit_value problem l <> False) lits in
+      let lits = List.filter (fun l -> lit_value l <> False) lits in
 
       let clause = new at_most_one_clause problem lits in
 
-      List.iter (fun l -> watch_lit problem l (clause :> clause)) lits;
+      List.iter (fun l -> watch_lit l (clause :> clause)) lits;
 
       clause
 
@@ -623,7 +656,7 @@ module MakeSAT(User : USER) =
       *)
       let learnt = ref [] in	        (* The general rule we're learning *)
       let btlevel = ref 0 in		(* The deepest decision in learnt *)
-      let seen = Hashtbl.create 10 in	(* The variables involved in the conflict *)
+      let seen = ref VarSet.empty in	(* The variables involved in the conflict *)
 
       let counter = ref 0 in                (* The number of pending variables to check *)
 
@@ -631,7 +664,7 @@ module MakeSAT(User : USER) =
          causes back, adding anything decided before this level to [learnt]. When
          we get bored, return the literal we were processing at the time. *)
       let rec follow_causes p_reason outcome =
-        if debug then log_debug "because %s => %s" (String.concat " and " (List.map (name_lit problem) p_reason)) outcome;
+        if debug then log_debug "because %s => %s" (String.concat " and " (List.map name_lit p_reason)) outcome;
 
         (* p_reason is in the form (A and B and ...) *)
 
@@ -643,23 +676,23 @@ module MakeSAT(User : USER) =
 
         ListLabels.iter p_reason ~f:(fun lit ->
           let var = var_of_lit lit in
-          if not (Hashtbl.mem seen var) then (
-            Hashtbl.add seen var true;
-            let var_info = get_varinfo_for_lit problem lit in
+          if not (VarSet.mem var !seen) then (
+            seen := VarSet.add var !seen;
+            let var_info = var_of_lit lit in
             if var_info.level = get_decision_level problem then (
               (* We deduced this var since the last decision.
                  It must be in [trail], so we'll get to it
                  soon. Remember not to stop until we've processed it. *)
-              (* if debug then log_debug "(will look at %s soon)" (name_lit problem lit); *)
+              (* if debug then log_debug "(will look at %s soon)" (name_lit lit); *)
               counter := !counter + 1
             ) else if var_info.level > 0 then (
               (* We won't expand lit, just remember it.
                  (we could expand it if it's not a decision, but
                  apparently not doing so is useful) *)
-              (* if debug then log_debug "Can't follow %s past a decision point" (name_lit problem lit); *)
+              (* if debug then log_debug "Can't follow %s past a decision point" (name_lit lit); *)
               learnt := neg lit :: !learnt;
               btlevel := max !btlevel (var_info.level)
-            ) (* else if debug then log_debug "Input fact: %s" (name_lit problem lit) *)
+            ) (* else if debug then log_debug "Input fact: %s" (name_lit lit) *)
           ) (* else we already considered the cause of this assignment *)
         );
 
@@ -684,11 +717,11 @@ module MakeSAT(User : USER) =
         let rec next_interesting () =
           let lit = List.hd problem.trail in
           let var = var_of_lit lit in
-          let var_info = get_varinfo_for_lit problem lit in
+          let var_info = var_of_lit lit in
           let reason = var_info.reason in
           undo_one problem;
-          if not (Hashtbl.mem seen var) then (
-            (* if debug then log_debug "(irrelevant: %s)" (name_lit problem lit); *)
+          if not (VarSet.mem var !seen) then (
+            (* if debug then log_debug "(irrelevant: %s)" (name_lit lit); *)
             next_interesting ();
           ) else (
             (reason, lit)
@@ -706,7 +739,7 @@ module MakeSAT(User : USER) =
           | None -> failwith "No reason!"         (* Can't happen *)
           ) in
           let p_reason = cause#calc_reason_for p in
-          let outcome = name_lit problem p in
+          let outcome = name_lit p in
           if debug then log_debug "why did %s lead to %s?" cause#to_string outcome;
           follow_causes p_reason outcome
         ) else (
@@ -729,12 +762,12 @@ module MakeSAT(User : USER) =
          directly to the learnt clause. *)
       let learnt = neg p :: !learnt in
 
-      if debug then log_debug "learnt: %s" (String.concat " or " (List.map (name_lit problem) learnt));
+      if debug then log_debug "learnt: %s" (String.concat " or " (List.map name_lit learnt));
 
       (learnt, !btlevel)
 
-    let get_assignment solution var =
-      match lit_value solution var with
+    let get_assignment var =
+      match lit_value var with
       | True -> true
       | False -> false
       | Undecided -> assert false
@@ -754,35 +787,33 @@ module MakeSAT(User : USER) =
                 (* No conflicts *)
                 (* if debug then log_debug "new state: %s" problem.assigns *)
                 let undecided =
-                  try DynArray.index_of (fun info -> info.value = Undecided) problem.assigns
+                  try List.find (fun info -> info.value = Undecided) problem.vars
                   with Not_found ->
                     (* Everything is assigned without conflicts *)
                     (* if debug then log_debug "SUCCESS!"; *)
-                    raise (SolveDone (Some (get_assignment problem))) in
+                    raise (SolveDone (Some get_assignment)) in
                 (* Pick a variable and try assigning it one way.
                    If it leads to a conflict, we'll backtrack and
                    try it the other way. *)
                 let lit =
                   if problem.set_to_false then (
-                    (* Printf.printf "%s -> false\n" (name_lit problem undecided); *)
-                    neg undecided
+                    (* Printf.printf "%s -> false\n" (name_lit undecided); *)
+                    (Neg, undecided)
                   ) else (
                     match decide () with
                     | Some lit -> lit
                     | None ->
                         (* Switch to set_to_false mode (until we backtrack). *)
-                        let lit = neg undecided in
                         problem.set_to_false <- true;
-                        let var_info = get_varinfo_for_lit problem lit in
                         let undo _ = problem.set_to_false <- false in
-                        var_info.undo <- undo :: var_info.undo;
-                        (* Printf.printf "%s -> false\n" (name_lit problem undecided); *)
-                        lit
+                        undecided.undo <- undo :: undecided.undo;
+                        (* Printf.printf "%s -> false\n" (name_lit undecided); *)
+                        (Neg, undecided)
                   ) in
-                if debug then log_debug "TRYING: %s" (name_lit problem lit);
-                let old = lit_value problem lit in
+                if debug then log_debug "TRYING: %s" (name_lit lit);
+                let old = lit_value lit in
                 if (old <> Undecided) then
-                  failwith ("Decider chose already-decided variable: " ^ (name_lit problem lit) ^ " was " ^ (string_of_value old));
+                  failwith ("Decider chose already-decided variable: " ^ (name_lit lit) ^ " was " ^ (string_of_value old));
                 problem.trail_lim <- (List.length problem.trail) :: problem.trail_lim;
                 let r = enqueue problem lit (External "considering") in
                 assert r

@@ -76,9 +76,9 @@ module MakeSAT :
       val string_of_clause : clause -> string
       val string_of_reason : reason -> string
       val string_of_value : var_value -> string
-      val name_lit : sat_problem -> lit -> string
-      val string_of_lits : sat_problem -> lit list -> string
-      val lit_value : sat_problem -> lit -> var_value
-      val get_user_data_for_lit : sat_problem -> lit -> User.t
-      val explain_reason : sat_problem -> lit -> string
+      val name_lit : lit -> string
+      val string_of_lits : lit list -> string
+      val lit_value : lit -> var_value
+      val get_user_data_for_lit : lit -> User.t
+      val explain_reason : lit -> string
     end
