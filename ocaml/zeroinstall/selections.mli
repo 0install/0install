@@ -48,7 +48,9 @@ val equal : t -> t -> bool
  * This is slow; use [make_selection_map] for multiple lookups. *)
 val find : General.iface_uri -> t -> selection option
 
-(** Note: this returns the actual XML; don't modify it *)
+(** Convert a selections document to XML in the latest format.
+ * Note: this may be the exact XML passed to [create] if it was
+ * already in the right format. *)
 val as_xml : t -> Support.Qdom.element
 
 
