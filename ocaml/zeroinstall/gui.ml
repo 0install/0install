@@ -384,6 +384,7 @@ let try_get_gui config ~use_gui =
           | None -> log_info "No GUI plugins found"
           | Some plugin_path ->
               try
+                Dynlink.allow_unsafe_modules true;
                 Dynlink.loadfile plugin_path;
               with
               | Dynlink.Error ex ->
