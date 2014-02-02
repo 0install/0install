@@ -92,6 +92,9 @@ let () =
     else name in
   let byte_targets = List.map to_byte !native_targets in
 
+  (* When building byte-code, we need -custom to include the C code *)
+  flag ["link"; "ocaml"; "byte"] (A"-custom");
+
   dispatch (function
   | After_rules ->
     rule "Build everything (native)"

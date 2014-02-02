@@ -342,7 +342,8 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
       (*| problem -> log_warning "rejecting %s %s: %s" iface (Versions.format_version impl.Feed.parsed_version) (describe_problem impl problem); false *)
       in
 
-      {candidates with impls = List.filter do_filter (candidates.impls); rejects = !rejects}
+      let impls = List.filter do_filter candidates.impls in
+      {candidates with impls; rejects = !rejects}
 
     method set_watch_iface iface = watch_iface := Some iface
     method get_watched_compare = !compare_for_watched_iface
