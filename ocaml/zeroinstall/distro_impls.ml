@@ -393,7 +393,7 @@ module RPM = struct
       val id_prefix = "package:rpm"
       val cache =
         object
-          inherit Cache.cache config "rpm-status.cache" rpm_db_packages 2 Cache.Old
+          inherit Cache.cache config "rpm-status2.cache" rpm_db_packages 1 Cache.New
           method! private regenerate_cache ch =
             ["rpm"; "-qa"; "--qf=%{NAME}\t%{VERSION}-%{RELEASE}\t%{ARCH}\n"]
               |> U.check_output config.system (fun from_rpm  ->
@@ -405,7 +405,7 @@ module RPM = struct
                     | [package; version; rpmarch] ->
                         let zi_arch = Support.System.canonical_machine (trim rpmarch) in
                         try_cleanup_distro_version_warn version package |> if_some (fun clean_version ->
-                          Printf.fprintf ch "%s\t%s\t%s\n" package (Versions.format_version clean_version) zi_arch
+                          Printf.fprintf ch "%s=%s\t%s\n" package (Versions.format_version clean_version) zi_arch
                         )
                     | _ -> log_warning "Invalid output from 'rpm': %s" line
                   done
