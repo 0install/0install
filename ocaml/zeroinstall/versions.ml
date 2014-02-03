@@ -119,6 +119,11 @@ let parse_expr s =
     fun v -> v == dummy || List.exists (fun t -> t v) tests
   with Safe_exception _ as ex -> reraise_with_context ex "... parsing version expression '%s'" s
 
+(** Any distribution-provided version number is capped to this.
+ * Prevents them wrapping around (very large numbers are usually hashes anyway).
+ * We use a special-looking decimal number to make it more obvious what has happened. *)
+let version_limit = 9999999999999999L
+
 let try_cleanup_distro_version version =
   let result' = ref [] in
   let stream = Stream.of_string version in
@@ -134,6 +139,7 @@ let try_cleanup_distro_version version =
   let rec accept_more_digits v =
     match accept_digit () with
     | None -> v
+    | Some _ when v >= version_limit -> accept_more_digits version_limit
     | Some d -> Int64.add (Int64.mul v 10L) d |> accept_more_digits in
 
   let rec skip_lower () =

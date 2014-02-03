@@ -164,6 +164,7 @@ let suite = "versions">::: [
     check "93-28.2.2" "93u-28.2.2";
     check "7-pre3-2.1.1-3" "7~u3-2.1.1-3";	(* Debian snapshot *)
     check "7-pre3-2.1.1-pre1-1-2" "7~u3-2.1.1~pre1-1ubuntu2";
+    check "0.6.0.9999999999999999" "0.6.0.1206569328141510525648634803928199668821045408958";
 
     assert_equal None (Versions.try_cleanup_distro_version "cvs");
   );
