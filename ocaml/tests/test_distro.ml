@@ -175,7 +175,9 @@ let suite = "distro">::: [
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let system = (fake_system :> system) in
 
-    let python_path = Support.Utils.find_in_path_ex Fake_system.real_system "python" in
+    let python_path =
+      Support.Utils.find_in_path Fake_system.real_system "python"
+      |? lazy (skip_if true "Python not installed"; assert false) in
     fake_system#add_file python_path python_path;
 
     fake_system#set_spawn_handler (Some Fake_system.real_spawn_handler);
@@ -203,7 +205,9 @@ let suite = "distro">::: [
     let feed = F.parse system root None in
 
     let impls = distro#get_impls_for_feed feed in
-    let host_gobject = find_host impls in
+    let host_gobject =
+      try impls |> StringMap.bindings |> List.find is_host |> snd
+      with Not_found -> skip_if true "No host python-gobject found"; assert false in
     let () =
       match host_gobject.props.requires with
       | [ {dep_importance = Dep_restricts; dep_iface = "http://repo.roscidus.com/python/python"; dep_restrictions = [_]; _ } ] -> ()
