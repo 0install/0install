@@ -39,6 +39,8 @@ let suite = "stores">::: [
   );
 
   "check-system-store">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    skip_if (Sys.os_type = "Unix" && Unix.geteuid () = 0) "Doesn't work when unit-tests are run as root";
+
     let home = U.getenv_ex fake_system "HOME" in
     let system_store = home +/ "system_store" in
     config.stores <- [List.hd config.stores; system_store];
