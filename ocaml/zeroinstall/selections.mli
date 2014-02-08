@@ -20,7 +20,7 @@ type impl_source =
 
 (** {2 Selections documents} *)
 
-(** Note: takes ownership of the XML; don't use it after calling this *)
+(** Load a selections document. *)
 val create : Support.Qdom.element -> t
 
 (** Create a [selections] value from a file (parse + create). *)
