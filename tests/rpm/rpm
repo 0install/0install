@@ -3,4 +3,5 @@ cat << EOF
 ksh	93u-28.2.2	i586
 yast2-update	2.15.23-21	i586
 yast2-mail	2.15.23-2	noarch
+poor=name	2	noarch
 EOF
