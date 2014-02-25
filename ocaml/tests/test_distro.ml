@@ -262,6 +262,11 @@ let suite = "distro">::: [
     let impls = to_impl_list @@ rpm#get_impls_for_feed feed in
     assert_equal 1 (List.length impls);
 
+    (* Check escaping works *)
+    let feed = get_feed "<package-implementation package='poor=name'/>" in
+    let impls = to_impl_list @@ rpm#get_impls_for_feed feed in
+    assert_equal 1 (List.length impls);
+
     Unix.putenv "PATH" old_path;
   );
 

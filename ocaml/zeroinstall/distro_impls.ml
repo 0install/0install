@@ -50,6 +50,12 @@ module Cache =
 
     let re_colon_space = Str.regexp_string ": "
 
+    (* Paranoid escaping in case of packages with '=' in the name.
+     * This is just to stop them corrupting the cache. *)
+    let escape_key k =
+      if String.contains k '=' then Str.global_replace (Str.regexp "=") "__equals__" k
+      else k
+
     (* Manage the cache named [cache_leaf]. Whenever [source] changes, everything in the cache is assumed to be invalid.
        Note: [format_version] doesn't make much sense. If the format changes, just use a different [cache_leaf],
        otherwise you'll be fighting with other versions of 0install.
@@ -108,11 +114,10 @@ module Cache =
               log_warning ~ex "Failed to load cache file '%s' (maybe corrupted; try deleting it)" cache_path
           )
 
-        (** Add some entries to the cache.
-         * Warning: adding the empty list has no effect. In particular, future calls to [get] will still call [if_missing].
-         * So if you want to record the fact that a package is not installed, you see need to add an entry for it (e.g. [["-"]]). *)
+        (** Add some entries to the cache. *)
         method private put key values =
           try
+            let key = escape_key key in
             Hashtbl.replace data.contents key values;
             cache_path |> config.system#with_open_out [Open_append; Open_creat] ~mode:0o644 (fun ch ->
               if values = [] then (
@@ -162,6 +167,7 @@ module Cache =
         (** Look up an item in the cache.
          * @param if_missing called if given and no entries are found *)
         method get ?if_missing (key:package_name) : (entry list * quick_test option) =
+          let key = escape_key key in
           self#ensure_valid;
           let entries =
             try Hashtbl.find data.contents key
@@ -405,7 +411,7 @@ module RPM = struct
                     | [package; version; rpmarch] ->
                         let zi_arch = Support.System.canonical_machine (trim rpmarch) in
                         try_cleanup_distro_version_warn version package |> if_some (fun clean_version ->
-                          Printf.fprintf ch "%s=%s\t%s\n" package (Versions.format_version clean_version) zi_arch
+                          Printf.fprintf ch "%s=%s\t%s\n" (Cache.escape_key package) (Versions.format_version clean_version) zi_arch
                         )
                     | _ -> log_warning "Invalid output from 'rpm': %s" line
                   done
