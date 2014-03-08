@@ -6,6 +6,7 @@
 
 open Zeroinstall.General
 open Support.Common
+open Gtk_common
 
 module F = Zeroinstall.Feed
 module U = Support.Utils
@@ -111,10 +112,10 @@ let show_verification_box config ~parent paths =
     report_text#buffer#insert msg in
 
   let cancelled = ref false in
-  box#connect#response ~callback:(fun _ ->
+  box#connect#response ==> (fun _ ->
     cancelled := true;
     box#destroy ()
-  ) |> ignore;
+  );
 
   let n_items = List.length paths in
   let n = ref 0 in
@@ -166,19 +167,19 @@ let confirm_deletion ~parent n_items =
     ~parent
     ~title:"Confirm"
     () in
-  GMisc.label ~packing:box#vbox#pack ~xpad:20 ~ypad:20 ~text:message () |> ignore;
+  GMisc.label ~packing:box#vbox#pack ~xpad:20 ~ypad:20 ~text:message () |> ignore_widget;
   box#add_button_stock `CANCEL `CANCEL;
   box#add_button_stock `DELETE `DELETE;
   let result, set_result = Lwt.wait () in
   box#set_default_response `DELETE;
-  box#connect#response ~callback:(fun response ->
+  box#connect#response ==> (fun response ->
     box#destroy ();
     Lwt.wakeup set_result (
       match response with
       | `DELETE -> `delete
       | `CANCEL | `DELETE_EVENT -> `cancel
     )
-  ) |> ignore;
+  );
   box#show ();
   result
 
@@ -221,9 +222,9 @@ let open_cache_explorer config =
   owner_vc#set_sort_column_id owner_col.GTree.index;
   size_vc#set_sort_column_id size_col.GTree.index;
 
-  view#append_column owner_vc |> ignore;
-  view#append_column version_vc |> ignore;
-  view#append_column size_vc |> ignore;
+  append_column view owner_vc;
+  append_column view version_vc;
+  append_column view size_vc;
 
   let selection = view#selection in
 
@@ -241,9 +242,9 @@ let open_cache_explorer config =
     ~homogeneous:false
     () in
 
-  GMisc.label ~packing:(table#attach ~top:0 ~left:0) ~text:"Feed:" ~xalign:1.0 () |> ignore;
-  GMisc.label ~packing:(table#attach ~top:1 ~left:0) ~text:"Path:" ~xalign:1.0 () |> ignore;
-  GMisc.label ~packing:(table#attach ~top:2 ~left:0) ~text:"Details:" ~xalign:1.0 () |> ignore;
+  GMisc.label ~packing:(table#attach ~top:0 ~left:0) ~text:"Feed:" ~xalign:1.0 () |> ignore_widget;
+  GMisc.label ~packing:(table#attach ~top:1 ~left:0) ~text:"Path:" ~xalign:1.0 () |> ignore_widget;
+  GMisc.label ~packing:(table#attach ~top:2 ~left:0) ~text:"Details:" ~xalign:1.0 () |> ignore_widget;
 
   let details_iface = GMisc.label ~packing:(table#attach ~top:0 ~left:1 ~expand:`X) ~xalign:0.0 ~selectable:true () in
   let details_path = GMisc.label ~packing:(table#attach ~top:1 ~left:1 ~expand:`X) ~xalign:0.0 ~selectable:true () in
@@ -253,7 +254,7 @@ let open_cache_explorer config =
   details_extra#set_ellipsize `END;
 
   let delete = GButton.button ~packing:(table#attach ~top:0 ~left:2) ~stock:`DELETE () in
-  delete#connect#clicked ~callback:(fun () ->
+  delete#connect#clicked ==> (fun () ->
     let iters = selection#get_selected_rows |> List.map (fun sorted_path ->
       sorted_model#get_iter sorted_path |> Unsorted_list.convert_iter_to_child_iter sorted_model
     ) in
@@ -276,26 +277,26 @@ let open_cache_explorer config =
         dialog#misc#set_sensitive true;
         Lwt.return ()
     )
-  ) |> ignore;
+  );
 
   let verify = Gtk_utils.mixed_button ~packing:(table#attach ~top:1 ~left:2) ~stock:`FIND ~label:"Verify" () in
-  verify#connect#clicked ~callback:(fun () ->
+  verify#connect#clicked ==> (fun () ->
     let dirs = selection#get_selected_rows |> List.map (fun path ->
       let row = sorted_model#get_iter path in
       sorted_model#get ~row ~column:impl_dir_col
     ) in
     show_verification_box config ~parent:dialog dirs
-  ) |> ignore;
+  );
 
   let open_button = GButton.button ~packing:(table#attach ~top:2 ~left:2) ~stock:`OPEN () in
-  open_button#connect#clicked ~callback:(fun () ->
+  open_button#connect#clicked ==> (fun () ->
     match selection#get_selected_rows with
     | [path] ->
         let row = sorted_model#get_iter path in
         let dir = sorted_model#get ~row ~column:impl_dir_col in
         U.xdg_open_dir ~exec:false config.system dir
     | _ -> log_warning "Invalid selection!"
-  ) |> ignore;
+  );
 
   details_frame#misc#set_sensitive false;
 
@@ -307,10 +308,10 @@ let open_cache_explorer config =
 
   dialog#add_button_stock `CLOSE `CLOSE;
 
-  dialog#connect#response ~callback:(function
+  dialog#connect#response ==> (function
     | `DELETE_EVENT | `CLOSE -> dialog#destroy (); Lwt.wakeup set_finished ()
     | `HELP -> cache_help#display
-  ) |> ignore;
+  );
   dialog#show ();
 
   (* Make sure the GUI appears before we start the (slow) scan *)
@@ -386,7 +387,7 @@ let open_cache_explorer config =
 
   (* Update the details panel when the selection changes *)
   selection#set_mode `MULTIPLE;
-  selection#connect#changed ~callback:(fun () ->
+  selection#connect#changed ==> (fun () ->
     let interface, path, extra, sensitive, single =
       match selection#get_selected_rows with
       | [] -> ("", "", [], false, false)
@@ -414,7 +415,7 @@ let open_cache_explorer config =
     details_extra#set_text (String.concat ", " extra);
     details_frame#misc#set_sensitive sensitive;
     open_button#misc#set_sensitive single;
-  ) |> ignore;
+  );
 
 
   dialog#misc#set_sensitive true;

@@ -5,6 +5,7 @@
 (** Some helper functions for GTK. *)
 
 open Support.Common
+open Gtk_common
 
 module U = Support.Utils
 
@@ -12,8 +13,8 @@ module U = Support.Utils
 let stock_label ~packing ?(use_mnemonic=false) ~stock ~label () =
   let align = GBin.alignment ~packing ~xalign:0.5 ~xscale:0.0 () in
   let hbox = GPack.hbox ~packing:align#add ~spacing:2 ()  in
-  GMisc.image ~packing:hbox#pack ~stock ~icon_size:`BUTTON () |> ignore;
-  GMisc.label ~packing:hbox#pack ~use_underline:use_mnemonic ~text:label () |> ignore
+  GMisc.image ~packing:hbox#pack ~stock ~icon_size:`BUTTON () |> ignore_widget;
+  GMisc.label ~packing:hbox#pack ~use_underline:use_mnemonic ~text:label () |> ignore_widget
 
 (** Create a button with a stock icon and a custom label. *)
 let mixed_button ~packing ?use_mnemonic ~stock ~label () =
@@ -71,7 +72,7 @@ let make_iface_uri_drop_target (window:#GWindow.window_skel) on_success =
     ~flags:[`MOTION; `DROP; `HIGHLIGHT]
     ~actions:[`COPY]
     [ Gtk.({ target = "text/uri-list"; flags = []; info = 0 }) ];
-  drag_ops#connect#data_received ~callback:(fun drag_context ~x:_ ~y:_ data ~info:_ ~time ->
+  drag_ops#connect#data_received ==> (fun drag_context ~x:_ ~y:_ data ~info:_ ~time ->
     try
       let data = data#data in
       match Str.split (Str.regexp "[\n\r]+") data with

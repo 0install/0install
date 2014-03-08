@@ -5,6 +5,7 @@
 (** Keeps track of download progress. *)
 
 open Support.Common
+open Gtk_common
 
 module Downloader = Zeroinstall.Downloader
 
@@ -108,14 +109,14 @@ let make_watcher solver_box tools ~trust_db reqs =
         () in
       let result, set_result = Lwt.wait () in
       box#set_default_response `OK;
-      box#connect#response ~callback:(fun response ->
+      box#connect#response ==> (fun response ->
         box#destroy ();
         Lwt.wakeup set_result (
           match response with
           | `OK -> `ok
           | `CANCEL | `DELETE_EVENT -> `cancel
         )
-      ) |> ignore;
+      );
       box#show ();
       result
 

@@ -5,6 +5,7 @@
 (** The main GUI window showing the progress of a solve. *)
 
 open Support.Common
+open Gtk_common
 
 module Feed_url = Zeroinstall.Feed_url
 module Driver = Zeroinstall.Driver
@@ -162,15 +163,15 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
   let widgets = make_dialog reqs.Requirements.message mode ~systray in
 
   let dialog = widgets.dialog in
-  widgets.refresh_button#connect#clicked ~callback:(fun () -> recalculate ~force:true) |> ignore;
-  widgets.stop_button#connect#clicked ~callback:(fun () -> watcher#abort_all_downloads) |> ignore;
+  widgets.refresh_button#connect#clicked ==> (fun () -> recalculate ~force:true);
+  widgets.stop_button#connect#clicked ==> (fun () -> watcher#abort_all_downloads);
 
-  widgets.dialog#connect#response ~callback:(function
+  widgets.dialog#connect#response ==> (function
     | `HELP -> main_window_help#display
     | `PREFERENCES -> Gtk_utils.async ~parent:dialog show_preferences
     | `DELETE_EVENT | `CANCEL ->
         Lwt.wakeup set_user_response `aborted_by_user
-  ) |> ignore;
+  );
 
   (* If a system tray icon was requested, create one. Otherwise, show the main window. *)
   if systray then (
@@ -205,7 +206,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
     | None ->
         let box = Component_box.create tools ~trust_db reqs iface ~recalculate ~select_versions_tab ~watcher in
         component_boxes := !component_boxes |> StringMap.add iface box;
-        box#dialog#connect#destroy ~callback:(fun () -> component_boxes := !component_boxes |> StringMap.remove iface) |> ignore;
+        box#dialog#connect#destroy ==> (fun () -> component_boxes := !component_boxes |> StringMap.remove iface);
         box#update;
         box#dialog#show () in
 
@@ -214,7 +215,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
   component_tree#set_update_icons !refresh;
 
   (* Handling the Select/Download/Run toggle button *)
-  widgets.ok_button#connect#toggled ~callback:(fun () ->
+  widgets.ok_button#connect#toggled ==> (fun () ->
     log_info "OK button => %b" widgets.ok_button#active;
     let on_success () =
       (* Downloads done - check button is still pressed *)
@@ -242,7 +243,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
           Lwt.return ()
       )
     )
-  ) |> ignore;
+  );
 
   let box_open_time = Unix.gettimeofday () in
 

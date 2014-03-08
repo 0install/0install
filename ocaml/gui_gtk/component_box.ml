@@ -5,6 +5,7 @@
 (** The per-component dialog (the one with the Feeds and Versions tabs). *)
 
 open Support.Common
+open Gtk_common
 open Zeroinstall.General
 
 module FeedAttr = Zeroinstall.Constants.FeedAttr
@@ -229,7 +230,7 @@ let add_remote_feed ~parent ~watcher ~recalculate tools iface () =
   let error_label = GMisc.label ~packing:vbox#pack ~xpad:4 ~ypad:4 ~line_wrap:true ~show:false () in
   box#set_default_response `OK;
 
-  box#connect#response ~callback:(function
+  box#connect#response ==> (function
     | `DELETE_EVENT | `CANCEL -> box#destroy ()
     | `OK ->
         error_label#misc#hide ();
@@ -254,7 +255,7 @@ let add_remote_feed ~parent ~watcher ~recalculate tools iface () =
             entry#misc#grab_focus ();
             Lwt.return ()
         )
-  ) |> ignore;
+  );
 
   box#show ()
 
@@ -270,7 +271,7 @@ let add_local_feed ~parent ~recalculate config iface () =
   box#add_button_stock `CANCEL `CANCEL;
   box#add_select_button_stock `OPEN `OK;
 
-  box#connect#response ~callback:(function
+  box#connect#response ==> (function
     | `DELETE_EVENT | `CANCEL -> box#destroy ()
     | `OK ->
         try
@@ -282,7 +283,7 @@ let add_local_feed ~parent ~recalculate config iface () =
               box#destroy ();
               recalculate ~force:false
         with Safe_exception _ as ex -> Alert_box.report_error ~parent:box ex
-  ) |> ignore;
+  );
 
   box#show ()
 
@@ -319,8 +320,8 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
   let arch_col = GTree.view_column ~title:"Arch" ~renderer:(renderer, ["text", arch]) () in
   source_col#add_attribute renderer "sensitive" used;
   arch_col#add_attribute renderer "sensitive" used;
-  view#append_column source_col |> ignore;
-  view#append_column arch_col |> ignore;
+  append_column view source_col;
+  append_column view arch_col;
   let selection = view#selection in
   selection#set_mode `BROWSE;
 
@@ -330,9 +331,9 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
   let add_local = GButton.button ~packing:button_box#pack ~label:"Add local feed" () in
   let remove_feed = GButton.button ~packing:button_box#pack ~label:"Remove feed" () in
 
-  add_remote#connect#clicked ~callback:(add_remote_feed ~parent:window ~watcher ~recalculate tools iface) |> ignore;
-  add_local#connect#clicked ~callback:(add_local_feed ~parent:window ~recalculate config iface) |> ignore;
-  remove_feed#connect#clicked ~callback:(fun () ->
+  add_remote#connect#clicked ==> (add_remote_feed ~parent:window ~watcher ~recalculate tools iface);
+  add_local#connect#clicked ==> (add_local_feed ~parent:window ~recalculate config iface);
+  remove_feed#connect#clicked ==> (fun () ->
     match selection#get_selected_rows with
     | [path] ->
         let iter = feeds_model#get_iter path in
@@ -341,7 +342,7 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
         remove_feed#misc#set_sensitive false;
         recalculate ~force:false;
     | _ -> log_warning "Impossible selection!"
-  ) |> ignore;
+  );
 
   (* Description *)
   let swin = GBin.scrolled_window
@@ -368,7 +369,7 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
   let clear () = buffer#delete ~start:buffer#start_iter ~stop:buffer#end_iter in
 
   (* Update description when a feed is selected *)
-  selection#connect#changed ~callback:(fun () ->
+  selection#connect#changed ==> (fun () ->
     limit_updates (fun () ->
       match selection#get_selected_rows with
       | [] -> clear (); Lwt.return ()
@@ -385,9 +386,9 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
               add_description_text config ~trust_db ~heading_style ~link_style buffer feed description end
       | _ -> log_warning "Multiple selection in browse mode!"; Lwt.return ()
     )
-  ) |> ignore;
+  );
 
-  text#event#connect#button_press ~callback:(fun bev ->
+  text#event#connect#button_press ==> (fun bev ->
     let module B = GdkEvent.Button in
     if GdkEvent.get_type bev = `BUTTON_PRESS && B.button bev = 1 then (
       let win_type = text#get_window_type (GdkEvent.get_window bev) in
@@ -401,7 +402,7 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
         true
       ) else false
     ) else false
-  ) |> ignore;
+  );
 
   text#misc#set_size_request ~width:(-1) ~height:100 ();
 
@@ -447,14 +448,14 @@ let build_stability_menu set_stability =
   let menu = GMenu.menu () in
 
   let unset = GMenu.menu_item ~packing:menu#add ~label:"Unset" () in
-  unset#connect#activate ~callback:(fun () -> set_stability None) |> ignore;
+  unset#connect#activate ==> (fun () -> set_stability None);
 
-  GMenu.separator_item ~packing:menu#add () |> ignore;
+  GMenu.separator_item ~packing:menu#add () |> ignore_widget;
 
   [Preferred; Packaged; Stable; Testing; Developer; Buggy; Insecure] |> List.iter (fun stability ->
     let label = F.format_stability stability |> String.capitalize in
     let item = GMenu.menu_item ~packing:menu#add ~label () in
-    item#connect#activate ~callback:(fun () -> set_stability (Some stability)) |> ignore
+    item#connect#activate ==> (fun () -> set_stability (Some stability))
   );
   menu
 
@@ -473,15 +474,15 @@ let show_explanation_box ~parent iface version reason =
       ~vpolicy:`AUTOMATIC
     () in
 
-    GMisc.label ~packing:swin#add_with_viewport ~text:reason () |> ignore;
+    GMisc.label ~packing:swin#add_with_viewport ~text:reason () |> ignore_widget;
 
     box#set_default_size
       ~width:(Gdk.Screen.width () * 3 / 4)
       ~height:(Gdk.Screen.height () / 3);
 
-    box#connect#response ~callback:(function
+    box#connect#response ==> (function
       | `DELETE_EVENT | `CLOSE -> box#destroy ()
-    ) |> ignore;
+    );
     box#show ()
   ) else (
     let box = GWindow.message_dialog
@@ -491,9 +492,9 @@ let show_explanation_box ~parent iface version reason =
       ~buttons:GWindow.Buttons.close
       ~message_type:`INFO
       () in
-    box#connect#response ~callback:(function
+    box#connect#response ==> (function
       | `DELETE_EVENT | `CLOSE -> box#destroy ()
-    ) |> ignore;
+    );
     box#show ()
   )
 
@@ -562,7 +563,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
     let view_col = GTree.view_column ~title ~renderer:(cell, ["text", column]) () in
     view_col#add_attribute cell "weight" weight;
     if strike then view_col#add_attribute cell "strikethrough" unusable;
-    view#append_column view_col |> ignore in
+    append_column view view_col in
 
   add_column "Version" ~strike:true version;
   add_column "Released" released;
@@ -572,7 +573,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
   add_column "Lang" langs;
   add_column "Notes" notes;
 
-  view#event#connect#button_press ~callback:(fun bev ->
+  view#event#connect#button_press ==> (fun bev ->
     let module B = GdkEvent.Button in
     match GdkEvent.get_type bev, B.button bev with
     | `BUTTON_PRESS, (1 | 3) ->
@@ -592,9 +593,9 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
 
             let add_open_item path =
               let item = GMenu.menu_item ~packing:menu#add ~label:"Open in file manager" () in
-              item#connect#activate ~callback:(fun () ->
+              item#connect#activate ==> (fun () ->
                 U.xdg_open_dir config.system path
-              ) |> ignore in
+              ) in
             begin match impl.F.impl_type with
             | `local_impl path -> add_open_item path
             | `cache_impl info ->
@@ -603,14 +604,14 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
             | `package_impl _ -> () end;
 
             let explain = GMenu.menu_item ~packing:menu#add ~label:"Explain this decision" () in
-            explain#connect#activate ~callback:(fun () ->
+            explain#connect#activate ==> (fun () ->
               let reason = Zeroinstall.Diagnostics.justify_decision config watcher#feed_provider reqs iface (F.get_id impl) in
               show_explanation_box ~parent:window iface version_str reason
-            ) |> ignore;
+            );
             menu#popup ~button:(B.button bev) ~time:(B.time bev);
             true end
     | _ -> false
-  ) |> ignore;
+  );
 
   object
     method widget = vbox#coerce
@@ -681,8 +682,8 @@ let create tools ~trust_db reqs iface ~recalculate ~select_versions_tab ~watcher
   let label text = (GMisc.label ~text () :> GObj.widget) in
   let feeds_tab = make_feeds_tab tools ~trust_db ~recalculate ~watcher dialog iface in
   let versions_tab = make_versions_tab config reqs ~recalculate ~watcher dialog iface in
-  notebook#append_page ~tab_label:(label "Feeds") (feeds_tab#widget) |> ignore;
-  notebook#append_page ~tab_label:(label "Versions") (versions_tab#widget) |> ignore;
+  append_page notebook ~tab_label:(label "Feeds") (feeds_tab#widget);
+  append_page notebook ~tab_label:(label "Versions") (versions_tab#widget);
 
   if select_versions_tab then notebook#next_page ();
 
@@ -698,7 +699,7 @@ let create tools ~trust_db reqs iface ~recalculate ~select_versions_tab ~watcher
 
   dialog#set_response_sensitive `COMPILE false;
 
-  dialog#connect#response ~callback:(function
+  dialog#connect#response ==> (function
     | `COMPILE ->
         Gtk_utils.async ~parent:dialog (fun () ->
           lwt () = Zeroinstall.Gui.compile config watcher#feed_provider iface ~autocompile:true in
@@ -707,7 +708,7 @@ let create tools ~trust_db reqs iface ~recalculate ~select_versions_tab ~watcher
         )
     | `DELETE_EVENT | `CLOSE -> dialog#destroy ()
     | `HELP -> component_help#display
-  ) |> ignore;
+  );
 
   object
     method dialog = dialog

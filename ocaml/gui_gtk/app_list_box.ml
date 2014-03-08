@@ -6,6 +6,7 @@
 
 open Zeroinstall.General
 open Support.Common
+open Gtk_common
 
 module F = Zeroinstall.Feed
 module Q = Support.Qdom
@@ -121,19 +122,19 @@ let confirm_deletion ~parent name =
     ~title:"Confirm"
     () in
   let markup = Printf.sprintf "Remove <b>%s</b> from the applications list?" (Gtk_utils.pango_escape name) in
-  GMisc.label ~packing:box#vbox#pack ~xpad:20 ~ypad:20 ~markup () |> ignore;
+  GMisc.label ~packing:box#vbox#pack ~xpad:20 ~ypad:20 ~markup () |> ignore_widget;
   box#add_button_stock `CANCEL `CANCEL;
   box#add_button_stock `DELETE `DELETE;
   let result, set_result = Lwt.wait () in
   box#set_default_response `DELETE;
-  box#connect#response ~callback:(fun response ->
+  box#connect#response ==> (fun response ->
     box#destroy ();
     Lwt.wakeup set_result (
       match response with
       | `DELETE -> `delete
       | `CANCEL | `DELETE_EVENT -> `cancel
     )
-  ) |> ignore;
+  );
   box#show ();
   result
 
@@ -228,25 +229,25 @@ let create config ~gui ~tools ~add_app =
   let edit_item = GMenu.menu_item ~packing:menu#add ~label:"Choose versions" () in
   let delete_item = GMenu.menu_item ~packing:menu#add ~label:"Delete" () in
 
-  run_item#connect#activate ~callback:(fun () ->
+  run_item#connect#activate ==> (fun () ->
     run config dialog tools gui (!menu_iface |? lazy (raise_safe "BUG: no selected item!"))
-  ) |> ignore;
+  );
 
-  help_item#connect#activate ~callback:(fun () ->
+  help_item#connect#activate ==> (fun () ->
     let uri = !menu_iface |? lazy (raise_safe "BUG: no selected item!") in
     Gtk_utils.async ~parent:dialog (fun () -> show_help_for_iface tools ~gui uri)
-  ) |> ignore;
+  );
 
-  edit_item#connect#activate ~callback:(fun () ->
+  edit_item#connect#activate ==> (fun () ->
     let uri = !menu_iface |? lazy (raise_safe "BUG: no selected item!") in
     let reqs = Zeroinstall.Requirements.default_requirements uri in
     Gtk_utils.async ~parent:dialog (fun () ->
       lwt _ = gui#run_solver tools `Download_only reqs ~refresh:false in
       Lwt.return ()
     )
-  ) |> ignore;
+  );
 
-  delete_item#connect#activate ~callback:(fun () ->
+  delete_item#connect#activate ==> (fun () ->
     match view#get_selected_items with
     | [path] ->
         let row = model#get_iter path in
@@ -267,9 +268,9 @@ let create config ~gui ~tools ~add_app =
             Lwt.return ()
         )
     | _ -> log_warning "Invalid selection!"
-  ) |> ignore;
+  );
 
-  view#event#connect#button_press ~callback:(fun bev ->
+  view#event#connect#button_press ==> (fun bev ->
     let module B = GdkEvent.Button in
     let path_unsafe = view#get_path_at_pos (B.x bev |> truncate) (B.y bev |> truncate) in
     (* (a bug in lablgtk means the "option" part is missing) *)
@@ -287,7 +288,7 @@ let create config ~gui ~tools ~add_app =
         true
     | _ ->
         false
-  ) |> ignore;
+  );
 
   let default_icon = view#misc#render_icon ~size:`DIALOG `EXECUTE in
 
@@ -328,13 +329,13 @@ let create config ~gui ~tools ~add_app =
     Gtk_utils.sanity_check_iface iface;
     add_and_repopulate iface;
     true
-  ) |> ignore;
+  );
 
-  dialog#connect#response ~callback:(function
+  dialog#connect#response ==> (function
     | `DELETE_EVENT | `CLOSE -> dialog#destroy (); Lwt.wakeup set_finished ()
     | `SHOW_CACHE -> Gtk_utils.async (fun () -> Cache_explorer_box.open_cache_explorer config)
     | `ADD -> add_and_repopulate ""
-  ) |> ignore;
+  );
   dialog#show ();
 
 

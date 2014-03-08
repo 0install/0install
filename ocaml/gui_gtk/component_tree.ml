@@ -5,6 +5,7 @@
 (** The tree of components in the main window. *)
 
 open Support.Common
+open Gtk_common
 open Zeroinstall.General
 
 module FeedAttr = Zeroinstall.Constants.FeedAttr
@@ -86,11 +87,11 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
 
   let add ~title cell column =
     let view_col = GTree.view_column ~title ~renderer:(cell, ["text", column]) () in
-    view#append_column view_col |> ignore;
+    append_column view view_col;
     view_col in
 
   let component_vc = GTree.view_column ~title:"Component" () in
-  view#append_column component_vc |> ignore;
+  append_column view component_vc;
   component_vc#pack ~expand:false icon_renderer;
   component_vc#add_attribute icon_renderer "pixbuf" icon;
   component_vc#pack text_plain;
@@ -101,7 +102,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
   let summary_vc = add ~title:"Description" text_ellip summary_col in
   summary_vc#misc#set_property "expand" (`BOOL true);
   let action_vc = GTree.view_column ~renderer:(action_renderer, []) () in
-  view#append_column action_vc |> ignore;
+  append_column view action_vc;
 
   view#set_enable_search true;
 
@@ -137,7 +138,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
         ) in
 
   view#misc#set_has_tooltip true;
-  view#misc#connect#query_tooltip ~callback:(fun ~x ~y ~kbd tooltip ->
+  view#misc#connect#query_tooltip ==> (fun ~x ~y ~kbd tooltip ->
     let (x, y, _) = GtkTree.TreeView.Tooltip.get_context view#as_tree_view ~x ~y ~kbd in
       match view#get_path_at_pos ~x ~y with
       | None -> false
@@ -146,7 +147,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
           GtkBase.Tooltip.set_text tooltip @@ get_tooltip row col#get_oid;
           GtkTree.TreeView.Tooltip.set_cell view#as_tree_view tooltip ~path ~col:col#as_column ();
           true
-  ) |> ignore;
+  );
 
   (* Menu *)
   let module B = GdkEvent.Button in
@@ -158,11 +159,11 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
 
     let show_feeds = GMenu.menu_item ~packing ~label:"Show Feeds" () in
     let show_versions = GMenu.menu_item ~packing ~label:"Show Versions" () in
-    show_feeds#connect#activate ~callback:(fun () -> show_component iface ~select_versions_tab:false) |> ignore;
-    show_versions#connect#activate ~callback:(fun () -> show_component iface ~select_versions_tab:true) |> ignore;
+    show_feeds#connect#activate ==> (fun () -> show_component iface ~select_versions_tab:false);
+    show_versions#connect#activate ==> (fun () -> show_component iface ~select_versions_tab:true);
 
     let report_a_bug = GMenu.menu_item ~packing ~label:"Report a Bug..." () in
-    report_a_bug#connect#activate ~callback:(fun () -> report_bug iface) |> ignore;
+    report_a_bug#connect#activate ==> (fun () -> report_bug iface);
     let compile_item = GMenu.menu_item ~packing ~label:"Compile" () in
 
     if have_source then (
@@ -176,14 +177,14 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
       compile_item#set_submenu compile_menu;
       let packing = compile_menu#add in
 
-      (GMenu.menu_item ~packing ~label:"Automatic" ())#connect#activate ~callback:(compile ~autocompile:true) |> ignore;
-      (GMenu.menu_item ~packing ~label:"Manual..." ())#connect#activate ~callback:(compile ~autocompile:false) |> ignore;
+      (GMenu.menu_item ~packing ~label:"Automatic" ())#connect#activate ==> (compile ~autocompile:true);
+      (GMenu.menu_item ~packing ~label:"Manual..." ())#connect#activate ==> (compile ~autocompile:false);
     ) else (
       compile_item#misc#set_sensitive false
     );
     menu#popup ~button:(B.button bev) ~time:(B.time bev) in
 
-  view#event#connect#button_press ~callback:(fun bev ->
+  view#event#connect#button_press ==> (fun bev ->
     match view#get_path_at_pos ~x:(B.x bev |> truncate) ~y:(B.y bev |> truncate) with
     | Some (path, col, _x, _y) ->
         let button = B.button bev in
@@ -200,7 +201,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
           true
         ) else false
     | None -> false
-  ) |> ignore;
+  );
 
   (* Populating the model *)
   let feed_to_iface = Hashtbl.create 100 in

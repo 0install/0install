@@ -5,6 +5,7 @@ Bug_report_box
 Cache_explorer_box
 Component_box
 Component_tree
+Gtk_common
 Gtk_utils
 Gui_gtk_plugin
 Gui_progress

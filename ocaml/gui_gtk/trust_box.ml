@@ -5,6 +5,7 @@
 (** A dialog box for confirming whether to trust a feed's GPG key(s). *)
 
 open Support.Common
+open Gtk_common
 open Zeroinstall.General
 
 module Progress = Zeroinstall.Progress
@@ -125,10 +126,10 @@ let confirm_unknown_keys ~parent to_trust valid_sigs =
       ~buttons:GWindow.Buttons.ok_cancel
       ~position:`CENTER
       () in
-    box#connect#response ~callback:(function
+    box#connect#response ==> (function
       | `OK -> Lwt.wakeup set_result true; box#destroy ()
       | `DELETE_EVENT | `CANCEL -> Lwt.wakeup set_result false; box#destroy ()
-    ) |> ignore;
+    );
     box#show ();
     result in
   match unknown with
@@ -248,15 +249,15 @@ let confirm_keys config trust_db ?parent feed_url valid_sigs =
       ~label:"_Trust this key" () in
     trust_checkboxes := (fpr, checkbox) :: !trust_checkboxes;
     page#pack ~expand:false ~fill:true (checkbox :> GObj.widget);
-    checkbox#connect#toggled ~callback:(fun _cb -> update_ok_button ()) |> ignore;
+    checkbox#connect#toggled ==> (fun _cb -> update_ok_button ());
     let tab_label = (GMisc.label ~text:name () :> GObj.widget) in
-    notebook#append_page ~tab_label (page :> GObj.widget) |> ignore;
+    append_page notebook ~tab_label (page :> GObj.widget);
   );
   (List.hd !trust_checkboxes |> snd)#set_active true;
 
   vbox#pack ~expand:true ~fill:true (notebook :> GObj.widget);
 
-  dialog#connect#response ~callback:(function
+  dialog#connect#response ==> (function
     | `OK ->
         let to_trust = !trust_checkboxes |> U.filter_map (fun (fpr, box) ->
           if box#active then Some fpr else None
@@ -273,7 +274,7 @@ let confirm_keys config trust_db ?parent feed_url valid_sigs =
         )
     | `DELETE_EVENT | `CANCEL -> Lwt.wakeup set_result []; dialog#destroy ()
     | `HELP -> confirm_keys_help#display
-  ) |> ignore;
+  );
 
   dialog#show ();
   result

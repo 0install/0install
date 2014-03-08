@@ -5,6 +5,7 @@
 (** A simple error report box *)
 
 open Support.Common
+open Gtk_common
 
 let () = ignore on_windows
 
@@ -16,7 +17,7 @@ let report_info ?parent ~title message =
     ~message
     ~buttons:GWindow.Buttons.ok
     () in
-  box#connect#response ~callback:(fun _ -> box#destroy ()) |> ignore;
+  box#connect#response ==> (fun _ -> box#destroy ());
   box#show ()
 
 let last_error = ref None
@@ -31,5 +32,5 @@ let report_error ?parent ex =
     ~message:(Printexc.to_string ex)
     ~buttons:GWindow.Buttons.ok
     () in
-  error_box#connect#response ~callback:(fun _ -> error_box#destroy ()) |> ignore;
+  error_box#connect#response ==> (fun _ -> error_box#destroy ());
   error_box#show ()

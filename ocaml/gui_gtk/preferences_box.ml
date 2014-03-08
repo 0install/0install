@@ -5,6 +5,7 @@
 (** The global preferences dialog. *)
 
 open Support.Common
+open Gtk_common
 open Zeroinstall.General
 module G = Support.Gpg
 
@@ -88,7 +89,7 @@ let combo ~(table:GPack.table) ~top ~label ~choices ~to_string ~value ~callback 
   }) in
 
   let model, column = GTree.store_of_list data_conv choices in
-  GMisc.label ~packing:(table#attach ~left:0 ~top) ~text:label ~xalign:1.0 () |> ignore;
+  GMisc.label ~packing:(table#attach ~left:0 ~top) ~text:label ~xalign:1.0 () |> ignore_widget;
   let combo = GEdit.combo_box ~packing:(table#attach ~left:1 ~top ~expand:`X) ~model () in
   let cell = GTree.cell_renderer_text [] in
   combo#pack ~expand:true cell;
@@ -98,7 +99,7 @@ let combo ~(table:GPack.table) ~top ~label ~choices ~to_string ~value ~callback 
     | x :: _ when x = value -> i
     | _ :: rest -> index (i + 1) rest in
   combo#set_active (index 0 choices);
-  combo#connect#changed ~callback:(fun () -> List.nth choices combo#active |> callback) |> ignore;
+  combo#connect#changed ==> (fun () -> List.nth choices combo#active |> callback);
   combo#misc#set_tooltip_text tooltip
 
 let find_open_rows (view:GTree.view) column =
@@ -135,10 +136,10 @@ let add_key_list ~packing config trust_db =
   let view = GTree.view ~model ~packing:swin#add () in
   let renderer = GTree.cell_renderer_text [] in
   let view_col = GTree.view_column ~title:"Trusted keys" ~renderer:(renderer, ["text", name]) () in
-  view#append_column view_col |> ignore;
+  append_column view view_col;
 
   (* Handle events *)
-  view#event#connect#button_press ~callback:(fun bev ->
+  view#event#connect#button_press ==> (fun bev ->
     let module B = GdkEvent.Button in
     if GdkEvent.get_type bev = `BUTTON_PRESS && B.button bev = 3 then (
       match view#get_path_at_pos ~x:(B.x bev |> truncate) ~y:(B.y bev |> truncate) with
@@ -152,12 +153,12 @@ let add_key_list ~packing config trust_db =
             let domain = model#get ~row:iter ~column:name in
             let menu = GMenu.menu () in
             let item = GMenu.menu_item ~packing:menu#add ~label:(Printf.sprintf "Remove key for \"%s\"" key) () in
-            item#connect#activate ~callback:(fun () -> trust_db#untrust_key ~domain fpr) |> ignore;
+            item#connect#activate ==> (fun () -> trust_db#untrust_key ~domain fpr);
             menu#popup ~button:(B.button bev) ~time:(B.time bev);
             true
           ) else false
     ) else false
-  ) |> ignore;
+  );
 
   (* Populate model *)
   let populate_model () =
@@ -190,7 +191,7 @@ let add_key_list ~packing config trust_db =
     Lwt.return () in
 
   let unregister = trust_db#add_watcher (object method notify = Gtk_utils.async populate_model end) in
-  view#connect#destroy ~callback:unregister |> ignore;
+  view#connect#destroy ==> unregister;
 
   Gtk_utils.async populate_model
 
@@ -242,14 +243,14 @@ let show_preferences config trust_db ~recalculate =
     "Try out new versions as soon as they are available, instead of waiting for them to be marked as 'stable'. \
      This sets the default policy. Choose 'Show Versions' from the menu in the main window to set the policy \
      for an individual component.";
-  help_with_testing#connect#toggled ~callback:(fun () ->
+  help_with_testing#connect#toggled ==> (fun () ->
     config.help_with_testing <- help_with_testing#active; apply_changes ()
-  ) |> ignore;
+  );
 
   (* Keys *)
   let security_settings = frame ~packing:(vbox#pack ~expand:true ~fill:true) ~title:"Security" in
   let vbox = GPack.vbox ~border_width:12 ~packing:security_settings#add () in
-  GMisc.label ~packing:vbox#pack ~xalign:0.0 ~markup:"<i>These keys may sign software updates:</i>" () |> ignore;
+  GMisc.label ~packing:vbox#pack ~xalign:0.0 ~markup:"<i>These keys may sign software updates:</i>" () |> ignore_widget;
 
   add_key_list ~packing:(vbox#pack ~expand:true ~fill:true) config trust_db;
 
@@ -261,9 +262,9 @@ let show_preferences config trust_db ~recalculate =
   auto_approve#misc#set_tooltip_text
     "When fetching a feed for the first time, if the key is known to the key information server then \
      approve it automatically without confirmation.";
-  auto_approve#connect#toggled  ~callback:(fun () ->
+  auto_approve#connect#toggled ==> (fun () ->
     config.auto_approve_keys <- auto_approve#active; apply_changes ()
-  ) |> ignore;
+  );
 
   (* Buttons *)
   dialog#add_button_stock `HELP `HELP;
@@ -275,10 +276,10 @@ let show_preferences config trust_db ~recalculate =
   dialog#set_default_response `CLOSE;
 
   let result, set_result = Lwt.wait () in
-  dialog#connect#response ~callback:(function
+  dialog#connect#response ==> (function
     | `DELETE_EVENT | `CLOSE -> Lwt.wakeup set_result (); dialog#destroy ()
     | `HELP -> preferences_help#display
-  ) |> ignore;
+  );
 
   dialog#set_default_size ~width:(-1) ~height:(Gdk.Screen.height () / 3);
   (dialog, result)

@@ -5,6 +5,7 @@
 (** The system tray notification icon (used for background updates) *)
 
 open Support.Common
+open Gtk_common
 
 class tray_icon systray =
   let clicked, set_clicked = Lwt.wait () in
@@ -47,7 +48,7 @@ class tray_icon systray =
       if systray then (
         let i = GMisc.status_icon_from_icon_name "zeroinstall" in
         icon <- Some i;
-        i#connect#activate ~callback:self#activate |> ignore
+        i#connect#activate ==> self#activate
       ) else (
         Lwt.wakeup set_clicked ()
       )

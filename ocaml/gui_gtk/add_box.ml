@@ -5,6 +5,7 @@
 (** The dialog for adding a new app (used by "0desktop") *)
 
 open Support.Common
+open Gtk_common
 open Zeroinstall.General
 
 module F = Zeroinstall.Feed
@@ -61,10 +62,11 @@ let create ~(gui:Zeroinstall.Ui.ui_handler) ~tools initial_uri =
     ~xalign:0.0
     ~line_wrap:true
     ~markup:"<i>Enter the URI of the application you want to install, \
-             or drag its link from a web-browser into this window.</i>" () |> ignore;
+             or drag its link from a web-browser into this window.</i>"
+    () |> ignore_widget;
 
   let hbox = GPack.hbox ~packing:vbox#pack ~spacing:4 () in
-  GMisc.label ~packing:hbox#pack ~text:"URI:" () |> ignore;
+  GMisc.label ~packing:hbox#pack ~text:"URI:" () |> ignore_widget;
   let entry = GEdit.entry ~packing:(hbox#pack ~expand:true) ~activates_default:true ~text:initial_uri () in
 
   (* Buttons *)
@@ -74,7 +76,7 @@ let create ~(gui:Zeroinstall.Ui.ui_handler) ~tools initial_uri =
 
   let set_uri_ok () =
     dialog#set_response_sensitive `ADD (entry#text <> "") in
-  entry#connect#changed ~callback:set_uri_ok |> ignore;
+  entry#connect#changed ==> set_uri_ok;
   set_uri_ok ();
 
   let add () =
@@ -103,12 +105,12 @@ let create ~(gui:Zeroinstall.Ui.ui_handler) ~tools initial_uri =
     entry#set_text iface;
     Gtk_utils.async ~parent:dialog add;
     true
-  ) |> ignore;
+  );
 
-  dialog#connect#response ~callback:(function
+  dialog#connect#response ==> (function
     | `DELETE_EVENT | `CANCEL -> dialog#destroy (); Lwt.wakeup set_finished ()
     | `ADD -> Gtk_utils.async ~parent:dialog add;
-  ) |> ignore;
+  );
   dialog#show ();
 
 

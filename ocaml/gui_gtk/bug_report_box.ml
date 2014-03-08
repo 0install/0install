@@ -5,6 +5,7 @@
 (** Displays a form to the user to collect extra information for the bug report. *)
 
 open Support.Common
+open Gtk_common
 
 module U = Support.Utils
 
@@ -71,7 +72,7 @@ let create config ?run_test ?last_error ~iface ~results =
 
     begin match run_test with
     | Some run_test ->
-        get_errors#connect#clicked ~callback:(fun () ->
+        get_errors#connect#clicked ==> (fun () ->
           get_errors#misc#set_sensitive false;
           Gtk_utils.async ~parent:box (fun () ->
             try_lwt
@@ -82,7 +83,7 @@ let create config ?run_test ?last_error ~iface ~results =
               get_errors#misc#set_sensitive true;
               Lwt.return ()
           )
-        ) |> ignore;
+        );
     | None -> get_errors#misc#set_sensitive false end;
     buffer in
 
@@ -94,7 +95,7 @@ let create config ?run_test ?last_error ~iface ~results =
   box#add_button_stock `OK `OK;
   box#set_default_response `OK;
 
-  box#connect#response ~callback:(function
+  box#connect#response ==> (function
     | `CANCEL | `DELETE_EVENT -> box#destroy ()
     | `OK ->
         let message = spf "\
@@ -122,7 +123,7 @@ let create config ?run_test ?last_error ~iface ~results =
             Alert_box.report_error ~parent:box ex;
             Lwt.return ()
         )
-  ) |> ignore;
+  );
 
   box#set_default_size
     ~width:(Gdk.Screen.width () / 2)

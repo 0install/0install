@@ -5,6 +5,7 @@
 (** Displays a few paragraphs of help text in a dialog box. *)
 
 open Support.Common
+open Gtk_common
 
 let create title sections =
   object
@@ -53,10 +54,10 @@ let create title sections =
       swin#add (text :> GObj.widget);
 
       box#add_button_stock `CLOSE `CLOSE;
-      box#connect#response ~callback:(function
+      box#connect#response ==> (function
         | `CLOSE | `DELETE_EVENT -> box#destroy ()
-      ) |> ignore;
-      box#connect#destroy ~callback:(fun () -> dialog <- None) |> ignore;
+      );
+      box#connect#destroy ==> (fun () -> dialog <- None);
       box#set_default_response `CLOSE;
       box#set_default_size
         ~width:(Gdk.Screen.width () / 4)
