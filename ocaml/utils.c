@@ -6,6 +6,10 @@
 
 #include <string.h>
 
+#ifdef DLOPEN_CRYPTO
+#include <dlfcn.h>
+#endif
+
 #include <caml/mlvalues.h>
 #include <caml/alloc.h>
 #include <caml/memory.h>
@@ -33,10 +37,57 @@
 
 #define Ctx_val(v) (*((EVP_MD_CTX**)Data_custom_val(v)))
 
+#ifdef DLOPEN_CRYPTO
+static EVP_MD_CTX *(*p_EVP_MD_CTX_create)(void);
+static int (*p_EVP_DigestInit_ex)(EVP_MD_CTX *, const EVP_MD *, ENGINE *);
+static const EVP_MD *(*p_EVP_sha1)(void);
+static const EVP_MD *(*p_EVP_sha256)(void);
+static int (*p_EVP_DigestUpdate)(EVP_MD_CTX *, const void *, size_t);
+static int (*p_EVP_DigestFinal_ex)(EVP_MD_CTX *, unsigned char *, unsigned int *);
+static void (*p_EVP_MD_CTX_destroy)(EVP_MD_CTX *);
+
+void *lookup(void *lib, const char *symbol) {
+  void *retval = NULL;
+  if (lib != NULL) {
+    retval = dlsym(lib, symbol);
+  }
+  if (retval == NULL) {
+    fprintf(stderr, "Warning: symbol %s not found; 0install may crash\n", symbol);
+  }
+  return retval;
+}
+#else
+#  define p_EVP_MD_CTX_create EVP_MD_CTX_create
+#  define p_EVP_DigestInit_ex EVP_DigestInit_ex
+#  define p_EVP_sha1 EVP_sha1
+#  define p_EVP_sha256 EVP_sha256
+#  define p_EVP_DigestUpdate EVP_DigestUpdate
+#  define p_EVP_DigestFinal_ex EVP_DigestFinal_ex
+#  define p_EVP_MD_CTX_destroy EVP_MD_CTX_destroy
+#endif
+
+CAMLprim value ocaml_init_zi_crypto(value v_unit) {
+#ifdef DLOPEN_CRYPTO
+  void *libcrypto = dlopen("libcrypto.so.1.0.0", RTLD_LAZY | RTLD_GLOBAL);
+  if (libcrypto == NULL) {
+    fprintf(stderr, "Warning: libcrypto not found; 0install will not work fully\n");
+  } else {
+    p_EVP_MD_CTX_create = dlsym(libcrypto, "EVP_MD_CTX_create");
+    p_EVP_DigestInit_ex = dlsym(libcrypto, "EVP_DigestInit_ex");
+    p_EVP_sha1 = dlsym(libcrypto, "EVP_sha1");
+    p_EVP_sha256 = dlsym(libcrypto, "EVP_sha256");
+    p_EVP_DigestUpdate = dlsym(libcrypto, "EVP_DigestUpdate");
+    p_EVP_DigestFinal_ex = dlsym(libcrypto, "EVP_DigestFinal_ex");
+    p_EVP_MD_CTX_destroy = dlsym(libcrypto, "EVP_MD_CTX_destroy");
+  }
+#endif
+  return Val_unit;
+}
+
 static void finalize_ctx(value block)
 {
   EVP_MD_CTX *ctx = Ctx_val(block);
-  EVP_MD_CTX_destroy(ctx);
+  p_EVP_MD_CTX_destroy(ctx);
 }
 
 static struct custom_operations ctx_ops =
@@ -64,22 +115,27 @@ CAMLprim value ocaml_EVP_MD_CTX_init(value v_alg) {
 
   EVP_MD_CTX *ctx;
 
+#ifdef DLOPEN_CRYPTO
+  if (p_EVP_sha1 == NULL)
+    caml_failwith("libcrypto not available (no EVP_sha1 symbol)!");
+#endif
+
   const EVP_MD *digest;
 
   char *digest_name = String_val(v_alg);
   if (strcmp(digest_name, "sha1") == 0)
-    digest = EVP_sha1();
+    digest = p_EVP_sha1();
   else if (strcmp(digest_name, "sha256") == 0)
-    digest = EVP_sha256();
+    digest = p_EVP_sha256();
   else {
     caml_failwith("Unknown digest name");
     CAMLreturn(Val_unit);	/* (make compiler happy) */
   }
 
-  if ((ctx = EVP_MD_CTX_create()) == NULL)
+  if ((ctx = p_EVP_MD_CTX_create()) == NULL)
     caml_failwith("EVP_MD_CTX_create: out of memory");
 
-  EVP_DigestInit_ex(ctx, digest, NULL);
+  p_EVP_DigestInit_ex(ctx, digest, NULL);
 
   CAMLlocal1(block);
   block = caml_alloc_custom(&ctx_ops, sizeof(EVP_MD_CTX*), 0, 1);
@@ -91,7 +147,7 @@ CAMLprim value ocaml_EVP_MD_CTX_init(value v_alg) {
 CAMLprim value ocaml_DigestUpdate(value v_ctx, value v_str) {
   CAMLparam2(v_ctx, v_str);
   EVP_MD_CTX *ctx = Ctx_val(v_ctx);
-  if (EVP_DigestUpdate(ctx, String_val(v_str), caml_string_length(v_str)) != 1)
+  if (p_EVP_DigestUpdate(ctx, String_val(v_str), caml_string_length(v_str)) != 1)
     caml_failwith("EVP_DigestUpdate: failed");
   CAMLreturn(Val_unit);
 }
@@ -104,7 +160,7 @@ CAMLprim value ocaml_DigestFinal_ex(value v_ctx) {
   unsigned char md_value[EVP_MAX_MD_SIZE];
   unsigned int md_len = 0;
 
-  if (EVP_DigestFinal_ex(ctx, md_value, &md_len) != 1)
+  if (p_EVP_DigestFinal_ex(ctx, md_value, &md_len) != 1)
     caml_failwith("EVP_DigestFinal_ex: failed");
 
   CAMLlocal1(result);

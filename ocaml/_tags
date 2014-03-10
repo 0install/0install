@@ -10,4 +10,5 @@ true: strict_sequence
 "support": for-pack(Support)
 "zeroinstall": for-pack(Zeroinstall)
 "gui_gtk": for-pack(Gui_gtk)
-<static_0install.*> or <**/*.native> or <**/*.byte>: linkdep_win(windows.o), package(unix), link(utils.o)
+<static_0install.*> or <**/*.native> or <**/*.byte>: linkdep_win(windows.o), package(unix), link(utils.o), link_crypto
+<utils.c>: link_crypto

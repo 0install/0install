@@ -5,9 +5,12 @@
 (** Secure hashes. *)
 
 type digest_context
+external init_zi_crypto : unit -> unit = "ocaml_init_zi_crypto"
 external evp_md_ctx_init : string -> digest_context = "ocaml_EVP_MD_CTX_init"
 external evp_digest_update : digest_context -> string -> unit = "ocaml_DigestUpdate"
 external evp_digest_final_ex : digest_context -> string = "ocaml_DigestFinal_ex"
+
+let () = init_zi_crypto ()
 
 let hex_chars = "0123456789abcdef"
 let base32_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
