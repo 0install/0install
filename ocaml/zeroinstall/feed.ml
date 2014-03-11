@@ -58,7 +58,7 @@ and dependency = {
 and command = {
   mutable command_qdom : Q.element;
   command_requires : dependency list;
-  (* command_bindings : binding list; - not needed by solver; just copies the element *)
+  command_bindings : binding list;
 }
 
 and properties = {
@@ -145,6 +145,7 @@ let make_command ?source_hint name ?(new_attr="path") path : command =
   {
     command_qdom = elem;
     command_requires = [];
+    command_bindings = [];
   }
 
 let make_distribtion_restriction distros =
@@ -261,17 +262,21 @@ let parse_dep local_dir dep =
 
 let parse_command local_dir elem : command =
   let deps = ref [] in
+  let bindings = ref [] in
 
   elem |> ZI.iter (fun child ->
     match ZI.tag child with
     | Some "requires" | Some "restricts" | Some "runner" ->
         deps := parse_dep local_dir child :: !deps
+    | Some b when Binding.is_binding b ->
+        bindings := child :: !bindings
     | _ -> ()
   );
 
   {
     command_qdom = elem;
     command_requires = !deps;
+    command_bindings = !bindings;
   }
 
 let rec filter_if_0install_version node =

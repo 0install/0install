@@ -74,6 +74,7 @@ let dummy_impl =
 let dummy_command = {
   Feed.command_qdom = ZI.make "dummy-command";
   Feed.command_requires = [];
+  Feed.command_bindings = [];
 }
 
 class impl_candidates (clause : S.at_most_one_clause option) (vars : (S.lit * Feed.generic_implementation) list) =
@@ -347,6 +348,18 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
   (* Callbacks to run after building the problem. *)
   let delayed = ref [] in
 
+  (* For <executable-in-*> bindings, add a dependency on the appropriate <command>.
+   * Note: we only call this for self-bindings, so we could be efficient by selecting the exact command here... *)
+  let process_bindings user_var dep_iface =
+    List.iter (fun binding ->
+      Binding.parse_binding binding
+      |> pipe_some Binding.get_command
+      |> if_some (fun name ->
+        let candidates = command_cache#lookup (name, dep_iface, false) in
+        S.implies sat ~reason:"binding on command" user_var candidates#get_vars
+      )
+    ) in
+
   (* For each dependency of [user_var]:
      - find the candidate implementations to satisfy it
      - take just those that satisfy any restrictions in the dependency
@@ -362,7 +375,7 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
         (* Dependencies on commands *)
         let require_command name =
           (* What about optional command dependencies? Looks like the Python doesn't handle that either... *)
-          let candidates = command_cache#lookup @@ (name, dep.Feed.dep_iface, false) in
+          let candidates = command_cache#lookup (name, dep.Feed.dep_iface, false) in
           S.implies sat ~reason:"dep on command" user_var (candidates#get_vars) in
         List.iter require_command dep.Feed.dep_required_commands;
 
@@ -439,14 +452,16 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
           )
           | _ -> () in
 
+        process_bindings impl_var iface_uri Feed.(impl.props.bindings);
+
         (* Process dependencies *)
-        process_deps impl_var impl.Feed.props.Feed.requires
+        process_deps impl_var Feed.(impl.props.requires);
       )
     )
 
   (* Initialise this cache entry (called the first time we request this key). *)
   and add_commands_to_cache (command, iface, source) =
-    let impls = impl_cache#lookup @@ (iface, source) in
+    let impls = impl_cache#lookup (iface, source) in
     let commands = impls#get_commands command in
     let make_provides_command (_impl, elem) =
       (** [var] will be true iff this <command> is selected. *)
@@ -460,6 +475,8 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
       let depend_on_impl (command_var, command) (impl_var, _command) =
         (* For each command, require that we select the corresponding implementation. *)
         S.implies sat ~reason:"impl for command" command_var [impl_var];
+        (* Commands can depend on other commands in the same implementation *)
+        process_bindings command_var iface command.Feed.command_bindings;
         (* Process command-specific dependencies *)
         process_deps command_var command.Feed.command_requires;
       in
