@@ -817,4 +817,33 @@ Can't find all required implementations:
     </selections>
   </test>
 
+  <test name='test-and-run'>
+    <interface local-path="prog.xml">
+      <name>prog</name>
+      <summary>unit-tests need self</summary>
+
+      <implementation id="." version='1'>
+	<command name='run' path='prog.py'/>
+	<command name='foo' path='foo.py'/>
+	<command name='test'>
+	  <executable-in-path name='prog'/>
+	</command>
+	<executable-in-path name='prog-foo' command='foo'/>
+      </implementation>
+    </interface>
+
+    <requirements interface='./prog.xml' command='test'/>
+
+    <selections interface="/root/prog.xml" command="test">
+      <selection interface="/root/prog.xml" version='1' id='.' local-path='/root'>
+	<command name='foo' path='foo.py'/>
+	<command name='run' path='prog.py'/>
+	<command name="test">
+          <executable-in-path name="prog"/>
+        </command>
+	<executable-in-path command="foo" name="prog-foo"/>
+      </selection>
+    </selections>
+  </test>
+
 </test-cases>

@@ -155,7 +155,7 @@ class virtual distribution config =
               ("name", "run");
               ("path", path);
             ]) in
-          let commands = StringMap.singleton "run" Feed.({command_qdom = run; command_requires = []}) in
+          let commands = StringMap.singleton "run" Feed.({command_qdom = run; command_requires = []; command_bindings = []}) in
           (id, make_host_impl path version ~commands url id)
         )
     | `remote_feed "http://repo.roscidus.com/python/python-gobject" as url ->

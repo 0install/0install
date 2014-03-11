@@ -49,7 +49,7 @@ and dependency = {
 and command = {
   mutable command_qdom : Support.Qdom.element;  (* Mutable because of distro's [fixup_main] *)
   command_requires : dependency list;
-  (* command_bindings : binding list; - not needed by solver; just copies the element *)
+  command_bindings : binding list;
 }
 and properties = {
   attrs : (string * string) Support.Qdom.AttrMap.t; (* (prefix_hint, value) *)
