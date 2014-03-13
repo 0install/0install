@@ -29,21 +29,6 @@ let crash_handler system crash_dir entries =
   Printf.fprintf stderr "(wrote crash logs to %s)\n" log_file
 
 let main (system:system) : unit =
-IFDEF HAVE_GTK THEN
-  (* Install Lwt<->Glib integration in case we need the GUI.
-   * LWT <= 2.4.4 is buggy (https://github.com/ocsigen/lwt/issues/25) so we have
-   * to be careful... *)
-  if system#platform.Platform.os = "Linux" then (
-     (* On Linux:
-      * - lwt_into_glib mode hangs for LWT <= 2.4.4
-      * - glib_into_lwt works on all versions, so use that *)
-    Lwt_glib.install ~mode:`glib_into_lwt ()
-  ) else (
-    (* Otherwise, glib_into_lwt never works, so use lwt_into_glib (and require LWT > 2.4.4). *)
-    Lwt_glib.install ~mode:`lwt_into_glib ()
-  )
-ENDIF;
-
   begin match system#getenv "ZEROINSTALL_CRASH_LOGS" with
   | Some dir when dir <> "" -> Support.Logging.set_crash_logs_handler (crash_handler system dir)
   | _ -> () end;

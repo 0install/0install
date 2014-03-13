@@ -5,6 +5,7 @@
 (** A GTK GUI plugin *)
 
 open Support.Common
+open Zeroinstall.General
 
 module Ui = Zeroinstall.Ui
 module Downloader = Zeroinstall.Downloader
@@ -69,6 +70,21 @@ let make_gtk_ui config =
 
 (* If this raises an exception, gui.ml will log it and continue without the GUI. *)
 let try_get_gtk_gui config _use_gui =
+  log_info "Switching to GLib mainloop...";
+
+  (* Install Lwt<->Glib integration.
+   * LWT <= 2.4.4 is buggy (https://github.com/ocsigen/lwt/issues/25) so we have
+   * to be careful... *)
+  if config.system#platform.Platform.os = "Linux" then (
+     (* On Linux:
+      * - lwt_into_glib mode hangs for LWT <= 2.4.4
+      * - glib_into_lwt works on all versions, so use that *)
+    Lwt_glib.install ~mode:`glib_into_lwt ()
+  ) else (
+    (* Otherwise, glib_into_lwt never works, so use lwt_into_glib (and require LWT > 2.4.4). *)
+    Lwt_glib.install ~mode:`lwt_into_glib ()
+  );
+
   (* Initializes GTK. *)
   ignore (GMain.init ());
   Some (make_gtk_ui config)
