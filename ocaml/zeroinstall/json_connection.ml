@@ -49,8 +49,7 @@ type json_with_xml =
   [ J.json
   | `WithXML of (J.json * Support.Qdom.element) ]
 
-class json_connection ~from_peer ~to_peer =
-  let handlers = ref StringMap.empty in
+class json_connection ~from_peer ~to_peer handle_request =
   let finished, finish = Lwt.wait () in
 
   let send_json ?xml request : unit Lwt.t =
@@ -83,12 +82,12 @@ class json_connection ~from_peer ~to_peer =
 
   let handle_invoke ticket op args () =
     let xml = ref None in
+    lwt handle_request = handle_request in
     lwt response =
       try_lwt
         lwt return_value =
-          let cb = StringMap.find op !handlers |? lazy (raise_safe "No handler for JSON op '%s' (received from peer)" op) in
           try_lwt
-            match_lwt cb args with
+            match_lwt handle_request (op, args) with
             | `WithXML (json, attached_xml) ->
                 xml := Some attached_xml;
                 Lwt.return json
@@ -143,9 +142,6 @@ class json_connection ~from_peer ~to_peer =
     (** Send a one-way message (with no ticket). *)
     method notify ?xml op args =
       send_json ?xml (`List [`String "invoke"; `Null; `String op; `List args])
-
-    method register_handler op (handler:J.json list -> json_with_xml Lwt.t)  =
-      handlers := StringMap.add op handler !handlers
 
     method run = finished
   end

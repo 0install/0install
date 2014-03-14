@@ -20,7 +20,7 @@ else:
 	print("Usage: %s IFACE" % sys.argv[0])
 	sys.exit(1)
 
-slave_args = ["./0install", "--console", "slave", "2.6"]
+slave_args = ["./0install", "--console", "slave", "2.7"]
 if verbosity > 1: slave_args.append("-v")
 
 c = subprocess.Popen(slave_args, stdin = subprocess.PIPE, stdout = subprocess.PIPE)
@@ -124,8 +124,9 @@ requirements = {
 	#"message": "I need this because ...",
 }
 
-def show_selections(status, result):
+def show_selections(status, result, info):
 	print(status)
+	print(info)
 	print(result)
 	sys.exit(0)
 
