@@ -128,7 +128,7 @@ val get_command_ex : string -> _ implementation -> command
 
 val load_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides
 val save_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides -> unit
-val update_last_checked_time : General.config -> [< `remote_feed of General.feed_url] -> unit
+val update_last_checked_time : General.config -> [< Feed_url.remote_feed] -> unit
 val get_langs : _ implementation -> Support.Locale.lang_spec list
 val is_available_locally : General.config -> _ implementation -> bool
 val is_retrievable_without_network : cache_impl -> bool

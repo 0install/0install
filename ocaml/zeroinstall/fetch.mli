@@ -10,12 +10,12 @@ type fetch_feed_response =
 
 class fetcher : General.config -> Trust.trust_db -> Distro.distribution -> Downloader.download_pool -> #Progress.watcher ->
   object
-    method download_and_import_feed : [ `remote_feed of General.feed_url ] -> fetch_feed_response Lwt.t
+    method download_and_import_feed : Feed_url.remote_feed -> fetch_feed_response Lwt.t
     method download_impls : Feed.generic_implementation list -> [ `success | `aborted_by_user ] Lwt.t
 
     (** [import_feed url xml] checks the signature on [xml] and imports it into the cache if trusted.
      * If not trusted, it confirms with the user first, downloading any missing keys first. *)
-    method import_feed : [`remote_feed of General.feed_url] -> string -> unit Lwt.t
+    method import_feed : Feed_url.remote_feed -> string -> unit Lwt.t
 
     (** Download the icon and add it to the disk cache as the icon for the given feed. *)
     method download_icon : Feed_url.non_distro_feed -> string -> unit Lwt.t

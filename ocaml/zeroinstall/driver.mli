@@ -38,7 +38,7 @@ val solve_with_downloads :
  * If the mirror replies first, but the primary succeeds, we return the primary. *)
 val download_and_import_feed :
   Fetch.fetcher ->
-  [ `remote_feed of General.feed_url ] ->
+  Feed_url.remote_feed ->
   [ `aborted_by_user | `no_update | `success of Support.Qdom.element ]
   Lwt.t
 

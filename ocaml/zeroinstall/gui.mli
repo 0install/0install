@@ -23,9 +23,10 @@ val try_get_gui : General.config -> use_gui:Support.Common.yes_no_maybe -> Ui.ui
 val add_remote_feed :
   General.config ->
   Fetch.fetcher ->
-  General.iface_uri -> [`remote_feed of General.feed_url] -> unit Lwt.t
+  General.iface_uri -> Feed_url.remote_feed -> unit Lwt.t
+
 (** Add a local feed to an interface. *)
-val add_feed : General.config -> General.iface_uri -> [`local_feed of Support.Common.filepath] -> unit
+val add_feed : General.config -> General.iface_uri -> Feed_url.local_feed -> unit
 val remove_feed : General.config -> General.iface_uri -> Feed_url.non_distro_feed -> unit
 val compile : General.config -> Feed_provider.feed_provider -> General.iface_uri -> autocompile:bool -> unit Lwt.t
 

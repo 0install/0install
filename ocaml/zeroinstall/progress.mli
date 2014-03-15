@@ -22,7 +22,7 @@ class type watcher =
     (** Ask the user to confirm they trust at least one of the signatures on this feed.
      * @param key_info a list of fingerprints and their (eventual) votes
      * Return the list of fingerprints the user wants to trust. *)
-    method confirm_keys : [`remote_feed of General.feed_url] -> (Support.Gpg.fingerprint * key_vote list Lwt.t) list -> Support.Gpg.fingerprint list Lwt.t
+    method confirm_keys : Feed_url.remote_feed -> (Support.Gpg.fingerprint * key_vote list Lwt.t) list -> Support.Gpg.fingerprint list Lwt.t
 
     (** Display a confirmation request *)
     method confirm : string -> [`ok | `cancel] Lwt.t

@@ -63,9 +63,7 @@ class type impl_provider =
 
 class default_impl_provider : General.config -> Feed_provider.feed_provider -> scope_filter ->
   object
-    method extra_restrictions : Feed.restriction Support.Common.StringMap.t
-    method get_implementations : General.iface_uri -> source:bool -> candidates
-    method is_dep_needed : Feed.dependency -> bool
+    inherit impl_provider
 
     method set_watch_iface : General.iface_uri -> unit
     method get_watched_compare : (Feed.generic_implementation -> Feed.generic_implementation -> int * preferred_reason) option

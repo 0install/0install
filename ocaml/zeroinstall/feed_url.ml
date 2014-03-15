@@ -5,8 +5,10 @@
 open Support.Common
 module U = Support.Utils
 
-type non_distro_feed = [`local_feed of Support.Common.filepath | `remote_feed of string]
-type parsed_feed_url = [`distribution_feed of non_distro_feed | non_distro_feed ]
+type local_feed = [`local_feed of Support.Common.filepath]
+type remote_feed = [`remote_feed of string]
+type non_distro_feed = [local_feed | remote_feed]
+type parsed_feed_url = [`distribution_feed of non_distro_feed | non_distro_feed]
 
 let parse_non_distro url =
   if U.path_is_absolute url then `local_feed url
