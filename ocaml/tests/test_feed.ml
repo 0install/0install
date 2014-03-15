@@ -5,6 +5,7 @@
 open Support.Common
 open OUnit
 open Zeroinstall.General
+open Zeroinstall
 
 module Q = Support.Qdom
 module U = Support.Utils
@@ -161,15 +162,15 @@ let suite = "feed">::: [
                 | _ -> assert false
               );
 
-              let env = Hashtbl.create 10 in
+              let env = Env.create [| |] in
               let impls = StringMap.singleton "http://example.com/" ((), Some "/impl") in
 
               let check ?old binding =
                 begin match old with
-                | None -> Hashtbl.remove env "PATH"
-                | Some old -> Hashtbl.replace env "PATH" old end;
+                | None -> Env.unset env "PATH"
+                | Some old -> Env.put env "PATH" old end;
                 B.do_env_binding env impls "http://example.com/" binding;
-                Hashtbl.find env "PATH" in
+                Env.get_exn env "PATH" in
 
               Fake_system.assert_str_equal "/impl/bin:/bin:/usr/bin" @@ check b0;
               Fake_system.assert_str_equal "/impl/bin:current" @@ check b0 ~old:"current";
@@ -187,11 +188,11 @@ let suite = "feed">::: [
     } in
 
     let check ?impl ?old binding =
-      let env = Hashtbl.create 1 in
+      let env = Env.create [| |] in
       let impls = StringMap.singleton "http://example.com/" ((), impl) in
-      old |> if_some (Hashtbl.replace env binding.B.var_name);
+      old |> if_some (Env.put env binding.B.var_name);
       B.do_env_binding env impls "http://example.com/" binding;
-      Hashtbl.find env binding.B.var_name in
+      Env.get_exn env binding.B.var_name in
 
     Fake_system.assert_str_equal "/impl/lib:/usr/lib" @@ check prepend ~impl:"/impl" ~old:"/usr/lib";
     Fake_system.assert_str_equal "/impl/lib" @@ check prepend ~impl:"/impl";

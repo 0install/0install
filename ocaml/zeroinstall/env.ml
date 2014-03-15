@@ -6,30 +6,27 @@
 
 open Support.Common
 
-type env = (string, string) Hashtbl.t
+type t = (varname, string) Hashtbl.t
 
-let copy_current_env system : env =
+let create arr =
   let env = Hashtbl.create 1000 in
 
-  let parse_env line =
+  arr |> Array.iter (fun line ->
     match Str.bounded_split_delim Support.Utils.re_equals line 2 with
     | [key; value] -> Hashtbl.replace env key value
     | _ -> failwith (Printf.sprintf "Invalid environment mapping '%s'" line)
-  in
-  
-  Array.iter parse_env system#environment;
+  );
 
   env
 
-let putenv name value env =
-  (* Printf.fprintf stderr "Adding: %s=%s\n" name value; *)
-  Hashtbl.replace env name value
+let put = Hashtbl.replace
+let unset = Hashtbl.remove
 
-let find name env =
+let get_exn env name =
   try Hashtbl.find env name
   with Not_found -> raise_safe "Environment variable '%s' not set" name
 
-let find_opt name env =
+let get env name =
   try Some (Hashtbl.find env name)
   with Not_found -> None
 

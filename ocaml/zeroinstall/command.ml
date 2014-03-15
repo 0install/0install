@@ -33,7 +33,7 @@ let expand_arg arg env =
   let expand s = match (Str.matched_group 1 s) with
   | "$" -> "$"
   | "" | "{}" -> Q.raise_elem "Empty variable name in template '%s' in" template arg
-  | m -> Env.find (remove_braces m) env in
+  | m -> Env.get_exn env (remove_braces m) in
   Str.global_substitute re_template expand template
 
 (* Return a list of string arguments by expanding <arg> and <for-each> children of [elem] *)
@@ -47,18 +47,16 @@ let get_args elem env =
   and expand_foreach node env =
     let item_from = ZI.get_attribute "item-from" node in
     let separator = default path_sep (ZI.get_attribute_opt "separator" node) in
-    match Env.find_opt item_from env with
+    match Env.get env item_from with
     | None -> []
     | Some source ->
         let rec loop = function
           | [] -> []
           | x::xs ->
-              let old = Env.find_opt "item" env in
-              let () = Env.putenv "item" x env in
+              let old = Env.get env "item" in
+              Env.put env "item" x;
               let new_args = get_args_loop node in
-              let () = match old with
-              | None -> ()
-              | Some v -> Env.putenv "item" v env in
+              old |> if_some (Env.put env "item");
               new_args @ (loop xs) in
         loop (Str.split_delim (Str.regexp_string separator) source)
   in get_args_loop elem

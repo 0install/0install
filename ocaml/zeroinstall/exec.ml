@@ -31,7 +31,7 @@ class virtual launcher_builder config script =
     method setenv name command_argv env =
       let open Yojson.Basic in
       let json :json = `List (List.map (fun a -> `String a) command_argv) in
-      Env.putenv ("zeroinstall-runenv-" ^ name) (to_string json) env
+      Env.put env ("zeroinstall-runenv-" ^ name) (to_string json)
   end
 
 (** If abspath_0install is a native binary, we can avoid starting a shell here. *)
@@ -91,7 +91,7 @@ let do_exec_binding dry_run builder env impls (iface_uri, {Binding.exec_type; Bi
 
   let () = match exec_type with
   | Binding.InPath -> Binding.prepend "PATH" exec_dir path_sep env
-  | Binding.InVar -> Env.putenv name exec_path env in
+  | Binding.InVar -> Env.put env name exec_path in
 
   builder#setenv name command_argv env
 
@@ -111,7 +111,7 @@ let make_selection_map system stores sels =
   !map
 
 let get_exec_args config ?main sels args =
-  let env = Env.copy_current_env config.system in
+  let env = Env.create config.system#environment in
   let impls = make_selection_map config.system config.stores sels in
   let bindings = Binding.collect_bindings impls sels in
   let launcher_builder = get_launcher_builder config in

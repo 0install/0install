@@ -108,7 +108,7 @@ let calc_new_value name mode value env =
       | Append ->
           log_info "%s=...%s%s" name separator value;
           old ^ separator ^ value in
-    match Env.find_opt name env with
+    match Env.get env name with
       | Some v -> add_to v                  (* add to current value of variable *)
       | None -> match default with
         | Some d -> add_to d                (* or to the specified default *)
@@ -119,7 +119,7 @@ let calc_new_value name mode value env =
               value
 
 let do_env_binding env impls iface {var_name; mode; source} =
-  let add value = Env.putenv var_name (calc_new_value var_name mode value env) env in
+  let add value = Env.put env var_name (calc_new_value var_name mode value env) in
   match source with
   | Value v -> add v
   | InsertPath i -> match StringMap.find_safe iface impls with
@@ -128,4 +128,4 @@ let do_env_binding env impls iface {var_name; mode; source} =
 
 let prepend name value separator env =
   let mode = Add {pos = Prepend; default = None; separator} in
-  Env.putenv name (calc_new_value name mode value env) env
+  Env.put env name (calc_new_value name mode value env)
