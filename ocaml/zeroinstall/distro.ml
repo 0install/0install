@@ -170,7 +170,7 @@ class virtual distribution config =
 
   let fixup_main distro_get_correct_main impl =
     let open Feed in
-    match get_command_opt "run" impl.props.commands with
+    match get_command_opt "run" impl with
     | None -> ()
     | Some run ->
         match distro_get_correct_main impl run with

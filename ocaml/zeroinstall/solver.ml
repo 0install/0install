@@ -264,7 +264,7 @@ let get_selections dep_in_use root_req impl_cache command_cache =
             child_nodes := imported :: !child_nodes in
 
           let add_command name =
-            let command = Feed.get_command_ex impl name in
+            let command = Feed.get_command_ex name impl in
             let command_elem = command.Feed.command_qdom in
             let want_command_child elem =
               (* We'll add in just the dependencies we need later *)

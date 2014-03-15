@@ -123,8 +123,8 @@ val get_attr_ex : string -> _ implementation -> string
 val get_implementations : feed -> generic_implementation list
 val is_source : _ implementation -> bool
 
-val get_command_opt : string -> command Support.Common.StringMap.t -> command option
-val get_command_ex : _ implementation -> string -> command
+val get_command_opt : string -> _ implementation -> command option
+val get_command_ex : string -> _ implementation -> command
 
 val load_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides
 val save_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides -> unit
@@ -138,7 +138,7 @@ val get_description : int Support.Locale.LangMap.t -> feed -> string option
 
 (** The <feed-for> elements' interfaces *)
 val get_feed_targets : feed -> General.iface_uri list
-val make_user_import : [<`local_feed of Support.Common.filepath | `remote_feed of General.feed_url] -> feed_import
+val make_user_import : [< Feed_url.non_distro_feed] -> feed_import
 
 val get_category : feed -> string option
 val needs_terminal : feed -> bool

@@ -542,9 +542,9 @@ let get_implementations feed =
 
 let is_source impl = impl.machine = Some "src"
 
-let get_command_opt command_name commands = StringMap.find command_name commands
+let get_command_opt command_name impl = StringMap.find command_name impl.props.commands
 
-let get_command_ex impl command_name : command =
+let get_command_ex command_name impl : command =
   StringMap.find command_name impl.props.commands |? lazy (Q.raise_elem "Command '%s' not found in" command_name impl.qdom)
 
 (** Load per-feed extra data (last-checked time and preferred stability.
