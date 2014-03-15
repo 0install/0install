@@ -1,29 +1,50 @@
 (** XML processing *)
 
 type source_hint
-type attr_value = (string * string)   (* (prefix_hint, value) *)
 
 module AttrType : sig type t = Xmlm.name val compare : 'a -> 'a -> int end
 module AttrMap :
   sig
-    include Map.S with type key = AttrType.t
+    (** Maps Xmlm.names to (prefix-hint, value) pairs *)
+    type t
 
-    (* Add a binding with no namespace (and, therefore, no prefix) *)
-    val add_no_ns : string -> string -> attr_value t -> attr_value t
+    val empty : t
 
-    (* Get the value of this (namespaced) attribute, as an option. *)
-    val get : Xmlm.name -> attr_value t -> string option
+    (** Add a binding with a namespace and suggested prefix. *)
+    val add : prefix:string -> Xmlm.name -> string -> t -> t
 
-    (* Simple wrapper for [get] for non-namespaced attributes. *)
-    val get_no_ns : string -> attr_value t -> string option
+    (** Add a binding with no namespace (and, therefore, no prefix) *)
+    val add_no_ns : string -> string -> t -> t
+
+    (** Convenience function to create a map with a single non-namespaced attribute. *)
+    val singleton : string -> string -> t
+
+    (** Get the value of this (namespaced) attribute, as an option. *)
+    val get : Xmlm.name -> t -> string option
+
+    (** Simple wrapper for [get] for non-namespaced attributes. *)
+    val get_no_ns : string -> t -> string option
+
+    val remove : Xmlm.name -> t -> t
+
+    (** Compare maps, ignoring prefix hints. *)
+    val compare : t -> t -> int
+
+    val mem : Xmlm.name -> t -> bool
+
+    (** [add_all overrides old_attrs] returns a map with all the bindings of
+     * [overrides] plus all non-conflicting bindings from [old_attrs]. *)
+    val add_all : t -> t -> t
+
+    (** Iterate over the values (ignoring the prefix hints) *)
+    val iter_values : (Xmlm.name -> string -> unit) -> t -> unit
   end
-type attributes = (string * string) AttrMap.t
 
 (** An XML element node (and nearby text). *)
 type element = {
   prefix_hint : string;               (* Suggested prefix when serialising this element *)
   tag: Xmlm.name;
-  attrs: attributes;
+  attrs: AttrMap.t;
   child_nodes: element list;
   text_before: string;                (** The text node immediately before us *)
   last_text_inside: string;           (** The last text node inside us with no following element *)
@@ -71,11 +92,6 @@ val compare_nodes : ignore_whitespace:bool -> element -> element -> int
     (e.g. [<name>Bob</name>] do not have their content changed. *)
 val reindent : element -> element
 
-(* Convert a list of (name, value) pairs into a set of (non-namespaced) attributes. *)
-val attrs_of_list : (string * string) list -> attributes
-
-val iter_attrs : (Xmlm.name -> string -> unit) -> element -> unit
-
 module type NsType = sig
   val ns : string
   val prefix_hint : string      (* A suggested namespace prefix (for serialisation) *)
@@ -92,8 +108,8 @@ module NsQuery :
 
       val fold_left : f:('a -> element -> 'a) -> 'a -> element -> string -> 'a
 
-      (** Apply [fn] to each child node in our namespace with local name [tag] *)
-      val map : f:(element -> 'a) -> element -> string -> 'a list
+      (** Apply [fn] to each child node in our namespace with local name [name] *)
+      val map : ?name:string -> (element -> 'a) -> element -> 'a list
 
       (** Apply [fn] to each child node in our namespace *)
       val filter_map : (element -> 'a option) -> element -> 'a list
@@ -112,5 +128,5 @@ module NsQuery :
 
       (** Create a new element in our namespace.
        * @param source_hint will be used in error messages *)
-      val make : ?source_hint:element -> ?attrs:attributes -> ?child_nodes:element list -> string -> element
+      val make : ?source_hint:element -> ?attrs:AttrMap.t -> ?child_nodes:element list -> string -> element
     end

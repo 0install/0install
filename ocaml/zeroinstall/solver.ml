@@ -61,7 +61,7 @@ let dummy_impl =
     machine = None;
     stability = Testing;
     props = {
-      attrs = Qdom.AttrMap.empty;
+      attrs = AttrMap.empty;
       requires = [];
       commands = StringMap.empty;   (* (not used; we can provide any command) *)
       bindings = [];
@@ -300,9 +300,12 @@ let get_selections dep_in_use root_req impl_cache command_cache =
 
   let root_attrs =
     match root_req with
-    | ReqCommand (command, iface, _source) -> [("command", command); ("interface", iface)]
-    | ReqIface (iface, _source) -> [("interface", iface)] in
-  ZI.make ~attrs:(Qdom.attrs_of_list root_attrs) ~child_nodes:(List.rev selections) "selections"
+    | ReqCommand (command, iface, _source) ->
+        AttrMap.singleton "interface" iface
+        |> AttrMap.add_no_ns "command" command
+    | ReqIface (iface, _source) ->
+        AttrMap.singleton "interface" iface in
+  ZI.make ~attrs:root_attrs ~child_nodes:(List.rev selections) "selections"
 
 (* [closest_match] is used internally. It adds a lowest-ranked
    (but valid) implementation to every interface, so we can always

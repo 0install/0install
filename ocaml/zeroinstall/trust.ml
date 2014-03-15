@@ -61,11 +61,11 @@ class trust_db config =
     ) else (
       let key_elems = db |> StringMap.map_bindings (fun fingerprint domains ->
         let domain_elems = domains |> StringSet.elements |> List.map (fun domain ->
-          TRUST.make "domain" ~attrs:(Q.attrs_of_list [("value", domain)])
+          TRUST.make "domain" ~attrs:(Q.AttrMap.singleton "value" domain)
         ) in
         TRUST.make "key"
           ~child_nodes:domain_elems
-          ~attrs:(Q.attrs_of_list [("fingerprint", fingerprint)])
+          ~attrs:(Q.AttrMap.singleton "fingerprint" fingerprint)
       ) in
       let root = TRUST.make ~child_nodes:key_elems "trusted-keys" in
 

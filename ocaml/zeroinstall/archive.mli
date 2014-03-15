@@ -21,4 +21,4 @@ val check_type_ok : Support.Common.system -> mime_type -> unit
   *)
 val unpack_over : ?extract:Support.Common.filepath -> General.config ->
                   archive:Support.Common.filepath -> tmpdir:Support.Common.filepath -> destdir:Support.Common.filepath ->
-                  mime_type:string -> unit Lwt.t
+                  mime_type:mime_type -> unit Lwt.t

@@ -52,7 +52,7 @@ and command = {
   command_bindings : binding list;
 }
 and properties = {
-  attrs : (string * string) Support.Qdom.AttrMap.t; (* (prefix_hint, value) *)
+  attrs : Support.Qdom.AttrMap.t;
   requires : dependency list;
   bindings : binding list;
   commands : command Support.Common.StringMap.t;

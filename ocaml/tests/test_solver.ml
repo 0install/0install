@@ -35,7 +35,7 @@ let cache_path_for config url = Feed_cache.get_save_cache_path config (`remote_f
 
 let set_of_attrs elem : string list =
   let attrs = ref [] in
-  elem |> Q.iter_attrs (fun (ns, name) value ->
+  elem.Q.attrs |> Q.AttrMap.iter_values (fun (ns, name) value ->
     match ns with
     | "" -> attrs := Printf.sprintf "%s=%s" name value :: !attrs
     | ns -> attrs := Printf.sprintf "{%s}%s=%s" ns name value :: !attrs
@@ -77,10 +77,9 @@ let make_impl_provider config scope_filter =
 let rec make_all_downloable node =
   let open Support.Qdom in
   if ZI.tag node = Some "implementation" then (
-    let attrs = [
-      ("size", "100");
-      ("href", "http://example.com/download.tgz");
-    ] |> Q.attrs_of_list in
+    let attrs = Q.AttrMap.empty
+      |> Q.AttrMap.add_no_ns "size" "100"
+      |> Q.AttrMap.add_no_ns "href" "http://example.com/download.tgz" in
     let archive = ZI.make ~attrs "archive" in
     {node with child_nodes = archive :: node.child_nodes}
   ) else (

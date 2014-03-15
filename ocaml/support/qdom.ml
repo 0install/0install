@@ -13,22 +13,45 @@ module AttrType =
 
 module AttrMap =
   struct
-    include Map.Make(AttrType)
+    module M = Map.Make(AttrType)
+
+    type t = (string * string) M.t   (* (prefix_hint, value) *)
+
+    let empty = M.empty
 
     let get name attrs =
-      try Some (find name attrs |> snd)
+      try Some (M.find name attrs |> snd)
       with Not_found -> None
 
     let get_no_ns name attrs =
       get ("", name) attrs
 
     let add_no_ns name value attrs =
-      add ("", name) ("", value) attrs
+      M.add ("", name) ("", value) attrs
+
+    let add ~prefix name value =
+      M.add name (prefix, value)
+
+    let singleton name value =
+      M.singleton ("", name) ("", value)
+
+    let remove = M.remove
+    let mem = M.mem
+
+    let compare a b =
+      M.compare (fun (_, a_value) (_, b_value) -> String.compare a_value b_value) a b
+
+    let add_all overrides attrs =
+      M.merge (fun _key old override ->
+        match old, override with
+        | _, (Some _ as override) -> override
+        | (Some _ as old), None -> old
+        | None, None -> None
+      ) attrs overrides
+
+    let iter_values fn attrs =
+      M.iter (fun tag (_prefix, value) -> fn tag value) attrs
   end
-
-type attr_value = (string * string)   (* (prefix_hint, value) *)
-
-type attributes = attr_value AttrMap.t
 
 (* Used in diagnostic messages to show the source of an element. *)
 type source_hint =
@@ -40,7 +63,7 @@ type source_hint =
 and element = {
   prefix_hint : string;
   tag: Xmlm.name;
-  attrs: attributes;
+  attrs: AttrMap.t;
   child_nodes: element list;
   text_before: string;        (** The text node immediately before us *)
   last_text_inside: string;   (** The last text node inside us with no following element *)
@@ -80,9 +103,9 @@ let parse_input source_name i = try (
       ) in
     (* Now we have all the prefixes defined, attach them to the remaining attributes *)
     let map = ref AttrMap.empty in
-    non_ns_attrs |> List.iter (fun ((ns, _name) as pair, value) ->
+    non_ns_attrs |> List.iter (fun ((ns, name), value) ->
       let prefix = if ns = "" then ns else get_hint ns in
-      map := !map |> AttrMap.add pair (prefix, value)
+      map := !map |> AttrMap.add ~prefix (ns, name) value
     );
     !map in
 
@@ -188,7 +211,7 @@ let choose_prefixes root =
   let rec collect_hints elem =
     let ns = fst elem.tag in
     if ns <> default_ns then add_hint ns elem.prefix_hint;  (* (we ensure default_ns is bound at the end) *)
-    elem.attrs |> AttrMap.iter (fun (ns, _) (prefix_hint, _) ->
+    elem.attrs |> AttrMap.M.iter (fun (ns, _) (prefix_hint, _) ->
       if ns <> "" then add_hint ns prefix_hint
     );
     elem.child_nodes |> List.iter collect_hints in
@@ -205,13 +228,13 @@ let output o root =
   let root_attrs = ref root.attrs in
   prefix_of_ns |> Hashtbl.iter (fun ns prefix ->
     let prefix = if prefix = "" then "xmlns" else prefix in
-    root_attrs := !root_attrs |> AttrMap.add (Xmlm.ns_xmlns, prefix) ("", ns)
+    root_attrs := !root_attrs |> AttrMap.add ~prefix:"" (Xmlm.ns_xmlns, prefix) ns (* (prefix "" is unused) *)
   );
     
   Xmlm.output o @@ `Dtd None;
   let rec output_node node =
     if node.text_before <> "" then Xmlm.output o @@ `Data node.text_before;
-    Xmlm.output o @@ `El_start (node.tag, node.attrs |> AttrMap.bindings |> List.map (fun (k, (_, v)) -> (k, v)));
+    Xmlm.output o @@ `El_start (node.tag, node.attrs |> AttrMap.M.bindings |> List.map (fun (k, (_, v)) -> (k, v)));
     List.iter output_node node.child_nodes;
     if node.last_text_inside <> "" then Xmlm.output o @@ `Data node.last_text_inside;
     Xmlm.output o @@ `El_end in
@@ -233,24 +256,7 @@ let reindent root =
     } in
   process "\n" {root with text_before = ""}
 
-let attrs_of_list xs =
-  let map = ref AttrMap.empty in
-  xs |> List.iter (fun (name, value) ->
-    map := !map |> AttrMap.add_no_ns name value
-  );
-  !map
-
-let iter_attrs fn elem =
-  AttrMap.iter (fun tag (_prefix, value) -> fn tag value) elem.attrs
-
 exception Compare_result of int
-
-module AttrSet = Set.Make(
-  struct
-    type t = (Xmlm.name * string)
-    let compare a b = compare a b
-  end
-)
 
 let compare_nodes ~ignore_whitespace a b =
   let test x y =
@@ -261,8 +267,7 @@ let compare_nodes ~ignore_whitespace a b =
   let rec find_diff a b =
     test a.tag b.tag;
     let () =
-      (* (we compare namespace URIs but not prefix hints) *)
-      match AttrMap.compare (fun (_, a_value) (_, b_value) -> String.compare a_value b_value) a.attrs b.attrs with
+      match AttrMap.compare a.attrs b.attrs with
       | 0 -> ()
       | x -> raise (Compare_result x) in
     if ignore_whitespace then (
@@ -286,14 +291,15 @@ module NsQuery (Ns : NsType) = struct
     if elem_ns = Ns.ns then Some name
     else None
 
-  let map ~f node tag =
+  let map ?name f elem =
     let rec loop = function
       | [] -> []
-      | (node::xs) ->
-          if node.tag = (Ns.ns, tag)
-          then let result = f node in result :: loop xs
+      | (elem::xs) ->
+          let (ns, elem_name) = elem.tag in
+          if ns = Ns.ns && (name = None || name = Some elem_name)
+          then f elem :: loop xs
           else loop xs in
-    loop node.child_nodes
+    loop elem.child_nodes
 
   let filter_map fn node =
     let rec loop = function

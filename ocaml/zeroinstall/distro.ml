@@ -151,10 +151,10 @@ class virtual distribution config =
         Lazy.force python_info |> List.map (fun ((path, version), _) ->
           let id = "package:host:python:" ^ version in
           let run = ZI.make "command"
-            ~attrs:(Q.attrs_of_list [
-              ("name", "run");
-              ("path", path);
-            ]) in
+            ~attrs:(
+              Q.AttrMap.singleton "name" "run"
+              |> Q.AttrMap.add_no_ns "path" path
+            ) in
           let commands = StringMap.singleton "run" Feed.({command_qdom = run; command_requires = []; command_bindings = []}) in
           (id, make_host_impl path version ~commands url id)
         )

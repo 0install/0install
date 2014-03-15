@@ -248,8 +248,8 @@ let suite = "driver">::: [
     let (ready, result, _fp) = Driver.solve_with_downloads config distro fetcher ~watcher:Fake_system.null_ui#watcher reqs ~force:false ~update_local:false |> Lwt_main.run in
     assert (ready = true);
 
-    let get_ids result =
-      ZI.map (Selections.as_xml result#get_selections) "selection" ~f:(fun sel -> ZI.get_attribute "id" sel) in
+    let get_ids result = Selections.as_xml result#get_selections
+      |> ZI.map ~name:"selection" (ZI.get_attribute "id") in
 
     Fake_system.equal_str_lists ["sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"] @@ get_ids result;
 

@@ -31,7 +31,7 @@ let suite = "selections">::: [
     let old_sels = {old_sels with
       Q.child_nodes = old_sels.Q.child_nodes |> List.map (fun sel ->
         if sel |> ZI.get_attribute "interface" = "http://foo/Source.xml" then
-          {sel with Q.attrs = Q.AttrMap.add ("http://namespace", "foo") ("foo", "bar") sel.Q.attrs}
+          {sel with Q.attrs = Q.AttrMap.add ("http://namespace", "foo") ~prefix:"foo" "bar" sel.Q.attrs}
         else sel
       )
     }

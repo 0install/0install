@@ -23,6 +23,7 @@ type download = {
 
 val is_in_progress : download -> bool
 
+(* For use by unit-tests *)
 val interceptor :
   (?if_slow:unit Lazy.t ->
    ?size:Int64.t ->

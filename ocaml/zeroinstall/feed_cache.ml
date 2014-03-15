@@ -148,26 +148,26 @@ let add_import_elem feed_import =
   match feed_import.Feed.feed_type with
   | Feed.Distro_packages | Feed.Feed_import -> None
   | Feed.User_registered | Feed.Site_packages ->
-      let attrs = ref [(IfaceConfigAttr.src, Feed_url.format_url feed_import.Feed.feed_src)] in
+      let attrs = ref (Q.AttrMap.singleton IfaceConfigAttr.src (Feed_url.format_url feed_import.Feed.feed_src)) in
       if feed_import.Feed.feed_type = Feed.Site_packages then
-        attrs := (IfaceConfigAttr.is_site_package, "True") :: !attrs;
+        attrs := !attrs |> Q.AttrMap.add_no_ns IfaceConfigAttr.is_site_package "True";
       begin match feed_import.Feed.feed_os, feed_import.Feed.feed_machine with
       | None, None -> ()
       | os, machine ->
           let arch = Arch.format_arch os machine in
-          attrs := (IfaceConfigAttr.arch, arch) :: !attrs end;
-      Some (ZI.make ~attrs:(Q.attrs_of_list !attrs) "feed")
+          attrs := !attrs |> Q.AttrMap.add_no_ns IfaceConfigAttr.arch arch end;
+      Some (ZI.make ~attrs:!attrs "feed")
 
 let save_iface_config config uri iface_config =
   let config_dir = Basedir.save_path config.system config_injector_interfaces config.basedirs.Basedir.config in
 
-  let attrs = ref [(FeedAttr.uri, uri)] in
+  let attrs = ref (Q.AttrMap.singleton FeedAttr.uri uri) in
   iface_config.stability_policy |> if_some (fun policy ->
-    attrs := (IfaceConfigAttr.stability_policy, Feed.format_stability policy) :: !attrs
+    attrs := !attrs |> Q.AttrMap.add_no_ns IfaceConfigAttr.stability_policy (Feed.format_stability policy)
   );
 
   let child_nodes = iface_config.extra_feeds |> U.filter_map add_import_elem in
-  let root = ZI.make ~attrs:(Q.attrs_of_list !attrs) ~child_nodes "interface-preferences" in
+  let root = ZI.make ~attrs:!attrs ~child_nodes "interface-preferences" in
 
   config_dir +/ Escape.pretty uri |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
     Q.output (`Channel ch |> Xmlm.make_output) root;

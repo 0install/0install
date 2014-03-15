@@ -58,7 +58,7 @@ let make_selection_map sels =
   in ZI.fold_left ~f:add_selection StringMap.empty sels "selection"
 
 let get_runner elem =
-  match ZI.map ~f:(fun a -> a) elem "runner" with
+  match elem |> ZI.map ~name:"runner" (fun a -> a) with
   | [] -> None
   | [runner] -> Some runner
   | _ -> Q.raise_elem "Multiple <runner>s in" elem

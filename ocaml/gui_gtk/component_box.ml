@@ -125,7 +125,7 @@ let generate_feed_description config trust_db feed overrides =
     | Some description -> Str.split (Str.regexp_string "\n\n") description |> List.map format_para
     | None -> ["-"] in
 
-  let homepages = ZI.map feed.F.root "homepage" ~f:(fun homepage ->
+  let homepages = feed.F.root |> ZI.map ~name:"homepage" (fun homepage ->
     homepage.Q.last_text_inside;
   ) in
 

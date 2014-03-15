@@ -62,8 +62,8 @@ let get_digests elem =
   | [key; value] when key = "sha1" || key = "sha1new" || key = "sha256" -> digests := [(key, value)]
   | _ -> () end;
 
-  elem |> ZI.iter ~name:"manifest-digest" (
-    Q.iter_attrs (fun (ns, name) value ->
+  elem |> ZI.iter ~name:"manifest-digest" (fun manifest_digest ->
+    manifest_digest.Q.attrs |> Q.AttrMap.iter_values (fun (ns, name) value ->
       if ns = "" then digests := (name, value) :: !digests
     )
   );

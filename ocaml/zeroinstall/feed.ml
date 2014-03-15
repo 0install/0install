@@ -62,7 +62,7 @@ and command = {
 }
 
 and properties = {
-  attrs : (string * string) AttrMap.t;
+  attrs : AttrMap.t;
   requires : dependency list;
   bindings : binding list;
   commands : command StringMap.t;
@@ -140,7 +140,8 @@ type feed = {
 let value_testing = "testing"
 
 let make_command ?source_hint name ?(new_attr="path") path : command =
-  let attrs = [("name", name); (new_attr, path)] |> Q.attrs_of_list in
+  let attrs = AttrMap.singleton "name" name
+    |> AttrMap.add_no_ns new_attr path in
   let elem = ZI.make ?source_hint ~attrs "command" in
   {
     command_qdom = elem;
@@ -410,12 +411,7 @@ let parse_implementations (system:system) url root local_dir =
           if !new_bindings <> [] then
             s := {!s with bindings = !s.bindings @ (List.rev !new_bindings)};
 
-          let new_attrs =
-            let attrs = ref !s.attrs in
-            item.Q.attrs |> AttrMap.iter (fun name_pair value ->
-              attrs := !attrs |> AttrMap.add name_pair value
-            );
-            !attrs in
+          let new_attrs = !s.attrs |> AttrMap.add_all item.Q.attrs in
 
           s := {!s with
             attrs = new_attrs;
@@ -586,13 +582,12 @@ let save_feed_overrides config feed_url overrides =
   let attrs =
     match last_checked with
     | None -> AttrMap.empty
-    | Some last_checked ->
-        [("last-checked", (Printf.sprintf "%.0f" last_checked))] |> Q.attrs_of_list in
+    | Some last_checked -> AttrMap.singleton "last-checked" (Printf.sprintf "%.0f" last_checked) in
   let child_nodes = user_stability |> StringMap.map_bindings (fun id stability ->
-    ZI.make "implementation" ~attrs:(Q.attrs_of_list [
-      (FeedAttr.id, id);
-      (FeedConfigAttr.user_stability, (format_stability stability));
-    ])
+    ZI.make "implementation" ~attrs:(
+      AttrMap.singleton FeedAttr.id id
+      |> AttrMap.add_no_ns FeedConfigAttr.user_stability (format_stability stability)
+    )
   ) in
   let root = ZI.make ~attrs ~child_nodes "feed-preferences" in
   let url = Feed_url.format_url feed_url in
@@ -649,9 +644,7 @@ let get_summary = get_text "summary"
 let get_description = get_text "description"
 
 let get_feed_targets feed =
-  ZI.map feed.root "feed-for" ~f:(fun feed_for ->
-    ZI.get_attribute FeedAttr.interface feed_for
-  )
+  feed.root |> ZI.map ~name:"feed-for" (ZI.get_attribute FeedAttr.interface)
 
 let make_user_import feed_src = {
   feed_src = (feed_src :> Feed_url.non_distro_feed);
