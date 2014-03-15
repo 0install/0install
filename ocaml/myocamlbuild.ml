@@ -104,6 +104,8 @@ let () =
   flag ["link"; "ocaml"; "byte"] (A"-custom");
 
   dispatch (function
+  | Before_options ->
+      Options.use_ocamlfind := true;
   | After_rules ->
     rule "Build everything (native)"
       ~prod:"all-native.otarget"
