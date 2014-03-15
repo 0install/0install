@@ -159,7 +159,7 @@ class command_candidates (clause : S.at_most_one_clause option) (vars : (S.lit *
 
 (** To avoid adding the same implementations and commands more than once, we
     cache them. *)
-type search_key =
+type requirements =
   | ReqCommand of (string * iface_uri * bool)
   | ReqIface of (iface_uri * bool)
 
@@ -200,11 +200,15 @@ class ['a, 'b] cache =
 class type result =
   object
     method get_selections : Selections.t
-    method impl_cache : ((General.iface_uri * bool), impl_candidates) cache
+    method get_selected : source:bool -> General.iface_uri -> Feed.generic_implementation option
     method impl_provider : Impl_provider.impl_provider
-    method get_details : (Impl_provider.impl_provider *
-                          (General.iface_uri * bool, impl_candidates) cache * search_key)
+    method impl_provider : Impl_provider.impl_provider
+    method implementations : ((General.iface_uri * bool) * (S.lit * Feed.generic_implementation) option) list
+    method requirements : requirements
   end
+
+type diagnostics = S.lit
+let explain = S.explain_reason
 
 (** Create a <selections> document from the result of a solve. *)
 let get_selections dep_in_use root_req impl_cache command_cache =
@@ -234,8 +238,6 @@ let get_selections dep_in_use root_req impl_cache command_cache =
     | None -> None      (* This interface wasn't used *)
     | Some (_lit, impl) ->
         let attrs = ref impl.Feed.props.Feed.attrs in
-        let set_attr name value =
-          attrs := AttrMap.add_no_ns name value !attrs in
 
         attrs := AttrMap.remove ("", FeedAttr.stability) !attrs;
 
@@ -248,7 +250,7 @@ let get_selections dep_in_use root_req impl_cache command_cache =
           attrs := AttrMap.remove ("", FeedAttr.from_feed) !attrs
         );
 
-        set_attr "interface" iface;
+        attrs := AttrMap.add_no_ns "interface" iface !attrs;
 
         let child_nodes = ref [] in
         if impl != dummy_impl then (
@@ -307,9 +309,6 @@ let get_selections dep_in_use root_req impl_cache command_cache =
         AttrMap.singleton "interface" iface in
   ZI.make ~attrs:root_attrs ~child_nodes:(List.rev selections) "selections"
 
-(* [closest_match] is used internally. It adds a lowest-ranked
-   (but valid) implementation to every interface, so we can always
-   select something. Useful for diagnostics. *)
 let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match =
   (* The basic plan is this:
      1. Scan the root interface and all dependencies recursively, building up a SAT problem.
@@ -566,14 +565,20 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
       object (_ : result)
         method get_selections = get_selections dep_in_use root_req impl_cache command_cache |> Selections.create
 
-        method impl_cache = impl_cache
+        method get_selected ~source iface =
+          impl_cache#peek (iface, source)
+          |> pipe_some (fun candidates ->
+              match candidates#get_selected with
+              | Some (_lit, impl) when impl != dummy_impl -> Some impl
+              | _ -> None
+          )
+
         method impl_provider = impl_provider
 
-        method get_details =
-          if closest_match then
-            (impl_provider, impl_cache, root_req)
-          else
-            failwith "Can't diagnostic details: solve didn't fail!"
+        method implementations =
+          impl_cache#get_items |> List.map (fun (key, impl_candidates) -> (key, impl_candidates#get_selected))
+
+        method requirements = root_req
       end
   )
 

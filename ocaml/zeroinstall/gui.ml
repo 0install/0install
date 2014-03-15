@@ -127,29 +127,14 @@ let list_impls (results:Solver.result) iface =
     let bad_impls = List.map (fun (i, prob) -> (i, Some prob)) candidates.rejects in
     let all_impls = List.sort by_version @@ good_impls @ bad_impls in
 
-    let selected_impl =
-      if selected_impl.F.parsed_version = Versions.dummy then None else Some selected_impl in
-
     Some (selected_impl, all_impls) in
 
-  let get_selected ~source =
-    match results#impl_cache#peek (iface, source) with
-    | None -> None
-    | Some candidates ->
-        match candidates#get_selected with
-        | None -> None
-        | Some (_lit, impl) -> Some impl in     (* Also true for [dummy_impl] *)
-
-  match get_selected ~source:true with
-  | Some source_impl -> make_list ~source:true source_impl
+  match results#get_selected ~source:true iface with
+  | Some _ as source_impl -> make_list ~source:true source_impl
   | None ->
-      match get_selected ~source:false with
-      | Some bin_impl -> make_list ~source:false bin_impl
-      | None ->
-          (* We didn't look at this interface at all, so no information will be cached.
-           * There's a risk of deadlock if we try to fetch distro candidates in the callback, so
-           * we return nothing, which will cause the GUI to shade the dialog. *)
-          None
+      match results#get_selected ~source:false iface with
+      | Some _ as bin_impl -> make_list ~source:false bin_impl
+      | None -> make_list ~source:false None
 
 (** Download an icon for this feed and add it to the
     icon cache. If the feed has no icon do nothing. *)

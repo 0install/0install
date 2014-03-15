@@ -10,7 +10,6 @@ module Qdom = Support.Qdom
 module FeedAttr = Constants.FeedAttr
 
 module U = Support.Utils
-module S = Solver.S
 
 module SelMap = Map.Make (
   struct
@@ -116,8 +115,8 @@ let format_report buf (iface_uri, _source) component =
     impl_provider. As we explore the example selections, we further filter the candidates.
     [candidates] is the result from the impl_provider.
     [impl] is the selected implementation, or [None] if we chose [dummy_impl].
-    [lit] is the SAT literal, which can be used to produce diagnostics as a last resort. *)
-class component candidates (lit:S.lit) (selected_impl:Feed.generic_implementation option) =
+    [diagnostics] can be used to produce diagnostics as a last resort. *)
+class component candidates (diagnostics:Solver.diagnostics) (selected_impl:Feed.generic_implementation option) =
   let {Impl_provider.impls = orig_good; Impl_provider.rejects = orig_bad; Impl_provider.replacement} = candidates in
   (* orig_good is all the implementations passed to the SAT solver (these are the
      ones with a compatible OS, CPU, etc). They are sorted most desirable first. *)
@@ -152,7 +151,7 @@ class component candidates (lit:S.lit) (selected_impl:Feed.generic_implementatio
       bad <- List.map (fun impl -> (impl, reason)) good @ bad;
       good <- []
 
-    method lit = lit
+    method diagnostics = diagnostics
     method replacement = replacement
     method impl = selected_impl
     method notes = List.rev notes
@@ -250,7 +249,7 @@ let examine_selection report (iface_uri, source) component =
 
 let reject_if_unselected _key component =
   if component#impl = None then (
-    component#reject_all (`DiagnosticsFailure (S.explain_reason component#lit));
+    component#reject_all (`DiagnosticsFailure (Solver.explain component#diagnostics));
     component#note NoCandidates;
   )
 
@@ -300,18 +299,20 @@ let check_machine_groups report =
     SelMap.iter filter report
 
 let get_failure_report (result:Solver.result) : component SelMap.t =
-  let (impl_provider, impl_cache, root_req) = result#get_details in
+  let impl_provider = result#impl_provider in
+  let impls = result#implementations in
+  let root_req = result#requirements in
 
   let report =
-    let get_selected map ((iface, source) as key, candidates) =
-      match candidates#get_selected with
+    let get_selected map ((iface, source) as key, selected_candidate) =
+      match selected_candidate with
       | None -> map    (* Not part of the (dummy) solution *)
-      | Some (lit, impl) ->
+      | Some (diagnostics, impl) ->
           let impl = if impl.Feed.parsed_version = Versions.dummy then None else Some impl in
           let impl_candidates = impl_provider#get_implementations iface ~source in
-          let component = new component impl_candidates lit impl in
+          let component = new component impl_candidates diagnostics impl in
           SelMap.add key component map in
-    List.fold_left get_selected SelMap.empty impl_cache#get_items in
+    List.fold_left get_selected SelMap.empty impls in
 
   process_root_req report root_req;
   examine_extra_restrictions report impl_provider#extra_restrictions;
