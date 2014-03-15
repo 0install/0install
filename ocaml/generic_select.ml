@@ -15,7 +15,7 @@ module U = Support.Utils
 module H = Zeroinstall.Helpers
 
 type target =
-  | App of (filepath * Requirements.requirements)
+  | App of (filepath * Requirements.t)
   | Interface
   | Selections of Zeroinstall.Selections.t
 

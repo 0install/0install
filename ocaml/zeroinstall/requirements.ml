@@ -7,7 +7,7 @@
 open General
 open Support.Common
 
-type requirements = {
+type t = {
   interface_uri : iface_uri;
   command : string option;
   source : bool;

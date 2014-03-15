@@ -17,15 +17,15 @@ type app_times = {
 
 (** Create a new app with these requirements.
  * You should call [set_selections] immediately after this. *)
-val create_app : config -> string -> Requirements.requirements -> app
+val create_app : config -> string -> Requirements.t -> app
 
 (** Remove this app and any shell command created with [integrate_shell]. *)
 val destroy : config -> app -> unit
 
 val lookup_app : config -> string -> app option
 
-val get_requirements : system -> app -> Requirements.requirements
-val set_requirements : config -> app -> Requirements.requirements -> unit
+val get_requirements : system -> app -> Requirements.t
+val set_requirements : config -> app -> Requirements.t -> unit
 
 (** Get the dates of the available snapshots, starting with the most recent.
  * Used by the "0install whatchanged" command. *)

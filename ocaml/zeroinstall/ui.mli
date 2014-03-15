@@ -15,7 +15,7 @@ class type ui_handler =
       ?test_callback:(Selections.t -> string Lwt.t) ->
       ?systray:bool ->
       [`Download_only | `Select_for_run | `Select_only] ->
-      Requirements.requirements ->
+      Requirements.t ->
       refresh:bool ->
       [`Aborted_by_user | `Success of Selections.t] Lwt.t
     

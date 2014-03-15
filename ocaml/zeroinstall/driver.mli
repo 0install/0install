@@ -11,7 +11,7 @@
  * Returns None if we need to refresh feeds or download any implementations. *)
 val quick_solve :
   < config : General.config; distro : Distro.distribution; .. > ->
-  Requirements.requirements -> Selections.t option
+  Requirements.t -> Selections.t option
 
 (** Run the solver, then download any feeds that are missing or that need to be
     updated. Each time a new feed is imported into the cache, the solver is run
@@ -29,7 +29,7 @@ val quick_solve :
 val solve_with_downloads :
   General.config -> Distro.distribution -> Fetch.fetcher ->
   watcher:#Progress.watcher ->
-  Requirements.requirements ->
+  Requirements.t ->
   force:bool ->
   update_local:bool ->
   (bool * Solver.result * Feed_provider.feed_provider) Lwt.t
