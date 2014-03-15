@@ -8,6 +8,7 @@ Config
 Console
 Constants
 Dbus
+Default_ui
 Diagnostics
 Distro
 Distro_impls
@@ -25,7 +26,6 @@ Feed_url
 Fetch
 General
 Gui
-Helpers
 Impl_provider
 Json_connection
 Launcher

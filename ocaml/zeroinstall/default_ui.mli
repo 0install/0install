@@ -4,12 +4,6 @@
 
 (** High-level helper functions *)
 
-type select_mode = [
-  | `Select_only       (* only download feeds, not archives; display "Select" in GUI *)
-  | `Download_only     (* download archives too; refresh if stale feeds; display "Download" in GUI *)
-  | `Select_for_run    (* download archives; update stale in background; display "Run" in GUI *)
-]
-
 (** Create a UI appropriate for the current environment and user options.
  * This will be a graphical UI if [Gui.try_get_gui] returns one and we're not in dry-run mode.
  * Otherwise, it will be an interactive console UI if stderr is a tty.

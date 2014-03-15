@@ -11,7 +11,6 @@ open Support.Common
 module Q = Support.Qdom
 module J = Yojson.Basic
 module JC = Zeroinstall.Json_connection
-module H = Zeroinstall.Helpers
 module Ui = Zeroinstall.Ui
 module Progress = Zeroinstall.Progress
 

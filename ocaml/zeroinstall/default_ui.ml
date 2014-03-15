@@ -6,17 +6,6 @@
 
 open General
 open Support.Common
-module Basedir = Support.Basedir
-module FeedAttr = Constants.FeedAttr
-module R = Requirements
-module U = Support.Utils
-module Q = Support.Qdom
-
-type select_mode = [
-  | `Select_only       (* only download feeds, not archives; display "Select" in GUI *)
-  | `Download_only     (* download archives too; refresh if stale feeds; display "Download" in GUI *)
-  | `Select_for_run    (* download archives; update stale in background; display "Run" in GUI *)
-]
 
 let make_ui config use_gui : Ui.ui_handler =
   let use_gui =

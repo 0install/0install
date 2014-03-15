@@ -4,6 +4,12 @@
 
 (** Common types for user interface callbacks *)
 
+type select_mode = [
+  | `Select_only       (* only download feeds, not archives; display "Select" in GUI *)
+  | `Download_only     (* download archives too; refresh if stale feeds; display "Download" in GUI *)
+  | `Select_for_run    (* download archives; update stale in background; display "Run" in GUI *)
+]
+
 class type ui_handler =
   object
     (** Choose (and possibly download) a set of implementations.
@@ -14,7 +20,7 @@ class type ui_handler =
       < config : General.config; distro : Distro.distribution; make_fetcher : Progress.watcher -> Fetch.fetcher; .. > ->
       ?test_callback:(Selections.t -> string Lwt.t) ->
       ?systray:bool ->
-      [`Download_only | `Select_for_run | `Select_only] ->
+      select_mode ->
       Requirements.t ->
       refresh:bool ->
       [`Aborted_by_user | `Success of Selections.t] Lwt.t

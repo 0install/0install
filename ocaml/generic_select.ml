@@ -12,7 +12,6 @@ module Launcher = Zeroinstall.Launcher
 module Apps = Zeroinstall.Apps
 module Requirements = Zeroinstall.Requirements
 module U = Support.Utils
-module H = Zeroinstall.Helpers
 
 type target =
   | App of (filepath * Requirements.t)

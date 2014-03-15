@@ -276,7 +276,7 @@ let rec set_of_option_names = function
 
 let make_tools config =
   let gui = ref Maybe in
-  let ui = lazy (Zeroinstall.Helpers.make_ui config !gui) in
+  let ui = lazy (Zeroinstall.Default_ui.make_ui config !gui) in
   let distro = lazy (Zeroinstall.Distro_impls.get_host_distribution config) in
   let trust_db = lazy (new Zeroinstall.Trust.trust_db config) in
   let download_pool = lazy (Zeroinstall.Downloader.make_pool ~max_downloads_per_site:2) in
