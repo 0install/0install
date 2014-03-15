@@ -34,15 +34,11 @@ class type ['a, 'b] option_parser =
     method parse : string list -> 'a
   end
 
-(* [option names], n_args, help text, [arg types]
+(* [option names], n_args, help text, parser
    'a is the type of the tags, 'b is the type of arg types.
-   The callback gets the argument stream (use this for options which take a variable number of arguments)
-   and a list of values (one for each declared argument).
-   *)
+   The parser gets the argument stream (use this for options which take a variable number of arguments)
+   and a list of values (one for each declared argument). *)
 type ('a, 'b) opt_spec = string list * int * string * ('a, 'b) option_parser
-
-(* actual option used, parsed option *)
-type 'a option_value = string * 'a
 
 type ('a, 'b) argparse_spec = {
   options_spec : ('a, 'b) opt_spec list;
@@ -59,8 +55,12 @@ type 'b complete =
 (** [cword] is the index in [input_args] that we are trying to complete, or None if we're not completing. *)
 val read_args : ?cword:int -> ('a, 'b) argparse_spec -> string list -> raw_option list * string list * 'b complete
 
-val parse_options : ('a, 'b) opt_spec list -> raw_option list -> (string * 'a) list
-val iter_options : 'a option_value list -> ('a -> unit) -> unit
+type 'a parsed_options
+
+val parse_options : ('a, 'b) opt_spec list -> raw_option list -> 'a parsed_options
+
+(** Invoke the callback on each option. If it raises [Safe_exception], add the name of the option to the error message. *)
+val iter_options : 'a parsed_options -> ('a -> unit) -> unit
 
 (** {2 Handy wrappers for option handlers} *)
 

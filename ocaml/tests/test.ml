@@ -48,6 +48,11 @@ let test_basedir () =
   equal_str_lists ~msg:"PORT-2" ["/mnt/0install/cache"] bd.cache;
   equal_str_lists ~msg:"PORT-3" ["/mnt/0install/data"] bd.data
 
+let as_list flags =
+  let lst = ref [] in
+  Support.Argparse.iter_options flags (fun v -> lst := v :: !lst);
+  List.rev !lst
+
 let test_option_parsing () =
   Support.Logging.threshold := Support.Logging.Warning;
 
@@ -96,7 +101,12 @@ let test_option_parsing () =
 
   let _, flags, args = p_full ["run"; "-wgdb"; "foo"] in
   equal_str_lists ["run"; "foo"] args;
-  assert_equal [("-w", `Wrapper "gdb")] flags;
+  assert_equal [`Wrapper "gdb"] (as_list flags);
+  begin try
+    Support.Argparse.iter_options flags (fun _ -> raise_safe "Error!");
+    assert false
+  with Safe_exception ("Error!", ctx) ->
+    assert_str_equal "... processing option '-w'" (List.hd !ctx) end;
 
   let v = fake_system#collect_output (fun () -> (
     try ignore @@ p ["-c"; "--version"]; assert false;
@@ -106,15 +116,15 @@ let test_option_parsing () =
 
   let _, flags, args = p_full ["--version"; "1.2"; "run"; "foo"] in
   equal_str_lists ["run"; "foo"] args;
-  assert_equal [("--version", `RequireVersion "1.2")] flags;
+  assert_equal [`RequireVersion "1.2"] (as_list flags);
 
   let _, flags, args = p_full ["digest"; "-m"; "archive.tgz"] in
   equal_str_lists ["digest"; "archive.tgz"] args;
-  assert_equal [("-m", `ShowManifest)] flags;
+  assert_equal [`ShowManifest] (as_list flags);
 
   let _, flags, args = p_full ["run"; "-m"; "main"; "app"] in
   equal_str_lists ["run"; "app"] args;
-  assert_equal [("-m", `MainExecutable "main")] flags
+  assert_equal [`MainExecutable "main"] (as_list flags)
 
 let test_run_real tmpdir =
   Unix.putenv "ZEROINSTALL_PORTABLE_BASE" tmpdir;

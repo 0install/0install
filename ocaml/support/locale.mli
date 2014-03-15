@@ -9,19 +9,13 @@
 
 type lang_spec = (string * string option)    (* Langauge, country *)
 
-module LangType :
-  sig
-    type t = lang_spec
-    val compare : lang_spec -> lang_spec -> int
-  end
-
-module LangMap : (Map.S with type key = LangType.t)
+module LangMap : (Map.S with type key = lang_spec)
 
 val parse_lang : string -> lang_spec option
 
 val format_lang : lang_spec -> string
 
-(** Get the users preferred language(s), most preferred first. The default is always included.
+(** Get the user's preferred language(s), most preferred first. The default is always included.
     See: http://www.gnu.org/software/gettext/manual/html_mono/gettext.html#The-LANGUAGE-variable *)
 val get_langs : ?default:lang_spec -> Common.system -> lang_spec list
 

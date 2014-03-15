@@ -19,10 +19,7 @@ val will_log : level -> bool
 (* If set, we call this before logging anything and then set it to None. This is used to clear progress displays. *)
 val clear_fn : (unit -> unit) option ref
 
-class type handler =
-  object
-    method handle : ?ex:exn -> level -> string -> unit
-  end
+type handler = ?ex:exn -> level -> string -> unit
 
 val handler : handler ref
 

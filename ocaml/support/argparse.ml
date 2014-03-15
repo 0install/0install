@@ -28,7 +28,7 @@ type ('a,'b) opt_spec = (string list * int * string * ('a,'b) option_parser)
 
 let is_empty stream = None = Stream.peek stream
 
-type 'a option_value = (string * 'a)
+type 'a parsed_options = (string * 'a) list
 
 type ('a,'b) argparse_spec = {
   options_spec : ('a,'b) opt_spec list;
@@ -201,7 +201,7 @@ let parse_options valid_options raw_options =
 
   List.map parse_option raw_options
 
-let iter_options (options : 'a option_value list) fn =
+let iter_options options fn =
   let process (actual_opt, value) =
     try fn value
     with Safe_exception _ as ex -> reraise_with_context ex "... processing option '%s'" actual_opt

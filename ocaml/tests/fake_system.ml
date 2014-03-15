@@ -387,7 +387,7 @@ let make_tools config =
   end
 
 let fake_log =
-  object (_ : #Support.Logging.handler)
+  object
     val mutable record = []
 
     method reset =
@@ -409,7 +409,7 @@ let fake_log =
       else (
         prerr_endline "(showing full log)";
         let dump (ex, level, msg) =
-          real_log#handle ?ex level msg in
+          real_log ?ex level msg in
         List.iter dump @@ List.rev record;
       )
 
@@ -418,13 +418,13 @@ let fake_log =
       if not (List.exists (fun (_ex, _lvl, msg) -> Str.string_match re msg 0) record) then
         raise_safe "Expected log message matching '%s'" expected
 
-    method handle ?ex level msg =
-      if !forward_to_real_log && level > Support.Logging.Info then real_log#handle ?ex level msg;
-      if false then prerr_endline @@ "LOG: " ^ msg;
-      record <- (ex, level, msg) :: record
+    method record x = record <- x :: record
   end
 
-let () = Support.Logging.handler := (fake_log :> Support.Logging.handler)
+let () = Support.Logging.handler := fun ?ex level msg ->
+  if !forward_to_real_log && level > Support.Logging.Info then real_log ?ex level msg;
+  if false then prerr_endline @@ "LOG: " ^ msg;
+  fake_log#record (ex, level, msg)
 
 let collect_logging fn =
   forward_to_real_log := false;

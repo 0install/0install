@@ -37,35 +37,28 @@ let clear_fn = ref None
 
 let will_log level = level >= !threshold
 
-class type handler =
-  object
-    method handle : ?ex:exn -> level -> string -> unit
-  end
+type handler = ?ex:exn -> level -> string -> unit
 
-let console_handler =
-  object (_ : handler)
-    method handle ?ex level msg =
+let console_handler ?ex level msg =
+  begin match !clear_fn with
+  | None -> ()
+  | Some fn ->
+      fn ();
+      clear_fn := None end;
 
-      begin match !clear_fn with
-      | None -> ()
-      | Some fn ->
-          fn ();
-          clear_fn := None end;
-
-      let term = if ex = None then "\n" else ": " in
-      output_string stderr (string_of_level level ^ ": " ^ msg ^ term);
-      let () =
-        match ex with
-        | None -> ()
-        | Some ex ->
-            output_string stderr (Printexc.to_string ex);
-            if Printexc.backtrace_status () then (
-              output_string stderr "\n";
-              Printexc.print_backtrace stderr
-            );
-            output_string stderr "\n" in
-      flush stderr
-  end
+  let term = if ex = None then "\n" else ": " in
+  output_string stderr (string_of_level level ^ ": " ^ msg ^ term);
+  let () =
+    match ex with
+    | None -> ()
+    | Some ex ->
+        output_string stderr (Printexc.to_string ex);
+        if Printexc.backtrace_status () then (
+          output_string stderr "\n";
+          Printexc.print_backtrace stderr
+        );
+        output_string stderr "\n" in
+  flush stderr
 
 let handler = ref console_handler
 
@@ -78,7 +71,7 @@ let handler = ref console_handler
 let log level ?ex =
   let do_log msg =
     if level >= !threshold then
-      !handler#handle ?ex level msg;
+      !handler ?ex level msg;
 
     match !crash_log with
     | None -> ()
