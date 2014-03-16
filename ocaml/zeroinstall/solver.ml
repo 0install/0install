@@ -339,11 +339,8 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
 
   (* Insert dummy_impl if we're trying to diagnose a problem. *)
   let maybe_add_dummy impls =
-    if closest_match then (
-      impls @ [dummy_impl]
-    ) else (
-      impls
-    ) in
+    if closest_match then impls @ [dummy_impl]
+    else impls in
 
   let dep_in_use dep = impl_provider#is_dep_needed dep in
 
@@ -370,89 +367,76 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
      - if we require any commands, ensure we select them too
   *)
   let rec process_deps user_var deps =
-    ListLabels.iter deps ~f:(fun dep ->
+    deps |> List.iter (fun dep ->
       if dep_in_use dep then (
         let essential = (dep.Feed.dep_importance = Feed.Dep_essential) in
 
         (* Dependencies on commands *)
-        let require_command name =
+        dep.Feed.dep_required_commands |> List.iter (fun name ->
           (* What about optional command dependencies? Looks like the Python doesn't handle that either... *)
           let candidates = command_cache#lookup (name, dep.Feed.dep_iface, false) in
-          S.implies sat ~reason:"dep on command" user_var (candidates#get_vars) in
-        List.iter require_command dep.Feed.dep_required_commands;
+          S.implies sat ~reason:"dep on command" user_var candidates#get_vars
+        );
 
         (* Restrictions on the candidates *)
-        let meets_restriction impl r :bool = impl.Feed.parsed_version = Versions.dummy || r#meets_restriction impl in
+        let meets_restriction impl r = impl.Feed.parsed_version = Versions.dummy || r#meets_restriction impl in
         let meets_restrictions impl = List.for_all (meets_restriction impl) dep.Feed.dep_restrictions in
-        let candidates = impl_cache#lookup @@ (dep.Feed.dep_iface, false) in
-        let (pass, fail) = candidates#partition meets_restrictions in
+        let candidates = impl_cache#lookup (dep.Feed.dep_iface, false) in
+        let pass, fail = candidates#partition meets_restrictions in
 
         if essential then (
-          (*
-          if pass = [] then (
-            let impl_str = SolverData.to_string (S.get_user_data_for_lit sat user_var) in
-            log_warning "Discarding candidate '%s' because dep %s cannot be satisfied. %d/%d candidates pass the restrictions."
-              impl_str (Qdom.show_with_loc dep.Feed.dep_qdom) (List.length pass) (List.length fail)
-          );
-          *)
-
           S.implies sat ~reason:"essential dep" user_var pass     (* Must choose a suitable candidate *)
         ) else (
-          ListLabels.iter fail ~f:(fun bad_impl ->
-            (* If [user_var] is selected, don't select an incompatible version of the optional dependency.
-               We don't need to do this explicitly in the [essential] case, because we must select a good
-               version and we can't select two. *)
-            S.implies sat ~reason:"conflicting dep" user_var [S.neg bad_impl]
-          )
+          (* If [user_var] is selected, don't select an incompatible version of the optional dependency.
+             We don't need to do this explicitly in the [essential] case, because we must select a good
+             version and we can't select two. *)
+          S.at_most_one sat (user_var :: fail) |> ignore;
         )
       )
     )
 
   (* Add the implementations of an interface to the cache (called the first time we visit it). *)
   and add_impls_to_cache (iface_uri, source) =
-    let {Impl_provider.replacement; Impl_provider.impls; Impl_provider.rejects = _} =
-      impl_provider#get_implementations iface_uri ~source in
+    let {Impl_provider.replacement; impls; rejects = _} = impl_provider#get_implementations iface_uri ~source in
     (* log_warning "Adding %d impls for %s" (List.length impls) iface_uri; *)
-    let matching_impls = maybe_add_dummy @@ impls in
-    let pairs = List.map (fun impl -> (S.add_variable sat (SolverData.ImplElem impl), impl)) matching_impls in
-    let impl_clause = if List.length pairs > 0 then Some (S.at_most_one sat (List.map fst pairs)) else None in
+    let pairs = impls
+      |> maybe_add_dummy
+      |> List.map (fun impl -> (S.add_variable sat (SolverData.ImplElem impl), impl)) in
+    let impl_clause = if pairs <> [] then Some (S.at_most_one sat (List.map fst pairs)) else None in
     let data = new impl_candidates impl_clause pairs in
     (data, fun () ->
       (* Conflict with our replacements *)
-      let () =
-        match replacement with
-        | None -> ()
-        | Some replacement when replacement = iface_uri ->
-            log_warning "Interface %s replaced-by itself!" iface_uri
-        | Some replacement ->
-            let handle_replacement () =
-              let our_vars = data#get_real_vars in
-              match impl_cache#peek (replacement, source) with
-              | None -> ()  (* We didn't use it, so we can't conflict *)
-              | Some replacement_candidates ->
-                  let replacements = replacement_candidates#get_real_vars in
-                  if (our_vars <> [] && replacements <> []) then (
-                    (* Must select one implementation out of all candidates from both interfaces.
-                       Dummy implementations don't conflict, though. *)
-                    ignore @@ S.at_most_one sat (our_vars @ replacements)
-                  ) in
-            (* Delay until the end. If we never use the replacement feed, no need to conflict
-               (avoids getting it added to feeds_used). *)
-            delayed := handle_replacement :: !delayed
-      in
+      begin match replacement with
+      | None -> ()
+      | Some replacement when replacement = iface_uri ->
+          log_warning "Interface %s replaced-by itself!" iface_uri
+      | Some replacement ->
+          let handle_replacement () =
+            let our_vars = data#get_real_vars in
+            match impl_cache#peek (replacement, source) with
+            | None -> ()  (* We didn't use it, so we can't conflict *)
+            | Some replacement_candidates ->
+                let replacements = replacement_candidates#get_real_vars in
+                if (our_vars <> [] && replacements <> []) then (
+                  (* Must select one implementation out of all candidates from both interfaces.
+                     Dummy implementations don't conflict, though. *)
+                  S.at_most_one sat (our_vars @ replacements) |> ignore
+                ) in
+          (* Delay until the end. If we never use the replacement feed, no need to conflict
+             (avoids getting it added to feeds_used). *)
+          delayed := handle_replacement :: !delayed end;
 
-      ListLabels.iter pairs ~f:(fun (impl_var, impl) ->
-        let () =
-          let open Arch in
-          match impl.Feed.machine with
-          | Some machine when machine <> "src" -> (
+      pairs |> List.iter (fun (impl_var, impl) ->
+        impl.Feed.machine |> if_some (function
+          | "src" -> ()
+          | machine ->
               let group_var =
+                let open Arch in
                 match get_machine_group machine with
                 | Machine_group_default -> machine_group_default
                 | Machine_group_64 -> machine_group_64 in
               S.implies sat ~reason:"machine group" impl_var [group_var];
-          )
-          | _ -> () in
+        );
 
         process_bindings impl_var iface_uri Feed.(impl.props.bindings);
 
@@ -470,7 +454,7 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
       let var = S.add_variable sat (SolverData.CommandElem elem) in
       (var, elem) in
     let vars = List.map make_provides_command commands in
-    let command_clause = if List.length vars > 0 then Some (S.at_most_one sat @@ List.map fst vars) else None in
+    let command_clause = if vars <> [] then Some (S.at_most_one sat @@ List.map fst vars) else None in
     let data = new command_candidates command_clause vars in
 
     let process_commands () =
@@ -496,7 +480,7 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
 
   (* This recursively builds the whole problem up. *)
   let candidates = lookup root_req in
-  S.at_least_one sat ~reason:"need root" @@ candidates#get_vars;          (* Must get what we came for! *)
+  S.at_least_one sat ~reason:"need root" candidates#get_vars;          (* Must get what we came for! *)
 
   (* Setup done; lock to prevent accidents *)
   let locked _ = failwith "building done" in
@@ -583,12 +567,7 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
   )
 
 let get_root_requirements config requirements =
-  let module R = Requirements in
-  let {
-    R.command; R.interface_uri; R.source;
-    R.extra_restrictions; R.os; R.cpu;
-    R.message = _;
-  } = requirements in
+  let { Requirements.command; interface_uri; source; extra_restrictions; os; cpu; message = _ } = requirements in
 
   (* This is for old feeds that have use='testing' instead of the newer
     'test' command for giving test-only dependencies. *)
@@ -617,7 +596,7 @@ let get_root_requirements config requirements =
 
 let solve_for config feed_provider requirements =
   try
-    let (scope_filter, root_req) = get_root_requirements config requirements in
+    let scope_filter, root_req = get_root_requirements config requirements in
 
     let impl_provider = (new Impl_provider.default_impl_provider config feed_provider scope_filter :> Impl_provider.impl_provider) in
     match do_solve impl_provider root_req ~closest_match:false with
