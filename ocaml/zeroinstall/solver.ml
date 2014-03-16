@@ -157,45 +157,94 @@ class command_candidates (clause : S.at_most_one_clause option) (vars : (S.lit *
               | None -> Unselected        (* No remaining candidates, and none was chosen. *)
   end
 
-(** To avoid adding the same implementations and commands more than once, we
-    cache them. *)
-type requirements =
-  | ReqCommand of (string * iface_uri * bool)
-  | ReqIface of (iface_uri * bool)
+module type CACHE_ENTRY =
+  sig
+    type t
+    type value
+    val compare : t -> t -> int
+  end
 
-class ['a, 'b] cache =
-  object
-    val table : ('a, 'b) Hashtbl.t = Hashtbl.create 100
-    val mutable make : 'a -> ('b * (unit -> unit)) = fun _ -> failwith "set_maker not called!"
+module CommandIfaceEntry =
+  struct
+    type t = (string * iface_uri * bool)
+    type value = command_candidates
+    let compare = compare
+  end
 
-    method set_maker maker =
-      make <- maker
+module IfaceEntry =
+  struct
+    type t = (iface_uri * bool)
+    type value = impl_candidates
 
-    (** Look up [key] in [cache]. If not found, create it with [make key],
-        add it to the cache, and then call [process key value] on it.
-        [make] must not be recursive (since the key hasn't been added yet),
-        but [process] can be. In other words, [make] does whatever setup *must*
-        be done before anyone can use this cache entry, which [process] does
-        setup that can be done afterwards. *)
-    method lookup (key:'a) : 'b =
-      try Hashtbl.find table key
+    (* Sort the interfaces by URI so we have a stable output. *)
+    let compare (ib, sb) (ia, sa) =
+      match compare ia ib with
+      | 0 -> compare sa sb
+      | x -> x
+  end
+
+module Cache(CacheEntry : CACHE_ENTRY) :
+  sig
+    (** The cache is used in [build_problem], while the clauses are still being added. *)
+    type t
+
+    (** Once the problem is built, an immutable snapshot is taken. *)
+    type snapshot
+
+    val create : unit -> t
+
+    (** [lookup cache make key] will look up [key] in [cache].
+     * If not found, create it with [value, process = make key], add [value] to the cache,
+     * and then call [process ()] on it.
+     * [make] must not be recursive (since the key hasn't been added yet),
+     * but [process] can be. In other words, [make] does whatever setup *must*
+     * be done before anyone can use this cache entry, while [process] does
+     * setup that can be done afterwards. *)
+    val lookup : t -> (CacheEntry.t -> (CacheEntry.value * (unit -> unit))) -> CacheEntry.t -> CacheEntry.value
+    val peek : t -> CacheEntry.t -> CacheEntry.value option
+
+    val snapshot : t -> snapshot
+    val get : CacheEntry.t -> snapshot -> CacheEntry.value option
+    val get_exn : CacheEntry.t -> snapshot -> CacheEntry.value
+
+    (** The sorted bindings *)
+    val bindings : snapshot -> (CacheEntry.t * CacheEntry.value) list
+  end = struct
+    module M = Map.Make(CacheEntry)
+
+    type snapshot = CacheEntry.value M.t
+    type t = snapshot ref
+
+    let create () = ref M.empty
+
+    let lookup table make key =
+      try M.find key !table
       with Not_found ->
-        let (value, process) = make key in
-        Hashtbl.add table key value;
+        let value, process = make key in
+        table := M.add key value !table;
         process ();
         value
 
-    method peek (key:'a) : 'b option =
-      try Some (Hashtbl.find table key)
+    let peek table key =
+      try Some (M.find key !table)
       with Not_found -> None
 
-    method get_items =
-      let r = ref [] in
-      Hashtbl.iter (fun k v ->
-        r := (k, v) :: !r;
-      ) table;
-      !r
+    let snapshot table = !table
+
+    let get key map =
+      try Some (M.find key map)
+      with Not_found -> None
+
+    let get_exn = M.find
+    let bindings = M.bindings
   end
+
+module ImplCache = Cache(IfaceEntry)
+module CommandCache = Cache(CommandIfaceEntry)
+
+type requirements =
+  | ReqCommand of CommandIfaceEntry.t
+  | ReqIface of IfaceEntry.t
 
 class type result =
   object
@@ -210,47 +259,34 @@ class type result =
 type diagnostics = S.lit
 let explain = S.explain_reason
 
-(** Create a <selections> document from the result of a solve. *)
-let get_selections dep_in_use root_req impl_cache command_cache =
-  let was_selected (_, candidates) =
-    match candidates#get_clause with
-    | None -> false
-    | Some clause -> S.get_selected clause <> None in
-
-  let commands = List.filter was_selected @@ command_cache#get_items in
-  let impls = List.filter was_selected @@ impl_cache#get_items in
-
+(** Create a <selections> document from the result of a solve.
+ * The use of Maps ensures that the inputs will be sorted, so we will have a stable output.
+ *)
+let get_selections dep_in_use root_req impls commands =
   (* For each implementation, remember which commands we need. *)
   let commands_needed = Hashtbl.create 10 in
   let check_command ((command_name, iface, _source), _) =
     Hashtbl.add commands_needed iface command_name in
   List.iter check_command commands;
 
-  (* Sort the interfaces by URI so we have a stable output. *)
-  let cmp ((ib, sb), _cands) ((ia, sa), _cands) =
-    match compare ia ib with
-    | 0 -> compare sa sb
-    | x -> x in
-  let impls = List.sort cmp impls in
-
   let selections = impls |> U.filter_map (fun ((iface, _source), impls) ->
     match impls#get_selected with
     | None -> None      (* This interface wasn't used *)
     | Some (_lit, impl) ->
-        let attrs = ref impl.Feed.props.Feed.attrs in
+        let attrs = Feed.(impl.props.attrs)
+          |> AttrMap.remove ("", FeedAttr.stability)
 
-        attrs := AttrMap.remove ("", FeedAttr.stability) !attrs;
+          (* Replaced by <command> *)
+          |> AttrMap.remove ("", FeedAttr.main)
+          |> AttrMap.remove ("", FeedAttr.self_test)
 
-        (* Replaced by <command> *)
-        attrs := AttrMap.remove ("", FeedAttr.main) !attrs;
-        attrs := AttrMap.remove ("", FeedAttr.self_test) !attrs;
+          |> AttrMap.add_no_ns "interface" iface in
 
-        if Some iface = AttrMap.get_no_ns FeedAttr.from_feed !attrs then (
-          (* Don't bother writing from-feed attr if it's the same as the interface *)
-          attrs := AttrMap.remove ("", FeedAttr.from_feed) !attrs
-        );
-
-        attrs := AttrMap.add_no_ns "interface" iface !attrs;
+        let attrs =
+          if Some iface = AttrMap.get_no_ns FeedAttr.from_feed attrs then (
+            (* Don't bother writing from-feed attr if it's the same as the interface *)
+            AttrMap.remove ("", FeedAttr.from_feed) attrs
+          ) else attrs in
 
         let child_nodes = ref [] in
         if impl != dummy_impl then (
@@ -294,7 +330,7 @@ let get_selections dep_in_use root_req impl_cache command_cache =
           impl.Feed.qdom |> ZI.iter ~name:"manifest-digest" copy_elem;
         );
         let sel = ZI.make
-          ~attrs:!attrs
+          ~attrs
           ~child_nodes:(List.rev !child_nodes)
           ~source_hint:impl.Feed.qdom "selection" in
         Some sel
@@ -309,25 +345,12 @@ let get_selections dep_in_use root_req impl_cache command_cache =
         AttrMap.singleton "interface" iface in
   ZI.make ~attrs:root_attrs ~child_nodes:(List.rev selections) "selections"
 
-let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match =
-  (* The basic plan is this:
-     1. Scan the root interface and all dependencies recursively, building up a SAT problem.
-     2. Solve the SAT problem. Whenever there are multiple options, try the most preferred one first.
-     3. Create the selections XML from the results.
-
-     All three involve recursively walking the tree in a similar way:
-     1) we follow every dependency of every implementation (order not important)
-     2) we follow every dependency of every selected implementation (better versions first)
-     3) we follow every dependency of every selected implementation
-
-     In all cases, a dependency may be on an <implementation> or on a specific <command>.
-   *)
-
-  let sat = S.create () in
-
+(** Starting from [root_req], explore all the feeds, commands and implementations we might need, adding
+ * all of them to [sat_problem]. *)
+let build_problem impl_provider root_req sat ~closest_match =
   (* For each (iface, command, source) we have a list of implementations (or commands). *)
-  let impl_cache = new cache in
-  let command_cache = new cache in
+  let impl_cache = ImplCache.create () in
+  let command_cache = CommandCache.create () in
 
   (* m64 is set if we select any 64-bit binary. mDef will be set if we select any binary that
      needs any other CPU architecture. Don't allow both to be set together. *)
@@ -335,53 +358,50 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
   let machine_group_64 = S.add_variable sat @@ SolverData.MachineGroup "m64" in
   (* If we get to the end of the solve without deciding then nothing we selected cares about the
      type of CPU. The solver will set them both to false at the end. *)
-  ignore @@ S.at_most_one sat [machine_group_default; machine_group_64];
+  S.at_most_one sat [machine_group_default; machine_group_64] |> ignore;
 
-  (* Insert dummy_impl if we're trying to diagnose a problem. *)
+  (* Insert dummy_impl (last) if we're trying to diagnose a problem. *)
   let maybe_add_dummy impls =
     if closest_match then impls @ [dummy_impl]
     else impls in
-
-  let dep_in_use dep = impl_provider#is_dep_needed dep in
 
   (* Callbacks to run after building the problem. *)
   let delayed = ref [] in
 
   (* For <executable-in-*> bindings, add a dependency on the appropriate <command>.
    * Note: we only call this for self-bindings, so we could be efficient by selecting the exact command here... *)
-  let process_bindings user_var dep_iface =
+  let rec process_bindings user_var dep_iface =
     List.iter (fun binding ->
       Binding.parse_binding binding
       |> pipe_some Binding.get_command
       |> if_some (fun name ->
-        let candidates = command_cache#lookup (name, dep_iface, false) in
+        let candidates = lookup_command (name, dep_iface, false) in
         S.implies sat ~reason:"binding on command" user_var candidates#get_vars
       )
-    ) in
+    )
 
   (* For each dependency of [user_var]:
      - find the candidate implementations to satisfy it
      - take just those that satisfy any restrictions in the dependency
      - ensure that we don't pick an incompatbile version if we select [user_var]
      - ensure that we do pick a compatible version if we select [user_var] (for "essential" dependencies only)
-     - if we require any commands, ensure we select them too
-  *)
-  let rec process_deps user_var deps =
+     - if we require any commands, ensure we select them too *)
+  and process_deps user_var deps =
     deps |> List.iter (fun dep ->
-      if dep_in_use dep then (
+      if impl_provider#is_dep_needed dep then (
         let essential = (dep.Feed.dep_importance = Feed.Dep_essential) in
 
         (* Dependencies on commands *)
         dep.Feed.dep_required_commands |> List.iter (fun name ->
           (* What about optional command dependencies? Looks like the Python doesn't handle that either... *)
-          let candidates = command_cache#lookup (name, dep.Feed.dep_iface, false) in
+          let candidates = lookup_command (name, dep.Feed.dep_iface, false) in
           S.implies sat ~reason:"dep on command" user_var candidates#get_vars
         );
 
         (* Restrictions on the candidates *)
         let meets_restriction impl r = impl.Feed.parsed_version = Versions.dummy || r#meets_restriction impl in
         let meets_restrictions impl = List.for_all (meets_restriction impl) dep.Feed.dep_restrictions in
-        let candidates = impl_cache#lookup (dep.Feed.dep_iface, false) in
+        let candidates = lookup_impl (dep.Feed.dep_iface, false) in
         let pass, fail = candidates#partition meets_restrictions in
 
         if essential then (
@@ -413,7 +433,7 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
       | Some replacement ->
           let handle_replacement () =
             let our_vars = data#get_real_vars in
-            match impl_cache#peek (replacement, source) with
+            match ImplCache.peek impl_cache (replacement, source) with
             | None -> ()  (* We didn't use it, so we can't conflict *)
             | Some replacement_candidates ->
                 let replacements = replacement_candidates#get_real_vars in
@@ -447,7 +467,7 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
 
   (* Initialise this cache entry (called the first time we request this key). *)
   and add_commands_to_cache (command, iface, source) =
-    let impls = impl_cache#lookup (iface, source) in
+    let impls = lookup_impl (iface, source) in
     let commands = impls#get_commands command in
     let make_provides_command (_impl, elem) =
       (** [var] will be true iff this <command> is selected. *)
@@ -468,27 +488,45 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
       in
       List.iter2 depend_on_impl vars commands in
 
-    (data, process_commands) in
+    (data, process_commands)
 
-  (* Can't work out how to set these in the constructor call, so do it here instead. *)
-  impl_cache#set_maker add_impls_to_cache;
-  command_cache#set_maker add_commands_to_cache;
-
-  let lookup = function
-    | ReqIface r -> (impl_cache#lookup r :> candidates)
-    | ReqCommand r -> command_cache#lookup r in
+  and lookup_impl key = ImplCache.lookup impl_cache add_impls_to_cache key
+  and lookup_command key = CommandCache.lookup command_cache add_commands_to_cache key in
 
   (* This recursively builds the whole problem up. *)
-  let candidates = lookup root_req in
-  S.at_least_one sat ~reason:"need root" candidates#get_vars;          (* Must get what we came for! *)
-
-  (* Setup done; lock to prevent accidents *)
-  let locked _ = failwith "building done" in
-  impl_cache#set_maker locked;
-  command_cache#set_maker locked;
+  begin match root_req with
+    | ReqIface r -> (lookup_impl r)#get_vars
+    | ReqCommand r -> (lookup_command r)#get_vars end
+  |> S.at_least_one sat ~reason:"need root";          (* Must get what we came for! *)
 
   (* Run all the callbacks *)
   List.iter (fun fn -> fn ()) !delayed;
+
+  ImplCache.snapshot impl_cache, CommandCache.snapshot command_cache
+
+let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match =
+  (* The basic plan is this:
+     1. Scan the root interface and all dependencies recursively, building up a SAT problem.
+     2. Solve the SAT problem. Whenever there are multiple options, try the most preferred one first.
+     3. Create the selections XML from the results.
+
+     All three involve recursively walking the tree in a similar way:
+     1) we follow every dependency of every implementation (order not important)
+     2) we follow every dependency of every selected implementation (better versions first)
+     3) we follow every dependency of every selected implementation
+
+     In all cases, a dependency may be on an <implementation> or on a specific <command>.
+   *)
+
+  let sat = S.create () in
+
+  let impl_clauses, command_clauses = build_problem impl_provider root_req sat ~closest_match in
+
+  let lookup = function
+    | ReqIface r -> (ImplCache.get_exn r impl_clauses :> candidates)
+    | ReqCommand r -> (CommandCache.get_exn r command_clauses) in
+
+  let dep_in_use dep = impl_provider#is_dep_needed dep in
 
   (* Run the solve *)
 
@@ -497,15 +535,9 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
        Then try the most preferred implementation of it that hasn't been ruled out. *)
     let seen = Hashtbl.create 100 in
     let rec find_undecided req =
-      if Hashtbl.mem seen req then (
-        None    (* Break cycles *)
-      ) else (
+      if Hashtbl.mem seen req then None    (* Break cycles *)
+      else (
         Hashtbl.add seen req true;
-(*
-        let () = match req with
-          | ReqCommand (command, iface, _source) -> log_warning "check %s %s" iface command
-          | ReqIface (iface, _source) -> log_warning "check %s" iface in
-*)
         let candidates = lookup req in
         match candidates#get_state with
         | Unselected -> None
@@ -536,21 +568,27 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
                 match req with
                 | ReqCommand (_command, iface, source) -> find_undecided @@ ReqIface (iface, source)
                 | ReqIface _ -> None     (* We're not a <command> *)
-      )
-      in
+      ) in
     find_undecided root_req in
-
-  (* Build the results object *)
 
   match S.run_solver sat decider with
   | None -> None
   | Some _solution ->
+      (* Build the results object *)
       Some (
       object (_ : result)
-        method get_selections = get_selections dep_in_use root_req impl_cache command_cache |> Selections.create
+        method get_selections =
+          let was_selected (_, candidates) =
+            match candidates#get_clause with
+            | None -> false
+            | Some clause -> S.get_selected clause <> None in
+
+          let commands = command_clauses |> CommandCache.bindings |> List.filter was_selected in
+          let impls = impl_clauses |> ImplCache.bindings |> List.filter was_selected in
+          get_selections dep_in_use root_req impls commands |> Selections.create
 
         method get_selected ~source iface =
-          impl_cache#peek (iface, source)
+          ImplCache.get (iface, source) impl_clauses
           |> pipe_some (fun candidates ->
               match candidates#get_selected with
               | Some (_lit, impl) when impl != dummy_impl -> Some impl
@@ -560,7 +598,7 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
         method impl_provider = impl_provider
 
         method implementations =
-          impl_cache#get_items |> List.map (fun (key, impl_candidates) -> (key, impl_candidates#get_selected))
+          impl_clauses |> ImplCache.bindings |> List.map (fun (key, impl_candidates) -> (key, impl_candidates#get_selected))
 
         method requirements = root_req
       end
