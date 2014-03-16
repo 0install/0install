@@ -201,7 +201,6 @@ module Cache(CacheEntry : CACHE_ENTRY) :
      * be done before anyone can use this cache entry, while [process] does
      * setup that can be done afterwards. *)
     val lookup : t -> (CacheEntry.t -> (CacheEntry.value * (unit -> unit))) -> CacheEntry.t -> CacheEntry.value
-    val peek : t -> CacheEntry.t -> CacheEntry.value option
 
     val snapshot : t -> snapshot
     val get : CacheEntry.t -> snapshot -> CacheEntry.value option
@@ -224,10 +223,6 @@ module Cache(CacheEntry : CACHE_ENTRY) :
         table := M.add key value !table;
         process ();
         value
-
-    let peek table key =
-      try Some (M.find key !table)
-      with Not_found -> None
 
     let snapshot table = !table
 
@@ -345,13 +340,28 @@ let get_selections dep_in_use root_req impls commands =
         AttrMap.singleton "interface" iface in
   ZI.make ~attrs:root_attrs ~child_nodes:(List.rev selections) "selections"
 
-(** Starting from [root_req], explore all the feeds, commands and implementations we might need, adding
- * all of them to [sat_problem]. *)
-let build_problem impl_provider root_req sat ~closest_match =
-  (* For each (iface, command, source) we have a list of implementations (or commands). *)
-  let impl_cache = ImplCache.create () in
-  let command_cache = CommandCache.create () in
+(* Make each interface conflict with its replacement (if any).
+ * We do this at the end because if we didn't use the replacement feed, there's no need to conflict
+ * (avoids getting it added to feeds_used). *)
+let add_replaced_by_conflicts sat impl_clauses =
+  List.iter (fun (source, clause, replacement) ->
+    ImplCache.get (replacement, source) impl_clauses
+    |> if_some (fun replacement_candidates ->
+      (* Our replacement was also added to [sat], so conflict with it. *)
+      let our_vars = clause#get_real_vars in
+      let replacements = replacement_candidates#get_real_vars in
+      if (our_vars <> [] && replacements <> []) then (
+        (* Must select one implementation out of all candidates from both interfaces.
+           Dummy implementations don't conflict, though. *)
+        S.at_most_one sat (our_vars @ replacements) |> ignore
+      )
+    )
+  )
 
+(** On multi-arch systems, we can select 32-bit or 64-bit implementations, but not both in the same
+ * set of selections. Returns a function that should be called for each implementation to add this
+ * restriction. *)
+let require_machine_groups sat =
   (* m64 is set if we select any 64-bit binary. mDef will be set if we select any binary that
      needs any other CPU architecture. Don't allow both to be set together. *)
   let machine_group_default = S.add_variable sat @@ SolverData.MachineGroup "mDef" in
@@ -360,138 +370,137 @@ let build_problem impl_provider root_req sat ~closest_match =
      type of CPU. The solver will set them both to false at the end. *)
   S.at_most_one sat [machine_group_default; machine_group_64] |> ignore;
 
+  (* If [impl] requires a particular machine group, add a constraint to the problem. *)
+  fun impl_var impl ->
+    impl.Feed.machine |> if_some (function
+      | "src" -> ()
+      | machine ->
+          let group_var =
+            let open Arch in
+            match get_machine_group machine with
+            | Machine_group_default -> machine_group_default
+            | Machine_group_64 -> machine_group_64 in
+          S.implies sat ~reason:"machine group" impl_var [group_var];
+    )
+
+(** If this binding depends on a command (<executable-in-*>), add that to the problem.
+ * @param user_var indicates when this binding is used
+ * @param dep_iface the required interface this binding targets *)
+let process_self_binding sat lookup_command user_var dep_iface binding =
+  Binding.parse_binding binding
+  |> pipe_some Binding.get_command
+  |> if_some (fun name ->
+    (* Note: we only call this for self-bindings, so we could be efficient by selecting the exact command here... *)
+    let candidates = lookup_command (name, dep_iface, false) in
+    S.implies sat ~reason:"binding on command" user_var candidates#get_vars
+  )
+
+(* Process a dependency of [user_var]:
+   - find the candidate implementations/commands to satisfy it
+   - take just those that satisfy any restrictions in the dependency
+   - ensure that we don't pick an incompatbile version if we select [user_var]
+   - ensure that we do pick a compatible version if we select [user_var] (for "essential" dependencies only) *)
+let process_dep sat lookup_impl lookup_command user_var dep =
+  (* Dependencies on commands *)
+  dep.Feed.dep_required_commands |> List.iter (fun name ->
+    (* What about optional command dependencies? Looks like the Python doesn't handle that either... *)
+    let candidates = lookup_command (name, dep.Feed.dep_iface, false) in
+    S.implies sat ~reason:"dep on command" user_var candidates#get_vars
+  );
+
+  (* Restrictions on the candidates *)
+  let meets_restriction impl r = impl.Feed.parsed_version = Versions.dummy || r#meets_restriction impl in
+  let meets_restrictions impl = List.for_all (meets_restriction impl) dep.Feed.dep_restrictions in
+  let candidates = lookup_impl (dep.Feed.dep_iface, false) in
+  let pass, fail = candidates#partition meets_restrictions in
+
+  if dep.Feed.dep_importance = Feed.Dep_essential then (
+    S.implies sat ~reason:"essential dep" user_var pass     (* Must choose a suitable candidate *)
+  ) else (
+    (* If [user_var] is selected, don't select an incompatible version of the optional dependency.
+       We don't need to do this explicitly in the [essential] case, because we must select a good
+       version and we can't select two. *)
+    S.at_most_one sat (user_var :: fail) |> ignore;
+  )
+
+(* Add the implementations of an interface to the ImplCache (called the first time we visit it). *)
+let make_impl_clause sat ~closest_match replacements impl_provider iface_uri ~source =
+  let {Impl_provider.replacement; impls; rejects = _} = impl_provider#get_implementations iface_uri ~source in
+
   (* Insert dummy_impl (last) if we're trying to diagnose a problem. *)
-  let maybe_add_dummy impls =
+  let impls =
     if closest_match then impls @ [dummy_impl]
     else impls in
 
-  (* Callbacks to run after building the problem. *)
-  let delayed = ref [] in
+  let impls = impls
+    |> List.map (fun impl ->
+        let var = S.add_variable sat (SolverData.ImplElem impl) in
+        (var, impl)
+    ) in
+  let impl_clause = if impls <> [] then Some (S.at_most_one sat (List.map fst impls)) else None in
+  let clause = new impl_candidates impl_clause impls in
 
-  (* For <executable-in-*> bindings, add a dependency on the appropriate <command>.
-   * Note: we only call this for self-bindings, so we could be efficient by selecting the exact command here... *)
-  let rec process_bindings user_var dep_iface =
-    List.iter (fun binding ->
-      Binding.parse_binding binding
-      |> pipe_some Binding.get_command
-      |> if_some (fun name ->
-        let candidates = lookup_command (name, dep_iface, false) in
-        S.implies sat ~reason:"binding on command" user_var candidates#get_vars
-      )
-    )
+  (* If we have a <replaced-by>, remember to add a conflict with our replacement *)
+  replacement |> if_some (fun replacement ->
+    if replacement = iface_uri then log_warning "Interface %s replaced-by itself!" iface_uri
+    else replacements := (source, clause, replacement) :: !replacements;
+  );
 
-  (* For each dependency of [user_var]:
-     - find the candidate implementations to satisfy it
-     - take just those that satisfy any restrictions in the dependency
-     - ensure that we don't pick an incompatbile version if we select [user_var]
-     - ensure that we do pick a compatible version if we select [user_var] (for "essential" dependencies only)
-     - if we require any commands, ensure we select them too *)
-  and process_deps user_var deps =
-    deps |> List.iter (fun dep ->
-      if impl_provider#is_dep_needed dep then (
-        let essential = (dep.Feed.dep_importance = Feed.Dep_essential) in
+  clause, impls
 
-        (* Dependencies on commands *)
-        dep.Feed.dep_required_commands |> List.iter (fun name ->
-          (* What about optional command dependencies? Looks like the Python doesn't handle that either... *)
-          let candidates = lookup_command (name, dep.Feed.dep_iface, false) in
-          S.implies sat ~reason:"dep on command" user_var candidates#get_vars
-        );
+(* Create a new CommandCache entry (called the first time we request this key). *)
+let make_commands_clause sat lookup_impl process_self_bindings process_deps key =
+  let (command, iface, source) = key in
+  let impls = lookup_impl (iface, source) in
+  let commands = impls#get_commands command in
+  let make_provides_command (_impl, elem) =
+    (** [var] will be true iff this <command> is selected. *)
+    let var = S.add_variable sat (SolverData.CommandElem elem) in
+    (var, elem) in
+  let vars = List.map make_provides_command commands in
+  let command_clause = if vars <> [] then Some (S.at_most_one sat @@ List.map fst vars) else None in
+  let data = new command_candidates command_clause vars in
 
-        (* Restrictions on the candidates *)
-        let meets_restriction impl r = impl.Feed.parsed_version = Versions.dummy || r#meets_restriction impl in
-        let meets_restrictions impl = List.for_all (meets_restriction impl) dep.Feed.dep_restrictions in
-        let candidates = lookup_impl (dep.Feed.dep_iface, false) in
-        let pass, fail = candidates#partition meets_restrictions in
+  (data, fun () ->
+    let depend_on_impl (command_var, command) (impl_var, _command) =
+      (* For each command, require that we select the corresponding implementation. *)
+      S.implies sat ~reason:"impl for command" command_var [impl_var];
+      (* Commands can depend on other commands in the same implementation *)
+      process_self_bindings command_var iface command.Feed.command_bindings;
+      (* Process command-specific dependencies *)
+      process_deps command_var command.Feed.command_requires;
+    in
+    List.iter2 depend_on_impl vars commands
+  )
 
-        if essential then (
-          S.implies sat ~reason:"essential dep" user_var pass     (* Must choose a suitable candidate *)
-        ) else (
-          (* If [user_var] is selected, don't select an incompatible version of the optional dependency.
-             We don't need to do this explicitly in the [essential] case, because we must select a good
-             version and we can't select two. *)
-          S.at_most_one sat (user_var :: fail) |> ignore;
-        )
-      )
-    )
+(** Starting from [root_req], explore all the feeds, commands and implementations we might need, adding
+ * all of them to [sat_problem]. *)
+let build_problem impl_provider root_req sat ~closest_match =
+  (* For each (iface, command, source) we have a list of implementations (or commands). *)
+  let impl_cache = ImplCache.create () in
+  let command_cache = CommandCache.create () in
 
-  (* Add the implementations of an interface to the cache (called the first time we visit it). *)
-  and add_impls_to_cache (iface_uri, source) =
-    let {Impl_provider.replacement; impls; rejects = _} = impl_provider#get_implementations iface_uri ~source in
-    (* log_warning "Adding %d impls for %s" (List.length impls) iface_uri; *)
-    let pairs = impls
-      |> maybe_add_dummy
-      |> List.map (fun impl -> (S.add_variable sat (SolverData.ImplElem impl), impl)) in
-    let impl_clause = if pairs <> [] then Some (S.at_most_one sat (List.map fst pairs)) else None in
-    let data = new impl_candidates impl_clause pairs in
-    (data, fun () ->
-      (* Conflict with our replacements *)
-      begin match replacement with
-      | None -> ()
-      | Some replacement when replacement = iface_uri ->
-          log_warning "Interface %s replaced-by itself!" iface_uri
-      | Some replacement ->
-          let handle_replacement () =
-            let our_vars = data#get_real_vars in
-            match ImplCache.peek impl_cache (replacement, source) with
-            | None -> ()  (* We didn't use it, so we can't conflict *)
-            | Some replacement_candidates ->
-                let replacements = replacement_candidates#get_real_vars in
-                if (our_vars <> [] && replacements <> []) then (
-                  (* Must select one implementation out of all candidates from both interfaces.
-                     Dummy implementations don't conflict, though. *)
-                  S.at_most_one sat (our_vars @ replacements) |> ignore
-                ) in
-          (* Delay until the end. If we never use the replacement feed, no need to conflict
-             (avoids getting it added to feeds_used). *)
-          delayed := handle_replacement :: !delayed end;
+  let require_machine_group = require_machine_groups sat in
 
-      pairs |> List.iter (fun (impl_var, impl) ->
-        impl.Feed.machine |> if_some (function
-          | "src" -> ()
-          | machine ->
-              let group_var =
-                let open Arch in
-                match get_machine_group machine with
-                | Machine_group_default -> machine_group_default
-                | Machine_group_64 -> machine_group_64 in
-              S.implies sat ~reason:"machine group" impl_var [group_var];
-        );
+  (* Handle <replaced-by> conflicts after building the problem. *)
+  let replacements = ref [] in
 
-        process_bindings impl_var iface_uri Feed.(impl.props.bindings);
-
-        (* Process dependencies *)
+  let rec add_impls_to_cache (iface_uri, source) =
+    let clause, impls = make_impl_clause sat ~closest_match replacements impl_provider iface_uri ~source in
+    (clause, fun () ->
+      impls |> List.iter (fun (impl_var, impl) ->
+        require_machine_group impl_var impl;
+        process_self_bindings impl_var iface_uri Feed.(impl.props.bindings);
         process_deps impl_var Feed.(impl.props.requires);
       )
     )
-
-  (* Initialise this cache entry (called the first time we request this key). *)
-  and add_commands_to_cache (command, iface, source) =
-    let impls = lookup_impl (iface, source) in
-    let commands = impls#get_commands command in
-    let make_provides_command (_impl, elem) =
-      (** [var] will be true iff this <command> is selected. *)
-      let var = S.add_variable sat (SolverData.CommandElem elem) in
-      (var, elem) in
-    let vars = List.map make_provides_command commands in
-    let command_clause = if vars <> [] then Some (S.at_most_one sat @@ List.map fst vars) else None in
-    let data = new command_candidates command_clause vars in
-
-    let process_commands () =
-      let depend_on_impl (command_var, command) (impl_var, _command) =
-        (* For each command, require that we select the corresponding implementation. *)
-        S.implies sat ~reason:"impl for command" command_var [impl_var];
-        (* Commands can depend on other commands in the same implementation *)
-        process_bindings command_var iface command.Feed.command_bindings;
-        (* Process command-specific dependencies *)
-        process_deps command_var command.Feed.command_requires;
-      in
-      List.iter2 depend_on_impl vars commands in
-
-    (data, process_commands)
-
+  and add_commands_to_cache key = make_commands_clause sat lookup_impl process_self_bindings process_deps key
   and lookup_impl key = ImplCache.lookup impl_cache add_impls_to_cache key
-  and lookup_command key = CommandCache.lookup command_cache add_commands_to_cache key in
+  and lookup_command key = CommandCache.lookup command_cache add_commands_to_cache key
+  and process_self_bindings user_var dep_iface = List.iter (process_self_binding sat lookup_command user_var dep_iface)
+  and process_deps user_var = List.iter (fun dep ->
+    if impl_provider#is_dep_needed dep then process_dep sat lookup_impl lookup_command user_var dep
+  ) in
 
   (* This recursively builds the whole problem up. *)
   begin match root_req with
@@ -499,10 +508,10 @@ let build_problem impl_provider root_req sat ~closest_match =
     | ReqCommand r -> (lookup_command r)#get_vars end
   |> S.at_least_one sat ~reason:"need root";          (* Must get what we came for! *)
 
-  (* Run all the callbacks *)
-  List.iter (fun fn -> fn ()) !delayed;
-
-  ImplCache.snapshot impl_cache, CommandCache.snapshot command_cache
+  (* All impl_candidates and command_candidates have now been added, so snapshot the cache. *)
+  let impl_clauses, command_clauses = ImplCache.snapshot impl_cache, CommandCache.snapshot command_cache in
+  add_replaced_by_conflicts sat impl_clauses !replacements;
+  impl_clauses, command_clauses
 
 let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match =
   (* The basic plan is this:
