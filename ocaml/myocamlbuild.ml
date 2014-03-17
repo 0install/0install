@@ -120,6 +120,16 @@ let () =
     pdep ["link"] "linkdep_win" (fun param -> if on_windows then [param] else []);
     pdep ["link"] "link" (fun param -> [param]);
 
+    let have_ocurl_lwt =
+      match get_info "curl" with
+      | Some {version; dir = _} -> parse_version version >= [0; 7; 1]
+      | None -> failwith "Missing curl!" in
+
+    if have_ocurl_lwt then
+      flag ["link"] (S [A"-package"; A"curl.lwt"])
+    else
+      flag ["link"] (S [A"-package"; A"ssl"]);
+
     begin match gtk_dir with
     | Some gtk_dir ->
         let lwt_dir =
@@ -138,12 +148,15 @@ let () =
     if (major_version < 4 || (major_version == 4 && minor_version < 1)) then add "-DOCAML_LT_4_01" defines_portable;
     if use_dbus then add "-DHAVE_DBUS" defines_portable;
     if gtk_dir <> None then add "-DHAVE_GTK" defines_portable;
+    if have_ocurl_lwt then add "-DHAVE_OCURL_LWT" defines_portable;
 
     if get_info "sha" <> None then (
       (* Use "sha" package instead of libcrypto *)
       add "-DHAVE_SHA" defines_portable;
       flag ["compile"; "link_crypto"] (S [A"-ccopt"; A"-DHAVE_SHA"]);
       flag ["link"] (S [A"-package"; A"sha"]);
+    ) else (
+      print_endline "sha (ocaml-sha) not found; using OpenSSL instead"
     );
 
     let defines_native = ref !defines_portable in

@@ -51,9 +51,13 @@ The easiest way to get the dependencies is using [OPAM](http://opam.ocamlpro.com
     $ eval `opam config env`
     $ opam install yojson xmlm ounit react lwt extlib ssl ocurl obus lablgtk
 
-(obus and lablgtk are optional. obus is used on Linux to add support for D-BUS notifications,
-installing native packages using PackageKit, and using NetworkManager to check
-the network status before doing background updates. lablgtk provides a GTK GUI.)
+Note: some of these are optional:
+
+- obus is used on Linux to add support for D-BUS notifications, installing
+  native packages using PackageKit, and using NetworkManager to check
+  the network status before doing background updates.
+- lablgtk provides a GTK GUI.
+- ssl is only needed if ocurl is older than 0.7.1.
 
 Alternatively, you can use your distribution's packages if you prefer (and if
 they are new enough). For example, on Debian:
