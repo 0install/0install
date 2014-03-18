@@ -279,6 +279,8 @@ let show_log_on_failure fn () =
   try
     Fake_system.fake_log#reset;
     fn ();
+    Fake_system.release ();
+    (* Gc.full_major (); *)
     !async_exception |> if_some (fun ex -> raise ex)
   with ex ->
     if U.starts_with (Printexc.to_string ex) "OUnitTest.Skip" then ()

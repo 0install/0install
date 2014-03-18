@@ -45,6 +45,10 @@ type downloader =
       ?hint:([< Feed_url.parsed_feed_url] as 'b) ->
       string -> download_result Lwt.t >
 
-type download_pool = monitor -> downloader
+class type download_pool =
+  object
+    method with_monitor : monitor -> downloader
+    method release : unit
+  end
 
 val make_pool : max_downloads_per_site:int -> download_pool

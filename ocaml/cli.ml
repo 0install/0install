@@ -276,10 +276,11 @@ let rec set_of_option_names = function
 
 let make_tools config =
   let gui = ref Maybe in
+  let pool = ref None in
   let ui = lazy (Zeroinstall.Default_ui.make_ui config !gui) in
   let distro = lazy (Zeroinstall.Distro_impls.get_host_distribution config) in
   let trust_db = lazy (new Zeroinstall.Trust.trust_db config) in
-  let download_pool = lazy (Zeroinstall.Downloader.make_pool ~max_downloads_per_site:2) in
+  let download_pool = lazy (let p = Zeroinstall.Downloader.make_pool ~max_downloads_per_site:2 in pool := Some p; p) in
   let make_fetcher = lazy (new Zeroinstall.Fetch.fetcher config (Lazy.force trust_db) (Lazy.force distro) (Lazy.force download_pool)) in
   object (_ : Options.tools)
     method config = config
@@ -290,6 +291,7 @@ let make_tools config =
     method make_fetcher watcher = (Lazy.force make_fetcher) watcher
     method trust_db = Lazy.force trust_db
     method use_gui = !gui
+    method release = !pool |> if_some (fun pool -> pool#release)
   end
 
 let get_default_options config =
@@ -299,6 +301,9 @@ let get_default_options config =
     tools = make_tools config;
   } in
   options
+
+let release_options options =
+  options.tools#release
 
 let rec lookup_subcommand config name args (group:subgroup) : (string list * subcommand * string list) =
   let subcommand =
@@ -319,11 +324,14 @@ let handle config raw_args =
   let (raw_options, args, complete) = read_args spec raw_args in
   assert (complete = CompleteNothing);
 
-  let options = get_default_options config in
-  let command_path, subcommand, command_args =
-    match args with
-    | [] -> ([], no_command, [])
-    | ["run"] when List.mem ("-V", []) raw_options -> (["run"], no_command, [])      (* Hack for 0launch -V *)
-    | command :: command_args -> lookup_subcommand config command command_args subcommands in
-  try subcommand#handle options raw_options command_path command_args
-  with ShowVersion -> Common_options.show_version config.system
+  Support.Utils.finally_do release_options
+    (get_default_options config)
+    (fun options ->
+      let command_path, subcommand, command_args =
+        match args with
+        | [] -> ([], no_command, [])
+        | ["run"] when List.mem ("-V", []) raw_options -> (["run"], no_command, [])      (* Hack for 0launch -V *)
+        | command :: command_args -> lookup_subcommand config command command_args subcommands in
+      try subcommand#handle options raw_options command_path command_args
+      with ShowVersion -> Common_options.show_version config.system
+    )

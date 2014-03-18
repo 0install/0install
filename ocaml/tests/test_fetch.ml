@@ -47,7 +47,8 @@ let parse_xml s =
 let make_dl_tester () =
   let log = ref [] in
   let download_pool = D.make_pool ~max_downloads_per_site:2 in
-  let downloader = download_pool Fake_system.null_ui#monitor in
+  Queue.add download_pool Fake_system.download_pools;
+  let downloader = download_pool#with_monitor Fake_system.null_ui#monitor in
   let waiting = Hashtbl.create 10 in
 
   (* Intercept the download and return a new blocker *)
@@ -282,7 +283,9 @@ let suite = "fetch">::: [
 
   "abort">:: (fun () ->
     Lwt_main.run (
-      let downloader = D.make_pool ~max_downloads_per_site:2 (fun dl -> U.async dl.D.cancel) in
+      let pool = D.make_pool ~max_downloads_per_site:2 in
+      Queue.add pool Fake_system.download_pools;
+      let downloader = pool#with_monitor (fun dl -> U.async dl.D.cancel) in
 
       (* Intercept the download and return a new blocker *)
       let handle_download ?if_slow:_ ?size:_ ?modification_time:_ _ch url =

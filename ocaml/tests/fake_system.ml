@@ -372,16 +372,23 @@ class null_ui =
 
 let null_ui = new null_ui
 
+(* Pools need to be released after each test *)
+let download_pools = Queue.create ()
+let release () =
+  Queue.iter (fun x -> x#release) download_pools;
+  Queue.clear download_pools
+
 let make_tools config =
   let distro = Zeroinstall.Distro_impls.generic_distribution config in
   let trust_db = new Zeroinstall.Trust.trust_db config in
   let download_pool = Zeroinstall.Downloader.make_pool ~max_downloads_per_site:2 in
+  Queue.add download_pool download_pools;
   object
     method config = config
     method distro = distro
     method trust_db = trust_db
     method download_pool = download_pool
-    method downloader = download_pool ignore
+    method downloader = download_pool#with_monitor ignore
     method make_fetcher watcher = new Zeroinstall.Fetch.fetcher config trust_db distro download_pool watcher
     method ui = (null_ui :> Zeroinstall.Ui.ui_handler)
   end
