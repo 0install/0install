@@ -18,8 +18,6 @@ type fetch_feed_response =
   | `problem of (string * fetch_feed_response Lwt.t option)    (* Report a problem (but may still succeed later) *)
   | `no_update ]            (* Use the previous version *)
 
-let re_scheme_sep = Str.regexp_string "://"
-
 let string_of_result = function
   | `aborted_by_user -> "Aborted by user"
   | `no_trusted_keys -> "Not signed with a trusted key"
@@ -39,8 +37,6 @@ let get_final_response = function
   | `replay_attack _ as r ->
       (* Don't bother trying the mirror if we have a replay attack *)
       `problem (string_of_result r, None)
-
-let re_remote_feed = Str.regexp "^\\(https?\\)://\\([^/]*@\\)?\\([^/:]+\\)\\(:[^/]*\\)?/"
 
 (** Wait for a set of tasks to complete. Return the exceptions produced by each, if any. *)
 let rec join_errors = function
@@ -364,55 +360,6 @@ class fetcher config trust_db (distro:Distro.distribution) (download_pool:Downlo
     | #non_mirror_case as result -> get_final_response result |> Lwt.return
     | `problem msg -> `problem (msg, None) |> Lwt.return in
 
-  let escape_slashes s = Str.global_replace U.re_slash "%23" s in
-
-  (* The algorithm from 0mirror. *)
-  let get_feed_dir = function
-    | `remote_feed feed ->
-        if String.contains feed '#' then (
-          raise_safe "Invalid URL '%s'" feed
-        ) else (
-          let scheme, rest = U.split_pair re_scheme_sep feed in
-          if not (String.contains rest '/') then
-            raise_safe "Missing / in %s" feed;
-          let domain, rest = U.split_pair U.re_slash rest in
-          [scheme; domain; rest] |> List.iter (fun part ->
-            if part = "" || U.starts_with part "." then
-              raise_safe "Invalid URL '%s'" feed
-          );
-          String.concat "/" ["feeds"; scheme; domain; escape_slashes rest]
-        ) in
-
-  (* Don't bother trying the mirror for localhost URLs. *)
-  let can_try_mirror url =
-    if Str.string_match re_remote_feed url 0 then (
-      let scheme = Str.matched_group 1 url in
-      let domain = Str.matched_group 3 url in
-      match scheme with
-      | "http" | "https" when domain <> "localhost" -> true
-      | _ -> false
-    ) else (
-      log_warning "Failed to parse URL '%s'" url;
-      false
-    ) in
-
-  let get_mirror_url mirror feed_url resource =
-    match feed_url with
-    | `local_feed _ | `distribution_feed _ -> None
-    | `remote_feed url as feed_url ->
-        if can_try_mirror url then
-          Some (mirror ^ "/" ^ (get_feed_dir feed_url) ^ "/" ^ resource)
-        else None in
-
-  (** Get a recipe for the tar.bz2 of the implementation at the mirror.
-   * Note: This is just one way we try the mirror. Code elsewhere checks for mirrors of the individual archives.
-   * This is for a single archive containing the whole implementation. *)
-  let get_impl_mirror_recipe mirror impl =
-    let {Feed_url.feed; Feed_url.id} = Feed.get_id impl in
-    match get_mirror_url mirror feed ("impl/" ^ escape_slashes id) with
-    | None -> None
-    | Some url -> Some (Recipe.get_mirror_download url) in
-
   let download_local_file feed size fn url =
     let size = size |? lazy (raise_safe "Missing size (BUG)!") in   (* Only missing for mirror downloads, which are never local *)
     match feed with
@@ -436,12 +383,7 @@ class fetcher config trust_db (distro:Distro.distribution) (download_pool:Downlo
       (* Remote file *)
       if config.dry_run then
         Dry_run.log "downloading %s" url;
-      let mirror_url =
-        match config.mirror with
-        | Some mirror when may_use_mirror && can_try_mirror url ->
-            let escaped = Str.global_replace (Str.regexp_string "/") "#" url |> Curl.escape in
-            Some (mirror ^ "/archive/" ^ escaped)
-        | _ -> None in
+      let mirror_url = if may_use_mirror then Mirror.for_archive config url else None in
       match_lwt downloader#download ~switch ?size ~start_offset ~hint:feed url with
       | `aborted_by_user -> raise Aborted
       | `tmpfile tmpfile -> lazy (fn tmpfile) |> Lwt.return
@@ -601,17 +543,14 @@ class fetcher config trust_db (distro:Distro.distribution) (download_pool:Downlo
       | `success -> Lwt.return ()
       | `aborted_by_user -> raise Aborted
       | `network_failure orig_msg ->
-          match config.mirror with
-          | None -> raise_safe "%s" orig_msg
-          | Some mirror ->
-              log_info "%s: trying implementation mirror at %s" orig_msg mirror;
-              let mirror_download = get_impl_mirror_recipe mirror impl |? lazy (raise_safe "%s" orig_msg) in
-              match_lwt download ~may_use_mirror:false mirror_download with
-              | `aborted_by_user -> raise Aborted
-              | `success -> Lwt.return ()
-              | `network_failure mirror_msg ->
-                  log_info "Error from mirror: %s" mirror_msg;
-                  raise_safe "%s" orig_msg
+          let mirror_download = Mirror.for_impl config impl |? lazy (raise_safe "%s" orig_msg) in
+          log_info "%s: trying implementation mirror at %s" orig_msg (config.mirror |> default "-");
+          match_lwt download ~may_use_mirror:false mirror_download with
+          | `aborted_by_user -> raise Aborted
+          | `success -> Lwt.return ()
+          | `network_failure mirror_msg ->
+              log_info "Error from mirror: %s" mirror_msg;
+              raise_safe "%s" orig_msg
     with Safe_exception _ as ex ->
       let {Feed_url.feed; Feed_url.id} = Feed.get_id impl in
       let version = Feed.get_attr_ex FeedAttr.version impl in
@@ -632,13 +571,9 @@ class fetcher config trust_db (distro:Distro.distribution) (download_pool:Downlo
       let primary = download_and_import_feed_internal ~mirror_used:None feed ~if_slow ~url:feed_url in
       let do_mirror_download () =
         try
-          match config.mirror with
-          | None -> None
-          | Some mirror ->
-              match get_mirror_url mirror feed "latest.xml" with
-              | None -> None
-              | Some mirror_url ->
-                  Some (download_and_import_feed_internal ~mirror_used:(Some mirror) feed ~url:mirror_url)
+          Mirror.for_feed config feed |> pipe_some (fun mirror_url ->
+            Some (download_and_import_feed_internal ~mirror_used:config.mirror feed ~url:mirror_url)
+          )
         with ex ->
           log_warning ~ex "Error getting mirror URL for '%s" feed_url;
           None in

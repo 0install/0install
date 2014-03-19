@@ -35,12 +35,12 @@ type recipe_step =
   | RenameStep of rename
   | RemoveStep of remove
 
-type recipe = recipe_step list
+type t = recipe_step list
 
 val is_retrieval_method : Support.Qdom.element -> bool
-val parse_retrieval_method : Support.Qdom.element -> recipe option
+val parse_retrieval_method : Support.Qdom.element -> t option
 
-val recipe_requires_network : recipe -> bool
-val get_download_size : recipe -> Int64.t
+val recipe_requires_network : t -> bool
+val get_download_size : t -> Int64.t
 
-val get_mirror_download : string -> recipe
+val get_mirror_download : string -> t
