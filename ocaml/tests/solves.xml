@@ -766,6 +766,31 @@ Can't find all required implementations:
 
   </test>
 
+  <test name='optional-missing-command'>
+    <interface local-path="OptionalMissing.xml">>
+      <name>OptionalMissing</name>
+      <summary>optional command dependency on a missing interface</summary>
+
+      <group>
+	<requires interface="http://localhost/Missing.xml" importance='recommended'>
+	  <executable-in-path name='missing'/>
+	</requires>
+        <implementation id="a" local-path='.' version="0.1" main='.'/>
+      </group>
+    </interface>
+
+    <requirements interface='./OptionalMissing.xml'/>
+
+    <selections interface="/root/OptionalMissing.xml">
+      <selection id="a" interface="/root/OptionalMissing.xml" local-path="/root" version="0.1">
+        <requires interface="http://localhost/Missing.xml" importance="recommended">
+	  <executable-in-path name='missing'/>
+	</requires>
+      </selection>
+    </selections>
+
+  </test>
+
   <test name='feed-bug'>
     <import-interface from-python="Build.xml"/>
     <import-interface from-python="Compiler.xml"/>

@@ -18,10 +18,12 @@ module SolverData =
       | ImplElem of Feed.generic_implementation
       | CommandElem of Feed.command
       | MachineGroup of string
+      | Interface of iface_uri      (* True if this interface is selected *)
     let to_string = function
       | ImplElem impl -> (Versions.format_version impl.Feed.parsed_version) ^ " - " ^ Qdom.show_with_loc impl.Feed.qdom
       | CommandElem command -> Qdom.show_with_loc command.Feed.command_qdom
       | MachineGroup name -> name
+      | Interface iface -> iface
   end
 
 module S = Support.Sat.MakeSAT(SolverData)
@@ -401,18 +403,30 @@ let process_self_binding sat lookup_command user_var dep_iface binding =
    - ensure that we don't pick an incompatbile version if we select [user_var]
    - ensure that we do pick a compatible version if we select [user_var] (for "essential" dependencies only) *)
 let process_dep sat lookup_impl lookup_command user_var dep =
-  (* Dependencies on commands *)
-  dep.Feed.dep_required_commands |> List.iter (fun name ->
-    (* What about optional command dependencies? Looks like the Python doesn't handle that either... *)
-    let candidates = lookup_command (name, dep.Feed.dep_iface, false) in
-    S.implies sat ~reason:"dep on command" user_var candidates#get_vars
-  );
-
   (* Restrictions on the candidates *)
   let meets_restriction impl r = impl.Feed.parsed_version = Versions.dummy || r#meets_restriction impl in
   let meets_restrictions impl = List.for_all (meets_restriction impl) dep.Feed.dep_restrictions in
   let candidates = lookup_impl (dep.Feed.dep_iface, false) in
   let pass, fail = candidates#partition meets_restrictions in
+
+  (* Dependencies on commands *)
+  dep.Feed.dep_required_commands |> List.iter (fun name ->
+    let candidates = lookup_command (name, dep.Feed.dep_iface, false) in
+
+    if dep.Feed.dep_importance = Feed.Dep_essential then (
+      S.implies sat ~reason:"dep on command" user_var candidates#get_vars
+    ) else (
+      (* An optional dependency is selected when any implementation of the target interface
+       * is selected. Force [dep_iface_selected] to be true in that case. We only need to test
+       * [pass] here, because we always avoid [fail] anyway. *)
+      let dep_iface_selected = S.add_variable sat (SolverData.Interface dep.Feed.dep_iface) in
+      S.at_most_one sat (S.neg dep_iface_selected :: pass) |> ignore;
+
+      (* If user_var is selected, then either we don't select this interface, or we select
+       * a suitable command. *)
+      S.implies sat ~reason:"opt dep on command" user_var (S.neg dep_iface_selected :: candidates#get_vars)
+    );
+  );
 
   if dep.Feed.dep_importance = Feed.Dep_essential then (
     S.implies sat ~reason:"essential dep" user_var pass     (* Must choose a suitable candidate *)
