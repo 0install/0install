@@ -8,7 +8,7 @@ type fetch_feed_response =
   | `problem of (string * fetch_feed_response Lwt.t option)    (* Report a problem (but may still succeed later) *)
   | `no_update ]            (* Use the previous version *)
 
-class fetcher : General.config -> Trust.trust_db -> Distro.distribution -> Downloader.download_pool -> #Progress.watcher ->
+class type fetcher =
   object
     method download_and_import_feed : Feed_url.remote_feed -> fetch_feed_response Lwt.t
     method download_impls : Feed.generic_implementation list -> [ `success | `aborted_by_user ] Lwt.t
@@ -22,3 +22,6 @@ class fetcher : General.config -> Trust.trust_db -> Distro.distribution -> Downl
 
     method ui : Progress.watcher
   end
+
+(** Create a fetcher for this platform. *)
+val make : General.config -> Trust.trust_db -> Distro.distribution -> Downloader.download_pool -> #Progress.watcher -> fetcher

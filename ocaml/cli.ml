@@ -281,7 +281,7 @@ let make_tools config =
   let distro = lazy (Zeroinstall.Distro_impls.get_host_distribution config) in
   let trust_db = lazy (new Zeroinstall.Trust.trust_db config) in
   let download_pool = lazy (let p = Zeroinstall.Downloader.make_pool ~max_downloads_per_site:2 in pool := Some p; p) in
-  let make_fetcher = lazy (new Zeroinstall.Fetch.fetcher config (Lazy.force trust_db) (Lazy.force distro) (Lazy.force download_pool)) in
+  let make_fetcher = lazy (Zeroinstall.Fetch.make config (Lazy.force trust_db) (Lazy.force distro) (Lazy.force download_pool)) in
   object (_ : Options.tools)
     method config = config
     method ui = Lazy.force ui

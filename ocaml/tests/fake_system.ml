@@ -389,7 +389,7 @@ let make_tools config =
     method trust_db = trust_db
     method download_pool = download_pool
     method downloader = download_pool#with_monitor ignore
-    method make_fetcher watcher = new Zeroinstall.Fetch.fetcher config trust_db distro download_pool watcher
+    method make_fetcher watcher = Zeroinstall.Fetch.make config trust_db distro download_pool watcher
     method ui = (null_ui :> Zeroinstall.Ui.ui_handler)
   end
 

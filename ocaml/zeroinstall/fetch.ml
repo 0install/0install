@@ -50,7 +50,7 @@ let rec join_errors = function
 exception Aborted
 exception Try_mirror of string  (* An error where we should try the mirror (i.e. a network problem) *)
 
-class fetcher config trust_db (distro:Distro.distribution) (download_pool:Downloader.download_pool) (ui:#Progress.watcher) =
+class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (download_pool:Downloader.download_pool) (ui:#Progress.watcher) =
   let downloader = download_pool#with_monitor ui#monitor in
 
   let trust_dialog_lock = Lwt_mutex.create () in      (* Only show one trust dialog at a time *)
@@ -664,3 +664,45 @@ class fetcher config trust_db (distro:Distro.distribution) (download_pool:Downlo
 
     method ui = (ui :> Progress.watcher)
   end
+
+(** If [ZEROINSTALL_EXTERNAL_FETCHER] is set, we override [download_impls] to ask an
+ * external process to do the downloading and unpacking. This is needed on Windows
+ * because X bits need some special support that is implemented in .NET. *)
+class external_fetcher command underlying =
+  object (_ : #fetcher)
+    method import_feed = underlying#import_feed
+    method download_icon = underlying#download_icon
+    method download_and_import_feed = underlying#download_and_import_feed
+    method ui = underlying#ui
+
+    method download_impls impls =
+      try_lwt
+        let child_nodes = impls |> List.map (fun impl -> impl.Feed.qdom) in
+        let root = ZI.make ~child_nodes "interface" in
+
+        let child = Lwt_process.open_process_full (command, [| command |]) in
+
+        lwt () = Lwt_io.write child#stdin (Q.to_utf8 root)
+        and output = Lwt_io.read child#stdout
+        and errors = Lwt_io.read child#stderr in
+
+        try_lwt
+          lwt status = child#close in
+          Support.System.check_exit_status status;
+          Lwt.return `success
+        with Safe_exception _ as ex ->
+          reraise_with_context ex "stdout: %s\nstderr: %s" output errors
+      with Safe_exception _ as ex ->
+        reraise_with_context ex "... downloading with external fetcher '%s'" command
+
+  end
+
+let make config trust_db distro download_pool ui =
+  let fetcher = new fetcher config trust_db distro download_pool ui in
+  match config.system#getenv "ZEROINSTALL_EXTERNAL_FETCHER" with
+  | None -> fetcher
+  | Some command ->
+      try
+        let command = U.find_in_path_ex config.system command in
+        new external_fetcher command fetcher
+      with Safe_exception _ as ex -> reraise_with_context ex "... handling $ZEROINSTALL_EXTERNAL_FETCHER"

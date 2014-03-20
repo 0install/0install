@@ -21,7 +21,7 @@ let make_gtk_ui config =
     object
       method config = config
       method distro = distro
-      method make_fetcher watcher = new Zeroinstall.Fetch.fetcher config trust_db distro download_pool watcher
+      method make_fetcher watcher = Zeroinstall.Fetch.make config trust_db distro download_pool watcher
     end in
 
   object (self : Zeroinstall.Ui.ui_handler)
