@@ -551,3 +551,9 @@ let async fn =
       log_warning ~ex "Unhandled error from Lwt thread"; Lwt.fail ex
     )
   )
+
+let with_switch fn =
+  let switch = Lwt_switch.create () in
+  Lwt.finalize
+    (fun () -> fn switch)
+    (fun () -> Lwt_switch.turn_off switch)

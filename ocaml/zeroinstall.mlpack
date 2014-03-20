@@ -28,6 +28,7 @@ General
 Gui
 Impl_provider
 Json_connection
+Key_info_provider
 Launcher
 Manifest
 Mirror

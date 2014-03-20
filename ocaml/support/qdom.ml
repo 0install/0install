@@ -140,9 +140,9 @@ let parse_input source_name i = try (
 ) with Xmlm.Error ((line, col), err) ->
   raise_safe "[%d:%d] %s" line col (Xmlm.error_message err)
 
-let parse_file (system:system) path =
+let parse_file (system:system) ?name path =
   try path |> system#with_open_in [Open_rdonly; Open_binary] (fun ch ->
-    parse_input (Some path) (Xmlm.make_input (`Channel ch))
+    parse_input (Some (name |> default path)) (Xmlm.make_input (`Channel ch))
   )
   with
   | Safe_exception _ as ex -> reraise_with_context ex "... parsing XML document %s" path

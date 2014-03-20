@@ -47,19 +47,6 @@ let rec join_errors = function
         lwt exs = join_errors xs in
         ex :: exs |> Lwt.return
 
-let parse_key_info xml =
-  Empty.check_tag "key-lookup" xml;
-  xml.Q.child_nodes |> U.filter_map (fun child ->
-    match Empty.tag child with
-    | Some "item" ->
-        let msg = child.Q.last_text_inside in
-        if Empty.get_attribute_opt "vote" child = Some "good" then
-          Some (Progress.Good, msg)
-        else
-          Some (Progress.Bad, msg)
-    | _ -> None
-  )
-
 exception Aborted
 exception Try_mirror of string  (* An error where we should try the mirror (i.e. a network problem) *)
 
@@ -68,7 +55,7 @@ class fetcher config trust_db (distro:Distro.distribution) (download_pool:Downlo
 
   let trust_dialog_lock = Lwt_mutex.create () in      (* Only show one trust dialog at a time *)
 
-  let key_info_cache = Hashtbl.create 10 in
+  let key_info_provider = Key_info_provider.make config in
 
   let system = config.system in
 
@@ -199,39 +186,6 @@ class fetcher config trust_db (distro:Distro.distribution) (download_pool:Downlo
           | Some _ -> save_new_xml ()
     ) in
 
-  let fetch_key_info ~if_slow ~hint fingerprint : Progress.key_vote list Lwt.t =
-    try
-      let result = Hashtbl.find key_info_cache fingerprint in
-      match Lwt.state result with
-      | Lwt.Return _ | Lwt.Sleep -> result
-      | Lwt.Fail _ -> raise Not_found (* Retry *)
-    with Not_found ->
-      let result =
-        try_lwt
-          match config.key_info_server with
-          | None -> Lwt.return []
-          | Some key_info_server ->
-              if config.dry_run then (
-                Dry_run.log "asking %s about key %s" key_info_server fingerprint;
-              );
-              let key_info_url = key_info_server ^ "/key/" ^ fingerprint in
-              let switch = Lwt_switch.create () in
-              try_lwt
-                match_lwt downloader#download ~switch ~if_slow ~hint key_info_url with
-                | `network_failure msg -> raise_safe "%s" msg
-                | `aborted_by_user -> raise Aborted
-                | `tmpfile tmpfile ->
-                    let contents = U.read_file system tmpfile in
-                    let root = `String (0, contents) |> Xmlm.make_input |> Q.parse_input (Some key_info_url) in
-                    Lwt.return (parse_key_info root)
-              finally
-                Lwt_switch.turn_off switch
-        with Safe_exception (msg, _) as ex ->
-          log_info ~ex "Error fetching key info";
-          Lwt.return [(Progress.Bad, "Error fetching key info: " ^ msg)] in
-      Hashtbl.add key_info_cache fingerprint result;
-      result in
-
   (** We don't trust any of the signatures yet. Collect information about them and add the keys to the
       trust_db, possibly after confirming with the user. *)
   let confirm_keys feed sigs messages =
@@ -257,8 +211,9 @@ class fetcher config trust_db (distro:Distro.distribution) (download_pool:Downlo
     let if_slow = lazy (Lwt.wakeup timeout_waker []) in
 
     (* Start downloading information about the keys... *)
+    let key_downloader ~switch url = downloader#download ~switch ~if_slow ~hint:feed url in
     let key_infos = valid_sigs |> List.map (fun {G.fingerprint; _} ->
-      (fingerprint, fetch_key_info ~if_slow ~hint:feed fingerprint)
+      (fingerprint, Key_info_provider.get key_info_provider ~download:key_downloader fingerprint)
     ) in
 
     log_info "Waiting for response from key-info server...";

@@ -126,3 +126,6 @@ val xdg_open_dir : ?exec:bool -> Common.system -> Common.filepath -> unit
 (** Don't wait for the result of this Lwt thread.
  * If it throws an exception, log it. *)
 val async : (unit -> unit Lwt.t) -> unit
+
+(** Create a switch, run [fn switch], then finally turn it off. *)
+val with_switch : (Lwt_switch.t -> 'a Lwt.t) -> 'a Lwt.t
