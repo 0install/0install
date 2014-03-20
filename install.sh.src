@@ -25,7 +25,7 @@ fi
 
 DOCS="../README.md ../COPYING"
 MANPAGES="0launch.1 0store-secure-add.1 0store.1 0desktop.1 0install.1"
-PLUGIN=`echo gui_gtk.c*[sa]`
+PLUGINS=`find . -name 'gui_gtk.c*[sa]' -print`
 
 # Use "share/zsh/vendor-completions" on Debian
 ZSHFUNCTIONS="share/zsh/site-functions"
@@ -90,8 +90,8 @@ install -m 0644 share/zsh/site-functions/_0launch "$DESTDIR${PREFIX}/${ZSHFUNCTI
 install -m 0755 share/0install.net/unlzma "$DESTDIR${PREFIX_SHARE}/0install.net/"
 install -m 0755 share/0install.net/unxz "$DESTDIR${PREFIX_SHARE}/0install.net/"
 
-if [ -f "$PLUGIN" ]; then
-  install -m 0644 "$PLUGIN" "$DESTDIR${PREFIX}/lib/0install.net/"
+if [ -n "$PLUGINS" ]; then
+  install -m 0644 $PLUGINS "$DESTDIR${PREFIX}/lib/0install.net/"
 fi
 
 for size in 24x24 48x48 128x128 scalable; do \
