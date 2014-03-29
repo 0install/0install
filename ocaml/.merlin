@@ -1,0 +1,11 @@
+B _build/
+B _build/zeroinstall
+B _build/support
+B _build/gui_gtk
+S .
+S ocaml
+S support
+S zeroinstall
+S gui_gtk
+PKG yojson xmlm str lwt lwt.unix lwt.react lwt.preemptive extlib curl dynlink lablgtk2
+EXT lwt
