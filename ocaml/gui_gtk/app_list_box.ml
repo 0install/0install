@@ -336,7 +336,11 @@ let create config ~gui ~tools ~add_app =
     | `SHOW_CACHE -> Gtk_utils.async (fun () -> Cache_explorer_box.open_cache_explorer config)
     | `ADD -> add_and_repopulate ""
   );
-  dialog#show ();
 
+  dialog#set_default_size
+    ~width:(Gdk.Screen.width () / 3)
+    ~height:(Gdk.Screen.width () / 3);
+
+  dialog#show ();
 
   finished
