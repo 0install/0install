@@ -311,6 +311,11 @@ let open_cache_explorer config =
     | `DELETE_EVENT | `CLOSE -> dialog#destroy (); Lwt.wakeup set_finished ()
     | `HELP -> cache_help#display
   ) |> ignore;
+
+  dialog#set_default_size
+    ~width:(Gdk.Screen.width () / 3)
+    ~height:(Gdk.Screen.width () / 3);
+
   dialog#show ();
 
   (* Make sure the GUI appears before we start the (slow) scan *)
