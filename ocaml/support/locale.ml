@@ -36,16 +36,17 @@ let format_lang = function
 (** Get the users preferred language(s), most preferred first. The default is always included.
     See: http://www.gnu.org/software/gettext/manual/html_mono/gettext.html#The-LANGUAGE-variable *)
 let get_langs ?(default=("en", Some "gb")) (system:system) =
+  let get var =
+    match system#getenv var with
+    | None | Some "" -> None
+    | v -> v in
+
   let lang =
-    match system#getenv "LC_ALL" with
-    | Some lang -> lang
-    | None ->
-        match system#getenv "LC_MESSAGES" with
-        | Some lang -> lang
-        | None ->
-          match system#getenv "LANG" with
-          | Some lang -> lang
-          | None -> "C" in
+    get "LC_ALL" |? lazy (
+    get "LC_MESSAGES" |? lazy (
+    get "LANG" |? lazy "C"
+    )) in
+
   let langs =
     if lang = "C" then
       []
