@@ -103,27 +103,30 @@ class json_connection ~from_peer ~to_peer handle_request =
   let () =
     async (fun () ->
       try_lwt
-        let finished = ref false in
-        while_lwt not !finished do
-          lwt request = read_chunk from_peer in
-          begin match request with
-          | None -> log_debug "handle_messages: channel closed, so stopping handler"; finished := true
-          | Some (`List [`String "invoke"; `String ticket; `String op; `List args]) ->
-              async @@ handle_invoke ticket op args;
-          | Some (`List [`String "return"; `String ticket; `String success; result]) ->
-              let resolver =
-                try Hashtbl.find pending_replies ticket
-                with Not_found -> raise_safe "Unknown ticket ID: %s" ticket in
-              Hashtbl.remove pending_replies ticket;
-              begin match success with
-              | "ok" -> Lwt.wakeup resolver result;
-              | "fail" -> Lwt.wakeup_exn resolver (Safe_exception (J.Util.to_string result, ref []))
-              | _ -> raise_safe "Invalid success type '%s' from peer:\n" success end;
-          | Some json -> raise_safe "Invalid JSON from peer:\n%s" (J.to_string json) end;
-          Lwt.return ()
-        done
-      finally
+        lwt () =
+          let finished = ref false in
+          while_lwt not !finished do
+            lwt request = read_chunk from_peer in
+            begin match request with
+            | None -> log_debug "handle_messages: channel closed, so stopping handler"; finished := true
+            | Some (`List [`String "invoke"; `String ticket; `String op; `List args]) ->
+                async @@ handle_invoke ticket op args;
+            | Some (`List [`String "return"; `String ticket; `String success; result]) ->
+                let resolver =
+                  try Hashtbl.find pending_replies ticket
+                  with Not_found -> raise_safe "Unknown ticket ID: %s" ticket in
+                Hashtbl.remove pending_replies ticket;
+                begin match success with
+                | "ok" -> Lwt.wakeup resolver result;
+                | "fail" -> Lwt.wakeup_exn resolver (Safe_exception (J.Util.to_string result, ref []))
+                | _ -> raise_safe "Invalid success type '%s' from peer:\n" success end;
+            | Some json -> raise_safe "Invalid JSON from peer:\n%s" (J.to_string json) end;
+            Lwt.return ()
+          done in
         Lwt.wakeup finish ();
+        Lwt.return ()
+      with ex ->
+        Lwt.wakeup_exn finish ex;
         Lwt.return ()
     ) in
 
