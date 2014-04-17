@@ -104,18 +104,15 @@ If you want to compile from source on Windows you'll need to install quite a few
   1. Edit each Makefile.m32 to say `OPENSSL_PATH = c:/OCaml`.
   2. Build with `mingw32-make.exe mingw32-ssl`.
   3. Copy `lib/libcurl.a` to `c:/OCaml/lib`.
-- [ocurl](http://sourceforge.net/projects/ocurl/) - these steps worked for me:
+- [ocurl](https://forge.ocamlcore.org/projects/ocurl/) - these steps worked for me:
   1. There's no curl-config, so edit `configure` to use:
 
-             CURLDIR=-Ic:/OCaml/lib
-             CURLFLAGS="-lcurl -ccopt -lssl -ccopt -lcrypto -ccopt -lwldap32"
-             CURLLIBS=
+             CURLCFLAGS="-Ic:/OCaml/include -DCURL_STATICLIB"
+             CURLLIBS="-Ic:/OCaml/lib -lcurl -ccopt -lssl -ccopt -lcrypto -ccopt -lwldap32"
 
-             CFLAGS="$CURLDIR -DCURL_STATICLIB -Ic:/OCaml/include"
-  2. `./configure`
-  3. Edit Makefile to set `FINDLIB = ocamlfind`.
-  4. `curl.h` seems to redefine `interface`, so rename all ocurrances in `curl-helper.c` to `interface_`.
-  5. `make` and `make install`.
+  2. Remove `examples` and `dllcurl-helper.so` from `targets:` in `Makefile` (otherwise it complains about missing `Lwt`).
+  3. `./configure`
+  4. `make` and `make install`.
 
 Then, to build 0install under Cygwin:
 
