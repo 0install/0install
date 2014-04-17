@@ -680,7 +680,7 @@ class external_fetcher command underlying =
         let child_nodes = impls |> List.map (fun impl -> impl.Feed.qdom) in
         let root = ZI.make ~child_nodes "interface" in
 
-        let child = Lwt_process.open_process_full (command, [| command |]) in
+        let child = Lwt_process.open_process_full (Lwt_process.shell command) in
 
         lwt () = Lwt_io.write child#stdin (Q.to_utf8 root)
         and output = Lwt_io.read child#stdout
@@ -702,7 +702,5 @@ let make config trust_db distro download_pool ui =
   match config.system#getenv "ZEROINSTALL_EXTERNAL_FETCHER" with
   | None -> fetcher
   | Some command ->
-      try
-        let command = U.find_in_path_ex config.system command in
-        new external_fetcher command fetcher
+      try new external_fetcher command fetcher
       with Safe_exception _ as ex -> reraise_with_context ex "... handling $ZEROINSTALL_EXTERNAL_FETCHER"
