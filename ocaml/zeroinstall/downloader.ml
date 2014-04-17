@@ -210,6 +210,18 @@ class type download_pool =
     method release : unit
   end
 
+(** Empty the file and reset the FD to the start.
+ * On Windows, we have to close and reopen the file to do this. *)
+let truncate_to_empty tmpfile ch =
+  flush !ch;
+  if Sys.os_type = "Win32" then (
+    close_out !ch;
+    ch := open_out_gen [Open_wronly; Open_trunc; Open_binary] 0o700 tmpfile
+  ) else (
+    Unix.ftruncate (Unix.descr_of_out_channel !ch) 0;
+    seek_out !ch 0
+  )
+
 let make_pool ~max_downloads_per_site : download_pool =
   let () = Lazy.force init in
   let sites = Hashtbl.create 10 in
@@ -240,6 +252,7 @@ let make_pool ~max_downloads_per_site : download_pool =
             let cancelled = ref false in
 
             let tmpfile, ch = Filename.open_temp_file ~mode:[Open_binary] "0install-" "-download" in
+            let ch = ref ch in
             Lwt_switch.add_hook (Some switch) (fun () -> Unix.unlink tmpfile |> Lwt.return);
 
             let rec loop redirs_left url =
@@ -250,17 +263,15 @@ let make_pool ~max_downloads_per_site : download_pool =
                   let site = make_site max_downloads_per_site in
                   Hashtbl.add sites domain site;
                   site in
-              match_lwt site#schedule_download ~cancelled ?if_slow ?size ?modification_time ?start_offset ~progress:set_progress ch url with
+              match_lwt site#schedule_download ~cancelled ?if_slow ?size ?modification_time ?start_offset ~progress:set_progress !ch url with
               | `success ->
-                  close_out ch;
+                  close_out !ch;
                   `tmpfile tmpfile |> Lwt.return
               | (`network_failure _ | `aborted_by_user) as result ->
-                  close_out ch;
+                  close_out !ch;
                   Lwt.return result
               | `redirect target ->
-                  flush ch;
-                  Unix.ftruncate (Unix.descr_of_out_channel ch) 0;
-                  seek_out ch 0;
+                  truncate_to_empty tmpfile ch;
                   if target = url then raise_safe "Redirection loop getting '%s'" url
                   else if redirs_left > 0 then loop (redirs_left - 1) target
                   else raise_safe "Too many redirections (next: %s)" target in
@@ -284,6 +295,7 @@ let make_pool ~max_downloads_per_site : download_pool =
                 Lwt.return ()
               with ex ->
                 log_info ~ex "Download failed";
+                close_out !ch;
                 Lwt.wakeup_exn waker ex; Lwt.return ()
             );
 
