@@ -22,13 +22,19 @@ type details = {
 }
 
 let get_info package =
-  let c_out, c_in, c_err = Unix.open_process_full ("ocamlfind query -format '%v\n%d' " ^ package) (Unix.environment ()) in
+  (* Windows can't handle newlines or tabs in the format string, so use ASCII unit separator. *)
+  let c_out, c_in, c_err = Unix.open_process_full ("ocamlfind query -format %v\x1f%d " ^ package) (Unix.environment ()) in
   let info =
     try
-      let version = input_line c_out in
-      let dir = input_line c_out in
-      (* Printf.printf "version(%s) = %s\n" package v; *)
-      if version = "" then None else Some {version; dir}
+      let record = input_line c_out in
+      let sep = String.index record '\x1f' in
+      let dir_len = String.length record - sep - 1 in
+      let dir_len =
+        if record.[sep + dir_len] = '\r' then dir_len - 1 else dir_len in
+      let version = String.sub record 0 sep in
+      let dir = String.sub record (sep + 1) dir_len in
+      (* Printf.printf "version(%s) = %s\n" package version; *)
+      Some {version; dir}
     with End_of_file -> None in
   match Unix.close_process_full (c_out, c_in, c_err) with
   | Unix.WEXITED 0 -> info
