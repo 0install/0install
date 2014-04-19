@@ -268,7 +268,7 @@ class fake_system tmpdir =
 
     method getcwd =
       match tmpdir with
-      | None -> "/root"
+      | None -> if on_windows then "c:\\root" else "/root"
       | Some _ -> real_system#getcwd
 
     method chdir path =
@@ -476,6 +476,7 @@ let get_fake_config tmpdir =
   system#putenv "HOME" home;
   if on_windows then (
     system#add_file (src_dir +/ "0install-runenv.exe") (build_dir +/ "0install-runenv.exe");
+    system#putenv "PATH" (Sys.getenv "PATH");
   ) else (
     system#putenv "PATH" @@ (home +/ "bin") ^ ":" ^ (Sys.getenv "PATH");
     system#add_file test_0install (build_dir +/ "0install");

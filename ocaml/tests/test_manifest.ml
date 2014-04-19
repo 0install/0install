@@ -26,6 +26,7 @@ let suite = "manifest">::: [
   );
 
   "old-sha">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    skip_if on_windows "No symlinks";
     let system = config.system in
     let home = U.getenv_ex config.system "HOME" in
     let mydir = home +/ "MyDir" in
@@ -44,6 +45,7 @@ let suite = "manifest">::: [
   );
 
   "new-sha1">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    skip_if on_windows "No symlinks";
     let system = config.system in
     let home = U.getenv_ex config.system "HOME" in
     let mydir = home +/ "MyDir" in
@@ -77,6 +79,7 @@ let suite = "manifest">::: [
   );
 
   "new-sha256">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    skip_if on_windows "No symlinks";
     let system = config.system in
     let home = U.getenv_ex config.system "HOME" in
     let mydir = home +/ "MyDir" in

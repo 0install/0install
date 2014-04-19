@@ -82,6 +82,7 @@ let suite = "distro">::: [
   );
 
   "arch2">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
     let arch_db = Test_0install.feed_dir +/ "arch" in
     let distro = Distro_impls.ArchLinux.arch_distribution ~arch_db config in
 
@@ -95,6 +96,7 @@ let suite = "distro">::: [
   );
 
   "slack">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
     let slackdir = Test_0install.feed_dir +/ "slack" in
     let packages_dir = slackdir +/ "packages" in
     let distro = Distro_impls.Slackware.slack_distribution ~packages_dir config in
@@ -110,6 +112,7 @@ let suite = "distro">::: [
   );
 
   "gentoo">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
     let pkgdir = Test_0install.feed_dir +/ "gentoo" in
     let distro = Distro_impls.Gentoo.gentoo_distribution ~pkgdir config in
 
@@ -142,6 +145,7 @@ let suite = "distro">::: [
   );
 
   "ports">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
     let pkg_db = Test_0install.feed_dir +/ "ports" in
     let distro = Distro_impls.Ports.ports_distribution ~pkg_db config in
 
@@ -153,6 +157,7 @@ let suite = "distro">::: [
   );
 
   "mac-ports">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
     fake_system#set_spawn_handler (Some Fake_system.real_spawn_handler);
     let pkgdir = Test_0install.feed_dir +/ "macports" in
     let old_path = Unix.getenv "PATH" in
@@ -219,6 +224,7 @@ let suite = "distro">::: [
   );
 
   "rpm">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
     let rpmdir = Test_0install.feed_dir +/ "rpm" in
     let old_path = Unix.getenv "PATH" in
     Unix.putenv "PATH" (rpmdir ^ ":" ^ old_path);
@@ -271,6 +277,7 @@ let suite = "distro">::: [
   );
 
   "debian">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
     let xml =
       "<?xml version='1.0' ?>\n\
       <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>\n\

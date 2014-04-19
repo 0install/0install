@@ -42,6 +42,16 @@ let set_of_attrs elem : string list =
   );
   List.sort compare !attrs
 
+let rec fixup_for_windows elem =
+  let attrs = elem.Q.attrs |> Q.AttrMap.map (fun value ->
+    if U.starts_with value "/root/" then "c:\\root\\" ^ U.string_tail value 6
+    else if value = "/root" then "c:\\root"
+    else value
+  ) in {elem with Q.
+    attrs;
+    child_nodes = elem.Q.child_nodes |> List.map fixup_for_windows;
+  }
+
 let xml_diff exp actual =
   let open Support.Qdom in
   let p = Printf.printf in
@@ -725,5 +735,6 @@ let suite = "solver">::: [
 
   "solver">:::
     let root = Support.Qdom.parse_file Fake_system.real_system "tests/solves.xml" in
+    let root = if on_windows then fixup_for_windows root else root in
     List.map make_solver_test root.Support.Qdom.child_nodes
 ]

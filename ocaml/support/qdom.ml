@@ -51,6 +51,9 @@ module AttrMap =
 
     let iter_values fn attrs =
       M.iter (fun tag (_prefix, value) -> fn tag value) attrs
+
+    let map fn attrs =
+      M.map (fun (hint, value) -> (hint, fn value)) attrs
   end
 
 (* Used in diagnostic messages to show the source of an element. *)

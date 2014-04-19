@@ -38,6 +38,9 @@ module AttrMap :
 
     (** Iterate over the values (ignoring the prefix hints) *)
     val iter_values : (Xmlm.name -> string -> unit) -> t -> unit
+
+    (** Map attribute values. *)
+    val map : (string -> string) -> t -> t
   end
 
 (** An XML element node (and nearby text). *)
