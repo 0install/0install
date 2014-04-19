@@ -39,6 +39,7 @@
 #endif
 
 #ifdef WIN32
+#include <stdint.h>
 #include <windows.h>
 #else
 #include <pthread.h>
@@ -291,6 +292,33 @@ static struct custom_operations ctx_ops =
 
 /* Based on OCaml's unix_utimes function. */
 CAMLprim value ocaml_set_mtime(value path, value mtime) {
+#ifdef _WIN32
+  FILETIME win_time;
+
+  /* Convert seconds since Unix epoch to 100-nano-second intervals since Jan 1, 1601. */
+  uint64_t seconds_since_epoch = Double_val(mtime);
+  uint64_t seconds_since_1601 = seconds_since_epoch + 11644470000ULL;
+  uint64_t hundred_nanos_since_1601 = seconds_since_1601 * 10000000ULL;
+
+  win_time.dwLowDateTime = hundred_nanos_since_1601;
+  win_time.dwHighDateTime = hundred_nanos_since_1601 >> 32;
+
+  /* Based on PERL's code.
+   * FILE_FLAG_BACKUP_SEMANTICS means it's OK to open directories. */
+  HANDLE handle;
+  handle = CreateFileA(String_val(path), GENERIC_READ | GENERIC_WRITE,
+		       FILE_SHARE_READ | FILE_SHARE_DELETE, NULL,
+		       OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+  if (handle != INVALID_HANDLE_VALUE) {
+    int ok = SetFileTime(handle, NULL, NULL, &win_time);
+    CloseHandle(handle);
+    if (ok)
+      return Val_unit;
+  }
+
+  /* On error, fall through to the POSIX code to get the expected error message. */
+#endif
+
   struct utimbuf times;
   times.actime = Double_val(mtime);
   times.modtime = Double_val(mtime);
