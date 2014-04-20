@@ -591,6 +591,17 @@ let suite = "0install">::: [
     let iface_config = FC.load_iface_config config binary_iface in
     assert_equal 0 @@ List.length iface_config.FC.extra_feeds;
 
+    let tmp_feed, ch = Filename.open_temp_file "0install-" "-test" in
+    feed_dir +/ "Source.xml" |> fake_system#with_open_in [Open_binary] (fun source_ch ->
+      U.copy_channel source_ch ch;
+    );
+    close_out ch;
+    let out = run ["add-feed"; binary_iface; tmp_feed] in
+    assert_str_equal "" out;
+    Unix.unlink tmp_feed;
+    let out = run ["remove-feed"; binary_iface; tmp_feed] in
+    assert_str_equal "" out;
+
     (* todo: move to download tests *)
     (*
     with open('Source.xml') as stream: source_feed = stream.read()

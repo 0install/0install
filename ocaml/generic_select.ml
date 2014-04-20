@@ -78,6 +78,30 @@ let canonical_iface_uri (system:system) arg =
       raise_safe "Bad interface name '%s'.\n(doesn't start with 'http:', and doesn't exist as a local file '%s' either)" arg path
   )
 
+(** Convert a feed URL from the user to canonical form.
+ * If it's a path, this calls [realpath] on it.
+ * It's not an error if the path doesn't exist (the user may be trying to unregister a feed). *)
+let canonical_feed_url (system:system) arg =
+  let starts = U.starts_with arg in
+  let url =
+    if starts "http://" || starts "https://" then (
+      if not (String.contains_from arg (String.index arg '/' + 2) '/') then
+        raise_safe "Missing / after hostname in URL '%s'" arg;
+      arg
+    ) else (
+      if starts "file:///" then (
+        U.string_tail arg 7
+      ) else if starts "file:" then (
+          if arg.[5] = '/' then
+            raise_safe "Use file:///path for absolute paths, not %s" arg;
+          U.string_tail arg 5
+      ) else (
+        arg
+      )
+      |> U.realpath system
+    ) in
+  Zeroinstall.Feed_url.master_feed_of_iface url
+
 type output_style = Output_none | Output_XML | Output_human
 
 type select_options = {

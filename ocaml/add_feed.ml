@@ -89,7 +89,7 @@ let handle options flags args =
   | [new_feed] ->
       let print fmt = Support.Utils.print config.system fmt in
       print "Feed '%s':" new_feed;
-      let new_feed = G.canonical_iface_uri config.system new_feed |> Zeroinstall.Feed_url.master_feed_of_iface in
+      let new_feed = G.canonical_feed_url config.system new_feed in
 
       (* If the feed is remote and missing, download it. *)
       let feed =
@@ -111,17 +111,20 @@ let handle options flags args =
                 log_warning "Update failed: %s" msg
             );
             feed
-        | `local_feed _ as feed -> feed in
+        | `local_feed path as feed ->
+            if not (config.system#file_exists path) then
+              raise_safe "Local feed file '%s' does not exist" path;
+            feed in
 
       edit_feeds_interactive config `add feed
   | [iface; feed_src] ->
       let iface = G.canonical_iface_uri config.system iface in
-      let feed_src = G.canonical_iface_uri config.system feed_src in
-      let new_import = Zeroinstall.Feed_url.parse_non_distro feed_src |> F.make_user_import in
+      let feed_src = G.canonical_feed_url config.system feed_src in
+      let new_import = F.make_user_import feed_src in
 
       let iface_config = FC.load_iface_config config iface in
       if List.mem new_import iface_config.FC.extra_feeds then (
-        raise_safe "Interface %s already has a feed %s" iface feed_src
+        raise_safe "Interface %s already has a feed %s" iface (Zeroinstall.Feed_url.format_url feed_src)
       );
 
       let extra_feeds = new_import :: iface_config.FC.extra_feeds in
