@@ -73,7 +73,8 @@ module Debian = struct
         (* Check to see whether we could get a newer version using apt-get *)
         lwt result =
           try_lwt
-            lwt out = Lwt_process.pread ~stderr:`Dev_null (U.make_command system ["apt-cache"; "show"; "--no-all-versions"; "--"; package]) in
+            let stderr = if Support.Logging.will_log Support.Logging.Debug then None else Some `Dev_null in
+            lwt out = Lwt_process.pread ?stderr (U.make_command system ["apt-cache"; "--no-all-versions"; "show"; "--"; package]) in
             let machine = ref None in
             let version = ref None in
             let size = ref None in
@@ -157,6 +158,10 @@ module Debian = struct
       val id_prefix = "package:deb"
       val cache = new Distro_cache.cache config ~cache_leaf:"dpkg-status2.cache" status_file
 
+      (* If we added apt_cache results AND package kit is unavailable, this is set
+       * so that we include them in the results. Otherwise, we just take the PackageKit results. *)
+      val mutable use_apt_cache_results = false
+
       method! is_installed elem =
         check_cache id_prefix elem cache || super#is_installed elem
 
@@ -164,14 +169,17 @@ module Debian = struct
         (* Add any PackageKit candidates *)
         super#get_package_impls query;
 
-        (* Add apt-cache candidates (there won't be any if we used PackageKit) *)
         let package_name = query.package_name in
-        let entry = try Hashtbl.find apt_cache package_name with Not_found -> None in
-        entry |> if_some (fun {version; machine; size = _} ->
-          let version = Versions.parse_version version in
-          let machine = Arch.none_if_star machine in
-          let package_state = `uninstalled Feed.({distro_size = None; distro_install_info = ("apt-get install", package_name)}) in
-          self#add_package_implementation ~package_state ~version ~machine ~quick_test:None ~distro_name query
+
+        (* Add apt-cache candidates (only if we're not using PackageKit) *)
+        if use_apt_cache_results then (
+          let entry = try Hashtbl.find apt_cache package_name with Not_found -> None in
+          entry |> if_some (fun {version; machine; size = _} ->
+            let version = Versions.parse_version version in
+            let machine = Arch.none_if_star machine in
+            let package_state = `uninstalled Feed.({distro_size = None; distro_install_info = ("apt-get install", package_name)}) in
+            self#add_package_implementation ~package_state ~version ~machine ~quick_test:None ~distro_name query
+          )
         );
 
         (* Add installed packages by querying dpkg. *)
@@ -184,14 +192,23 @@ module Debian = struct
         match Distro.get_matching_package_impls self feed with
         | [] -> Lwt.return ()
         | matches ->
-            lwt available = packagekit#is_available in
-            if available then (
-              let package_names = matches |> List.map (fun (elem, _props) -> ZI.get_attribute "package" elem) in
+            let package_names = matches |> List.map (fun (elem, _props) -> (ZI.get_attribute "package" elem)) in
+
+            (* Check apt-cache to see whether we have the pacakges. If PackageKit isn't available, we'll use these
+             * results directly. If it is available, we'll use these results to filter the PackageKit query, because
+             * it doesn't like queries for missing packages (it tends to abort the query early and miss some results). *)
+            lwt () = query_apt_cache package_names
+            and pkgkit_available = packagekit#is_available in
+
+            if pkgkit_available then (
               let hint = Feed_url.format_url feed.Feed.url in
-              packagekit#check_for_candidates ~ui ~hint package_names
+              package_names
+              |> List.filter (Hashtbl.mem apt_cache)
+              |> packagekit#check_for_candidates ~ui ~hint
             ) else (
               (* No PackageKit. Use apt-cache directly. *)
-              query_apt_cache (matches |> List.map (fun (elem, _props) -> (ZI.get_attribute "package" elem)))
+              use_apt_cache_results <- true;
+              Lwt.return ()
             )
 
       method! private add_package_implementation ?id ?main query ~version ~machine ~quick_test ~package_state ~distro_name =
