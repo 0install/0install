@@ -32,163 +32,10 @@ let iter_dir system fn path =
   | Problem ex -> log_debug ~ex "Failed to read directory '%s'" path
   | Success items -> items |> Array.iter fn
 
-(** A simple cache for storing key-value pairs on disk. Distributions may wish to use this to record the
-    version(s) of each distribution package currently installed. *)
-module Cache =
-  struct
-    type cache_format = Old | New
-    type package_name = string
-    type machine = string option
-    type entry = Versions.parsed_version * machine
-
-    type cache_data = {
-      mutable mtime : float;
-      mutable size : int;
-      mutable rev : int;
-      contents : (package_name, entry list) Hashtbl.t;
-    }
-
-    let re_colon_space = Str.regexp_string ": "
-
-    (* Paranoid escaping in case of packages with '=' in the name.
-     * This is just to stop them corrupting the cache. *)
-    let escape_key k =
-      if String.contains k '=' then Str.global_replace (Str.regexp "=") "__equals__" k
-      else k
-
-    (* Manage the cache named [cache_leaf]. Whenever [source] changes, everything in the cache is assumed to be invalid.
-       Note: [format_version] doesn't make much sense. If the format changes, just use a different [cache_leaf],
-       otherwise you'll be fighting with other versions of 0install.
-       The [old_format] used different separator characters.
-       *)
-    class cache (config:General.config) (cache_leaf:string) (source:filepath) (format_version:int) (cache_format:cache_format) =
-      let warned_missing = ref false in
-      let re_metadata_sep = match cache_format with Old -> re_colon_space | New -> U.re_equals
-      and re_key_value_sep = match cache_format with Old -> U.re_tab | New -> U.re_equals in
-
-      object (self)
-        (* The status of the cache when we loaded it. *)
-        val data = { mtime = 0.0; size = -1; rev = -1; contents = Hashtbl.create 10 }
-
-        val cache_path = Basedir.save_path config.system (config_site +/ config_prog) config.basedirs.Basedir.cache +/ cache_leaf
-
-        (** Reload the values from disk (even if they're out-of-date). *)
-        method private load_cache =
-          data.mtime <- -1.0;
-          data.size <- -1;
-          data.rev <- -1;
-          Hashtbl.clear data.contents;
-
-          if Sys.file_exists cache_path then (
-            try
-              cache_path |> config.system#with_open_in [Open_rdonly; Open_text] (fun ch ->
-                let headers = ref true in
-                while !headers do
-                  match input_line ch with
-                  | "" -> headers := false
-                  | line ->
-                      (* log_info "Cache header: %s" line; *)
-                      match Utils.split_pair re_metadata_sep line, cache_format with
-                      | ("mtime", mtime), _ -> data.mtime <- float_of_string mtime
-                      | ("size", size), _ -> data.size <- U.safe_int_of_string size
-                      | ("version", rev), Old -> data.rev <- U.safe_int_of_string rev
-                      | ("format", rev), New -> data.rev <- U.safe_int_of_string rev
-                      | _ -> ()
-                done;
-
-                try
-                  while true do
-                    let line = input_line ch in
-                    let key, value = Utils.split_pair re_key_value_sep line in
-                    let prev = try Hashtbl.find data.contents key with Not_found -> [] in
-                    if value = "-" then (
-                      Hashtbl.replace data.contents key prev    (* Ensure empty list is in the table *)
-                    ) else (
-                      let version, machine = Utils.split_pair U.re_tab value in
-                      Hashtbl.replace data.contents key @@ (Versions.parse_version version, Arch.none_if_star machine) :: prev
-                    )
-                  done
-                with End_of_file -> ()
-              )
-            with ex ->
-              log_warning ~ex "Failed to load cache file '%s' (maybe corrupted; try deleting it)" cache_path
-          )
-
-        (** Add some entries to the cache. *)
-        method private put key values =
-          try
-            let key = escape_key key in
-            Hashtbl.replace data.contents key values;
-            cache_path |> config.system#with_open_out [Open_append; Open_creat] ~mode:0o644 (fun ch ->
-              if values = [] then (
-                output_string ch @@ Printf.sprintf "%s=-\n" key (* Cache negative results too *)
-              ) else (
-                values |> List.iter (fun (version, machine) ->
-                  output_string ch @@ Printf.sprintf "%s=%s\t%s\n" key (Versions.format_version version) (default "*" machine)
-                )
-              )
-            )
-          with Safe_exception _ as ex -> reraise_with_context ex "... writing cache %s" cache_path
-
-        (** Check cache is still up-to-date (i.e. that [source] hasn't changed). Clear it if not. *)
-        method private ensure_valid =
-          match config.system#stat source with
-          | None ->
-              if not !warned_missing then (
-                log_warning "Package database '%s' missing!" source;
-                warned_missing := true
-              )
-          | Some info ->
-              let flush () =
-                cache_path |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
-                  let mtime = Int64.of_float info.Unix.st_mtime |> Int64.to_string in
-                  begin match cache_format with
-                  | Old -> Printf.fprintf ch "mtime: %s\nsize: %d\nversion: %d\n\n" mtime info.Unix.st_size format_version
-                  | New -> Printf.fprintf ch "mtime=%s\nsize=%d\nformat=%d\n\n" mtime info.Unix.st_size format_version end;
-                  self#regenerate_cache ch
-                );
-                self#load_cache in
-              if data.mtime <> info.Unix.st_mtime then (
-                if data.mtime <> -1.0 then
-                  log_info "Modification time of %s has changed; invalidating cache" source;
-                flush ()
-              ) else if data.size <> info.Unix.st_size then (
-                log_info "Size of %s has changed; invalidating cache" source;
-                flush ()
-              ) else if data.rev <> format_version then (
-                log_info "Format of cache %s has changed; invalidating cache" cache_path;
-                flush ()
-              )
-
-        (** The cache is being regenerated. The header has been written (to a temporary file). If you want to
-         * pre-populate the cache, do it here. Otherwise, you can populate it lazily using [get ~if_missing]. *)
-        method private regenerate_cache _ch = ()
-
-        (** Look up an item in the cache.
-         * @param if_missing called if given and no entries are found *)
-        method get ?if_missing (key:package_name) : (entry list * quick_test option) =
-          let key = escape_key key in
-          self#ensure_valid;
-          let entries =
-            try Hashtbl.find data.contents key
-            with Not_found ->
-              match if_missing with
-              | None -> []
-              | Some if_missing ->
-                  let result = if_missing key in
-                  self#put key result;
-                  result in
-          let quick_test_file = Some (source, UnchangedSince data.mtime) in
-          (entries, quick_test_file)
-
-        initializer self#load_cache
-      end
-  end
-
 (** Lookup [elem]'s package in the cache. Generate the ID(s) for the cached implementations and check that one of them
     matches the [id] attribute on [elem].
     Returns [false] if the cache is out-of-date. *)
-let check_cache id_prefix elem (cache:Cache.cache) =
+let check_cache id_prefix elem (cache:Distro_cache.cache) =
   match ZI.get_attribute_opt "package" elem with
   | None ->
       Qdom.log_elem Support.Logging.Warning "Missing 'package' attribute" elem;
@@ -308,7 +155,7 @@ module Debian = struct
 
       val distro_name = "Debian"
       val id_prefix = "package:deb"
-      val cache = new Cache.cache config "dpkg-status.cache" status_file 2 Cache.New
+      val cache = new Distro_cache.cache config ~cache_leaf:"dpkg-status2.cache" status_file
 
       method! is_installed elem =
         check_cache id_prefix elem cache || super#is_installed elem
@@ -399,8 +246,8 @@ module RPM = struct
       val id_prefix = "package:rpm"
       val cache =
         object
-          inherit Cache.cache config "rpm-status2.cache" rpm_db_packages 1 Cache.New
-          method! private regenerate_cache ch =
+          inherit Distro_cache.cache config ~cache_leaf:"rpm-status3.cache" rpm_db_packages
+          method! private regenerate_cache add_entry =
             ["rpm"; "-qa"; "--qf=%{NAME}\t%{VERSION}-%{RELEASE}\t%{ARCH}\n"]
               |> U.check_output config.system (fun from_rpm  ->
                 try
@@ -409,9 +256,9 @@ module RPM = struct
                     match Str.bounded_split_delim U.re_tab line 3 with
                     | ["gpg-pubkey"; _; _] -> ()
                     | [package; version; rpmarch] ->
-                        let zi_arch = Support.System.canonical_machine (trim rpmarch) in
+                        let zi_arch = Support.System.canonical_machine (trim rpmarch) |> Arch.none_if_star in
                         try_cleanup_distro_version_warn version package |> if_some (fun clean_version ->
-                          Printf.fprintf ch "%s=%s\t%s\n" (Cache.escape_key package) (Versions.format_version clean_version) zi_arch
+                          add_entry package (clean_version, zi_arch)
                         )
                     | _ -> log_warning "Invalid output from 'rpm': %s" line
                   done
@@ -624,9 +471,9 @@ module Mac = struct
       val id_prefix = "package:macports"
       val cache =
         object
-          inherit Cache.cache config "macports-status.cache" macports_db 2 Cache.Old
+          inherit Distro_cache.cache config ~cache_leaf:"macports-status2.cache" macports_db
 
-          method! private regenerate_cache to_cache =
+          method! private regenerate_cache add_entry =
             ["port"; "-v"; "installed"] |> U.check_output config.system (fun ch ->
               try
                 while true do
@@ -646,10 +493,10 @@ module Mac = struct
                               let archs = Str.matched_group 3 extra in
                               Str.split U.re_space archs |> List.iter (fun arch ->
                                 let zi_arch = Support.System.canonical_machine arch in
-                                Printf.fprintf to_cache "%s\t%s\t%s\n" package (Versions.format_version version) zi_arch
+                                add_entry package (version, Arch.none_if_star zi_arch)
                               )
                             ) else (
-                              Printf.fprintf to_cache "%s\t%s\t*\n" package (Versions.format_version version)
+                              add_entry package (version, None)
                             )
                           )
                         ) else log_debug "Failed to match version '%s'" version
@@ -810,8 +657,8 @@ module Win = struct
 
       val cache =
         object
-          inherit Cache.cache config "cygcheck-status.cache" cygwin_log 2 Cache.Old
-          method! private regenerate_cache ch =
+          inherit Distro_cache.cache config ~cache_leaf:"cygcheck-status2.cache" cygwin_log
+          method! private regenerate_cache add_entry =
             ["cygcheck"; "-c"; "-d"] |> U.check_output config.system (fun from_cyg  ->
                 try
                   while true do
@@ -821,9 +668,8 @@ module Win = struct
                         match U.split_pair re_whitespace line with
                         | ("Package", "Version") -> ()
                         | (package, version) ->
-                            let zi_arch = "*" in
                             try_cleanup_distro_version_warn version package |> if_some (fun clean_version ->
-                              Printf.fprintf ch "%s\t%s\t%s\n" package (Versions.format_version clean_version) zi_arch
+                              add_entry package (clean_version, None)
                             )
                   done
                 with End_of_file -> ()

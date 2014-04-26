@@ -11,6 +11,7 @@ Dbus
 Default_ui
 Diagnostics
 Distro
+Distro_cache
 Distro_impls
 Downloader
 Driver
