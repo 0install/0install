@@ -63,6 +63,13 @@ they are new enough). For example, on Debian:
        libextlib-ocaml-dev libcurl-ocaml-dev \
        libobus-ocaml-dev liblablgtk2-ocaml-dev liblwt-glib-ocaml-dev libssl-dev
 
+On Fedora:
+
+    $ su -c 'yum install gettext ocaml ocaml-findlib ocaml-yojson-devel \
+       ocaml-biniou-devel ocaml-easy-format-devel ocaml-xmlm-devel ocaml-camlp4-devel \
+       ocaml-lwt-devel ocaml-ounit-devel ocaml-extlib-devel ocaml-curl-devel \
+       ocaml-obus-devel ocaml-lablgtk-devel openssl-devel'
+
 Either way, build and install by running this command in the top-level directory:
 
     $ make && sudo make install
