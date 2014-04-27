@@ -42,6 +42,9 @@ default: all
 %.ui.h: %.ui
 	intltool-extract --type=gettext/glade --update "$<"
 
+%.html: %.md
+	redcarpet $< > $@ || (rm -f $@; false)
+
 # Make needs to run from the build directory, but people always want to run it from
 # the source directory. This rule matches all targets not defined here (i.e. those
 # which operate on the build directory) and runs make again from the build directory,
