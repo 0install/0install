@@ -71,7 +71,7 @@ let filter_map_array fn arr =
 
 let makedirs (system:system) path mode =
   let rec loop path =
-    match system#lstat path with
+    match system#stat path with
     | Some info ->
         if info.Unix.st_kind = Unix.S_DIR then ()
         else raise_safe "Not a directory: %s" path
