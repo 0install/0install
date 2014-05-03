@@ -66,14 +66,6 @@ let () =
 
   if Sys.os_type = "Win32" then native_targets := "runenv.native" :: !native_targets;
 
-  let on_linux =
-    Sys.os_type = "Unix" && (
-      let ch = Unix.open_process_in "uname -s" in
-      let kernel = input_line ch in
-      if Unix.close_process_in ch <> Unix.WEXITED 0 then failwith "uname -s failed!";
-      kernel = "Linux"
-    ) in
-
   let use_dbus =
     if on_windows then false
     else (
@@ -149,14 +141,6 @@ let () =
 
     let defines_native = ref !defines_portable in
     if on_windows then add "-DWINDOWS" defines_native;
-
-    (* On Linux, dlopen libcrypto as Fedora uses the wrong soname.
-     * Otherwise, pass -lcrypto to the linker to load it automatically. *)
-    if on_linux then (
-      flag ["compile"; "link_crypto"] (S [A"-ccopt"; A"-DDLOPEN_CRYPTO"])
-    ) else (
-      flag ["link"; "link_crypto"] (S [A"-cclib"; A"-lcrypto"])
-    );
 
     if gtk_dir <> None then (
       let add_glib tag =
