@@ -8,8 +8,6 @@ open Support.Common
 
 module U = Support.Utils
 
-external zi_ssl_init : unit -> unit = "ocaml_zi_ssl_init"
-
 type progress = (Int64.t * Int64.t option * bool) Lwt_react.signal
 
 type download = {
@@ -32,7 +30,8 @@ let is_in_progress dl =
 
 let init = lazy (
   Lwt_preemptive.init 0 100 (log_warning "%s");
-  zi_ssl_init ();  (* Performs incantations to ensure thread-safety of OpenSSL *)
+  (* from dx-ocaml *)
+  Ssl.init ~thread_safe:true ();  (* Performs incantations to ensure thread-safety of OpenSSL *)
   Curl.(global_init CURLINIT_GLOBALALL);
 )
 

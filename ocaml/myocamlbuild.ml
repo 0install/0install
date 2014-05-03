@@ -155,7 +155,7 @@ let () =
     if on_linux then (
       flag ["compile"; "link_crypto"] (S [A"-ccopt"; A"-DDLOPEN_CRYPTO"])
     ) else (
-      flag ["link"; "link_crypto"] (S [A"-cclib"; A"-lcrypto"; A"-cclib"; A"-lssl"])
+      flag ["link"; "link_crypto"] (S [A"-cclib"; A"-lcrypto"])
     );
 
     if gtk_dir <> None then (

@@ -49,7 +49,7 @@ The easiest way to get the dependencies is using [OPAM](http://opam.ocamlpro.com
 
     $ opam sw 4.01.0
     $ eval `opam config env`
-    $ opam install yojson xmlm ounit react lwt extlib ocurl obus lablgtk
+    $ opam install yojson xmlm ounit react lwt extlib ssl ocurl obus lablgtk
 
 (obus and lablgtk are optional. obus is used on Linux to add support for D-BUS notifications,
 installing native packages using PackageKit, and using NetworkManager to check
@@ -60,8 +60,8 @@ they are new enough). For example, on Debian:
 
     $ sudo apt-get install gettext ocaml-nox ocaml-findlib libyojson-ocaml-dev \
        libxmlm-ocaml-dev camlp4-extra make liblwt-ocaml-dev libounit-ocaml-dev \
-       libextlib-ocaml-dev libcurl-ocaml-dev \
-       libobus-ocaml-dev liblablgtk2-ocaml-dev liblwt-glib-ocaml-dev libssl-dev
+       libextlib-ocaml-dev libcurl-ocaml-dev libssl-ocaml-dev \
+       libobus-ocaml-dev liblablgtk2-ocaml-dev liblwt-glib-ocaml-dev
 
 Either way, build and install by running this command in the top-level directory:
 
@@ -100,6 +100,7 @@ If you want to compile from source on Windows you'll need to install quite a few
   2. `perl Configure mingw shared --prefix=C:/OCaml` in `copy`.
   3. `cp -Lr copy copy2` to turn all symlinks into regular files again.
   4. `make` and `make install` inside `copy2`.
+- [ocaml-ssl](http://sourceforge.net/projects/savonet/files/ocaml-ssl/) - use `./configure LDFLAGS=-LC:/OCaml/lib CFLAGS=-IC:/OCaml/include`.
 - [libcurl](http://curl.haxx.se/download.html):
   1. Edit each Makefile.m32 to say `OPENSSL_PATH = c:/OCaml`.
   2. Build with `mingw32-make.exe mingw32-ssl`.
