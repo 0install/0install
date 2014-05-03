@@ -8,8 +8,6 @@ open Support.Common
 
 module U = Support.Utils
 
-external zi_ssl_init : unit -> unit = "ocaml_zi_ssl_init"
-
 type progress = (Int64.t * Int64.t option * bool) Lwt_react.signal
 
 type download = {
@@ -31,19 +29,18 @@ let is_in_progress dl =
   not finished
 
 let init = lazy (
-  Lwt_preemptive.init 0 100 (log_warning "%s");
-  zi_ssl_init ();  (* Performs incantations to ensure thread-safety of OpenSSL *)
+  Curl_threading.init ();
   Curl.(global_init CURLINIT_GLOBALALL);
 )
 
 let interceptor = ref None        (* (for unit-tests) *)
 
 (** Download the contents of [url] into [ch].
- * This runs in a separate (real) thread. *)
+ * This runs in a separate (either Lwt or native) thread. *)
 let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.zero) ~progress connection ch url =
   let skip_bytes = ref (Int64.to_int start_offset) in
   let error_buffer = ref "" in
-  try
+  Curl_threading.catch (fun () ->
     let redirect = ref None in
     let check_header header =
       if U.starts_with header "Location:" then (
@@ -84,8 +81,8 @@ let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.
     Curl.set_url connection url;
     Curl.set_headerfunction connection check_header;
     Curl.set_progressfunction connection (fun dltotal dlnow _ultotal _ulnow ->
-      Support.Lwt_preemptive_copy.run_in_main (fun () ->
-        if !cancelled then Lwt.return true    (* Don't override the finished=true signal *)
+      Curl_threading.run_in_main (fun () ->
+        if !cancelled then true    (* Don't override the finished=true signal *)
         else (
           let dlnow = Int64.of_float dlnow in
           begin match size with
@@ -93,46 +90,50 @@ let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.
           | None ->
               let total = if dltotal = 0.0 then None else Some (Int64.of_float dltotal) in
               progress (dlnow, total, false) end;
-          Lwt.return false  (* (continue download) *)
+          false  (* (continue download) *)
         )
       )
     );
     Curl.set_noprogress connection false; (* progress = true *)
 
-    Curl.perform connection;
+    Curl_threading.perform connection (fun () ->
+      let actual_size = Curl.get_sizedownload connection in
 
-    let actual_size = Curl.get_sizedownload connection in
+      (* Curl.cleanup connection; - leave it open for the next request *)
 
-    (* Curl.cleanup connection; - leave it open for the next request *)
-
-    match !redirect with
-    | Some target ->
-        (* ocurl is missing CURLINFO_REDIRECT_URL, so we have to do this manually *)
-        let target = Support.Urlparse.join_url url target in
-        log_info "Redirect from '%s' to '%s'" url target;
-        `redirect target
-    | None ->
-        if modification_time <> None && actual_size = 0.0 then (
-          raise Unmodified  (* ocurl is missing CURLINFO_CONDITION_UNMET *)
-        ) else (
-          size |> if_some (fun expected ->
-            let expected = Int64.to_float expected in
-            if expected <> actual_size then
-              raise_safe "Downloaded archive has incorrect size.\n\
-                          URL: %s\n\
-                          Expected: %.0f bytes\n\
-                          Received: %.0f bytes" url expected actual_size
-          );
-          log_info "Download '%s' completed successfully (%.0f bytes)" url actual_size;
-          `success
-        )
-  with Curl.CurlException _ as ex ->
-    if !cancelled then `aborted_by_user
-    else (
-      log_info ~ex "Curl error: %s" !error_buffer;
-      let msg = Printf.sprintf "Error downloading '%s': %s" url !error_buffer in
-      `network_failure msg
+      match !redirect with
+      | Some target ->
+          (* ocurl is missing CURLINFO_REDIRECT_URL, so we have to do this manually *)
+          let target = Support.Urlparse.join_url url target in
+          log_info "Redirect from '%s' to '%s'" url target;
+          `redirect target
+      | None ->
+          if modification_time <> None && actual_size = 0.0 then (
+            raise Unmodified  (* ocurl is missing CURLINFO_CONDITION_UNMET *)
+          ) else (
+            size |> if_some (fun expected ->
+              let expected = Int64.to_float expected in
+              if expected <> actual_size then
+                raise_safe "Downloaded archive has incorrect size.\n\
+                            URL: %s\n\
+                            Expected: %.0f bytes\n\
+                            Received: %.0f bytes" url expected actual_size
+            );
+            log_info "Download '%s' completed successfully (%.0f bytes)" url actual_size;
+            `success
+          )
     )
+  )
+  (function
+  | Curl.CurlException _ as ex ->
+      if !cancelled then `aborted_by_user
+      else (
+        log_info ~ex "Curl error: %s" !error_buffer;
+        let msg = Printf.sprintf "Error downloading '%s': %s" url !error_buffer in
+        `network_failure msg
+      )
+  | ex -> raise ex
+  )
 
 (** Rate-limits downloads within a site.
  * [domain] is e.g. "http://site:port" - the URL before the path *)
@@ -176,7 +177,7 @@ let make_site max_downloads_per_site =
                 let download () = download_no_follow ~cancelled ?modification_time ?size ?start_offset ~progress connection ch url in
 
                 try_lwt
-                  Lwt_preemptive.detach download ()
+                  Curl_threading.detach download
                 finally
                   timeout |> if_some Lwt_timeout.stop;
                   Lwt.return ()

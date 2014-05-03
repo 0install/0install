@@ -7,6 +7,7 @@ Command
 Config
 Console
 Constants
+Curl_threading
 Dbus
 Default_ui
 Diagnostics

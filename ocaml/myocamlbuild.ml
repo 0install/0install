@@ -66,14 +66,6 @@ let () =
 
   if Sys.os_type = "Win32" then native_targets := "runenv.native" :: !native_targets;
 
-  let on_linux =
-    Sys.os_type = "Unix" && (
-      let ch = Unix.open_process_in "uname -s" in
-      let kernel = input_line ch in
-      if Unix.close_process_in ch <> Unix.WEXITED 0 then failwith "uname -s failed!";
-      kernel = "Linux"
-    ) in
-
   let use_dbus =
     if on_windows then false
     else (
@@ -128,6 +120,16 @@ let () =
     pdep ["link"] "linkdep_win" (fun param -> if on_windows then [param] else []);
     pdep ["link"] "link" (fun param -> [param]);
 
+    let have_ocurl_lwt =
+      match get_info "curl" with
+      | Some {version; dir = _} -> parse_version version >= [0; 7; 1]
+      | None -> failwith "Missing curl!" in
+
+    if have_ocurl_lwt then
+      flag ["link"] (S [A"-package"; A"curl.lwt"])
+    else
+      flag ["link"] (S [A"-package"; A"ssl"]);
+
     begin match gtk_dir with
     | Some gtk_dir ->
         let lwt_dir =
@@ -146,17 +148,19 @@ let () =
     if (major_version < 4 || (major_version == 4 && minor_version < 1)) then add "-DOCAML_LT_4_01" defines_portable;
     if use_dbus then add "-DHAVE_DBUS" defines_portable;
     if gtk_dir <> None then add "-DHAVE_GTK" defines_portable;
+    if have_ocurl_lwt then add "-DHAVE_OCURL_LWT" defines_portable;
+
+    if get_info "sha" <> None then (
+      (* Use "sha" package instead of libcrypto *)
+      add "-DHAVE_SHA" defines_portable;
+      flag ["compile"; "link_crypto"] (S [A"-ccopt"; A"-DHAVE_SHA"]);
+      flag ["link"] (S [A"-package"; A"sha"]);
+    ) else (
+      print_endline "sha (ocaml-sha) not found; using OpenSSL instead"
+    );
 
     let defines_native = ref !defines_portable in
     if on_windows then add "-DWINDOWS" defines_native;
-
-    (* On Linux, dlopen libcrypto as Fedora uses the wrong soname.
-     * Otherwise, pass -lcrypto to the linker to load it automatically. *)
-    if on_linux then (
-      flag ["compile"; "link_crypto"] (S [A"-ccopt"; A"-DDLOPEN_CRYPTO"])
-    ) else (
-      flag ["link"; "link_crypto"] (S [A"-cclib"; A"-lcrypto"; A"-cclib"; A"-lssl"])
-    );
 
     if gtk_dir <> None then (
       let add_glib tag =

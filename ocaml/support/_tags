@@ -1,4 +1,5 @@
 true: for-pack(Support)
-<common.ml> or <windows_api.ml>: mypp
+<hash.*>: package(sha)
+<common.ml> or <windows_api.ml> or <hash.ml>: mypp
 <lwt_preemptive_copy.ml> or <gpg.ml>: syntax(camlp4o), package(lwt.syntax)
 "windows.cma": dllib(-lwindows)
