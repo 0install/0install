@@ -57,7 +57,7 @@ Note: some of these are optional:
   native packages using PackageKit, and using NetworkManager to check
   the network status before doing background updates.
 - lablgtk provides a GTK GUI.
-- ssl is only needed if ocurl is older than 0.7.1.
+- ssl is only needed if ocurl is older than 0.7.1 or ocaml-sha isn't installed.
 
 Alternatively, you can use your distribution's packages if you prefer (and if
 they are new enough). For example, on Debian:
