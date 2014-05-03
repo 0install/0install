@@ -13,7 +13,9 @@
 #include <caml/fail.h>
 #include <caml/unixsupport.h>
 
+#ifndef HAVE_SHA
 #include <openssl/evp.h>
+#endif
 
 #include <sys/types.h>
 #ifndef _WIN32
@@ -36,6 +38,8 @@
 #include <windows.h>
 #endif
 
+#ifndef HAVE_SHA
+/* No ocaml-sha; use openssl instead */
 #define Ctx_val(v) (*((EVP_MD_CTX**)Data_custom_val(v)))
 
 static void finalize_ctx(value block)
@@ -54,42 +58,6 @@ static struct custom_operations ctx_ops =
   custom_deserialize_default,
   custom_compare_ext_default
 };
-
-/* Based on OCaml's unix_utimes function. */
-CAMLprim value ocaml_set_mtime(value path, value mtime) {
-#ifdef _WIN32
-  FILETIME win_time;
-
-  /* Convert seconds since Unix epoch to 100-nano-second intervals since Jan 1, 1601. */
-  uint64_t seconds_since_epoch = Double_val(mtime);
-  uint64_t seconds_since_1601 = seconds_since_epoch + 11644470000ULL;
-  uint64_t hundred_nanos_since_1601 = seconds_since_1601 * 10000000ULL;
-
-  win_time.dwLowDateTime = hundred_nanos_since_1601;
-  win_time.dwHighDateTime = hundred_nanos_since_1601 >> 32;
-
-  /* Based on PERL's code.
-   * FILE_FLAG_BACKUP_SEMANTICS means it's OK to open directories. */
-  HANDLE handle;
-  handle = CreateFileA(String_val(path), GENERIC_READ | GENERIC_WRITE,
-		       FILE_SHARE_READ | FILE_SHARE_DELETE, NULL,
-		       OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
-  if (handle != INVALID_HANDLE_VALUE) {
-    int ok = SetFileTime(handle, NULL, NULL, &win_time);
-    CloseHandle(handle);
-    if (ok)
-      return Val_unit;
-  }
-
-  /* On error, fall through to the POSIX code to get the expected error message. */
-#endif
-
-  struct utimbuf times;
-  times.actime = Double_val(mtime);
-  times.modtime = Double_val(mtime);
-  if (utime(String_val(path),  &times) == -1) uerror("utimes", path);
-  return Val_unit;
-}
 
 CAMLprim value ocaml_EVP_MD_CTX_init(value v_alg) {
   CAMLparam1(v_alg);
@@ -144,6 +112,43 @@ CAMLprim value ocaml_DigestFinal_ex(value v_ctx) {
   memmove(String_val(result), md_value, md_len);
 
   CAMLreturn(result);
+}
+#endif
+
+/* Based on OCaml's unix_utimes function. */
+CAMLprim value ocaml_set_mtime(value path, value mtime) {
+#ifdef _WIN32
+  FILETIME win_time;
+
+  /* Convert seconds since Unix epoch to 100-nano-second intervals since Jan 1, 1601. */
+  uint64_t seconds_since_epoch = Double_val(mtime);
+  uint64_t seconds_since_1601 = seconds_since_epoch + 11644470000ULL;
+  uint64_t hundred_nanos_since_1601 = seconds_since_1601 * 10000000ULL;
+
+  win_time.dwLowDateTime = hundred_nanos_since_1601;
+  win_time.dwHighDateTime = hundred_nanos_since_1601 >> 32;
+
+  /* Based on PERL's code.
+   * FILE_FLAG_BACKUP_SEMANTICS means it's OK to open directories. */
+  HANDLE handle;
+  handle = CreateFileA(String_val(path), GENERIC_READ | GENERIC_WRITE,
+		       FILE_SHARE_READ | FILE_SHARE_DELETE, NULL,
+		       OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+  if (handle != INVALID_HANDLE_VALUE) {
+    int ok = SetFileTime(handle, NULL, NULL, &win_time);
+    CloseHandle(handle);
+    if (ok)
+      return Val_unit;
+  }
+
+  /* On error, fall through to the POSIX code to get the expected error message. */
+#endif
+
+  struct utimbuf times;
+  times.actime = Double_val(mtime);
+  times.modtime = Double_val(mtime);
+  if (utime(String_val(path),  &times) == -1) uerror("utimes", path);
+  return Val_unit;
 }
 
 /* Based on code in extunix (LGPL-2.1) */

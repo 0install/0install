@@ -139,6 +139,13 @@ let () =
     if use_dbus then add "-DHAVE_DBUS" defines_portable;
     if gtk_dir <> None then add "-DHAVE_GTK" defines_portable;
 
+    if get_info "sha" <> None then (
+      (* Use "sha" package instead of libcrypto *)
+      add "-DHAVE_SHA" defines_portable;
+      flag ["compile"; "link_crypto"] (S [A"-ccopt"; A"-DHAVE_SHA"]);
+      flag ["link"] (S [A"-package"; A"sha"]);
+    );
+
     let defines_native = ref !defines_portable in
     if on_windows then add "-DWINDOWS" defines_native;
 
