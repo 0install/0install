@@ -96,44 +96,46 @@ To try 0install without installing:
 
 A Windows binary of 0install is available at [0install.de](http://0install.de/?lang=en).
 
-Warning: I know very little about Windows. These instructions are the result of many hours of random trial-and-error and Google searches. Please help improve things here if you can.
+To install from source:
 
-If you want to compile from source on Windows you'll need to install quite a few things manually:
+1. Install [WODI](http://wodi.forge.ocamlcore.org/) (I used the 64-bit graphical installer). This gets you OCaml and a package manager for installing OCaml libraries.
+2. Run the WODI package manager from the Start menu.
+3. Select the following packages (enter each name in the search box and double-click the box next to the package in the results list; agree to any extra packages it wants to install):
+   - yojson
+   - xmlm
+   - react
+   - lwt
+   - extlib
+   - sha
+   - curl ("Bindings for libcurl") (XXX: need 0.7.1, not yet released)
+   - lablgtk2 (optional, for GTK GUI)
+   - ounit (optional, to run unit-tests during build - these currently fail on Windows)
 
-- [OCaml 4.0.1 Windows Installer](http://protz.github.io/ocaml-installer/)
-- [Cygwin](http://www.cygwin.com/) and various of its packages: mingw64-i686-gcc-core, mingw-i686-headers and make, at least (make sure /cygdrive/c/MinGW/bin is in $PATH)
-- [Xmlm](http://erratique.ch/software/xmlm)
-- [Yojson] (http://mjambon.com/yojson.html) (and its dependencies: Cppo, Easy-format, Biniou)
-- [Lwt](http://ocsigen.org/lwt/) (and its dependency React). You'll also need to apply [this EPIPE fix](https://github.com/ocsigen/lwt/issues/20)
-- [extlib](http://code.google.com/p/ocaml-extlib/) - if you get "ocamlfind: extLib.lib: No such file or directory", modify install.ml to use the "Unix" extensions for "Win32" too.
-- [openssl](http://www.openssl.org/)
-  1. Use `cp -Lr openssl copy` to turn all symlinks into regular files.
-  2. `perl Configure mingw shared --prefix=C:/OCaml` in `copy`.
-  3. `cp -Lr copy copy2` to turn all symlinks into regular files again.
-  4. `make` and `make install` inside `copy2`.
-- [ocaml-ssl](http://sourceforge.net/projects/savonet/files/ocaml-ssl/) - use `./configure LDFLAGS=-LC:/OCaml/lib CFLAGS=-IC:/OCaml/include`.
-- [libcurl](http://curl.haxx.se/download.html):
-  1. Edit each Makefile.m32 to say `OPENSSL_PATH = c:/OCaml`.
-  2. Build with `mingw32-make.exe mingw32-ssl`.
-  3. Copy `lib/libcurl.a` to `c:/OCaml/lib`.
-- [ocurl](https://forge.ocamlcore.org/projects/ocurl/) - these steps worked for me:
-  1. There's no curl-config, so edit `configure` to use:
+4. Click Apply to install the packages.
 
-             CURLCFLAGS="-Ic:/OCaml/include -DCURL_STATICLIB"
-             CURLLIBS="-Ic:/OCaml/lib -lcurl -ccopt -lssl -ccopt -lcrypto -ccopt -lwldap32"
+5. Install [Cygwin](http://www.cygwin.com/) and use it to install these packages:
+   - `make`
+   - `mingw64-x86_64-gcc-core` or `mingw64-i686-gcc-core` (for 64-bit or 32-bit WODI)
+   - `gnupg`
 
-  2. Remove `examples` and `dllcurl-helper.so` from `targets:` in `Makefile` (otherwise it complains about missing `Lwt`).
-  3. `./configure`
-  4. `make` and `make install`.
+6. Install the [Microsoft Windows Software Development Kit (SDK)](http://www.microsoft.com/en-gb/download/details.aspx?id=8279) and put the `mt.exe` utility in $PATH:
 
-Then, to build 0install under Cygwin:
+        ln -s /cygdrive/c/Program\ Files/Microsoft\ SDKs/Windows/v7.1/Bin/mt.exe /usr/local/bin/
 
-    cd ocaml
-    make ocaml
+7. Change directory to the "ocaml" subdirectory of 0install and build:
 
-This creates the executables build/ocaml/install.exe and build/ocaml/0install-runenv.exe.
-If you'd like to make the top-level Makefile work on Windows so you can "make install", please
+        cd ocaml
+        make
+
+This creates the executables `build/ocaml/install.exe` and `build/ocaml/0install-runenv.exe`.
+If you'd like to make the top-level Makefile work on Windows so you can `make install`, please
 send a patch.
+
+To run, you may need to copy these DLLs from /opt/wodi64/bin to the `build/ocaml` directory:
+
+    - libcurl-4.dll
+    - libcares-2.dll
+    - zlib1.dll
 
 
 TAB COMPLETION
