@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2014 Thomas Leonard -->
+<application>
+<id type="desktop">0install.desktop</id>
+<metadata_license>CC0-1.0</metadata_license>
+<project_license>LGPL-2.1+</project_license>
+<name>0install</name>
+<summary>Run or manage Zero Install programs</summary>
+<description>
+ <p>
+  Zero Install is a decentralised cross-distribution software installation system.
+ </p>
+ <p>
+  Features include full support for shared libraries (with a SAT solver for dependency resolution),
+  sharing between users, and integration with native platform package managers.
+ </p>
+ <p>
+  It supports both binary and source packages, and works on Linux, OS X, Unix and Windows systems.
+  It is fully Open Source.
+ </p>
+</description>
+<screenshots>
+ <screenshot type="default" width="624" height="351">http://0install.net/screens/0install-0desktop.png</screenshot>
+</screenshots>
+<url type="homepage">http://0install.net</url>
+<updatecontact>zero-install-devel@lists.sourceforge.net</updatecontact>
+</application>
