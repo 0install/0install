@@ -99,26 +99,22 @@ A Windows binary of 0install is available at [0install.de](http://0install.de/?l
 To install from source:
 
 1. Install [WODI](http://wodi.forge.ocamlcore.org/) (I used the 64-bit graphical installer). This gets you OCaml and a package manager for installing OCaml libraries.
-2. Run the WODI package manager from the Start menu.
-3. Select the following packages (enter each name in the search box and double-click the box next to the package in the results list; agree to any extra packages it wants to install):
-   - yojson
-   - xmlm
-   - react
-   - lwt
-   - extlib
-   - sha
-   - curl ("Bindings for libcurl") (XXX: need 0.7.1, not yet released)
-   - lablgtk2 (optional, for GTK GUI)
-   - ounit (optional, to run unit-tests during build - these currently fail on Windows)
+2. Run "Wodi64 Cygwin".
+3. Install the dependencies with:
 
-4. Click Apply to install the packages.
+        godi_add godi-yojson godi-xmlm godi-react godi-lwt \
+          godi-extlib godi-sha godi-curl godi-lablgtk2 godi-ounit
+   Notes:
+   - ocurl needs to be version 0.7.1 or later, but that hasn't been released yet. For now, you have to compile it from Git and set the version number to 0.7.1 manually instead.
+   - lablgtk2 is optional (only needed if you want the GTK GUI).
+   - ounit is optional (only needed to run the unit-tests during the build - these currently fail on Windows).
 
-5. Install [Cygwin](http://www.cygwin.com/) and use it to install these packages:
+4. Install [Cygwin](http://www.cygwin.com/) and use it to install these packages:
    - `make`
    - `mingw64-x86_64-gcc-core` or `mingw64-i686-gcc-core` (for 64-bit or 32-bit WODI)
    - `gnupg`
 
-6. Change directory to the "ocaml" subdirectory of 0install and build:
+5. Change directory to the "ocaml" subdirectory of 0install and build:
 
         cd ocaml
         make
@@ -129,9 +125,9 @@ send a patch.
 
 To run, you may need to copy these DLLs from /opt/wodi64/bin to the `build/ocaml` directory:
 
-    - libcurl-4.dll
-    - libcares-2.dll
-    - zlib1.dll
+- libcurl-4.dll
+- libcares-2.dll
+- zlib1.dll
 
 
 TAB COMPLETION
