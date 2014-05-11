@@ -254,7 +254,15 @@ let make_pool ~max_downloads_per_site : download_pool =
 
             let tmpfile, ch = Filename.open_temp_file ~mode:[Open_binary] "0install-" "-download" in
             let ch = ref ch in
-            Lwt_switch.add_hook (Some switch) (fun () -> Unix.unlink tmpfile |> Lwt.return);
+            Lwt_switch.add_hook (Some switch) (fun () ->
+              try_lwt
+                close_out !ch;         (* For Windows: ensure file is closed before unlinking *)
+                Unix.unlink tmpfile;
+                Lwt.return ()
+              with ex ->
+                log_warning ~ex "Failed to delete temporary file for download of '%s'" url;
+                Lwt.return ()
+            );
 
             let rec loop redirs_left url =
               let site =
