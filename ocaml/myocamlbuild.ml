@@ -55,6 +55,21 @@ let rec parse_version v =
 
 let add x xs = xs := A x :: !xs
 
+let windres =
+  match on_windows with
+  | false -> ""
+  | true ->
+    try
+      match Sys.getenv "WINDRES" with
+      | "" -> raise Not_found
+      | x  -> x
+    with
+    | Not_found ->
+      if Sys.word_size = 32 then
+        "i686-w64-mingw32-windres.exe"
+      else
+        "x86_64-w64-mingw32-windres.exe"
+
 let () =
   let v = Sys.ocaml_version in
   let first_dot = String.index v '.' in
@@ -114,6 +129,15 @@ let () =
       ~prod:"all-byte.otarget"
       ~deps:byte_targets
       (fun _ _ -> Command.Nop);
+
+    if on_windows then (
+      (* We need an XML manifest, or Windows 7 won't run it because it has "install" in its name. *)
+      rule ".rc.o" ~deps:["%.rc";"%.manifest"] ~prod:"%.o"
+        (fun env _ ->
+          let rc = env "%.rc" and o = env "%.o" in
+          Cmd (S [P windres;A "--input-format";A "rc";A "--input";P rc;
+                  A "--output-format";A "coff";A "--output"; Px o]))
+    );
 
     if use_dbus then tag_any ["package(obus,obus.notification,obus.network-manager)"];
 

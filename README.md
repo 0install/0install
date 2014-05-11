@@ -118,11 +118,7 @@ To install from source:
    - `mingw64-x86_64-gcc-core` or `mingw64-i686-gcc-core` (for 64-bit or 32-bit WODI)
    - `gnupg`
 
-6. Install the [Microsoft Windows Software Development Kit (SDK)](http://www.microsoft.com/en-gb/download/details.aspx?id=8279) and put the `mt.exe` utility in $PATH:
-
-        ln -s /cygdrive/c/Program\ Files/Microsoft\ SDKs/Windows/v7.1/Bin/mt.exe /usr/local/bin/
-
-7. Change directory to the "ocaml" subdirectory of 0install and build:
+6. Change directory to the "ocaml" subdirectory of 0install and build:
 
         cd ocaml
         make
