@@ -29,7 +29,7 @@ all: translations
 	(cd "${SRCDIR}" && cp ${MANPAGES} "${DISTDIR}/files")
 	install "${SRCDIR}/install.sh.src" "${DISTDIR}/install.sh"
 	(cp -r share "${DISTDIR}/files/")
-	(cd "${SRCDIR}" && cp -r share/0install.net share/applications share/bash-completion share/fish share/icons share/zsh "${DISTDIR}/files/share/")
+	(cd "${SRCDIR}" && cp -r share/0install.net share/applications share/appdata share/bash-completion share/fish share/icons share/zsh "${DISTDIR}/files/share/")
 
 translations: $(MO)
 
