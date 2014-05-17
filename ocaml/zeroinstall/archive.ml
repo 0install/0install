@@ -67,7 +67,14 @@ let make_command = U.make_command
 (** Run a command in a subprocess. If it returns an error code, generate an exception containing its stdout and stderr. *)
 let run_command ?cwd system args =
   (* Some zip archives are missing timezone information; force consistent results *)
-  let child_env = Array.append system#environment [| "TZ=GMT" |] in
+  let child_env = Array.append system#environment [|
+    (* Some zip archives lack time-zone information. Make sure all systems see the same time. *)
+    "TZ=GMT";
+
+    (* Stop OS X extracting extended attributes: *)
+    "COPYFILE_DISABLE=true";                    (* Leopard *)
+    "COPY_EXTENDED_ATTRIBUTES_DISABLE=true";    (* Tiger *)
+  |] in
 
   (* todo: use pola-run if available, once it supports fchmod *)
   let command = make_command system args in
