@@ -49,7 +49,7 @@ The easiest way to get the dependencies is using [OPAM](http://opam.ocamlpro.com
 
     $ opam sw 4.01.0
     $ eval `opam config env`
-    $ opam install yojson xmlm ounit react lwt extlib ssl ocurl obus lablgtk
+    $ opam install yojson xmlm ounit react lwt extlib ocurl obus lablgtk sha
 
 Note: some of these are optional:
 
@@ -57,7 +57,6 @@ Note: some of these are optional:
   native packages using PackageKit, and using NetworkManager to check
   the network status before doing background updates.
 - lablgtk provides a GTK GUI.
-- ssl is only needed if ocurl is older than 0.7.1 or ocaml-sha isn't installed.
 
 Alternatively, you can use your distribution's packages if you prefer (and if
 they are new enough). For example, on Debian:
@@ -105,7 +104,6 @@ To install from source:
         godi_add godi-yojson godi-xmlm godi-react godi-lwt \
           godi-extlib godi-sha godi-curl godi-lablgtk2 godi-ounit
    Notes:
-   - ocurl needs to be version 0.7.1 or later, but that hasn't been released yet. For now, you have to compile it from Git and set the version number to 0.7.1 manually instead.
    - lablgtk2 is optional (only needed if you want the GTK GUI).
    - ounit is optional (only needed to run the unit-tests during the build - these currently fail on Windows).
 
