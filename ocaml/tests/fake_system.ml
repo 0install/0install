@@ -360,7 +360,6 @@ class fake_system tmpdir =
 
 let forward_to_real_log = ref true
 let real_log = !Support.Logging.handler
-let () = Support.Logging.threshold := Support.Logging.Debug
 
 class null_ui =
   object (_ : #Zeroinstall.Ui.ui_handler as 'a)

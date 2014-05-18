@@ -80,7 +80,7 @@ let format_report buf (iface_uri, _source) component =
     let () =
       try
         ListLabels.iter rejected ~f:(fun (impl, problem) ->
-          if !i = 5 then (add "..."; raise Exit);
+          if !i = 5 && not Support.Logging.(will_log Debug) then (add "..."; raise Exit);
           add "%s (%s): %s" (name_impl impl) (format_version impl) (describe_problem impl problem);
           i := !i + 1
         );

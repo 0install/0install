@@ -207,6 +207,9 @@ let make_solver_test test_elem =
     | _ -> Support.Qdom.raise_elem "Unexpected element" child in
     ZI.iter process test_elem;
 
+    (* To test the ... part, we can't log at debug level. *)
+    Support.Logging.threshold := Support.Logging.Info;
+
     let (ready, result) = Zeroinstall.Solver.solve_for config (feed_provider :> Feed_provider.feed_provider) !reqs in
     if ready && !fails then assert_failure "Expected solve to fail, but it didn't!";
     if not ready && not (!fails) then (

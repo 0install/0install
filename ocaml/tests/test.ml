@@ -271,6 +271,7 @@ let orig_stderr = Unix.out_channel_of_descr @@ Unix.dup Unix.stderr
 let async_exception = ref None
 
 let show_log_on_failure fn () =
+  Support.Logging.threshold := Support.Logging.Debug;
   async_exception := None;
   Zeroinstall.Downloader.interceptor := None;
   Fake_system.forward_to_real_log := true;
