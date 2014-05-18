@@ -669,6 +669,15 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
  * external process to do the downloading and unpacking. This is needed on Windows
  * because X bits need some special support that is implemented in .NET. *)
 class external_fetcher command underlying =
+  let rec add_mime_types node =
+    match ZI.tag node with
+    | Some "recipe" ->
+        { node with Q.child_nodes = node.Q.child_nodes |> List.map add_mime_types }
+    | Some "archive" when ZI.get_attribute_opt "type" node = None ->
+        let mime_type = ZI.get_attribute "href" node |> Archive.type_from_url in
+        { node with Q.attrs = node.Q.attrs |> Q.AttrMap.add_no_ns "type" mime_type }
+    | _ -> node in
+
   object (_ : #fetcher)
     method import_feed = underlying#import_feed
     method download_icon = underlying#download_icon
@@ -677,14 +686,36 @@ class external_fetcher command underlying =
 
     method download_impls impls =
       try_lwt
-        let child_nodes = impls |> List.map (fun impl -> impl.Feed.qdom) in
+        let child_nodes = impls |> List.map (function
+          | { qdom; Feed.impl_type = `cache_impl { Feed.digests; _}; _} ->
+              let attrs = ref Q.AttrMap.empty in
+              digests |> List.iter (fun (name, value) ->
+                attrs := !attrs |> Q.AttrMap.add_no_ns name value
+              );
+              let manifest_digest = ZI.make ~attrs:!attrs "manifest-digest" in
+              let child_nodes = qdom.Q.child_nodes |> List.map add_mime_types in
+              { qdom with
+                Q.child_nodes = manifest_digest :: child_nodes
+              }
+          | impl -> impl.Feed.qdom
+        ) in
         let root = ZI.make ~child_nodes "interface" in
 
-        let child = Lwt_process.open_process_full (Lwt_process.shell command) in
+        (* Crazy Lwt API to split a command into words and search in PATH *)
+        let lwt_command = ("", [| "\000" ^ command |]) in
 
-        lwt () = Lwt_io.write child#stdin (Q.to_utf8 root)
+        log_info "Running external fetcher: %s" command;
+        let child = Lwt_process.open_process_full lwt_command in
+
+        (* .NET helper API wants an XML document with no line-breaks. Multi-line fields
+         * aren't used for anything here, so just replace with spaces. *)
+        let msg = Q.to_utf8 root |> String.map (function '\n' -> ' ' | x -> x) in
+        log_debug "Sending XML to fetcher process:\n%s" msg;
+        lwt () = (Lwt_io.write child#stdin (msg ^ "\n") >> Lwt_io.close child#stdin)
         and output = Lwt_io.read child#stdout
         and errors = Lwt_io.read child#stderr in
+
+        log_debug "External fetch process complete";
 
         try_lwt
           lwt status = child#close in
