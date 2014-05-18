@@ -217,7 +217,8 @@ let truncate_to_empty tmpfile ch =
   flush !ch;
   if Sys.os_type = "Win32" then (
     close_out !ch;
-    ch := open_out_gen [Open_wronly; Open_trunc; Open_binary] 0o700 tmpfile
+    ch := open_out_gen [Open_wronly; Open_trunc; Open_binary] 0o700 tmpfile;
+    Unix.set_close_on_exec (Unix.descr_of_out_channel !ch);
   ) else (
     Unix.ftruncate (Unix.descr_of_out_channel !ch) 0;
     seek_out !ch 0
@@ -253,6 +254,7 @@ let make_pool ~max_downloads_per_site : download_pool =
             let cancelled = ref false in
 
             let tmpfile, ch = Filename.open_temp_file ~mode:[Open_binary] "0install-" "-download" in
+            Unix.set_close_on_exec (Unix.descr_of_out_channel ch);
             let ch = ref ch in
             Lwt_switch.add_hook (Some switch) (fun () ->
               try_lwt
