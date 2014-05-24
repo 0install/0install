@@ -35,6 +35,9 @@ type response =
   | `Unexpected
   | `Give404 ]
 
+(* Old versions of Curl escape dots *)
+let re_escaped_dot = Str.regexp_string "%2E"
+
 let start_server system =
   let () = log_info "start_server" in
   let server_socket = Lwt_unix.(socket PF_INET SOCK_STREAM 0) in
@@ -57,6 +60,7 @@ let start_server system =
     port in
 
   let handle_request path to_client =
+    let path = path |> Str.global_replace re_escaped_dot "." in
     log_info "Handling request for '%s'" path;
 
     request_log := path :: !request_log;
