@@ -50,8 +50,13 @@ let system () =
 
 ELSE
 
-let session ?switch:_ () = Lwt.return None
-let system ?switch:_ () = Lwt.return None
+let session ?switch:_ () =
+  log_debug "Compiled without D-BUS support";
+  Lwt.return None
+
+let system ?switch:_ () =
+  log_debug "Compiled without D-BUS support";
+  Lwt.return None
 
 let no_dbus _ = raise_safe "No D-BUS!"
 
