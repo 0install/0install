@@ -117,8 +117,8 @@ let handle_audit options flags args =
             system#print_string msg;
             flush stdout;
             Manifest.verify system path ~digest;
-            for i = 0 to String.length msg - 1 do msg.[i] <- ' ' done;
-            system#print_string @@ "\r" ^ msg ^ "\r";
+            let blank = String.make (String.length msg) ' ' in
+            system#print_string @@ "\r" ^ blank ^ "\r";
             incr verified;
           with Safe_exception (msg, _) ->
             print "";

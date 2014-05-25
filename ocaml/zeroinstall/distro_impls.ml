@@ -310,10 +310,7 @@ module RPM = struct
       method! private add_package_implementation ?id ?main query ~version ~machine ~quick_test ~package_state ~distro_name =
         let version =
           (* OpenSUSE uses _, Fedora uses . *)
-          let package_name = String.copy query.package_name in
-          for i = 0 to String.length package_name - 1 do
-            if package_name.[i] = '_' then package_name.[i] <- '.'
-          done;
+          let package_name = query.package_name |> String.map (function '_' -> '.' | x -> x) in
           match package_name with
           | "java-1.6.0-openjdk" | "java-1.7.0-openjdk"
           | "java-1.6.0-openjdk-devel" | "java-1.7.0-openjdk-devel" ->

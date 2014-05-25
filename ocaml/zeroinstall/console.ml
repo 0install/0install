@@ -23,8 +23,8 @@ class console_ui =
 
   let clear () =
     if !msg <> "" then (
-      for i = 0 to String.length !msg - 1 do !msg.[i] <- ' ' done;
-      prerr_string @@ "\r" ^ !msg ^ "\r";
+      let blank = String.make (String.length !msg) ' ' in
+      Printf.fprintf stderr "\r%s\r" blank;
       flush stderr;
       msg := "";
       Support.Logging.clear_fn := None

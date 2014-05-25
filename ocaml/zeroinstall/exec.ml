@@ -65,11 +65,7 @@ class windows_launcher_builder config =
 let get_launcher_builder config =
   if on_windows then new windows_launcher_builder config
   else
-    let buf = String.create 2 in
-    let () = config.abspath_0install |> config.system#with_open_in [Open_rdonly; Open_binary] (fun ch ->
-      really_input ch buf 0 2
-    )
-    in
+    let buf = config.abspath_0install |> config.system#with_open_in [Open_rdonly; Open_binary] (Support.Utils.read_upto 2) in
     if buf = "#!" then
       new bytecode_launcher_builder config
     else

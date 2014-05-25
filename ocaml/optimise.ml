@@ -125,8 +125,8 @@ let optimise system impl_dir =
   let total = Array.length dirs in
   let msg = ref "" in
   let clear () =
-    for i = 0 to String.length !msg - 1 do !msg.[i] <- ' ' done;
-    system#print_string @@ "\r" ^ !msg ^ "\r";
+    let blank = String.make (String.length !msg) ' ' in
+    system#print_string @@ "\r" ^ blank ^ "\r";
     flush stdout in
 
   dirs |> Array.iteri (fun i impl ->
