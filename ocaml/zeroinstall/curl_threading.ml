@@ -22,7 +22,7 @@ let init () =
   (* from dx-ocaml *)
   Ssl.init ~thread_safe:true ()  (* Performs incantations to ensure thread-safety of OpenSSL *)
 
-let run_in_main fn = Support.Lwt_preemptive_copy.run_in_main (fun () -> Lwt.return (fn ()))
+let run_in_main fn = Lwt_preemptive.run_in_main (fun () -> Lwt.return (fn ()))
 let detach fn = Lwt_preemptive.detach fn ()
 let perform connection when_done = Curl.perform connection; when_done ()
 let catch f g =
