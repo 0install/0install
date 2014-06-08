@@ -11,7 +11,7 @@ open Options
 let format_type = function
   | Dir -> "DIR"
   | ImplRelPath -> "PATH"
-  | Command -> "COMMAND"
+  | CommandName -> "COMMAND"
   | VersionRange -> "RANGE"
   | SimpleVersion -> "VERSION"
   | CpuType -> "CPU"

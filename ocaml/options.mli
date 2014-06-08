@@ -83,7 +83,7 @@ type global_settings = {
 type zi_arg_type =
   | Dir
   | ImplRelPath
-  | Command
+  | CommandName
   | VersionRange
   | SimpleVersion
   | CpuType | OsType

@@ -99,7 +99,7 @@ let complete_command (completer:completer) raw_options prefix group =
     if prefix = "" then not (U.starts_with full "_")
     else starts_with full prefix
   ) in
-  let compatible_with_command (_name, subcommand) = StringSet.subset options_used (Cli.set_of_option_names subcommand) in
+  let compatible_with_command (_name, subcommand) = StringSet.subset options_used (Command_tree.set_of_option_names subcommand) in
   let valid_commands = List.filter compatible_with_command commands in
 
   let complete_commands = if List.length valid_commands = 0 then commands else valid_commands in
@@ -306,7 +306,7 @@ let complete_option_value (completer:completer) args (_, handler, values, carg) 
   match List.nth arg_types carg with
   | Dir -> completer#add_files pre
   | ImplRelPath -> ()
-  | Command -> ()
+  | CommandName -> ()
   | VersionRange | SimpleVersion as t -> (
       let use ~maybe_app target = complete_version completer ~range:(t = VersionRange) ~maybe_app target pre in
       match carg, args with
@@ -334,15 +334,9 @@ let complete_option_value (completer:completer) args (_, handler, values, carg) 
   )
 
 (** Filter the options to include only those compatible with the subcommand. *)
-let rec get_possible_options args = function
-  | Cli.Subcommand subcommand ->
-      subcommand#options |> List.map (fun (names, _nargs, _help, _handler) -> names) |> List.concat
-  | Cli.Subgroup group as node ->
-      match args with
-      | [] -> Cli.set_of_option_names node |> StringSet.elements
-      | cmd :: args ->
-          try let subcommand = List.assoc cmd group in get_possible_options args subcommand
-          with Not_found -> []
+let get_possible_options args node =
+  let _, node, _ = Command_tree.lookup node args in
+  Command_tree.set_of_option_names node |> StringSet.elements
 
 let handle_complete config = function
   | (shell :: prog :: raw_args) -> (
@@ -374,13 +368,13 @@ let handle_complete config = function
       | CompleteNothing -> ()
       | CompleteOptionName "-" -> completer#add Prefix "--"   (* Suggest using a long option *)
       | CompleteOptionName prefix ->
-          let possible_options = get_possible_options args (Subgroup subcommands) in
+          let possible_options = get_possible_options args (Command_tree.Group commands) in
           let check_name name = starts_with name prefix in
           let completions = List.filter check_name possible_options in
           List.iter (completer#add Add) (List.sort compare completions)
       | CompleteOption opt -> complete_option_value completer args opt
-      | CompleteArg 0 -> complete_command completer raw_options (List.hd args) Cli.subcommands
-      | CompleteArg 1 when List.hd args = "store" -> complete_command completer raw_options (List.nth args 1) Cli.store_subcommands
+      | CompleteArg 0 -> complete_command completer raw_options (List.hd args) Cli.commands
+      | CompleteArg 1 when List.hd args = "store" -> complete_command completer raw_options (List.nth args 1) Cli.store_commands
       | CompleteArg i -> complete_arg config completer (List.nth args i) (slice args ~start:0 ~stop:i)
       | CompleteLiteral lit -> completer#add Add lit
   )

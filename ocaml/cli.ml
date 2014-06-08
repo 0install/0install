@@ -109,7 +109,7 @@ let parse_version_for =
 
 let generic_select_options : (_, _) opt_spec list = [
   ([      "--before"],      0, i_ "choose a version before this",      new one_arg SimpleVersion @@ fun v -> `Before v);
-  ([      "--command"],     1, i_ "command to select",                 new one_arg Command @@ fun c -> `SelectCommand c);
+  ([      "--command"],     1, i_ "command to select",                 new one_arg CommandName @@ fun c -> `SelectCommand c);
   ([      "--cpu"],         1, i_ "target CPU type",                   new one_arg CpuType @@ fun c -> `Cpu c);
   ([      "--message"],     1, i_ "message to display when interacting with user", new one_arg Message @@ fun m -> `WithMessage m);
   ([      "--not-before"],  1, i_ "minimum version to choose",         new one_arg SimpleVersion @@ fun v -> `NotBefore v);
@@ -148,7 +148,7 @@ let show_options = [
 
 let run_options : (_, _) opt_spec list = [
   (["-m"; "--main"],    1, i_ "name of the file to execute",           new ambiguous_one_arg (fun m -> `MainExecutable m) read_m);
-  (["-w"; "--wrapper"], 1, i_ "execute program using a debugger, etc", new one_arg Command @@ fun cmd -> `Wrapper cmd);
+  (["-w"; "--wrapper"], 1, i_ "execute program using a debugger, etc", new one_arg CommandName @@ fun cmd -> `Wrapper cmd);
 ]
 
 let common_options : (_, _) opt_spec list = [
@@ -175,71 +175,44 @@ let spec : (_, zi_arg_type) argparse_spec = {
 
 let select_options = xml_output @ generic_select_options
 
-let make_command_obj help handler valid_options =
-  object
-    method handle options raw_options command_path args =
-      let flags = parse_options valid_options raw_options in
-      try handler options flags args
-      with Support.Argparse.Usage_error status ->
-        let command = String.concat " " command_path in
-        Common_options.show_help options.config.system valid_options (command ^ " [OPTIONS] " ^ help) ignore;
-        raise (System_exit status)
+open Command_tree
 
-    method options = (valid_options :> (zi_option, _) opt_spec list)
-    method help = help
-  end
-
-type subcommand =
-   < handle : global_settings -> raw_option list -> string list -> string list -> unit;
-     help : string;
-     options : (Options.zi_option, Options.zi_arg_type) Support.Argparse.opt_spec list >
-and subgroup = (string * subnode) list
-and subnode =
-  | Subcommand of subcommand
-  | Subgroup of subgroup
-
-let make_subcommand name help handler valid_options =
-  (name, Subcommand (make_command_obj help handler valid_options))
-
-let make_subgroup name subcommands =
-  (name, Subgroup subcommands)
-
-let store_subcommands : subgroup = [
-  make_subcommand "add"       "DIGEST (DIRECTORY | (ARCHIVE [EXTRACT]))"   Store.handle_add @@ common_options;
-  make_subcommand "audit"     "[DIRECTORY]"                                Store.handle_audit @@ common_options;
-  make_subcommand "copy"      "SOURCE [ TARGET ]"                          Store.handle_copy @@ common_options;
-  make_subcommand "find"      "DIGEST"                                     Store.handle_find @@ common_options;
-  make_subcommand "list"      ""                                           Store.handle_list @@ common_options;
-  make_subcommand "manifest"  "DIRECTORY [ALGORITHM]"                      Store.handle_manifest @@ common_options;
-  make_subcommand "optimise"  "[ CACHE ]"                                  Optimise.handle     @@ common_options;
-  make_subcommand "verify"    "(DIGEST | (DIRECTORY [DIGEST])"             Store.handle_verify @@ common_options;
-  make_subcommand "manage"    ""                                           Manage_cache.handle @@ common_options;
+let store_commands : commands = [
+  "add",      make_command "DIGEST (DIRECTORY | (ARCHIVE [EXTRACT]))"   Store.handle_add @@ common_options;
+  "audit",    make_command "[DIRECTORY]"                                Store.handle_audit @@ common_options;
+  "copy",     make_command "SOURCE [ TARGET ]"                          Store.handle_copy @@ common_options;
+  "find",     make_command "DIGEST"                                     Store.handle_find @@ common_options;
+  "list",     make_command ""                                           Store.handle_list @@ common_options;
+  "manifest", make_command "DIRECTORY [ALGORITHM]"                      Store.handle_manifest @@ common_options;
+  "optimise", make_command "[ CACHE ]"                                  Optimise.handle     @@ common_options;
+  "verify",   make_command "(DIGEST | (DIRECTORY [DIGEST])"             Store.handle_verify @@ common_options;
+  "manage",   make_command ""                                           Manage_cache.handle @@ common_options;
 ]
 
 (** Which options are valid with which command *)
-let subcommands: subgroup = [
-  make_subcommand "add"         "PET-NAME INTERFACE"            Add.handle        @@ common_options @ offline_options @ generic_select_options;
-  make_subcommand "select"      "URI"                           Select.handle     @@ common_options @ offline_options @ select_options;
-  make_subcommand "show"        "APP | SELECTIONS"              Show.handle       @@ common_options @ xml_output @ show_options;
-  make_subcommand "download"    "URI"                           Download.handle   @@ common_options @ offline_options @ download_options @ select_options;
-  make_subcommand "run"         "URI [ARGS]"                    Run.handle        @@ common_options @ offline_options @ run_options @ generic_select_options;
-  make_subcommand "update"      "APP | URI"                     Update.handle     @@ common_options @ offline_options @ generic_select_options;
-  make_subcommand "_update-bg"  "-"                             Update.handle_bg  @@ common_options;
-  make_subcommand "whatchanged" "APP-NAME"                      Whatchanged.handle @@ common_options @ diff_options;
-  make_subcommand "destroy"     "PET-NAME"                      Destroy.handle    @@ common_options;
-  make_subcommand "config"      "[NAME [VALUE]]"                Conf.handle       @@ common_options;
-  make_subcommand "import"      "FEED"                          Import.handle     @@ common_options @ offline_options;
-  make_subcommand "list"        "PATTERN"                       List_ifaces.handle @@ common_options;
-  make_subcommand "search"      "QUERY"                         Search.handle     @@ common_options;
-  make_subcommand "add-feed"    "[INTERFACE] NEW-FEED"          Add_feed.handle   @@ common_options @ offline_options;
-  make_subcommand "remove-feed" "[INTERFACE] FEED"              Remove_feed.handle @@ common_options @ offline_options;
-  make_subcommand "list-feeds"  "URI"                           List_feeds.handle @@ common_options;
-  make_subcommand "man"         "NAME"                          Man.handle        @@ common_options;
-  make_subcommand "digest"      "DIRECTORY | ARCHIVE [EXTRACT]" Store.handle_digest @@ common_options @ digest_options;
-  make_subcommand "_desktop"    "-"                             Desktop.handle    @@ common_options;
-  make_subcommand "_alias"      "-"                             Alias.handle      @@ common_options;
-  make_subgroup   "store"       store_subcommands;
-  make_subcommand "slave"       "VERSION"                       Slave.handle      @@ common_options;
+let commands : commands = [
+  "add",          make_command "PET-NAME INTERFACE"            Add.handle        @@ common_options @ offline_options @ generic_select_options;
+  "select",       make_command "URI"                           Select.handle     @@ common_options @ offline_options @ select_options;
+  "show",         make_command "APP | SELECTIONS"              Show.handle       @@ common_options @ xml_output @ show_options;
+  "download",     make_command "URI"                           Download.handle   @@ common_options @ offline_options @ download_options @ select_options;
+  "run",          make_command "URI [ARGS]"                    Run.handle        @@ common_options @ offline_options @ run_options @ generic_select_options;
+  "update",       make_command "APP | URI"                     Update.handle     @@ common_options @ offline_options @ generic_select_options;
+  "_update-bg",   make_command_hidden                          Update.handle_bg  @@ common_options;
+  "whatchanged",  make_command "APP-NAME"                      Whatchanged.handle @@ common_options @ diff_options;
+  "destroy",      make_command "PET-NAME"                      Destroy.handle    @@ common_options;
+  "config",       make_command "[NAME [VALUE]]"                Conf.handle       @@ common_options;
+  "import",       make_command "FEED"                          Import.handle     @@ common_options @ offline_options;
+  "list",         make_command "PATTERN"                       List_ifaces.handle @@ common_options;
+  "search",       make_command "QUERY"                         Search.handle     @@ common_options;
+  "add-feed",     make_command "[INTERFACE] NEW-FEED"          Add_feed.handle   @@ common_options @ offline_options;
+  "remove-feed",  make_command "[INTERFACE] FEED"              Remove_feed.handle @@ common_options @ offline_options;
+  "list-feeds",   make_command "URI"                           List_feeds.handle @@ common_options;
+  "man",          make_command "NAME"                          Man.handle        @@ common_options;
+  "digest",       make_command "DIRECTORY | ARCHIVE [EXTRACT]" Store.handle_digest @@ common_options @ digest_options;
+  "_desktop",     make_command_hidden                          Desktop.handle    @@ common_options;
+  "_alias",       make_command_hidden                          Alias.handle      @@ common_options;
+  "store",        make_group   store_commands;
+  "slave",        make_command "VERSION"                       Slave.handle      @@ common_options;
 ]
 
 let show_group_help config parents group =
@@ -250,7 +223,7 @@ let show_group_help config parents group =
     print "\nTry --help with one of these:\n";
     ListLabels.iter group ~f:(fun (command, info) ->
       match info with
-      | Subcommand info when info#help = "-" -> ()
+      | Command info when (Command_tree.help info = None) -> ()
       | _ -> print "0install%s %s" parents command;
     );
   )
@@ -262,17 +235,10 @@ let handle_no_command options flags args =
     | `Help -> exit_status := 0
     | #common_option as o -> Common_options.process_common_option options o
   );
-  show_group_help options.config [] subcommands;
+  show_group_help options.config [] commands;
   raise (System_exit !exit_status)
 
-let no_command = make_command_obj "" handle_no_command @@ common_options @ show_version_options
-
-let rec set_of_option_names = function
-  | Subcommand command ->
-      let add s (names, _nargs, _help, _handler) = List.fold_right StringSet.add names s in
-      List.fold_left add StringSet.empty command#options
-  | Subgroup group ->
-      group |> List.fold_left (fun set (_name, node) -> StringSet.union set (set_of_option_names node)) StringSet.empty
+let no_command = (make_command_hidden handle_no_command @@ common_options @ show_version_options)
 
 let make_tools config =
   let gui = ref Maybe in
@@ -305,21 +271,6 @@ let get_default_options config =
 let release_options options =
   options.tools#release
 
-let rec lookup_subcommand config name args (group:subgroup) : (string list * subcommand * string list) =
-  let subcommand =
-    try List.assoc name group
-    with Not_found -> raise_safe "Unknown 0install sub-command '%s': try --help" name in
-  match subcommand with
-  | Subcommand subcommand -> ([name], subcommand, args)
-  | Subgroup subgroup ->
-      match args with
-      | subname :: subargs ->
-          let (path, command, args) = lookup_subcommand config subname subargs subgroup in
-          (name :: path, command, args)
-      | [] ->
-          show_group_help config [name] subgroup;
-          raise (System_exit 1)
-
 let handle config raw_args =
   let (raw_options, args, complete) = read_args spec raw_args in
   assert (complete = CompleteNothing);
@@ -331,7 +282,12 @@ let handle config raw_args =
         match args with
         | [] -> ([], no_command, [])
         | ["run"] when List.mem ("-V", []) raw_options -> (["run"], no_command, [])      (* Hack for 0launch -V *)
-        | command :: command_args -> lookup_subcommand config command command_args subcommands in
-      try subcommand#handle options raw_options command_path command_args
-      with ShowVersion -> Common_options.show_version config.system
+        | command_args -> lookup (make_group commands) command_args in
+      match subcommand with
+      | Group subgroup ->
+          show_group_help config command_path subgroup;
+          raise (System_exit 1)
+      | Command subcommand ->
+          try Command_tree.handle subcommand options raw_options command_path command_args
+          with ShowVersion -> Common_options.show_version config.system
     )

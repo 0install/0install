@@ -62,14 +62,13 @@ let test_option_parsing () =
   let p_full raw_args =
     let (raw_options, args, complete) = Support.Argparse.read_args Cli.spec raw_args in
     assert (complete = Support.Argparse.CompleteNothing);
-    let subcommand =
-      match args with
-      | command :: _ ->
-          begin match List.assoc command Cli.subcommands with
-          | Cli.Subcommand c -> c
-          | _ -> assert false end
-      | [] -> Cli.no_command in
-    let flags = Support.Argparse.parse_options subcommand#options raw_options in
+    let _, subcommand, _ =
+      if args = [] then ([], Cli.no_command, [])
+      else Command_tree.(lookup (make_group Cli.commands)) args in
+    match subcommand with
+    | Command_tree.Group _ -> assert false
+    | Command_tree.Command subcommand ->
+    let flags = Support.Argparse.parse_options (Command_tree.options subcommand) raw_options in
     let options = Cli.get_default_options config in
     let process = function
       | #common_option as flag -> Common_options.process_common_option options flag
