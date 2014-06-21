@@ -259,7 +259,12 @@ let create config ~gui ~tools ~add_app =
             match_lwt confirm_deletion ~parent:dialog name with
             | `delete ->
                 log_info "rm %s" path;
-                config.system#unlink path;
+                begin
+                  try config.system#unlink path
+                  with Unix.Unix_error (Unix.EACCES, _, _) ->
+                    raise_safe "Permission denied. You may be able to remove the entry manually with:\n\
+                                sudo rm '%s'" path
+                end;
                 model#remove row |> ignore;
                 Lwt.return ()
             | `cancel -> Lwt.return ()
