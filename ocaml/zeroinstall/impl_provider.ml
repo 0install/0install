@@ -46,10 +46,10 @@ let describe_problem impl =
   | `Poor_stability           -> spf "Poor stability '%s'" (format_stability impl.stability)
   | `No_retrieval_methods     -> "No retrieval methods"
   | `Not_cached_and_offline   -> "Can't download it because we're offline"
-  | `Incompatible_OS          -> "Not compatibile with the requested OS type"
+  | `Incompatible_OS          -> "Not compatible with the requested OS type"
   | `Not_binary               -> "We want a binary and this is source"
   | `Not_source               -> "We want source and this is a binary"
-  | `Incompatible_machine     -> "Not compatibile with the requested CPU type"
+  | `Incompatible_machine     -> "Not compatible with the requested CPU type"
   | `Missing_local_impl path  -> spf "Local impl's directory (%s) is missing" path
 
 type scope_filter = {

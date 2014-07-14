@@ -195,7 +195,7 @@ Can't find all required implementations:
       l3 (3): Incompatible with restriction: version 2..!3
       l2 (2): Requires http://example.com/prog.xml version ..!3
       l1 (1): Incompatible with restriction: version 2..!3
-      l0 (0): Not compatibile with the requested OS type
+      l0 (0): Not compatible with the requested OS type
 - http://example.com/prog.xml -> 3 (p3)
     </justification>
     <justification interface='http://example.com/prog.xml' id='p4'>
@@ -205,7 +205,7 @@ Can't find all required implementations:
       If http://example.com/other.xml o1 were the only option, the best available solution wouldn't use it.
     </justification>
     <justification interface='http://example.com/lib.xml' id='l0'>
-      http://example.com/lib.xml 0 cannot be used (regardless of other components): Not compatibile with the requested OS type
+      http://example.com/lib.xml 0 cannot be used (regardless of other components): Not compatible with the requested OS type
     </justification>
   </test>
 
