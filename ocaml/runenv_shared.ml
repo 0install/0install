@@ -12,7 +12,7 @@ let runenv (system:system) args =
   | [] -> failwith "No args passed to runenv!"
   | arg0::args ->
     try
-      let var = "zeroinstall-runenv-" ^ Filename.basename arg0 in
+      let var = "zeroinstall_runenv_" ^ Filename.basename arg0 in
       let s = Support.Utils.getenv_ex system var in
       let open Yojson.Basic in
       let envargs = Util.convert_each Util.to_string (from_string s) in

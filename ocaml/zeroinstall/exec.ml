@@ -31,7 +31,7 @@ class virtual launcher_builder config script =
     method setenv name command_argv env =
       let open Yojson.Basic in
       let json :json = `List (List.map (fun a -> `String a) command_argv) in
-      Env.put env ("zeroinstall-runenv-" ^ name) (to_string json)
+      Env.put env ("zeroinstall_runenv_" ^ name) (to_string json)
   end
 
 (** If abspath_0install is a native binary, we can avoid starting a shell here. *)
