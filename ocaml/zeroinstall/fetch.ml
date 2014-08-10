@@ -410,7 +410,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
         resolved in
 
     try_lwt
-      let {Feed_url.feed; Feed_url.id = _} = Feed.get_id impl in
+      let {Feed_url.feed; Feed_url.id = _} = Impl.get_id impl in
       let open Recipe in
       (* Start all the downloads. The downloads happen in parallel, each returning
        * a future that will perform the extraction step. These futures are evaluated in sequence. *)
@@ -507,8 +507,8 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
               log_info "Error from mirror: %s" mirror_msg;
               raise_safe "%s" orig_msg
     with Safe_exception _ as ex ->
-      let {Feed_url.feed; Feed_url.id} = Feed.get_id impl in
-      let version = Feed.get_attr_ex FeedAttr.version impl in
+      let {Feed_url.feed; Feed_url.id} = Impl.get_id impl in
+      let version = Impl.get_attr_ex FeedAttr.version impl in
       reraise_with_context ex "... downloading implementation %s %s (id=%s)" (Feed_url.format_url feed) version id in
 
   object
@@ -582,34 +582,34 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
                       `problem (msg, Some (wait_for_mirror mirror)) |> Lwt.return
               )
 
-    method download_impls (impls:Feed.generic_implementation list) : [ `success | `aborted_by_user ] Lwt.t =
+    method download_impls (impls:Impl.generic_implementation list) : [ `success | `aborted_by_user ] Lwt.t =
       (* todo: external fetcher on Windows? *)
 
       let zi_impls = ref [] in
       let package_impls = ref [] in
 
       impls |> List.iter (fun impl ->
-        let {Feed_url.feed; Feed_url.id} = Feed.get_id impl in
-        let version = Feed.get_attr_ex FeedAttr.version impl in
+        let {Feed_url.feed; Feed_url.id} = Impl.get_id impl in
+        let version = Impl.get_attr_ex FeedAttr.version impl in
 
         log_debug "download_impls: for %s get %s" (Feed_url.format_url feed) version;
 
         match impl with
-        | {Feed.impl_type = `package_impl info; _} as impl ->
-            if info.Feed.package_state = `installed then
-              log_warning "Package '%s' already installed; skipping" (Feed.get_id impl).Feed_url.id
+        | {Impl.impl_type = `package_impl info; _} as impl ->
+            if info.Impl.package_state = `installed then
+              log_warning "Package '%s' already installed; skipping" (Impl.get_id impl).Feed_url.id
             else
               package_impls := impl :: !package_impls
-        | {Feed.impl_type = `local_impl path; _} -> raise_safe "Can't fetch a missing local impl (%s from %s)!" path (Feed_url.format_url feed)
-        | {Feed.impl_type = `cache_impl info; _} ->
+        | {Impl.impl_type = `local_impl path; _} -> raise_safe "Can't fetch a missing local impl (%s from %s)!" path (Feed_url.format_url feed)
+        | {Impl.impl_type = `cache_impl info; _} ->
             (* Choose the best digest algorithm we support *)
-            if info.Feed.digests = [] then (
-              Q.raise_elem "No digests at all! (so can't choose best) on " impl.Feed.qdom
+            if info.Impl.digests = [] then (
+              Q.raise_elem "No digests at all! (so can't choose best) on " impl.Impl.qdom
             );
-            let digest = Stores.best_digest info.Feed.digests in
+            let digest = Stores.best_digest info.Impl.digests in
 
             (* Pick the first retrieval method we understand *)
-            match info.Feed.retrieval_methods |> U.first_match Recipe.parse_retrieval_method with
+            match info.Impl.retrieval_methods |> U.first_match Recipe.parse_retrieval_method with
             | None -> raise_safe ("Implementation %s of interface %s cannot be downloaded " ^^
                                   "(no download locations given in feed!)") id (Feed_url.format_url feed)
             | Some rm -> zi_impls := (impl, digest, rm) :: !zi_impls
@@ -687,7 +687,7 @@ class external_fetcher command underlying =
     method download_impls impls =
       try_lwt
         let child_nodes = impls |> List.map (function
-          | { qdom; Feed.impl_type = `cache_impl { Feed.digests; _}; _} ->
+          | { qdom; Impl.impl_type = `cache_impl { Impl.digests; _}; _} ->
               let attrs = ref Q.AttrMap.empty in
               digests |> List.iter (fun (name, value) ->
                 attrs := !attrs |> Q.AttrMap.add_no_ns name value
@@ -697,7 +697,7 @@ class external_fetcher command underlying =
               { qdom with
                 Q.child_nodes = manifest_digest :: child_nodes
               }
-          | impl -> impl.Feed.qdom
+          | impl -> impl.Impl.qdom
         ) in
         let root = ZI.make ~child_nodes "interface" in
 

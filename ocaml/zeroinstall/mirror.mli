@@ -8,7 +8,7 @@
  * @return a recipe for a single archive containing the whole implementation.
  * Note: This is just one way we try the mirror. You can also use [for_archive]
  * to check for mirrored copies of individual archives. *)
-val for_impl : General.config -> _ Feed.implementation -> Recipe.t option
+val for_impl : General.config -> _ Impl.t -> Recipe.t option
 
 (** Return the URL to check for a mirror of an archive URL. *)
 val for_archive : General.config -> string -> string option

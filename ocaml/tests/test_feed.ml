@@ -74,8 +74,8 @@ let suite = "feed">::: [
     let feed = F.parse config.system root (Some path) in
 
     let path name impl =
-      let command = StringMap.find_safe name impl.F.props.F.commands in
-      ZI.get_attribute "path" command.F.command_qdom in
+      let command = StringMap.find_safe name impl.Impl.props.Impl.commands in
+      ZI.get_attribute "path" command.Impl.command_qdom in
 
     let a = StringMap.find_safe "a" feed.F.implementations in
     Fake_system.assert_str_equal "foo" @@ path "run" a;
@@ -109,9 +109,9 @@ let suite = "feed">::: [
     let feed = F.parse config.system root (Some "/local.xml") in
     begin match StringMap.bindings feed.F.implementations with
     | [("sha1=124", s124); ("sha1=234", s234); ("sha1=345", s345)] ->
-        assert_equal [("fr", None)] @@ F.get_langs s124;
-        assert_equal [("fr", None); ("en", Some "gb")] @@ F.get_langs s234;
-        assert_equal [("en", None)] @@ F.get_langs s345;
+        assert_equal [("fr", None)] @@ Impl.get_langs s124;
+        assert_equal [("fr", None); ("en", Some "gb")] @@ Impl.get_langs s234;
+        assert_equal [("en", None)] @@ Impl.get_langs s345;
     | _ -> assert false end;
 
     begin match feed.F.imported_feeds with
@@ -143,13 +143,13 @@ let suite = "feed">::: [
 
     begin match StringMap.bindings feed.F.implementations with
     | [("sha1=123", impl)] ->
-        begin match impl.F.props.F.bindings |> List.map B.parse_binding with
+        begin match impl.Impl.props.Impl.bindings |> List.map B.parse_binding with
         | [Some B.EnvironmentBinding {B.mode = B.Replace; _}] -> ()
         | _ -> assert false end;
 
-        begin match impl.F.props.F.requires with
+        begin match impl.Impl.props.Impl.requires with
         | [dep] ->
-            begin match dep.F.dep_qdom |> ZI.filter_map B.parse_binding with
+            begin match dep.Impl.dep_qdom |> ZI.filter_map B.parse_binding with
             [
               B.EnvironmentBinding ({ B.mode = B.Add {B.pos = B.Prepend; _ }; _ } as b0);
               B.EnvironmentBinding ({ B.mode = B.Add {B.pos = B.Prepend; B.default = None; _ }; _ });
@@ -236,15 +236,15 @@ let suite = "feed">::: [
 
     match feed.F.implementations |> StringMap.bindings with
     | [("sha1=123", impl)] ->
-        begin match impl.F.props.F.requires with
+        begin match impl.Impl.props.Impl.requires with
         | [dep; dep2] ->
-            begin match dep.F.dep_restrictions with
+            begin match dep.Impl.dep_restrictions with
             | [res] -> Fake_system.assert_str_equal "version 2.3.4..!3.4.5" @@ res#to_string;
             | _ -> assert false end;
-            assert_equal [] dep2.F.dep_restrictions;
+            assert_equal [] dep2.Impl.dep_restrictions;
 
-            dep.F.dep_qdom.Q.attrs |> Q.AttrMap.get ("http://my/namespace", "foo") |> assert_equal (Some "test");
-            dep.F.dep_qdom.Q.attrs |> Q.AttrMap.get ("http://my/namespace", "food") |> assert_equal None;
+            dep.Impl.dep_qdom.Q.attrs |> Q.AttrMap.get ("http://my/namespace", "foo") |> assert_equal (Some "test");
+            dep.Impl.dep_qdom.Q.attrs |> Q.AttrMap.get ("http://my/namespace", "food") |> assert_equal None;
         | _ -> assert false end;
     | _ -> assert false
   );
@@ -265,8 +265,8 @@ let suite = "feed">::: [
 
     match feed.F.implementations |> StringMap.bindings with
     | [("sha1=123", impl); ("used", used)] ->
-        Fake_system.assert_str_equal "1.0-rc3-pre" @@ Zeroinstall.Versions.format_version impl.F.parsed_version;
-        Fake_system.assert_str_equal "2" @@ Zeroinstall.Versions.format_version used.F.parsed_version;
+        Fake_system.assert_str_equal "1.0-rc3-pre" @@ Zeroinstall.Versions.format_version impl.Impl.parsed_version;
+        Fake_system.assert_str_equal "2" @@ Zeroinstall.Versions.format_version used.Impl.parsed_version;
     | _ -> assert false
   );
 
@@ -288,7 +288,7 @@ let suite = "feed">::: [
     match feed.F.implementations |> StringMap.bindings with
     | [("sha1=123", impl1); ("sha1=124", impl2)] ->
         let check expected name impl =
-          let attr = Q.AttrMap.get name impl.F.props.F.attrs |> default "" in
+          let attr = Q.AttrMap.get name impl.Impl.props.Impl.attrs |> default "" in
           Fake_system.assert_str_equal expected attr in
 
         check "foovalue" ("", "foo") impl1;

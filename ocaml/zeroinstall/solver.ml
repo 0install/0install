@@ -15,13 +15,13 @@ module AttrMap = Qdom.AttrMap
 module SolverData =
   struct
     type t =
-      | ImplElem of Feed.generic_implementation
-      | CommandElem of Feed.command
+      | ImplElem of Impl.generic_implementation
+      | CommandElem of Impl.command
       | MachineGroup of string
       | Interface of iface_uri      (* True if this interface is selected *)
     let to_string = function
-      | ImplElem impl -> (Versions.format_version impl.Feed.parsed_version) ^ " - " ^ Qdom.show_with_loc impl.Feed.qdom
-      | CommandElem command -> Qdom.show_with_loc command.Feed.command_qdom
+      | ImplElem impl -> (Versions.format_version impl.Impl.parsed_version) ^ " - " ^ Qdom.show_with_loc impl.Impl.qdom
+      | CommandElem command -> Qdom.show_with_loc command.Impl.command_qdom
       | MachineGroup name -> name
       | Interface iface -> iface
   end
@@ -30,7 +30,7 @@ module S = Support.Sat.MakeSAT(SolverData)
 
 type decision_state =
   | Undecided of S.lit                  (* The next candidate to try *)
-  | Selected of Feed.dependency list    (* The dependencies to check next *)
+  | Selected of Impl.dependency list    (* The dependencies to check next *)
   | Unselected
 
 type ('a, 'b) partition_result =
@@ -57,7 +57,7 @@ class type candidates =
 (* A dummy implementation, used to get diagnostic information if the solve fails. It satisfies all requirements,
    even conflicting ones. *)
 let dummy_impl =
-  let open Feed in {
+  let open Impl in {
     qdom = ZI.make "dummy";
     os = None;
     machine = None;
@@ -73,22 +73,22 @@ let dummy_impl =
   }
 
 (** A fake <command> used to generate diagnostics if the solve fails. *)
-let dummy_command = {
-  Feed.command_qdom = ZI.make "dummy-command";
-  Feed.command_requires = [];
-  Feed.command_bindings = [];
+let dummy_command = { Impl.
+  command_qdom = ZI.make "dummy-command";
+  command_requires = [];
+  command_bindings = [];
 }
 
-class impl_candidates (clause : S.at_most_one_clause option) (vars : (S.lit * Feed.generic_implementation) list) =
+class impl_candidates (clause : S.at_most_one_clause option) (vars : (S.lit * Impl.generic_implementation) list) =
   object (_ : #candidates)
     method get_clause = clause
 
     (** Get just those implementations that have a command with this name. *)
     method get_commands name =
       let match_command (impl_var, impl) =
-        match StringMap.find name impl.Feed.props.Feed.commands with
+        match StringMap.find name impl.Impl.props.Impl.commands with
         | Some command -> Some (impl_var, command)
-        | None when impl.Feed.parsed_version == Versions.dummy -> Some (impl_var, dummy_command)
+        | None when impl.Impl.parsed_version == Versions.dummy -> Some (impl_var, dummy_command)
         | None -> None in
       vars |> Support.Utils.filter_map match_command
 
@@ -123,7 +123,7 @@ class impl_candidates (clause : S.at_most_one_clause option) (vars : (S.lit * Fe
               let impl = match S.get_user_data_for_lit lit with
                 | SolverData.ImplElem impl -> impl
                 | _ -> assert false in
-              Selected impl.Feed.props.Feed.requires
+              Selected impl.Impl.props.Impl.requires
           | None ->
               match S.get_best_undecided clause with
               | Some lit -> Undecided lit
@@ -135,7 +135,7 @@ class impl_candidates (clause : S.at_most_one_clause option) (vars : (S.lit * Fe
   end
 
 (** Holds all the commands with a given name within an interface. *)
-class command_candidates (clause : S.at_most_one_clause option) (vars : (S.lit * Feed.command) list) =
+class command_candidates (clause : S.at_most_one_clause option) (vars : (S.lit * Impl.command) list) =
   object (_ : #candidates)
     method get_clause = clause
 
@@ -152,7 +152,7 @@ class command_candidates (clause : S.at_most_one_clause option) (vars : (S.lit *
               let command = match S.get_user_data_for_lit lit with
                 | SolverData.CommandElem command -> command
                 | _ -> assert false in
-              Selected command.Feed.command_requires
+              Selected command.Impl.command_requires
           | None ->
               match S.get_best_undecided clause with
               | Some lit -> Undecided lit
@@ -246,10 +246,10 @@ type requirements =
 class type result =
   object
     method get_selections : Selections.t
-    method get_selected : source:bool -> General.iface_uri -> Feed.generic_implementation option
+    method get_selected : source:bool -> General.iface_uri -> Impl.generic_implementation option
     method impl_provider : Impl_provider.impl_provider
     method impl_provider : Impl_provider.impl_provider
-    method implementations : ((General.iface_uri * bool) * (S.lit * Feed.generic_implementation) option) list
+    method implementations : ((General.iface_uri * bool) * (S.lit * Impl.generic_implementation) option) list
     method requirements : requirements
   end
 
@@ -270,7 +270,7 @@ let get_selections dep_in_use root_req impls commands =
     match impls#get_selected with
     | None -> None      (* This interface wasn't used *)
     | Some (_lit, impl) ->
-        let attrs = Feed.(impl.props.attrs)
+        let attrs = Impl.(impl.props.attrs)
           |> AttrMap.remove ("", FeedAttr.stability)
 
           (* Replaced by <command> *)
@@ -299,8 +299,8 @@ let get_selections dep_in_use root_req impls commands =
             child_nodes := imported :: !child_nodes in
 
           let add_command name =
-            let command = Feed.get_command_ex name impl in
-            let command_elem = command.Feed.command_qdom in
+            let command = Impl.get_command_ex name impl in
+            let command_elem = command.Impl.command_qdom in
             let want_command_child elem =
               (* We'll add in just the dependencies we need later *)
               match ZI.tag elem with
@@ -309,27 +309,27 @@ let get_selections dep_in_use root_req impls commands =
             in
             let child_nodes = List.filter want_command_child command_elem.Qdom.child_nodes in
             let add_command_dep child_nodes dep =
-              if dep.Feed.dep_importance <> Feed.Dep_restricts && dep_in_use dep then
-                dep.Feed.dep_qdom :: child_nodes
+              if dep.Impl.dep_importance <> Impl.Dep_restricts && dep_in_use dep then
+                dep.Impl.dep_qdom :: child_nodes
               else
                 child_nodes in
-            let child_nodes = List.fold_left add_command_dep child_nodes command.Feed.command_requires in
+            let child_nodes = List.fold_left add_command_dep child_nodes command.Impl.command_requires in
             let command_elem = {command_elem with Qdom.child_nodes = child_nodes} in
             copy_elem command_elem in
           List.iter add_command commands;
 
-          List.iter copy_elem impl.Feed.props.Feed.bindings;
-          ListLabels.iter impl.Feed.props.Feed.requires ~f:(fun dep ->
-            if dep_in_use dep && dep.Feed.dep_importance <> Feed.Dep_restricts then
-              copy_elem (dep.Feed.dep_qdom)
+          List.iter copy_elem impl.Impl.props.Impl.bindings;
+          ListLabels.iter impl.Impl.props.Impl.requires ~f:(fun dep ->
+            if dep_in_use dep && dep.Impl.dep_importance <> Impl.Dep_restricts then
+              copy_elem (dep.Impl.dep_qdom)
           );
 
-          impl.Feed.qdom |> ZI.iter ~name:"manifest-digest" copy_elem;
+          impl.Impl.qdom |> ZI.iter ~name:"manifest-digest" copy_elem;
         );
         let sel = ZI.make
           ~attrs
           ~child_nodes:(List.rev !child_nodes)
-          ~source_hint:impl.Feed.qdom "selection" in
+          ~source_hint:impl.Impl.qdom "selection" in
         Some sel
   ) in
 
@@ -374,7 +374,7 @@ let require_machine_groups sat =
 
   (* If [impl] requires a particular machine group, add a constraint to the problem. *)
   fun impl_var impl ->
-    impl.Feed.machine |> if_some (function
+    impl.Impl.machine |> if_some (function
       | "src" -> ()
       | machine ->
           let group_var =
@@ -404,22 +404,22 @@ let process_self_binding sat lookup_command user_var dep_iface binding =
    - ensure that we do pick a compatible version if we select [user_var] (for "essential" dependencies only) *)
 let process_dep sat lookup_impl lookup_command user_var dep =
   (* Restrictions on the candidates *)
-  let meets_restriction impl r = impl.Feed.parsed_version = Versions.dummy || r#meets_restriction impl in
-  let meets_restrictions impl = List.for_all (meets_restriction impl) dep.Feed.dep_restrictions in
-  let candidates = lookup_impl (dep.Feed.dep_iface, false) in
+  let meets_restriction impl r = impl.Impl.parsed_version = Versions.dummy || r#meets_restriction impl in
+  let meets_restrictions impl = List.for_all (meets_restriction impl) dep.Impl.dep_restrictions in
+  let candidates = lookup_impl (dep.Impl.dep_iface, false) in
   let pass, fail = candidates#partition meets_restrictions in
 
   (* Dependencies on commands *)
-  dep.Feed.dep_required_commands |> List.iter (fun name ->
-    let candidates = lookup_command (name, dep.Feed.dep_iface, false) in
+  dep.Impl.dep_required_commands |> List.iter (fun name ->
+    let candidates = lookup_command (name, dep.Impl.dep_iface, false) in
 
-    if dep.Feed.dep_importance = Feed.Dep_essential then (
+    if dep.Impl.dep_importance = Impl.Dep_essential then (
       S.implies sat ~reason:"dep on command" user_var candidates#get_vars
     ) else (
       (* An optional dependency is selected when any implementation of the target interface
        * is selected. Force [dep_iface_selected] to be true in that case. We only need to test
        * [pass] here, because we always avoid [fail] anyway. *)
-      let dep_iface_selected = S.add_variable sat (SolverData.Interface dep.Feed.dep_iface) in
+      let dep_iface_selected = S.add_variable sat (SolverData.Interface dep.Impl.dep_iface) in
       S.at_most_one sat (S.neg dep_iface_selected :: pass) |> ignore;
 
       (* If user_var is selected, then either we don't select this interface, or we select
@@ -428,7 +428,7 @@ let process_dep sat lookup_impl lookup_command user_var dep =
     );
   );
 
-  if dep.Feed.dep_importance = Feed.Dep_essential then (
+  if dep.Impl.dep_importance = Impl.Dep_essential then (
     S.implies sat ~reason:"essential dep" user_var pass     (* Must choose a suitable candidate *)
   ) else (
     (* If [user_var] is selected, don't select an incompatible version of the optional dependency.
@@ -480,9 +480,9 @@ let make_commands_clause sat lookup_impl process_self_bindings process_deps key 
       (* For each command, require that we select the corresponding implementation. *)
       S.implies sat ~reason:"impl for command" command_var [impl_var];
       (* Commands can depend on other commands in the same implementation *)
-      process_self_bindings command_var iface command.Feed.command_bindings;
+      process_self_bindings command_var iface command.Impl.command_bindings;
       (* Process command-specific dependencies *)
-      process_deps command_var command.Feed.command_requires;
+      process_deps command_var command.Impl.command_requires;
     in
     List.iter2 depend_on_impl vars commands
   )
@@ -504,8 +504,8 @@ let build_problem impl_provider root_req sat ~closest_match =
     (clause, fun () ->
       impls |> List.iter (fun (impl_var, impl) ->
         require_machine_group impl_var impl;
-        process_self_bindings impl_var iface_uri Feed.(impl.props.bindings);
-        process_deps impl_var Feed.(impl.props.requires);
+        process_self_bindings impl_var iface_uri Impl.(impl.props.bindings);
+        process_deps impl_var Impl.(impl.props.requires);
       )
     )
   and add_commands_to_cache key = make_commands_clause sat lookup_impl process_self_bindings process_deps key
@@ -569,20 +569,20 @@ let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match
             (* We've already selected a candidate for this component. Now check its dependencies. *)
 
             let check_dep dep =
-              if dep.Feed.dep_importance = Feed.Dep_restricts || not (dep_in_use dep) then (
+              if dep.Impl.dep_importance = Impl.Dep_restricts || not (dep_in_use dep) then (
                 (* Restrictions don't express that we do or don't want the
                    dependency, so skip them here. If someone else needs this,
                    we'll handle it when we get to them.
                    If noone wants it, it will be set to unselected at the end. *)
                 None
               ) else (
-                let dep_iface = dep.Feed.dep_iface in
+                let dep_iface = dep.Impl.dep_iface in
                 match find_undecided @@ ReqIface (dep_iface, false) with
                 | Some lit -> Some lit
                 | None ->
                     (* Command dependencies next *)
                     let check_command_dep name = find_undecided @@ ReqCommand (name, dep_iface, false) in
-                    Support.Utils.first_match check_command_dep dep.Feed.dep_required_commands
+                    Support.Utils.first_match check_command_dep dep.Impl.dep_required_commands
               )
               in
             match Support.Utils.first_match check_dep deps with
@@ -642,7 +642,7 @@ let get_root_requirements config requirements =
   let multiarch = os <> "Linux" || config.system#file_exists "/lib/ld-linux.so.2" in
 
   let scope_filter = Impl_provider.({
-    extra_restrictions = StringMap.map Feed.make_version_restriction extra_restrictions;
+    extra_restrictions = StringMap.map Impl.make_version_restriction extra_restrictions;
     os_ranks = Arch.get_os_ranks os;
     machine_ranks = Arch.get_machine_ranks ~multiarch machine;
     languages = config.langs;

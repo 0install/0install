@@ -11,7 +11,7 @@ type package_info = {
   version : Versions.parsed_version;
   machine : string option;
   installed : bool;
-  retrieval_method : Feed.distro_retrieval_method;
+  retrieval_method : Impl.distro_retrieval_method;
 }
 
 class type ui =
@@ -34,7 +34,7 @@ type packagekit = <
   check_for_candidates : 'a. ui:(#ui as 'a) -> hint:string -> string list -> unit Lwt.t;
 
   (** Install packages. Will confirm first with the user. *)
-  install_packages : 'a. (#ui as 'a) -> (Feed.distro_implementation * Feed.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t;
+  install_packages : 'a. (#ui as 'a) -> (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t;
 >
 
 (** Create a packagekit object, which can be used to query the PackageKit D-BUS

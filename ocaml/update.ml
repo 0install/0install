@@ -11,6 +11,7 @@ open Support.Common
 module Selections = Zeroinstall.Selections
 module FeedAttr = Zeroinstall.Constants.FeedAttr
 module Apps = Zeroinstall.Apps
+module Impl = Zeroinstall.Impl
 module R = Zeroinstall.Requirements
 module Q = Support.Qdom
 module F = Zeroinstall.Feed
@@ -27,7 +28,7 @@ let get_newest options feed_provider reqs =
     ListLabels.iter items ~f:(fun impl ->
       match !best with
       | None -> best := Some impl
-      | Some old_best when F.(impl.parsed_version > old_best.parsed_version) -> best := Some impl
+      | Some old_best when Impl.(impl.parsed_version > old_best.parsed_version) -> best := Some impl
       | Some _ -> ()
     ) in
 
@@ -78,10 +79,10 @@ let check_for_updates options reqs old_sels =
         match get_newest options feed_provider reqs with
         | None -> log_warning "Can't find any implementations! (BUG)"
         | Some best ->
-            if best.F.parsed_version > Zeroinstall.Versions.parse_version root_version then (
+            if best.Impl.parsed_version > Zeroinstall.Versions.parse_version root_version then (
               print "A later version (%s %s) exists but was not selected. Using %s instead."
-                reqs.R.interface_uri (Zeroinstall.Versions.format_version best.F.parsed_version) root_version;
-              if not config.help_with_testing && best.F.stability < Stable then
+                reqs.R.interface_uri (Zeroinstall.Versions.format_version best.Impl.parsed_version) root_version;
+              if not config.help_with_testing && best.Impl.stability < Stable then
                 print "To select \"testing\" versions, use:\n0install config help_with_testing True"
             ) else if not changes then (
               print "No updates found. Continuing with version %s." root_version

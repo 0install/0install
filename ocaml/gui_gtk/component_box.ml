@@ -9,6 +9,7 @@ open Gtk_common
 open Zeroinstall.General
 
 module FeedAttr = Zeroinstall.Constants.FeedAttr
+module Impl = Zeroinstall.Impl
 module F = Zeroinstall.Feed
 module FC = Zeroinstall.Feed_cache
 module U = Support.Utils
@@ -453,7 +454,7 @@ let build_stability_menu set_stability =
   GMenu.separator_item ~packing:menu#add () |> ignore_widget;
 
   [Preferred; Packaged; Stable; Testing; Developer; Buggy; Insecure] |> List.iter (fun stability ->
-    let label = F.format_stability stability |> String.capitalize in
+    let label = Impl.format_stability stability |> String.capitalize in
     let item = GMenu.menu_item ~packing:menu#add ~label () in
     item#connect#activate ==> (fun () -> set_stability (Some stability))
   );
@@ -521,7 +522,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
     ~value:iface_config.FC.stability_policy
     ~to_string:(function
       | None -> "Use default setting"
-      | Some level -> F.format_stability level |> String.capitalize
+      | Some level -> Impl.format_stability level |> String.capitalize
     )
     ~callback:set_stability_policy
     ~tooltip:"Implementations at this stability level or higher will be used in preference to others. \
@@ -586,7 +587,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
             let menu = GMenu.menu () in
             let stability_menu = GMenu.menu_item ~packing:menu#add ~label:"Rating" () in
             let submenu = build_stability_menu (fun stability ->
-              Zeroinstall.Gui.set_impl_stability config (F.get_id impl) stability;
+              Zeroinstall.Gui.set_impl_stability config (Impl.get_id impl) stability;
               recalculate ~force:false
             ) in
             stability_menu#set_submenu submenu;
@@ -596,16 +597,16 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
               item#connect#activate ==> (fun () ->
                 U.xdg_open_dir config.system path
               ) in
-            begin match impl.F.impl_type with
+            begin match impl.Impl.impl_type with
             | `local_impl path -> add_open_item path
             | `cache_impl info ->
-                let path = Zeroinstall.Stores.lookup_maybe config.system info.F.digests config.stores in
+                let path = Zeroinstall.Stores.lookup_maybe config.system info.Impl.digests config.stores in
                 path |> if_some add_open_item
             | `package_impl _ -> () end;
 
             let explain = GMenu.menu_item ~packing:menu#add ~label:"Explain this decision" () in
             explain#connect#activate ==> (fun () ->
-              let reason = Zeroinstall.Diagnostics.justify_decision config watcher#feed_provider reqs iface (F.get_id impl) in
+              let reason = Zeroinstall.Diagnostics.justify_decision config watcher#feed_provider reqs iface (Impl.get_id impl) in
               show_explanation_box ~parent:window iface version_str reason
             );
             menu#popup ~button:(B.button bev) ~time:(B.time bev);
@@ -634,16 +635,16 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
                   result in
 
           impls |> List.iter (fun (impl, problem) ->
-            let from_feed = F.get_attr_ex FeedAttr.from_feed impl in
-            let impl_id = F.get_attr_ex FeedAttr.id impl in
+            let from_feed = Impl.get_attr_ex FeedAttr.from_feed impl in
+            let impl_id = Impl.get_attr_ex FeedAttr.id impl in
             let overrides = get_overrides from_feed in
             let stability_value =
               match StringMap.find impl_id overrides.F.user_stability with
-              | Some user_stability -> F.format_stability user_stability |> String.uppercase
-              | None -> Q.AttrMap.get_no_ns FeedAttr.stability impl.F.props.F.attrs |> default "testing" in
+              | Some user_stability -> Impl.format_stability user_stability |> String.uppercase
+              | None -> Q.AttrMap.get_no_ns FeedAttr.stability impl.Impl.props.Impl.attrs |> default "testing" in
 
             let arch_value =
-              match impl.F.os, impl.F.machine with
+              match impl.Impl.os, impl.Impl.machine with
               | None, None -> "any"
               | os, machine -> Zeroinstall.Arch.format_arch os machine in
 
@@ -655,10 +656,10 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
             let (fetch_str, fetch_tip) = Zeroinstall.Gui.get_fetch_info config impl in
 
             let row = model#append () in
-            model#set ~row ~column:version @@ Zeroinstall.Versions.format_version impl.F.parsed_version;
-            model#set ~row ~column:released @@ default "-" @@ Q.AttrMap.get_no_ns FeedAttr.released impl.F.props.F.attrs;
+            model#set ~row ~column:version @@ Zeroinstall.Versions.format_version impl.Impl.parsed_version;
+            model#set ~row ~column:released @@ default "-" @@ Q.AttrMap.get_no_ns FeedAttr.released impl.Impl.props.Impl.attrs;
             model#set ~row ~column:stability @@ stability_value;
-            model#set ~row ~column:langs @@ default "-" @@ Q.AttrMap.get_no_ns FeedAttr.langs impl.F.props.F.attrs;
+            model#set ~row ~column:langs @@ default "-" @@ Q.AttrMap.get_no_ns FeedAttr.langs impl.Impl.props.Impl.attrs;
             model#set ~row ~column:arch arch_value;
             model#set ~row ~column:notes notes_value;
             model#set ~row ~column:weight (if Some impl = selected then 700 else 400);

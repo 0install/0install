@@ -133,7 +133,7 @@ module Debian = struct
       !results in
 
     let fixup_java_main impl java_version =
-      let java_arch = if impl.Feed.machine = Some "x86_64" then Some "amd64" else impl.Feed.machine in
+      let java_arch = if impl.Impl.machine = Some "x86_64" then Some "amd64" else impl.Impl.machine in
 
       match java_arch with
       | None -> log_warning "BUG: Missing machine type on Java!"; None
@@ -177,7 +177,7 @@ module Debian = struct
           entry |> if_some (fun {version; machine; size = _} ->
             let version = Versions.parse_version version in
             let machine = Arch.none_if_star machine in
-            let package_state = `uninstalled Feed.({distro_size = None; distro_install_info = ("apt-get install", package_name)}) in
+            let package_state = `uninstalled Impl.({distro_size = None; distro_install_info = ("apt-get install", package_name)}) in
             self#add_package_implementation ~package_state ~version ~machine ~quick_test:None ~distro_name query
           )
         );
@@ -223,7 +223,7 @@ module Debian = struct
         super#add_package_implementation ?id ?main query ~version ~machine ~quick_test ~package_state ~distro_name
 
       method! private get_correct_main impl run_command =
-        let id = Feed.get_attr_ex Constants.FeedAttr.id impl in
+        let id = Impl.get_attr_ex Constants.FeedAttr.id impl in
         if U.starts_with id "package:deb:openjdk-6-jre:" then
           fixup_java_main impl "6-openjdk"
         else if U.starts_with id "package:deb:openjdk-7-jre:" then
@@ -240,7 +240,7 @@ module RPM = struct
     let fixup_java_main impl java_version =
       (* (note: on Fedora, unlike Debian, the arch is x86_64, not amd64) *)
 
-      match impl.Feed.machine with
+      match impl.Impl.machine with
       | None -> log_warning "BUG: Missing machine type on Java!"; None
       | Some java_arch ->
           let java_bin = Printf.sprintf "/usr/lib/jvm/jre-%s.%s/bin/java" java_version java_arch in
@@ -298,7 +298,7 @@ module RPM = struct
 
       method! private get_correct_main impl run_command =
         (* OpenSUSE uses _, Fedora uses . *)
-        let id = Feed.get_attr_ex Constants.FeedAttr.id impl in
+        let id = Impl.get_attr_ex Constants.FeedAttr.id impl in
         let starts x = U.starts_with id x in
         if starts "package:rpm:java-1.6.0-openjdk:" || starts "package:rpm:java-1_6_0-openjdk:" then
           fixup_java_main impl "1.6.0-openjdk"
@@ -601,7 +601,7 @@ module Win = struct
               let version = Versions.parse_version zero_version in
               let package_state =
                 if install = 1 then `installed
-                else `uninstalled Feed.({distro_size = None; distro_install_info = ("Windows installer", "NetFX")}) in
+                else `uninstalled Impl.({distro_size = None; distro_install_info = ("Windows installer", "NetFX")}) in
               self#add_package_implementation
                 ~main:""      (* .NET executables do not need a runner on Windows but they need one elsewhere *)
                 ~package_state
@@ -622,7 +622,7 @@ module Win = struct
               let version = Versions.parse_version zero_version in
               let package_state =
                 if install = 1 && release >= release_version then `installed
-                else `uninstalled Feed.({distro_size = None; distro_install_info = ("Windows installer", "NetFX")}) in
+                else `uninstalled Impl.({distro_size = None; distro_install_info = ("Windows installer", "NetFX")}) in
               self#add_package_implementation
                 ~main:""      (* .NET executables do not need a runner on Windows but they need one elsewhere *)
                 ~package_state

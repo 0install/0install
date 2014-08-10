@@ -34,7 +34,7 @@ let get_impl (feed_provider:Feed_provider.feed_provider) sel =
           let (impls, overrides) = feed_provider#get_distro_impls master_feed in
           match StringMap.find id impls with
           | None -> None
-          | Some impl -> Some ((impl :> F.generic_implementation), get_override overrides)
+          | Some impl -> Some ((impl :> Impl.generic_implementation), get_override overrides)
   )
   | (`local_feed _ | `remote_feed _) as feed_url ->
       match feed_provider#get_feed feed_url with
@@ -43,21 +43,21 @@ let get_impl (feed_provider:Feed_provider.feed_provider) sel =
           Some (StringMap.find_safe id feed.F.implementations, get_override overrides)
 
 let get_download_size info impl =
-  match info.F.retrieval_methods with
-  | [] -> log_info "Implementation %s has no retrieval methods!" (F.get_attr_ex FeedAttr.id impl); None
+  match info.Impl.retrieval_methods with
+  | [] -> log_info "Implementation %s has no retrieval methods!" (Impl.get_attr_ex FeedAttr.id impl); None
   | methods ->
       methods |> U.first_match (fun m ->
         match Recipe.parse_retrieval_method m with
         | Some recipe -> Some (Recipe.get_download_size recipe)
-        | None -> log_info "Implementation %s has no usable retrieval methods!" (F.get_attr_ex FeedAttr.id impl); None
+        | None -> log_info "Implementation %s has no usable retrieval methods!" (Impl.get_attr_ex FeedAttr.id impl); None
       )
 
 let get_fetch_info config impl =
   try
-    match impl.F.impl_type with
+    match impl.Impl.impl_type with
     | `local_impl path -> ("(local)", path)
     | `cache_impl info -> (
-        match Stores.lookup_maybe config.system info.F.digests config.stores with
+        match Stores.lookup_maybe config.system info.Impl.digests config.stores with
         | None ->
           begin match get_download_size info impl with
           | Some size ->
@@ -67,10 +67,10 @@ let get_fetch_info config impl =
         | Some path -> ("(cached)", "This version is already stored on your computer:\n" ^ path)
     )
     | `package_impl info ->
-        begin match info.F.package_state with
+        begin match info.Impl.package_state with
         | `installed -> ("(package)", "This distribution-provided package is already installed.")
         | `uninstalled retrieval_method ->
-          let size = retrieval_method.F.distro_size |> pipe_some (fun s -> Some (Int64.to_float s)) in
+          let size = retrieval_method.Impl.distro_size |> pipe_some (fun s -> Some (Int64.to_float s)) in
           match size with
           | None -> ("(install)", "No size information available for this download")
           | Some size ->
@@ -112,7 +112,7 @@ let have_source_for feed_provider iface =
       match feed_provider#get_feed url with
       | None -> false
       | Some (feed, _overrides) ->
-          feed.Feed.implementations |> StringMap.exists (fun _id impl -> Feed.is_source impl)
+          feed.Feed.implementations |> StringMap.exists (fun _id impl -> Impl.is_source impl)
     )
   )
 
@@ -120,7 +120,7 @@ let list_impls (results:Solver.result) iface =
   let make_list ~source selected_impl =
     let candidates = results#impl_provider#get_implementations iface ~source in
 
-    let by_version (a,_) (b,_) = compare b.F.parsed_version a.F.parsed_version in
+    let by_version (a,_) (b,_) = compare b.Impl.parsed_version a.Impl.parsed_version in
 
     let open Impl_provider in
     let good_impls = List.map (fun i -> (i, None)) candidates.impls in

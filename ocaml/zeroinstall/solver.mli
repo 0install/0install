@@ -13,7 +13,7 @@ type requirements =
   | ReqIface of (iface_uri * bool)
 
 (** Only exposed for unit-tests. *)
-val dummy_impl : Feed.generic_implementation
+val dummy_impl : Impl.generic_implementation
 
 type diagnostics
 
@@ -26,9 +26,9 @@ class type result =
     method get_selections : Selections.t
 
     (* The remaining methods are used to provide diagnostics *)
-    method get_selected : source:bool -> General.iface_uri -> Feed.generic_implementation option
+    method get_selected : source:bool -> General.iface_uri -> Impl.generic_implementation option
     method impl_provider : Impl_provider.impl_provider
-    method implementations : ((General.iface_uri * bool) * (diagnostics * Feed.generic_implementation) option) list
+    method implementations : ((General.iface_uri * bool) * (diagnostics * Impl.generic_implementation) option) list
     method requirements : requirements
   end
 

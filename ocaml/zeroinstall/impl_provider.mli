@@ -5,7 +5,7 @@
 (** Provides implementation candidates to the solver. *)
 
 type rejection = [
-  | `User_restriction_rejects of Feed.restriction
+  | `User_restriction_rejects of Impl.restriction
   | `Poor_stability
   | `No_retrieval_methods
   | `Not_cached_and_offline
@@ -33,10 +33,10 @@ type preferred_reason =
   | PreferStability
   | PreferVersion
 
-val describe_problem : _ Feed.implementation -> rejection -> string
+val describe_problem : _ Impl.t -> rejection -> string
 
 type scope_filter = {
-  extra_restrictions : Feed.restriction Support.Common.StringMap.t;
+  extra_restrictions : Impl.restriction Support.Common.StringMap.t;
   os_ranks : int Support.Common.StringMap.t;
   machine_ranks : int Support.Common.StringMap.t;
   languages : int Support.Locale.LangMap.t;
@@ -45,8 +45,8 @@ type scope_filter = {
 
 type candidates = {
   replacement : General.iface_uri option;
-  impls : Feed.generic_implementation list;
-  rejects : (Feed.generic_implementation * rejection) list;
+  impls : Impl.generic_implementation list;
+  rejects : (Impl.generic_implementation * rejection) list;
 }
 
 class type impl_provider =
@@ -56,9 +56,9 @@ class type impl_provider =
     method get_implementations : General.iface_uri -> source:bool -> candidates
 
     (** Should the solver consider this dependency? *)
-    method is_dep_needed : Feed.dependency -> bool
+    method is_dep_needed : Impl.dependency -> bool
 
-    method extra_restrictions : Feed.restriction Support.Common.StringMap.t
+    method extra_restrictions : Impl.restriction Support.Common.StringMap.t
   end
 
 class default_impl_provider : General.config -> Feed_provider.feed_provider -> scope_filter ->
@@ -66,5 +66,5 @@ class default_impl_provider : General.config -> Feed_provider.feed_provider -> s
     inherit impl_provider
 
     method set_watch_iface : General.iface_uri -> unit
-    method get_watched_compare : (Feed.generic_implementation -> Feed.generic_implementation -> int * preferred_reason) option
+    method get_watched_compare : (Impl.generic_implementation -> Impl.generic_implementation -> int * preferred_reason) option
   end

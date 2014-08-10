@@ -10,6 +10,7 @@ open Zeroinstall.General
 
 module FeedAttr = Zeroinstall.Constants.FeedAttr
 module Feed_url = Zeroinstall.Feed_url
+module Impl = Zeroinstall.Impl
 module F = Zeroinstall.Feed
 module FC = Zeroinstall.Feed_cache
 module U = Support.Utils
@@ -253,8 +254,8 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
               let version = ZI.get_attribute FeedAttr.version sel in
               let stability_str =
                 match user_stability with
-                | Some s -> String.uppercase (F.format_stability s)
-                | None -> F.get_attr_ex FeedAttr.stability impl in
+                | Some s -> String.uppercase (Impl.format_stability s)
+                | None -> Impl.get_attr_ex FeedAttr.stability impl in
               let prev_version = StringMap.find uri watcher#original_selections
                 |> pipe_some (fun old_sel ->
                   let old_version = ZI.get_attribute FeedAttr.version old_sel in

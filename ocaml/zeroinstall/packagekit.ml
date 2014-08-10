@@ -12,7 +12,7 @@ type package_info = {
   version : Versions.parsed_version;
   machine : string option;
   installed : bool;
-  retrieval_method : Feed.distro_retrieval_method;
+  retrieval_method : Impl.distro_retrieval_method;
 }
 
 type packagekit_id = string
@@ -30,7 +30,7 @@ class type packagekit =
     method is_available : bool Lwt.t
     method get_impls : string -> package_info list
     method check_for_candidates : 'a. ui:(#ui as 'a) -> hint:string -> string list -> unit Lwt.t
-    method install_packages : 'a. (#ui as 'a) -> (Feed.distro_implementation * Feed.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
+    method install_packages : 'a. (#ui as 'a) -> (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
   end
 
 (** PackageKit refuses to process more than 100 requests per transaction, so never ask for more than this in a single request. *)
@@ -78,9 +78,9 @@ let resolve pk package_names =
               version;
               machine = (if machine = "*" then None else Some machine);
               installed = (repo = "installed");
-              retrieval_method = {
-                Feed.distro_size = None;    (* Gets filled in later *)
-                Feed.distro_install_info = ("packagekit", package_id)
+              retrieval_method = { Impl.
+                distro_size = None;    (* Gets filled in later *)
+                distro_install_info = ("packagekit", package_id)
               }
             } in
             Hashtbl.add details package_name info end
@@ -126,13 +126,13 @@ let get_sizes pk = function
       Lwt.return !details
 
 let get_packagekit_id = function
-  | {Feed.distro_install_info = ("packagekit", id); _} -> id
+  | {Impl.distro_install_info = ("packagekit", id); _} -> id
   | _ -> assert false
 
 let rec get_total acc = function
   | [] -> Some acc
-  | (_impl, {Feed.distro_size = Some size; _}) :: xs -> get_total (Int64.add acc size) xs
-  | (_impl, {Feed.distro_size = None; _}) :: _ -> None
+  | (_impl, {Impl.distro_size = Some size; _}) :: xs -> get_total (Int64.add acc size) xs
+  | (_impl, {Impl.distro_size = None; _}) :: _ -> None
 
 (** Install distribution packages. *)
 let install (ui:#ui) pk items =
@@ -164,7 +164,7 @@ let install (ui:#ui) pk items =
       (* Notify the start of all downloads (we share the overall progress between them currently). *)
       items |> List.iter (fun (impl, _rm) ->
         let main_feed =
-          match Feed.get_attr_ex Constants.FeedAttr.from_feed impl |> Feed_url.parse with
+          match Impl.get_attr_ex Constants.FeedAttr.from_feed impl |> Feed_url.parse with
           | `distribution_feed main_feed -> main_feed
           | (`local_feed x | `remote_feed x) as main_feed -> log_warning "Not a distribution feed: %s" x; main_feed in
         ui#monitor Downloader.({cancel; url = "(packagekit)"; progress; hint = Some (Feed_url.format_url main_feed)})
@@ -177,8 +177,8 @@ let install (ui:#ui) pk items =
     ) in
     (* Mark each package as now installed (possibly we should do this individually in a signal callback instead). *)
     items |> List.iter (fun (impl, _rm) ->
-      let `package_impl info = impl.Feed.impl_type in
-      info.Feed.package_state <- `installed
+      let `package_impl info = impl.Impl.impl_type in
+      info.Impl.package_state <- `installed
     );
     ui#impl_added_to_store;
     Lwt.return (if !cancelled then `cancel else `ok)
@@ -330,7 +330,7 @@ let packagekit = ref (fun config ->
         let rm = impl.retrieval_method in
         let packagekit_id = get_packagekit_id rm in
         match StringMap.find packagekit_id sizes with
-        | Some _ as size -> {impl with retrieval_method = {rm with Feed.distro_size = size}}
+        | Some _ as size -> {impl with retrieval_method = {rm with Impl.distro_size = size}}
         | None ->
             log_info "No size returned for '%s'" packagekit_id;
             impl in

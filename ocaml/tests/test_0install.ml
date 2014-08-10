@@ -7,6 +7,7 @@
 open Zeroinstall.General
 open Support.Common
 open OUnit
+module Impl = Zeroinstall.Impl
 module Q = Support.Qdom
 module U = Support.Utils
 module F = Zeroinstall.Feed
@@ -29,8 +30,8 @@ exception Ok
 
 let handle_download_impls config pending_digests impls =
   impls |> List.iter (fun impl ->
-    match impl.F.impl_type with
-    | `cache_impl {F.digests;_} ->
+    match impl.Impl.impl_type with
+    | `cache_impl {Impl.digests;_} ->
         if Zeroinstall.Stores.lookup_maybe config.system digests config.stores = None then (
           let digest_str =
             digests |> U.first_match (fun digest ->

@@ -27,7 +27,7 @@ class impl_provider =
 
   let make_impl arch v =
     let (os, machine) = Arch.parse_arch arch in
-    Feed.({
+    Impl.({
       qdom = dummy_element;
       props = {
         attrs = Q.AttrMap.empty |> Q.AttrMap.add_no_ns "version" v;
@@ -51,7 +51,7 @@ class impl_provider =
         else
           (name_arch, "*-*") in
       let impls = List.map (make_impl arch) versions in
-      let comp_impl a b = Feed.(compare b.parsed_version a.parsed_version) in
+      let comp_impl a b = Impl.(compare b.parsed_version a.parsed_version) in
       Hashtbl.replace interfaces prog (List.sort comp_impl impls)
 
     method get_impls name =
@@ -108,9 +108,9 @@ let run_sat_test expected problem =
           object
             method to_string = line
             method meets_restriction impl =
-              impl.Feed.parsed_version >= min_v && impl.Feed.parsed_version <= max_v
+              impl.Impl.parsed_version >= min_v && impl.Impl.parsed_version <= max_v
           end in
-        let dep = Feed.({
+        let dep = Impl.({
           dep_qdom = dummy_dep;
           dep_importance = Dep_essential;
           dep_iface = lib;
@@ -122,7 +122,7 @@ let run_sat_test expected problem =
 
         let progs = impl_provider#get_impls prog in
         let add_requires impl =
-          let open Feed in
+          let open Impl in
           if impl.parsed_version >= min_p && impl.parsed_version <= max_p then (
             let new_requires = dep :: impl.props.requires in
             {impl with props = {impl.props with requires = new_requires}}

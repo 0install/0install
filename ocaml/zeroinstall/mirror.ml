@@ -52,7 +52,7 @@ let get_mirror_url mirror feed_url resource =
 
 let for_impl config impl =
   config.mirror |> pipe_some (fun mirror ->
-    let {Feed_url.feed; id} = Feed.get_id impl in
+    let {Feed_url.feed; id} = Impl.get_id impl in
     get_mirror_url mirror feed ("impl/" ^ escape_slashes id)
     |> pipe_some (fun url -> Some (Recipe.get_mirror_download url))
   )

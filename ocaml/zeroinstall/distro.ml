@@ -39,9 +39,9 @@ let get_matching_package_impls distro feed =
 type query = {
   elem : Support.Qdom.element;      (* The <package-element> which generated this query *)
   package_name : string;            (* The 'package' attribute on the <package-element> *)
-  elem_props : Feed.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
+  elem_props : Impl.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
   feed : Feed.feed;                 (* The feed containing the <package-element> *)
-  results : Feed.distro_implementation Support.Common.StringMap.t ref;
+  results : Impl.distro_implementation Support.Common.StringMap.t ref;
 }
 
 let make_query feed elem elem_props results = {
@@ -85,12 +85,11 @@ let get_quick_test_attrs path =
   |> Q.AttrMap.add_no_ns FeedAttr.quick_test_mtime (Printf.sprintf "%.0f" mtime)
 
 let make_restricts_distro iface_uri distros =
-  let elem = ZI.make "restricts" in
-  let open Feed in {
+  let elem = ZI.make "restricts" in { Impl.
     dep_qdom = elem;
-    dep_importance = Dep_restricts;
+    dep_importance = Impl.Dep_restricts;
     dep_iface = iface_uri;
-    dep_restrictions = [make_distribtion_restriction distros];
+    dep_restrictions = [Impl.make_distribtion_restriction distros];
     dep_required_commands = [];
     dep_if_os = None;
     dep_use = None;
@@ -120,8 +119,7 @@ class virtual distribution config =
 
   let make_host_impl path version ?(commands=StringMap.empty) ?(requires=[]) from_feed id =
     let host_machine = system#platform in
-    let open Feed in
-    let props = {
+    let props = { Impl.
       attrs = get_quick_test_attrs path
         |> Q.AttrMap.add_no_ns FeedAttr.from_feed (Feed_url.format_url (`distribution_feed from_feed))
         |> Q.AttrMap.add_no_ns FeedAttr.id id
@@ -130,14 +128,14 @@ class virtual distribution config =
       requires;
       bindings = [];
       commands;
-    } in {
+    } in { Impl.
       qdom = ZI.make "host-package-implementation";
       props;
       stability = Packaged;
       os = None;
       machine = Some host_machine.Platform.machine;       (* (hopefully) *)
       parsed_version = Versions.parse_version version;
-      impl_type = `package_impl {
+      impl_type = `package_impl { Impl.
         package_distro = "host";
         package_state = `installed;
       }
@@ -155,7 +153,7 @@ class virtual distribution config =
               Q.AttrMap.singleton "name" "run"
               |> Q.AttrMap.add_no_ns "path" path
             ) in
-          let commands = StringMap.singleton "run" Feed.({command_qdom = run; command_requires = []; command_bindings = []}) in
+          let commands = StringMap.singleton "run" Impl.({command_qdom = run; command_requires = []; command_bindings = []}) in
           (id, make_host_impl path version ~commands url id)
         )
     | `remote_feed "http://repo.roscidus.com/python/python-gobject" as url ->
@@ -169,7 +167,7 @@ class virtual distribution config =
     | _ -> [] in
 
   let fixup_main distro_get_correct_main impl =
-    let open Feed in
+    let open Impl in
     match get_command_opt "run" impl with
     | None -> ()
     | Some run ->
@@ -214,7 +212,7 @@ class virtual distribution config =
         | None -> props
         | Some path ->
             (* We may add or modify the main executable path. *)
-            let open Feed in
+            let open Impl in
             let run_command =
               match StringMap.find "run" props.commands with
               | Some command ->
@@ -227,7 +225,7 @@ class virtual distribution config =
                   make_command "run" path in
             {props with commands = StringMap.add "run" run_command props.commands} in
 
-      let new_attrs = ref props.Feed.attrs in
+      let new_attrs = ref props.Impl.attrs in
       let set name value =
         new_attrs := Q.AttrMap.add_no_ns name value !new_attrs in
       set "id" id;
@@ -243,7 +241,7 @@ class virtual distribution config =
           | UnchangedSince mtime ->
               set FeedAttr.quick_test_mtime (Int64.of_float mtime |> Int64.to_string) end;
 
-      let open Feed in
+      let open Impl in
       let impl = {
         qdom = elem;
         os = None;
@@ -276,11 +274,11 @@ class virtual distribution config =
           let impls = self#get_impls_for_feed master_feed in
           match StringMap.find wanted_id impls with
           | None -> false
-          | Some {Feed.impl_type = `package_impl {Feed.package_state; _}; _} -> package_state = `installed
+          | Some {Impl.impl_type = `package_impl {Impl.package_state; _}; _} -> package_state = `installed
 
     (** Get the native implementations (installed or candidates for installation) for this feed.
      * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one. *)
-    method get_impls_for_feed ?(init=StringMap.empty) (feed:Feed.feed) : Feed.distro_implementation StringMap.t =
+    method get_impls_for_feed ?(init=StringMap.empty) (feed:Feed.feed) : Impl.distro_implementation StringMap.t =
       let results = ref init in
 
       if check_host_python then (
@@ -315,7 +313,7 @@ class virtual distribution config =
         The default implementation checks that main exists, and searches [system_paths] for
         it if not. *)
     method private get_correct_main _impl run_command =
-      let open Feed in
+      let open Impl in
       ZI.get_attribute_opt "path" run_command.command_qdom |> pipe_some (fun path ->
         if Filename.is_relative path || not (system#file_exists path) then (
           (* Need to search for the binary *)
@@ -359,7 +357,7 @@ class virtual distribution config =
                 );
                 Lwt.return `ok end
         | _ ->
-            let names = items |> List.map (fun (_impl, rm) -> snd rm.Feed.distro_install_info) in
+            let names = items |> List.map (fun (_impl, rm) -> snd rm.Impl.distro_install_info) in
             ui#confirm (Printf.sprintf
               "This program depends on some packages that are available through your distribution. \
                Please install them manually using %s and try again. Or, install 'packagekit' and I can \
@@ -382,11 +380,11 @@ let is_installed config (distro:distribution) elem =
 let install_distro_packages (distro:distribution) ui impls : [ `ok | `cancel ] Lwt.t =
   let groups = ref StringMap.empty in
   impls |> List.iter (fun impl ->
-    let `package_impl {Feed.package_state; _} = impl.Feed.impl_type in
+    let `package_impl {Impl.package_state; _} = impl.Impl.impl_type in
     match package_state with
-    | `installed -> raise_safe "BUG: package %s already installed!" (Feed.get_id impl).Feed_url.id
+    | `installed -> raise_safe "BUG: package %s already installed!" (Impl.get_id impl).Feed_url.id
     | `uninstalled rm ->
-        let (typ, _info) = rm.Feed.distro_install_info in
+        let (typ, _info) = rm.Impl.distro_install_info in
         let items = default [] @@ StringMap.find typ !groups in
         groups := StringMap.add typ ((impl, rm) :: items) !groups
   );

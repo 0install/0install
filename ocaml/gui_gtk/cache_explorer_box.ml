@@ -8,6 +8,7 @@ open Zeroinstall.General
 open Support.Common
 open Gtk_common
 
+module Impl = Zeroinstall.Impl
 module F = Zeroinstall.Feed
 module U = Support.Utils
 module FC = Zeroinstall.Feed_cache
@@ -343,10 +344,10 @@ let open_cache_explorer config =
   !ok_feeds |> List.iter (fun feed ->
     (* For each implementation... *)
     feed.F.implementations |> StringMap.iter (fun _id impl ->
-      match impl.F.impl_type with
+      match impl.Impl.impl_type with
       | `cache_impl info ->
           (* For each digest... *)
-          info.F.digests |> List.iter (fun parsed_digest ->
+          info.Impl.digests |> List.iter (fun parsed_digest ->
             let digest = Manifest.format_digest parsed_digest in
             if Hashtbl.mem all_digests digest then (
               Hashtbl.add impl_of_digest digest (feed, impl)
@@ -363,7 +364,7 @@ let open_cache_explorer config =
     try
       let feed, impl = Hashtbl.find impl_of_digest digest in
       Unsorted_list.set model ~row ~column:owner_col feed.F.name;
-      Unsorted_list.set model ~row ~column:version_str_col @@ F.get_attr_ex FeedAttr.version impl;
+      Unsorted_list.set model ~row ~column:version_str_col @@ Impl.get_attr_ex FeedAttr.version impl;
     with Not_found ->
       try
         Manifest.parse_digest digest |> ignore;
@@ -403,8 +404,8 @@ let open_cache_explorer config =
           begin try
             let feed, impl = Hashtbl.find impl_of_digest digest in
             let extra = [
-              "arch:" ^ Zeroinstall.Arch.format_arch impl.F.os impl.F.machine;
-              "langs:" ^ (F.get_langs impl |> List.map Support.Locale.format_lang |> String.concat ",");
+              "arch:" ^ Zeroinstall.Arch.format_arch impl.Impl.os impl.Impl.machine;
+              "langs:" ^ (Impl.get_langs impl |> List.map Support.Locale.format_lang |> String.concat ",");
             ] in
             (Feed_url.format_url feed.F.url, dir, extra, true, true)
           with Not_found ->

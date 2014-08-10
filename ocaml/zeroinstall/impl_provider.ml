@@ -10,7 +10,7 @@ module U = Support.Utils
     we know are unsuitable even on their own. *)
 
 type rejection = [
-  | `User_restriction_rejects of Feed.restriction
+  | `User_restriction_rejects of Impl.restriction
   | `Poor_stability
   | `No_retrieval_methods
   | `Not_cached_and_offline
@@ -39,11 +39,10 @@ type preferred_reason =
   | PreferVersion 
 
 let describe_problem impl =
-  let open Feed in
   let spf = Printf.sprintf in
   function
   | `User_restriction_rejects r -> "Excluded by user-provided restriction: " ^ r#to_string
-  | `Poor_stability           -> spf "Poor stability '%s'" (format_stability impl.stability)
+  | `Poor_stability           -> spf "Poor stability '%s'" Impl.(format_stability impl.stability)
   | `No_retrieval_methods     -> "No retrieval methods"
   | `Not_cached_and_offline   -> "Can't download it because we're offline"
   | `Incompatible_OS          -> "Not compatible with the requested OS type"
@@ -53,7 +52,7 @@ let describe_problem impl =
   | `Missing_local_impl path  -> spf "Local impl's directory (%s) is missing" path
 
 type scope_filter = {
-  extra_restrictions : Feed.restriction StringMap.t;  (* iface -> test *)
+  extra_restrictions : Impl.restriction StringMap.t;  (* iface -> test *)
   os_ranks : int StringMap.t;
   machine_ranks : int StringMap.t;
   languages : int Support.Locale.LangMap.t;
@@ -62,8 +61,8 @@ type scope_filter = {
 
 type candidates = {
   replacement : iface_uri option;
-  impls : Feed.generic_implementation list;
-  rejects : (Feed.generic_implementation * rejection) list;
+  impls : Impl.generic_implementation list;
+  rejects : (Impl.generic_implementation * rejection) list;
 }
 
 class type impl_provider =
@@ -73,9 +72,9 @@ class type impl_provider =
     method get_implementations : iface_uri -> source:bool -> candidates
 
     (** Should the solver consider this dependency? *)
-    method is_dep_needed : Feed.dependency -> bool
+    method is_dep_needed : Impl.dependency -> bool
 
-    method extra_restrictions : Feed.restriction StringMap.t
+    method extra_restrictions : Impl.restriction StringMap.t
   end
 
 class default_impl_provider config (feed_provider : Feed_provider.feed_provider) (scope_filter:scope_filter) =
@@ -85,12 +84,12 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
   let watch_iface = ref None in
 
   (* If [watch_iface] is set, we store the comparison function for use by Diagnostics. *)
-  let compare_for_watched_iface : (Feed.generic_implementation -> Feed.generic_implementation -> int * preferred_reason) option ref = ref None in
+  let compare_for_watched_iface : (Impl.generic_implementation -> Impl.generic_implementation -> int * preferred_reason) option ref = ref None in
 
   let do_overrides overrides impls =
     let do_override id impl =
       match StringMap.find id overrides.Feed.user_stability with
-      | Some stability -> {impl with Feed.stability = stability}
+      | Some stability -> {impl with Impl.stability = stability}
       | None -> impl in
     StringMap.map_bindings do_override impls in
 
@@ -103,11 +102,11 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
     val cache = Hashtbl.create 10
 
     method is_dep_needed dep =
-      match dep.Feed.dep_use with
+      match dep.Impl.dep_use with
       | Some use when not (StringSet.mem use allowed_uses) -> false
       | None | Some _ ->
           (* Ignore dependency if 'os' attribute is present and doesn't match *)
-          match dep.Feed.dep_if_os with
+          match dep.Impl.dep_if_os with
           | Some required_os -> StringMap.mem required_os os_ranks
           | None -> true
 
@@ -140,13 +139,13 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
 
       let is_available impl =
         try
-          let open Feed in
+          let open Impl in
           match impl.impl_type with
           | `package_impl {package_state;_} -> package_state = `installed
           | `local_impl path -> config.system#file_exists path
           | `cache_impl {digests;_} -> Stores.check_available cached_digests digests
         with Safe_exception _ as ex ->
-          log_warning ~ex "Can't test whether impl is available: %s" (Support.Qdom.show_with_loc impl.Feed.qdom);
+          log_warning ~ex "Can't test whether impl is available: %s" (Support.Qdom.show_with_loc impl.Impl.qdom);
           false in
 
       (* Printf.eprintf "Looking for %s\n" (String.concat "," @@ List.map Locale.format_lang wanted_langs); *)
@@ -158,8 +157,8 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
         let test_fn reason fn =
           test reason @@ compare (fn a) (fn b) in
 
-        let langs_a = Feed.get_langs a in
-        let langs_b = Feed.get_langs b in
+        let langs_a = Impl.get_langs a in
+        let langs_b = Impl.get_langs b in
 
         let score_true b = if b then 1 else 0 in
 
@@ -176,7 +175,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
             max best score
           ) in
 
-        let open Feed in
+        let open Impl in
 
         let score_os i =
           match i.os with
@@ -194,12 +193,12 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
           else s in
 
         let score_is_package i =
-          let id = Feed.get_attr_ex "id" i in
+          let id = Impl.get_attr_ex "id" i in
           U.starts_with id "package:" in
 
         let score_requires_root_install i =
           match i.impl_type with
-          | `package_impl {Feed.package_state = `uninstalled _;_} -> 0   (* Bad - needs root install *)
+          | `package_impl {Impl.package_state = `uninstalled _;_} -> 0   (* Bad - needs root install *)
           | _ -> 1 in
 
         ignore (
@@ -246,8 +245,8 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
           (if config.network_use <> Full_network then false else test_fn PreferAvailable is_available) ||
 
           (* Order by ID so the order isn't random *)
-          test PreferID @@ compare (Feed.get_attr_ex "id" a) (Feed.get_attr_ex "id" b) ||
-          test PreferID @@ compare (Feed.get_attr_ex "from-feed" a) (Feed.get_attr_ex "from-feed" b)
+          test PreferID @@ compare (Impl.get_attr_ex "id" a) (Impl.get_attr_ex "id" b) ||
+          test PreferID @@ compare (Impl.get_attr_ex "from-feed" a) (Impl.get_attr_ex "from-feed" b)
         );
 
         !retval
@@ -272,7 +271,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
             | None -> ([], None)
             | Some ((feed, _overrides) as pair) ->
                 let sub_feeds = U.filter_map get_feed_if_useful feed.Feed.imported_feeds in
-                let distro_impls = (get_distro_impls feed :> Feed.generic_implementation list) in
+                let distro_impls = (get_distro_impls feed :> Impl.generic_implementation list) in
                 let impls = List.concat (distro_impls :: List.map get_impls (pair :: sub_feeds)) in
                 (impls, iface_config.Feed_cache.stability_policy) in
 
@@ -296,18 +295,18 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
           candidates in
 
       let os_ok impl =
-        match impl.Feed.os with
+        match impl.Impl.os with
         | None -> true
         | Some required_os -> StringMap.mem required_os os_ranks in
 
       let machine_ok impl =
-        match impl.Feed.machine with
+        match impl.Impl.machine with
         | None -> true
         | Some required_machine -> StringMap.mem required_machine machine_ranks in
 
       let check_acceptability impl =
-        let stability = impl.Feed.stability in
-        let is_source = impl.Feed.machine = Some "src" in
+        let stability = impl.Impl.stability in
+        let is_source = impl.Impl.machine = Some "src" in
 
         match user_restrictions with
         | Some r when not (r#meets_restriction impl) -> `User_restriction_rejects r
@@ -321,14 +320,14 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
             else if is_available impl then `Acceptable
             (* It's not cached, but might still be OK... *)
             else (
-              let open Feed in
-              match impl.Feed.impl_type with
+              let open Impl in
+              match impl.impl_type with
               | `local_impl path -> `Missing_local_impl path
               | `package_impl _ -> if config.network_use = Offline then `Not_cached_and_offline else `Acceptable
               | `cache_impl {retrieval_methods = [];_} -> `No_retrieval_methods
               | `cache_impl cache_impl ->
                   if config.network_use <> Offline then `Acceptable   (* Can download it *)
-                  else if Feed.is_retrievable_without_network cache_impl then `Acceptable
+                  else if is_retrievable_without_network cache_impl then `Acceptable
                   else `Not_cached_and_offline
             ) in
 
@@ -339,7 +338,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
         match check_acceptability impl with
         | `Acceptable -> true
         | #rejection as x -> rejects := (impl, x) :: !rejects; false
-      (*| problem -> log_warning "rejecting %s %s: %s" iface (Versions.format_version impl.Feed.parsed_version) (describe_problem impl problem); false *)
+      (*| problem -> log_warning "rejecting %s %s: %s" iface (Versions.format_version impl.Impl.parsed_version) (describe_problem impl problem); false *)
       in
 
       let impls = List.filter do_filter candidates.impls in

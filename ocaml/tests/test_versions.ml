@@ -6,7 +6,7 @@ open OUnit
 open Support.Common
 open Fake_system
 module Versions = Zeroinstall.Versions
-module F = Zeroinstall.Feed
+module Impl = Zeroinstall.Impl
 
 let pv v =
   let parsed = Versions.parse_version v in
@@ -113,10 +113,10 @@ let suite = "versions">::: [
   );
 
   "ranges2">:: (fun () ->
-    let r = ref (F.make_version_restriction "2.6..!3 | 3.2.2.. | 1 | ..!0.2") in
+    let r = ref (Impl.make_version_restriction "2.6..!3 | 3.2.2.. | 1 | ..!0.2") in
 
     let test v result =
-      let impl = {Zeroinstall.Solver.dummy_impl with F.parsed_version = Versions.parse_version v} in
+      let impl = {Zeroinstall.Solver.dummy_impl with Impl.parsed_version = Versions.parse_version v} in
       assert_equal result @@ (!r)#meets_restriction impl in
 
     test "0.1"  true;
@@ -133,7 +133,7 @@ let suite = "versions">::: [
     test "3.2.2" true;
     test "3.3"  true;
 
-    r := F.make_version_restriction "!7";
+    r := Impl.make_version_restriction "!7";
     test "1" true;
     test "7" false;
     test "8" true;
@@ -171,20 +171,20 @@ let suite = "versions">::: [
 
   "restrictions">:: (fun () ->
     let v6 = {Zeroinstall.Solver.dummy_impl with
-      F.parsed_version = (Versions.parse_version "6");
-      F.impl_type = `package_impl {F.package_distro = "RPM"; F.package_state = `installed};
+      Impl.parsed_version = (Versions.parse_version "6");
+      Impl.impl_type = `package_impl {Impl.package_distro = "RPM"; Impl.package_state = `installed};
     } in
     let v7 = {Zeroinstall.Solver.dummy_impl with
-      F.parsed_version = (Versions.parse_version "7");
-      F.impl_type = `package_impl {F.package_distro = "Gentoo"; F.package_state = `installed};
+      Impl.parsed_version = (Versions.parse_version "7");
+      Impl.impl_type = `package_impl {Impl.package_distro = "Gentoo"; Impl.package_state = `installed};
     } in
 
-    let r = F.make_version_restriction "!7" in
+    let r = Impl.make_version_restriction "!7" in
     Fake_system.assert_str_equal "version !7" r#to_string;
     assert (r#meets_restriction v6);
     assert (not (r#meets_restriction v7));
 
-    let r = F.make_distribtion_restriction "RPM Debian" in
+    let r = Impl.make_distribtion_restriction "RPM Debian" in
     Fake_system.assert_str_equal "distribution:RPM Debian" r#to_string;
     assert (r#meets_restriction v6);
     assert (not (r#meets_restriction v7));

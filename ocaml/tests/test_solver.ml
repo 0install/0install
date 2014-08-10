@@ -380,7 +380,7 @@ let suite = "solver">::: [
             ~distro_name
             query;
           self#add_package_implementation
-            ~package_state:(`uninstalled Feed.({distro_size = None; distro_install_info = ("dummy", "root_install_needed_2")}))
+            ~package_state:(`uninstalled Impl.({distro_size = None; distro_install_info = ("dummy", "root_install_needed_2")}))
             ~id:"package:root_install_needed_2"
             ~machine
             ~version:(Versions.parse_version "1-1")
@@ -388,7 +388,7 @@ let suite = "solver">::: [
             ~distro_name
             query;
           self#add_package_implementation
-            ~package_state:(`uninstalled Feed.({distro_size = None; distro_install_info = ("dummy", "root_install_needed_1")}))
+            ~package_state:(`uninstalled Impl.({distro_size = None; distro_install_info = ("dummy", "root_install_needed_1")}))
             ~id:"package:root_install_needed_1"
             ~machine
             ~version:(Versions.parse_version "1-1")
@@ -437,7 +437,7 @@ let suite = "solver">::: [
       let {replacement; impls; rejects = _} = impl_provider#get_implementations iface ~source:false in
       (* List.iter (fun (impl, r) -> failwith @@ describe_problem impl r) rejects; *)
       assert_equal ~msg:"replacement" (Some "http://example.com/replacement.xml") replacement;
-      let ids = List.map (fun i -> Feed.get_attr_ex "id" i) impls in
+      let ids = List.map (fun i -> Impl.get_attr_ex "id" i) impls in
       ids in
 
     Fake_system.equal_str_lists [
@@ -501,7 +501,7 @@ let suite = "solver">::: [
 
     let test_solve =
       let impls = (impl_provider#get_implementations iface ~source:false).Impl_provider.impls in
-      let ids = List.map (fun i -> (Feed.get_attr_ex "version" i) ^ " " ^ (Feed.get_attr_ex "arch" i)) impls in
+      let ids = List.map (fun i -> (Impl.get_attr_ex "version" i) ^ " " ^ (Impl.get_attr_ex "arch" i)) impls in
       ids in
 
     Fake_system.equal_str_lists [
@@ -535,7 +535,7 @@ let suite = "solver">::: [
     let () =
       match bin_impls.Impl_provider.rejects with
       | [(impl, reason)] ->
-          Fake_system.assert_str_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" (Feed.get_attr_ex "id" impl);
+          Fake_system.assert_str_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" (Impl.get_attr_ex "id" impl);
           Fake_system.assert_str_equal "We want source and this is a binary" (Impl_provider.describe_problem impl reason);
       | _ -> assert false in
     let comp_impls = impl_provider#get_implementations "http://foo/Compiler.xml" ~source:false in
@@ -581,7 +581,7 @@ let suite = "solver">::: [
     import "Recursive.xml";
     let rec_impls = impl_provider#get_implementations "http://foo/Recursive.xml" ~source:false in
     match rec_impls.Impl_provider.impls with
-    | [impl] -> Fake_system.assert_str_equal "sha1=abc" (Feed.get_attr_ex "id" impl)
+    | [impl] -> Fake_system.assert_str_equal "sha1=abc" (Impl.get_attr_ex "id" impl)
     | _ -> assert false
   );
 

@@ -9,7 +9,7 @@ open Support.Common
 open OUnit
 
 module U = Support.Utils
-module F = Zeroinstall.Feed
+module Impl = Zeroinstall.Impl
 module Distro = Zeroinstall.Distro
 module Distro_impls = Zeroinstall.Distro_impls
 
@@ -35,8 +35,8 @@ let test ?(package="gnupg") config fake_system =
   log_info "done check_for_candidates";
   let impls = distro#get_impls_for_feed feed |> Test_distro.to_impl_list in
   impls |> List.iter (function
-    | {F.impl_type = `package_impl {F.package_state = `uninstalled rm; _}; _} ->
-        assert_equal (Some (Int64.of_int 100)) rm.F.distro_size;
+    | {Impl.impl_type = `package_impl {Impl.package_state = `uninstalled rm; _}; _} ->
+        assert_equal (Some (Int64.of_int 100)) rm.Impl.distro_size;
     | _ -> assert false
   );
   assert_equal `ok (Distro.install_distro_packages distro approve_ui impls |> Lwt_main.run);

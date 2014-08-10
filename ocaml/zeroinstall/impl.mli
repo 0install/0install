@@ -1,0 +1,105 @@
+(* Copyright (C) 2014, Thomas Leonard
+ * See the README file for details, or visit http://0install.net.
+ *)
+
+(** An implementation represents a single concrete implementation of an interface.
+ * There can be several implementations with the same version number (e.g. for different
+ * architectures, languages or ABIs). *)
+
+(** {2 Types} **)
+
+type importance =
+  | Dep_essential       (* Must select a version of the dependency *)
+  | Dep_recommended     (* Prefer to select a version, if possible *)
+  | Dep_restricts       (* Just adds restrictions without expressing any opinion *)
+
+type distro_retrieval_method = {
+  distro_size : Int64.t option;
+  distro_install_info : (string * string);        (* In some format meaningful to the distribution *)
+}
+
+type package_state =
+  [ `installed
+  | `uninstalled of distro_retrieval_method ]
+
+type package_impl = {
+  package_distro : string;
+  mutable package_state : package_state;
+}
+
+type cache_impl = {
+  digests : Manifest.digest list;
+  retrieval_methods : Support.Qdom.element list;
+}
+
+type impl_type =
+  [ `cache_impl of cache_impl
+  | `local_impl of Support.Common.filepath
+  | `package_impl of package_impl ]
+
+type restriction = < meets_restriction : impl_type t -> bool; to_string : string >
+and binding = Support.Qdom.element
+and dependency = {
+  dep_qdom : Support.Qdom.element;
+  dep_importance : importance;
+  dep_iface : General.iface_uri;
+  dep_restrictions : restriction list;
+  dep_required_commands : string list;
+  dep_if_os : string option;                (* The badly-named 'os' attribute *)
+  dep_use : string option;                  (* Deprecated 'use' attribute *)
+}
+and command = {
+  mutable command_qdom : Support.Qdom.element;  (* Mutable because of distro's [fixup_main] *)
+  command_requires : dependency list;
+  command_bindings : binding list;
+}
+and properties = {
+  attrs : Support.Qdom.AttrMap.t;
+  requires : dependency list;
+  bindings : binding list;
+  commands : command Support.Common.StringMap.t;
+}
+and +'a t = {
+  qdom : Support.Qdom.element;
+  props : properties;
+  stability : General.stability_level;
+  os : string option;           (* Required OS; the first part of the 'arch' attribute. None for '*' *)
+  machine : string option;      (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
+  parsed_version : Versions.parsed_version;
+  impl_type : [< impl_type] as 'a;
+}
+
+type generic_implementation = impl_type t
+type distro_implementation = [ `package_impl of package_impl ] t
+
+(** {2 Utility functions} *)
+val parse_stability : from_user:bool -> string -> General.stability_level
+val format_stability : General.stability_level -> string
+
+val make_command :
+  ?source_hint:Support.Qdom.element ->
+  string -> ?new_attr:string -> Support.Common.filepath -> command
+
+val make_distribtion_restriction : string -> restriction
+val make_version_restriction : string -> restriction
+
+(** [parse_dep local_dir elem] parses the <requires>/<restricts> element.
+ * [local_dir] is used to resolve relative interface names in local feeds
+ * (use [None] for remote feeds). *)
+val parse_dep : Support.Common.filepath option -> Support.Qdom.element -> dependency
+
+(** [parse_command local_dir elem] parses the <command> element.
+ * [local_dir] is used to process dependencies (see [parse_dep]). *)
+val parse_command : Support.Common.filepath option -> Support.Qdom.element -> command
+
+val get_attr_ex : string -> _ t -> string
+
+val is_source : _ t -> bool
+
+val get_command_opt : string -> _ t -> command option
+val get_command_ex : string -> _ t -> command
+
+val get_langs : _ t -> Support.Locale.lang_spec list
+val is_available_locally : General.config -> _ t -> bool
+val is_retrievable_without_network : cache_impl -> bool
+val get_id : _ t -> Feed_url.global_id

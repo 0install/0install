@@ -11,6 +11,7 @@ module FeedAttr =
     let main = "main"
     let self_test = "self-test"
     let stability = "stability"
+    let value_testing = "testing"
     let importance = "importance"
     let version = "version"
     let version_modifier = "version-modifier"      (* This is stripped out and moved into attr_version *)

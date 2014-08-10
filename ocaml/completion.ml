@@ -9,6 +9,7 @@ open Support.Common
 open Support.Argparse
 open Options
 module Apps = Zeroinstall.Apps
+module Impl = Zeroinstall.Impl
 module Feed = Zeroinstall.Feed
 module Feed_cache = Zeroinstall.Feed_cache
 module U = Support.Utils
@@ -291,7 +292,7 @@ let complete_version completer ~range ~maybe_app target pre =
             let v = Zeroinstall.Versions.format_version pv in
             let vexpr = v_prefix ^ v in
             if starts_with vexpr pre then Some vexpr else None in
-          let all_versions = List.map (fun impl -> impl.Feed.parsed_version) @@ Feed.get_implementations feed in
+          let all_versions = List.map (fun impl -> impl.Impl.parsed_version) @@ Feed.get_implementations feed in
           let matching_versions = Support.Utils.filter_map check (List.sort compare all_versions) in
           List.iter (completer#add Add) matching_versions
 

@@ -8,6 +8,7 @@ open OUnit
 module Stores = Zeroinstall.Stores
 module Fetch = Zeroinstall.Fetch
 module Recipe = Zeroinstall.Recipe
+module Impl = Zeroinstall.Impl
 module F = Zeroinstall.Feed
 module Q = Support.Qdom
 module D = Zeroinstall.Downloader
@@ -18,7 +19,7 @@ let download_impls fetcher impls =
   | `success -> ()
   | `aborted_by_user -> assert false
 
-let impl_template = F.({
+let impl_template = Impl.({
   qdom = ZI.make "implementation";
   props = {
     attrs = Q.AttrMap.empty
@@ -93,18 +94,18 @@ let suite = "fetch">::: [
 
     let try_with ?(template = impl_template) ?(digest=("sha1new", "123")) xml =
       let recipe = parse_xml xml in
-      let impl_type = F.(`cache_impl {
+      let impl_type = Impl.(`cache_impl {
         digests = [digest];
         retrieval_methods = [recipe];
       }) in
-      let impl = F.({template with impl_type}) in
+      let impl = Impl.({template with impl_type}) in
       download_impls fetcher [impl] in
 
     Fake_system.assert_raises_safe "Missing attribute 'dest' on <file> (generated)" @@
       lazy (try_with "<file href='mylib-1.0.jar'/>");
 
-    let attrs = F.(impl_template.props.attrs |> Q.AttrMap.add_no_ns "from-feed" "http://example.com/feed.xml") in
-    let remote_impl = F.({impl_template with props = {impl_template.props with attrs}}) in
+    let attrs = Impl.(impl_template.props.attrs |> Q.AttrMap.add_no_ns "from-feed" "http://example.com/feed.xml") in
+    let remote_impl = Impl.({impl_template with props = {impl_template.props with attrs}}) in
     Fake_system.assert_raises_safe "Relative URL 'mylib-1.0.jar' in non-local feed 'http://example.com/feed.xml'" @@
       lazy (try_with ~template:remote_impl "<file href='mylib-1.0.jar' dest='lib/mylib.jar' size='100'/>");
 
@@ -176,8 +177,8 @@ let suite = "fetch">::: [
       try
         let impl = StringMap.find_safe id feed.F.implementations in
         let digests =
-          match impl.F.impl_type with
-          | `cache_impl {F.digests; _} -> digests
+          match impl.Impl.impl_type with
+          | `cache_impl {Impl.digests; _} -> digests
           | _ -> assert false in
 
         (* Not cached before download... *)

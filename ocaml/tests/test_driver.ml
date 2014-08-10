@@ -8,6 +8,7 @@ open Support.Common
 open Zeroinstall
 open Zeroinstall.General
 
+module Impl = Zeroinstall.Impl
 module F = Zeroinstall.Feed
 module U = Support.Utils
 module Q = Support.Qdom
@@ -192,8 +193,8 @@ let suite = "driver">::: [
             machine = None;
             installed = false;
             retrieval_method = {
-              F.distro_size = None;
-              F.distro_install_info = ("test", "prog");
+              Impl.distro_size = None;
+              Impl.distro_install_info = ("test", "prog");
             }
           }])
       | name -> failwith name in
