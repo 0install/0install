@@ -145,6 +145,7 @@ let make_site max_downloads_per_site =
     Curl.set_nosignal connection true;    (* Can't use DNS timeouts when multi-threaded *)
     Curl.set_failonerror connection true;
     Curl.set_followlocation connection false;
+    Curl.set_netrc connection Curl.CURL_NETRC_OPTIONAL;
     let r = ref (Some connection) in
     Queue.add r connections;
     Lwt.return r in
