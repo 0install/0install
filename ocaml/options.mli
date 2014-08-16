@@ -31,6 +31,7 @@ type other_req_option = [
   | `Cpu of string
   | `Os of string
   | `Source
+  | `Autocompile of bool
 ]
 
 type select_option = [

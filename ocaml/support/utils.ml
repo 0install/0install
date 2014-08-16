@@ -60,6 +60,10 @@ let rec filter_map fn = function
       | None -> filter_map fn xs
       | Some y -> y :: filter_map fn xs
 
+let rec concat_map fn = function
+  | [] -> []
+  | (x::xs) -> (fn x) @ concat_map fn xs
+
 let filter_map_array fn arr =
   let result = ref [] in
   for i = 0 to Array.length arr - 1 do

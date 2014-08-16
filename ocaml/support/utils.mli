@@ -21,6 +21,9 @@ val first_match : ('a -> 'b option) -> 'a list -> 'b option
 (** List the non-None results of [fn item] *)
 val filter_map : ('a -> 'b option) -> 'a list -> 'b list
 
+(** Concat the results of [fn item] *)
+val concat_map : ('a -> 'b list) -> 'a list -> 'b list
+
 (** List the non-None results of [fn item] *)
 val filter_map_array : ('a -> 'b option) -> 'a array -> 'b list
 

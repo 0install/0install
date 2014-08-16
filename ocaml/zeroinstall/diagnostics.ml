@@ -66,6 +66,12 @@ let format_report buf (iface_uri, _source) component =
 
   let name_impl impl = Impl.get_attr_ex FeedAttr.id impl in
 
+  let format_mode impl =
+    match impl.Impl.impl_mode with
+      | `immediate -> ""
+      | `requires_compilation _ -> " after compilation"
+  in
+
   let () = match component#impl with
     | Some sel -> add "%s -> %s (%s)" iface_uri (format_version sel) (name_impl sel)
     | None -> add "%s -> (problem)" iface_uri in
@@ -81,7 +87,7 @@ let format_report buf (iface_uri, _source) component =
       try
         ListLabels.iter rejected ~f:(fun (impl, problem) ->
           if !i = 5 && not Support.Logging.(will_log Debug) then (add "..."; raise Exit);
-          add "%s (%s): %s" (name_impl impl) (format_version impl) (describe_problem impl problem);
+          add "%s (v%s%s): %s" (name_impl impl) (format_mode impl) (format_version impl) (describe_problem impl problem);
           i := !i + 1
         );
       with Exit -> () in

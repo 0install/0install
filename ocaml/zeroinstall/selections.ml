@@ -8,6 +8,7 @@ open General
 module U = Support.Utils
 module Q = Support.Qdom
 module FeedAttr = Constants.FeedAttr
+module IfaceConfigAttr = Constants.IfaceConfigAttr
 
 type t = Support.Qdom.element
 type selection = Support.Qdom.element
@@ -124,6 +125,14 @@ let find iface sels =
   let is_our_iface sel = ZI.tag sel = Some "selection" && ZI.get_attribute FeedAttr.interface sel = iface in
   try Some (List.find is_our_iface sels.Q.child_nodes)
   with Not_found -> None
+
+let requires_compilation sels =
+  let matches sel = ZI.tag sel = Some "selection" && (
+    match ZI.get_attribute_opt IfaceConfigAttr.mode sel |> Option.map Impl_mode.parse with
+      | Some `requires_compilation -> true
+      | _ -> false
+  ) in
+  List.exists matches sels.Q.child_nodes
 
 let root_sel sels =
   let iface = root_iface sels in

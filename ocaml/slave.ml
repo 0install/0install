@@ -102,6 +102,7 @@ let parse_requirements json_assoc =
       os = pop "os" |> J.Util.to_string_option;
       cpu = pop "cpu" |> J.Util.to_string_option;
       message = pop "message" |> J.Util.to_string_option;
+      autocompile = pop "compile" |> J.Util.to_bool_option;
   }) in
   table |> Hashtbl.iter (fun name _ -> log_warning "Unexpected requirements field '%s'!" name);
   reqs

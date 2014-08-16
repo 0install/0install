@@ -37,6 +37,10 @@ type impl_type =
   | `local_impl of Support.Common.filepath
   | `package_impl of package_impl ]
 
+type source_impl_type =
+  [ `cache_impl of cache_impl
+  | `local_impl of Support.Common.filepath]
+
 type restriction = < meets_restriction : impl_type t -> bool; to_string : string >
 and binding = Support.Qdom.element
 and dependency = {
@@ -67,7 +71,16 @@ and +'a t = {
   machine : string option;      (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
   parsed_version : Versions.parsed_version;
   impl_type : [< impl_type] as 'a;
+  impl_mode : impl_mode;
 }
+
+and impl_mode = [
+  (* uses the same keys as Impl_mode.t, but
+   * additionally stores the source_impl for
+   * requires_compilation impls *)
+  | `immediate
+  | `requires_compilation of source_impl_type t
+]
 
 type generic_implementation = impl_type t
 type distro_implementation = [ `package_impl of package_impl ] t
@@ -82,6 +95,8 @@ val make_command :
 
 val make_distribtion_restriction : string -> restriction
 val make_version_restriction : string -> restriction
+
+val local_dir_of_impl_type : impl_type -> Support.Common.filepath option
 
 (** [parse_dep local_dir elem] parses the <requires>/<restricts> element.
  * [local_dir] is used to resolve relative interface names in local feeds

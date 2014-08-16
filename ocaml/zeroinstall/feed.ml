@@ -57,80 +57,135 @@ let rec filter_if_0install_version node =
     node with Q.child_nodes = U.filter_map filter_if_0install_version node.Q.child_nodes;
   }
 
+let create_impl system ~local_dir state node =
+  let open Impl in
+  let s = ref state in
+
+  let set_attr name value =
+    let new_attrs = AttrMap.add_no_ns name value !s.Impl.attrs in
+    s := {!s with Impl.attrs = new_attrs} in
+
+  let get_required_attr name =
+    AttrMap.get_no_ns name !s.attrs |? lazy (Q.raise_elem "Missing attribute '%s' on" name node) in
+
+  let id = ZI.get_attribute "id" node in
+
+  let () =
+    match local_dir with
+    | None ->
+        if AttrMap.mem ("", FeedAttr.local_path) !s.attrs then
+          Q.raise_elem "local-path in non-local feed! " node;
+    | Some dir ->
+        let use rel_path =
+          if Filename.is_relative rel_path then
+            set_attr FeedAttr.local_path @@ Support.Utils.abspath system @@ dir +/ rel_path
+          else
+            set_attr FeedAttr.local_path rel_path in
+        match AttrMap.get_no_ns FeedAttr.local_path !s.attrs with
+        | Some path -> use path
+        | None ->
+            if Support.Utils.starts_with id "/" || Support.Utils.starts_with id "." then
+              use id in
+
+  (* version-modifier *)
+  AttrMap.get_no_ns FeedAttr.version_modifier !s.attrs
+  |> if_some (fun modifier ->
+      let real_version = get_required_attr FeedAttr.version ^ modifier in
+      let new_attrs = AttrMap.add_no_ns FeedAttr.version real_version (AttrMap.remove ("", FeedAttr.version_modifier) !s.attrs) in
+      s := {!s with attrs = new_attrs}
+  );
+
+  let get_prop key =
+    AttrMap.get_no_ns key !s.attrs |? lazy (Q.raise_elem "Missing attribute '%s' on" key node) in
+
+  let (os, machine) =
+    try Arch.parse_arch @@ default "*-*" @@ AttrMap.get_no_ns "arch" !s.attrs
+    with Safe_exception _ as ex -> reraise_with_context ex "... processing %s" (Q.show_with_loc node) in
+
+  let stability =
+    match AttrMap.get_no_ns FeedAttr.stability !s.attrs with
+    | None -> Testing
+    | Some s -> parse_stability ~from_user:false s in
+
+  let impl_type =
+    match AttrMap.get_no_ns FeedAttr.local_path !s.attrs with
+    | Some local_path ->
+        assert (local_dir <> None);
+        `local_impl local_path
+    | None ->
+        let retrieval_methods = List.filter Recipe.is_retrieval_method node.Q.child_nodes in
+        `cache_impl { digests = Stores.get_digests node; retrieval_methods; } in
+
+  let impl = {
+    qdom = node;
+    props = {!s with requires = List.rev !s.requires};
+    os;
+    machine;
+    stability;
+    parsed_version = Versions.parse_version (get_prop FeedAttr.version);
+    impl_type;
+    impl_mode = `immediate;
+  } in
+  (id, impl)
+
+let process_group_properties ~local_dir state item =
+  let open Impl in
+  let s = ref state in
+  (* We've found a group or implementation. Scan for dependencies,
+      bindings and commands. Doing this here means that:
+      - We can share the code for groups and implementations here.
+      - The order doesn't matter, because these get processed first.
+      A side-effect is that the document root cannot contain these. *)
+
+  (* Upgrade main='...' to <command name='run' path='...'> etc *)
+  let handle_old_command attr_name command_name =
+    match ZI.get_attribute_opt attr_name item with
+    | None -> ()
+    | Some path ->
+        let new_command = make_command ~source_hint:item command_name path in
+        s := {!s with commands = StringMap.add command_name new_command !s.commands} in
+  handle_old_command FeedAttr.main "run";
+  handle_old_command FeedAttr.self_test "test";
+
+  item.Q.attrs |> AttrMap.get (COMPILE_NS.ns, "command") |> if_some (fun command ->
+    let new_command = make_command ~source_hint:item "compile" ~new_attr:"shell-command" command in
+    s := {!s with commands = StringMap.add "compile" new_command !s.commands}
+  );
+
+  let new_bindings = ref [] in
+
+  item |> ZI.iter (fun child ->
+    match ZI.tag child with
+    | Some "requires" | Some "restricts" ->
+        let req = Impl.parse_dep local_dir child in
+        s := {!s with requires = req :: !s.requires}
+    | Some "command" ->
+        let command_name = ZI.get_attribute "name" child in
+        s := {!s with commands = StringMap.add command_name (Impl.parse_command local_dir child) !s.commands}
+    | Some tag when Binding.is_binding tag ->
+        new_bindings := child :: !new_bindings
+    | _ -> ()
+  );
+
+  if !new_bindings <> [] then
+    s := {!s with bindings = !s.bindings @ (List.rev !new_bindings)};
+
+  let new_attrs = !s.attrs |> AttrMap.add_all item.Q.attrs in
+
+  {!s with
+    attrs = new_attrs;
+    requires = !s.requires;
+  }
+
 let parse_implementations (system:system) url root local_dir =
   let open Impl in
   let implementations = ref StringMap.empty in
   let package_implementations = ref [] in
 
   let process_impl node (state:Impl.properties) =
-    let s = ref state in
-
-    let set_attr name value =
-      let new_attrs = AttrMap.add_no_ns name value !s.Impl.attrs in
-      s := {!s with Impl.attrs = new_attrs} in
-
-    let get_required_attr name =
-      AttrMap.get_no_ns name !s.attrs |? lazy (Q.raise_elem "Missing attribute '%s' on" name node) in
-
-    let id = ZI.get_attribute "id" node in
-
-    let () =
-      match local_dir with
-      | None ->
-          if AttrMap.mem ("", FeedAttr.local_path) !s.attrs then
-            Q.raise_elem "local-path in non-local feed! " node;
-      | Some dir ->
-          let use rel_path =
-            if Filename.is_relative rel_path then
-              set_attr FeedAttr.local_path @@ Support.Utils.abspath system @@ dir +/ rel_path
-            else
-              set_attr FeedAttr.local_path rel_path in
-          match AttrMap.get_no_ns FeedAttr.local_path !s.attrs with
-          | Some path -> use path
-          | None ->
-              if Support.Utils.starts_with id "/" || Support.Utils.starts_with id "." then
-                use id in
-
+    let (id, impl) = create_impl system ~local_dir state node in
     if StringMap.mem id !implementations then
       Q.raise_elem "Duplicate ID '%s' in:" id node;
-    (* version-modifier *)
-    AttrMap.get_no_ns FeedAttr.version_modifier !s.attrs
-    |> if_some (fun modifier ->
-        let real_version = get_required_attr FeedAttr.version ^ modifier in
-        let new_attrs = AttrMap.add_no_ns FeedAttr.version real_version (AttrMap.remove ("", FeedAttr.version_modifier) !s.attrs) in
-        s := {!s with attrs = new_attrs}
-    );
-
-    let get_prop key =
-      AttrMap.get_no_ns key !s.attrs |? lazy (Q.raise_elem "Missing attribute '%s' on" key node) in
-
-    let (os, machine) =
-      try Arch.parse_arch @@ default "*-*" @@ AttrMap.get_no_ns "arch" !s.attrs
-      with Safe_exception _ as ex -> reraise_with_context ex "... processing %s" (Q.show_with_loc node) in
-
-    let stability =
-      match AttrMap.get_no_ns FeedAttr.stability !s.attrs with
-      | None -> Testing
-      | Some s -> parse_stability ~from_user:false s in
-
-    let impl_type =
-      match AttrMap.get_no_ns FeedAttr.local_path !s.attrs with
-      | Some local_path ->
-          assert (local_dir <> None);
-          `local_impl local_path
-      | None ->
-          let retrieval_methods = List.filter Recipe.is_retrieval_method node.Q.child_nodes in
-          `cache_impl { digests = Stores.get_digests node; retrieval_methods; } in
-
-    let impl = {
-      qdom = node;
-      props = {!s with requires = List.rev !s.requires};
-      os;
-      machine;
-      stability;
-      parsed_version = Versions.parse_version (get_prop FeedAttr.version);
-      impl_type;
-    } in
     implementations := StringMap.add id impl !implementations
   in
 
@@ -138,53 +193,13 @@ let parse_implementations (system:system) url root local_dir =
     group |> ZI.iter (fun item ->
       match ZI.tag item with
       | Some "group" | Some "implementation" | Some "package-implementation" -> (
-          let s = ref state in
           (* We've found a group or implementation. Scan for dependencies,
              bindings and commands. Doing this here means that:
              - We can share the code for groups and implementations here.
              - The order doesn't matter, because these get processed first.
              A side-effect is that the document root cannot contain these. *)
 
-          (* Upgrade main='...' to <command name='run' path='...'> etc *)
-          let handle_old_command attr_name command_name =
-            match ZI.get_attribute_opt attr_name item with
-            | None -> ()
-            | Some path ->
-                let new_command = make_command ~source_hint:item command_name path in
-                s := {!s with commands = StringMap.add command_name new_command !s.commands} in
-          handle_old_command FeedAttr.main "run";
-          handle_old_command FeedAttr.self_test "test";
-
-          item.Q.attrs |> AttrMap.get (COMPILE_NS.ns, "command") |> if_some (fun command ->
-            let new_command = make_command ~source_hint:item "compile" ~new_attr:"shell-command" command in
-            s := {!s with commands = StringMap.add "compile" new_command !s.commands}
-          );
-
-          let new_bindings = ref [] in
-
-          item |> ZI.iter (fun child ->
-            match ZI.tag child with
-            | Some "requires" | Some "restricts" ->
-                let req = Impl.parse_dep local_dir child in
-                s := {!s with requires = req :: !s.requires}
-            | Some "command" ->
-                let command_name = ZI.get_attribute "name" child in
-                s := {!s with commands = StringMap.add command_name (Impl.parse_command local_dir child) !s.commands}
-            | Some tag when Binding.is_binding tag ->
-                new_bindings := child :: !new_bindings
-            | _ -> ()
-          );
-
-          if !new_bindings <> [] then
-            s := {!s with bindings = !s.bindings @ (List.rev !new_bindings)};
-
-          let new_attrs = !s.attrs |> AttrMap.add_all item.Q.attrs in
-
-          s := {!s with
-            attrs = new_attrs;
-            requires = !s.requires;
-          };
-
+          let s = ref (process_group_properties ~local_dir state item) in
           match ZI.tag item with
           | Some "group" -> process_group !s item
           | Some "implementation" -> process_impl item !s

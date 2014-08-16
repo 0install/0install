@@ -116,6 +116,8 @@ let generic_select_options : (_, _) opt_spec list = [
   ([      "--os"],          1, i_ "target operation system type",      new one_arg OsType @@ fun o -> `Os o);
   (["-r"; "--refresh"],     0, i_ "refresh all used interfaces",       new ambiguous_no_arg `Refresh no_arg_reader);
   (["-s"; "--source"],      0, i_ "select source code",                new no_arg @@ `Source);
+  ([      "--compile"],     0, i_ "compile implementations where no binary is available", new no_arg @@ `Autocompile true);
+  ([      "--no-compile"],  0, i_ "only use prebuilt binaries",        new no_arg @@ `Autocompile false);
   ([      "--version"],     1, i_ "specify version constraint (e.g. '3' or '3..')", new ambiguous_version_arg read_version_option);
   ([      "--version-for"], 2, i_ "set version constraints for a specific interface", parse_version_for);
 ]

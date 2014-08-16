@@ -9,6 +9,7 @@ module Q = Support.Qdom
 module U = Support.Utils
 module FeedAttr = Constants.FeedAttr
 module AttrMap = Support.Qdom.AttrMap
+module Compile = Q.NsQuery(COMPILE_NS)
 
 type importance =
   | Dep_essential       (* Must select a version of the dependency *)
@@ -39,6 +40,10 @@ type impl_type =
   | `local_impl of filepath
   | `package_impl of package_impl ]
 
+type source_impl_type =
+  [ `cache_impl of cache_impl
+  | `local_impl of filepath]
+
 type restriction = < to_string : string; meets_restriction : impl_type t -> bool >
 
 and binding = Q.element
@@ -66,6 +71,14 @@ and properties = {
   commands : command StringMap.t;
 }
 
+and impl_mode = [
+  (* uses the same keys as Impl_mode.t, but
+   * additionally stores the source_impl for
+   * requires_compilation impls *)
+  | `immediate
+  | `requires_compilation of source_impl_type t
+]
+
 and +'a t = {
   qdom : Q.element;
   props : properties;
@@ -74,6 +87,7 @@ and +'a t = {
   machine : string option;      (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
   parsed_version : Versions.parsed_version;
   impl_type : [< impl_type] as 'a;
+  impl_mode : impl_mode;
 }
 
 type generic_implementation = impl_type t
@@ -160,6 +174,10 @@ let make_version_restriction expr =
     let msg = Printf.sprintf "Can't parse version restriction '%s': %s" expr ex_msg in
     log_warning ~ex:ex "%s" msg;
     make_impossible_restriction msg
+
+let local_dir_of_impl_type = function
+  | `local_impl path -> Some (Filename.dirname path)
+  | _ -> None
 
 let parse_dep local_dir dep =
   let iface, dep =
