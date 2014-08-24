@@ -67,9 +67,9 @@ let format_report buf (iface_uri, _source) component =
   let name_impl impl = Impl.get_attr_ex FeedAttr.id impl in
 
   let format_mode impl =
-    match impl.Impl.impl_mode with
-      | `immediate -> ""
-      | `requires_compilation _ -> " after compilation"
+    match impl.Impl.impl_type with
+      | `binary_of _ -> " after compilation"
+      | _ -> ""
   in
 
   let () = match component#impl with

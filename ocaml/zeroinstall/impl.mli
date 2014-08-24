@@ -32,16 +32,16 @@ type cache_impl = {
   retrieval_methods : Support.Qdom.element list;
 }
 
-type impl_type =
+type existing =
   [ `cache_impl of cache_impl
   | `local_impl of Support.Common.filepath
   | `package_impl of package_impl ]
 
-type source_impl_type =
-  [ `cache_impl of cache_impl
-  | `local_impl of Support.Common.filepath]
+type impl_type =
+  [ existing
+  | `binary_of of existing t ]
 
-type restriction = < meets_restriction : impl_type t -> bool; to_string : string >
+and restriction = < meets_restriction : impl_type t -> bool; to_string : string >
 and binding = Support.Qdom.element
 and dependency = {
   dep_qdom : Support.Qdom.element;
@@ -70,17 +70,8 @@ and +'a t = {
   os : string option;           (* Required OS; the first part of the 'arch' attribute. None for '*' *)
   machine : string option;      (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
   parsed_version : Versions.parsed_version;
-  impl_type : [< impl_type] as 'a;
-  impl_mode : impl_mode;
+  impl_type : 'a;
 }
-
-and impl_mode = [
-  (* uses the same keys as Impl_mode.t, but
-   * additionally stores the source_impl for
-   * requires_compilation impls *)
-  | `immediate
-  | `requires_compilation of source_impl_type t
-]
 
 type generic_implementation = impl_type t
 type distro_implementation = [ `package_impl of package_impl ] t
@@ -96,7 +87,7 @@ val make_command :
 val make_distribtion_restriction : string -> restriction
 val make_version_restriction : string -> restriction
 
-val local_dir_of_impl_type : impl_type -> Support.Common.filepath option
+val local_dir_of_impl_type : [> `local_impl of Support.Common.filepath] -> Support.Common.filepath option
 
 (** [parse_dep local_dir elem] parses the <requires>/<restricts> element.
  * [local_dir] is used to resolve relative interface names in local feeds
@@ -115,6 +106,5 @@ val get_command_opt : string -> _ t -> command option
 val get_command_ex : string -> _ t -> command
 
 val get_langs : _ t -> Support.Locale.lang_spec list
-val is_available_locally : General.config -> _ t -> bool
 val is_retrievable_without_network : cache_impl -> bool
 val get_id : _ t -> Feed_url.global_id

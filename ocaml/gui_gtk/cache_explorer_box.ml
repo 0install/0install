@@ -353,7 +353,7 @@ let open_cache_explorer config =
               Hashtbl.add impl_of_digest digest (feed, impl)
             )
           )
-      | `local_impl _ | `package_impl _ -> assert false
+      | `local_impl _ -> assert false
     );
   );
 

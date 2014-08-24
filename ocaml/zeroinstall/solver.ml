@@ -71,7 +71,6 @@ let dummy_impl =
     };
     parsed_version = Versions.dummy;
     impl_type = `local_impl "/dummy";
-    impl_mode = `immediate;
   }
 
 (** A fake <command> used to generate diagnostics if the solve fails. *)
@@ -268,14 +267,14 @@ let get_selections dep_in_use root_req impls commands =
     Hashtbl.add commands_needed iface command_name in
   List.iter check_command commands;
 
-  let process_impl ~impl ~commands ~mode iface =
+  let process_impl ~impl ~requires_compilation ~commands iface =
     let attrs = Impl.(impl.props.attrs)
       |> AttrMap.remove ("", FeedAttr.stability)
 
       (* Replaced by <command> *)
       |> AttrMap.remove ("", FeedAttr.main)
       |> AttrMap.remove ("", FeedAttr.self_test)
-      |> AttrMap.add_no_ns IfaceConfigAttr.mode (Impl_mode.to_string mode)
+      |> AttrMap.add_no_ns IfaceConfigAttr.requires_compilation (string_of_bool requires_compilation)
 
       |> AttrMap.add_no_ns "interface" iface in
 
@@ -335,11 +334,11 @@ let get_selections dep_in_use root_req impls commands =
     match impls#get_selected with
     | None -> None      (* This interface wasn't used *)
     | Some (_lit, impl) ->
-        match impl.Impl.impl_mode with
-          | `immediate ->
-            Some (process_impl ~impl ~mode:`immediate ~commands:(Hashtbl.find_all commands_needed iface) iface)
-          | `requires_compilation source_impl ->
-            Some (process_impl ~impl:source_impl ~mode:`requires_compilation ~commands:["compile"] iface)
+        match impl.Impl.impl_type with
+          | `binary_of source_impl ->
+            Some (process_impl ~impl:source_impl ~requires_compilation:true ~commands:["compile"] iface)
+          | _ ->
+            Some (process_impl ~impl ~requires_compilation:false ~commands:(Hashtbl.find_all commands_needed iface) iface)
   ) in
 
   let root_attrs =

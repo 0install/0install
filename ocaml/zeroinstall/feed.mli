@@ -46,7 +46,7 @@ type feed = {
 (** {2 Parsing} *)
 val parse : system -> Support.Qdom.element -> filepath option -> feed
 
-val get_implementations : feed -> Impl.generic_implementation list
+val get_implementations : feed -> Impl.existing Impl.t list
 val process_group_properties : local_dir:filepath option -> Impl.properties -> Support.Qdom.element -> Impl.properties
 val create_impl : system -> local_dir:filepath option -> Impl.properties -> Support.Qdom.element -> string * Impl.generic_implementation
 val load_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides

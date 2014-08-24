@@ -35,16 +35,16 @@ type cache_impl = {
   retrieval_methods : Q.element list;
 }
 
-type impl_type =
+type existing =
   [ `cache_impl of cache_impl
   | `local_impl of filepath
   | `package_impl of package_impl ]
 
-type source_impl_type =
-  [ `cache_impl of cache_impl
-  | `local_impl of filepath]
+type impl_type =
+  [ existing
+  | `binary_of of existing t ]
 
-type restriction = < to_string : string; meets_restriction : impl_type t -> bool >
+and restriction = < to_string : string; meets_restriction : impl_type t -> bool >
 
 and binding = Q.element
 
@@ -71,14 +71,6 @@ and properties = {
   commands : command StringMap.t;
 }
 
-and impl_mode = [
-  (* uses the same keys as Impl_mode.t, but
-   * additionally stores the source_impl for
-   * requires_compilation impls *)
-  | `immediate
-  | `requires_compilation of source_impl_type t
-]
-
 and +'a t = {
   qdom : Q.element;
   props : properties;
@@ -86,8 +78,7 @@ and +'a t = {
   os : string option;           (* Required OS; the first part of the 'arch' attribute. None for '*' *)
   machine : string option;      (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
   parsed_version : Versions.parsed_version;
-  impl_type : [< impl_type] as 'a;
-  impl_mode : impl_mode;
+  impl_type : 'a;
 }
 
 type generic_implementation = impl_type t
@@ -274,16 +265,6 @@ let get_langs impl =
     | Some langs -> Str.split U.re_space langs
     | None -> ["en"] in
   Support.Utils.filter_map Support.Locale.parse_lang langs
-
-(** Is this implementation in the cache? *)
-let is_available_locally config impl =
-  match impl.impl_type with
-  | `package_impl {package_state;_} -> package_state = `installed
-  | `local_impl path -> config.system#file_exists path
-  | `cache_impl {digests;_} ->
-      match Stores.lookup_maybe config.system digests config.stores with
-      | None -> false
-      | Some _path -> true
 
 let is_retrievable_without_network cache_impl =
   let ok_without_network elem =

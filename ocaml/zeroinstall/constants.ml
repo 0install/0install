@@ -44,5 +44,5 @@ module IfaceConfigAttr =
     let is_site_package = "is-site-package"
     let src = "src"
     let arch = "arch"
-    let mode = "mode"
+    let requires_compilation = "requires-compilation"
   end

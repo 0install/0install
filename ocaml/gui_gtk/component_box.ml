@@ -597,12 +597,14 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
               item#connect#activate ==> (fun () ->
                 U.xdg_open_dir config.system path
               ) in
-            begin match impl.Impl.impl_type with
-            | `local_impl path -> add_open_item path
-            | `cache_impl info ->
-                let path = Zeroinstall.Stores.lookup_maybe config.system info.Impl.digests config.stores in
-                path |> if_some add_open_item
-            | `package_impl _ -> () end;
+            let rec add_open = function
+              | `binary_of source -> add_open (source.Impl.impl_type :> Impl.impl_type)
+              | `local_impl path -> add_open_item path
+              | `cache_impl info ->
+                  let path = Zeroinstall.Stores.lookup_maybe config.system info.Impl.digests config.stores in
+                  path |> if_some add_open_item
+              | `package_impl _ -> () in
+            add_open impl.Impl.impl_type;
 
             let explain = GMenu.menu_item ~packing:menu#add ~label:"Explain this decision" () in
             explain#connect#activate ==> (fun () ->

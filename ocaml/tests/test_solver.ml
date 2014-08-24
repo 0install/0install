@@ -430,6 +430,7 @@ let suite = "solver">::: [
       machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
       languages = Support.Locale.score_langs @@ U.filter_map Support.Locale.parse_lang ["es_ES"; "fr_FR"];
       allowed_uses = StringSet.empty;
+      autocompile = false;
     } in
 
     let test_solve scope_filter =
@@ -493,6 +494,7 @@ let suite = "solver">::: [
       machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
       languages = Support.Locale.LangMap.empty;
       allowed_uses = StringSet.empty;
+      autocompile = false;
     }) in
 
     let impl_provider = make_impl_provider config scope_filter in
@@ -529,6 +531,7 @@ let suite = "solver">::: [
       machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
       languages = Support.Locale.LangMap.empty;
       allowed_uses = StringSet.empty;
+      autocompile = false;
     }) in
     let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_provider.feed_provider) scope_filter in
     let bin_impls = impl_provider#get_implementations iface ~source:true in
@@ -621,6 +624,7 @@ let suite = "solver">::: [
         machine_ranks = Arch.get_machine_ranks machine ~multiarch:true;
         languages = Support.Locale.LangMap.empty;
         allowed_uses = StringSet.empty;
+        autocompile = false;
       }) in
       let root_req = Solver.ReqIface ("http://foo/MultiArch.xml", false) in
       let impl_provider = make_impl_provider config scope_filter in
@@ -683,6 +687,7 @@ let suite = "solver">::: [
         machine_ranks = Arch.get_machine_ranks machine ~multiarch:true;
         languages = Support.Locale.score_langs [Fake_system.expect @@ Support.Locale.parse_lang lang];
         allowed_uses = StringSet.empty;
+        autocompile = false;
       }) in
       let impl_provider = new Impl_provider.default_impl_provider config feed_provider scope_filter in
       let root_req = Solver.ReqIface (Test_0install.feed_dir +/ "Langs.xml", false) in

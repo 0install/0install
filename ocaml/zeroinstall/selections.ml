@@ -127,11 +127,9 @@ let find iface sels =
   with Not_found -> None
 
 let requires_compilation sels =
-  let matches sel = ZI.tag sel = Some "selection" && (
-    match ZI.get_attribute_opt IfaceConfigAttr.mode sel |> Option.map Impl_mode.parse with
-      | Some `requires_compilation -> true
-      | _ -> false
-  ) in
+  let matches sel =
+    ZI.tag sel = Some "selection" &&
+    ZI.get_attribute_opt IfaceConfigAttr.requires_compilation sel = Some "true" in
   List.exists matches sels.Q.child_nodes
 
 let root_sel sels =

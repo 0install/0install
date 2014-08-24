@@ -141,13 +141,14 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
 
       let user_restrictions = StringMap.find iface extra_restrictions in
 
-      let is_available impl =
+      let rec is_available impl =
         try
           let open Impl in
           match impl.impl_type with
-          | `package_impl {package_state;_} -> package_state = `installed
-          | `local_impl path -> config.system#file_exists path
-          | `cache_impl {digests;_} -> Stores.check_available cached_digests digests
+            | `binary_of source -> is_available (source :> Impl.generic_implementation)
+            | `package_impl {package_state;_} -> package_state = `installed
+            | `local_impl path -> config.system#file_exists path
+            | `cache_impl {digests;_} -> Stores.check_available cached_digests digests
         with Safe_exception _ as ex ->
           log_warning ~ex "Can't test whether impl is available: %s" (Support.Qdom.show_with_loc impl.Impl.qdom);
           false in
@@ -265,14 +266,13 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
       let post_compilation_impls impls =
         let rv = ref [] in
         let add_impl impl = rv := impl :: !rv in
-        impls |> List.iter (fun (impl:Impl.generic_implementation) ->
+        impls |> List.iter (fun impl ->
           let open Impl in
           if Impl.is_source impl then (
             let props = impl.props in
 
             begin match StringMap.find "compile" props.commands with
               | Some command ->
-                assert (impl.impl_mode = `immediate);
                 command.command_qdom |> Compile.iter ~name:"implementation" (fun child ->
                   (* synthesize a post-compiled implementation *)
                   let compiled_state = {
@@ -294,13 +294,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
                   let _, synthetic_impl = Feed.create_impl config.system ~local_dir compiled_state node in
                   add_impl { synthetic_impl with
                     machine = None;
-                    impl_mode = `requires_compilation (match impl with
-                      (* we know `source_impl` will be of source_impl_type, this
-                      * match is just to convince the compiler *)
-                      | {impl_type = #source_impl_type; _} as impl -> impl
-                      | _ -> assert false
-                    );
-                    impl_type = impl.impl_type;
+                    impl_type = `binary_of impl;
                   }
                 )
               | None -> ()
@@ -322,7 +316,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
             | None -> ([], None)
             | Some ((feed, _overrides) as pair) ->
                 let sub_feeds = U.filter_map get_feed_if_useful feed.Feed.imported_feeds in
-                let distro_impls = (get_distro_impls feed :> Impl.generic_implementation list) in
+                let distro_impls = (get_distro_impls feed :> Impl.existing Impl.t list) in
                 let impls = List.concat (distro_impls :: List.map get_impls (pair :: sub_feeds)) in
                 (impls, iface_config.Feed_cache.stability_policy) in
 
@@ -333,9 +327,9 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
 
           let impls = List.concat (main_impls :: List.map get_impls extra_feeds) in
 
-          let impls = if autocompile
-            then impls @ (post_compilation_impls impls)
-            else impls in
+          let impls : Impl.generic_implementation list = if autocompile
+            then (impls :> Impl.generic_implementation list) @ (post_compilation_impls impls)
+            else (impls :> Impl.generic_implementation list) in
 
           let impls = List.sort (compare_impls stability_policy) impls in
 
@@ -378,18 +372,16 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
             (* It's not cached, but might still be OK... *)
             else (
               let open Impl in
-              match impl.Impl.impl_mode with
-              | `requires_compilation _ when autocompile = false -> `Not_binary
-              | _ -> begin
-                match impl.impl_type with
+              let rec avail = function
+                | `binary_of source -> avail (source.impl_type :> Impl.impl_type)
                 | `local_impl path -> `Missing_local_impl path
                 | `package_impl _ -> if config.network_use = Offline then `Not_cached_and_offline else `Acceptable
                 | `cache_impl {retrieval_methods = [];_} -> `No_retrieval_methods
                 | `cache_impl cache_impl ->
                     if config.network_use <> Offline then `Acceptable   (* Can download it *)
                     else if is_retrievable_without_network cache_impl then `Acceptable
-                    else `Not_cached_and_offline
-              end
+                    else `Not_cached_and_offline in
+              avail impl.impl_type
             ) in
 
       let rejects = ref [] in
