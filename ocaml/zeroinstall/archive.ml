@@ -127,7 +127,7 @@ let extract_tar config ~dstdir ?extract ~compression archive =
   extract |> if_some (fun extract ->
     (* Limit the characters we accept, to avoid sending dodgy strings to tar *)
     if not (Str.string_match (Str.regexp "^[a-zA-Z0-9][- _a-zA-Z0-9.]*$") extract 0) then
-      raise_safe "Illegal character in extract attribute"
+      raise_safe "Illegal character in extract attribute ('%s')" extract
   );
 
   let share_dir = lazy (
