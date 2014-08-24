@@ -118,7 +118,9 @@ let () =
 
   dispatch (function
   | Before_options ->
+      Options.make_links := false;
       Options.use_ocamlfind := true;
+      Options.build_dir := Filename.dirname Pathname.pwd ^ "/build/ocaml";  (* Default if run manually *)
   | After_rules ->
     rule "Build everything (native)"
       ~prod:"all-native.otarget"

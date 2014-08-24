@@ -1,7 +1,6 @@
 OCAML_BUILDDIR=../build/ocaml
 TYPE=native
-DEBUG=-cflags -g
-OCAMLBUILD=ocamlbuild -j 0 ${DEBUG} -build-dir "${OCAML_BUILDDIR}"
+OCAMLBUILD=ocamlbuild -j 0 -build-dir "${OCAML_BUILDDIR}"
 ifeq ($(OS), Windows_NT)
   WINDOWS_LIBS = $(shell dirname $(shell which ocamlc))
   OCAMLBUILDFLAGS = -lflag -cclib -lflag -lshell32
