@@ -45,8 +45,7 @@ type feed = {
 (** {2 Parsing} *)
 val parse : system -> [`feed] Element.t -> filepath option -> feed
 
-val get_implementations : feed -> Impl.generic_implementation list
-
+val get_implementations : feed -> Impl.existing Impl.t list
 val load_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides
 val save_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides -> unit
 val update_last_checked_time : General.config -> [< Feed_url.remote_feed] -> unit

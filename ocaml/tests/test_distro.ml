@@ -14,6 +14,16 @@ module Impl = Zeroinstall.Impl
 module F = Zeroinstall.Feed
 module U = Support.Utils
 
+let is_available_locally config impl =
+  let open Impl in
+  match impl.impl_type with
+  | `package_impl {package_state;_} -> package_state = `installed
+  | `local_impl path -> config.system#file_exists path
+  | `cache_impl {digests;_} ->
+      match Zeroinstall.Stores.lookup_maybe config.system digests config.stores with
+      | None -> false
+      | Some _path -> true
+
 let test_feed = "<?xml version='1.0'?>\n\
 <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface' uri='http://repo.roscidus.com/python/python'>\n\
   <name>Test</name>\n\
@@ -374,8 +384,8 @@ let suite = "distro">::: [
           | _ -> assert false
         );
         Fake_system.assert_str_equal "3.4.2-10-2" (Impl.get_attr_ex "version" installed);
-        assert_equal true @@ Impl.is_available_locally config installed;
-        assert_equal false @@ Impl.is_available_locally config uninstalled;
+        assert_equal true @@ is_available_locally config installed;
+        assert_equal false @@ is_available_locally config uninstalled;
         assert_equal None installed.Impl.machine;
     | _ -> assert false
     end;

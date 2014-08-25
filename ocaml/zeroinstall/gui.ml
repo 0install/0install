@@ -33,6 +33,7 @@ let get_download_size info impl =
 let get_fetch_info config impl =
   try
     match impl.Impl.impl_type with
+    | `binary_of _ -> ("(compile)", "Need to compile from source")
     | `local_impl path -> ("(local)", path)
     | `cache_impl info -> (
         match Stores.lookup_maybe config.system info.Impl.digests config.stores with

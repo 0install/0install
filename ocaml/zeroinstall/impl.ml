@@ -34,12 +34,16 @@ type cache_impl = {
   retrieval_methods : Q.element list;
 }
 
-type impl_type =
+type existing =
   [ `cache_impl of cache_impl
   | `local_impl of filepath
   | `package_impl of package_impl ]
 
-type restriction = < to_string : string; meets_restriction : impl_type t -> bool >
+type impl_type =
+  [ existing
+  | `binary_of of existing t ]
+
+and restriction = < to_string : string; meets_restriction : impl_type t -> bool >
 
 and binding = Element.binding_node Element.t
 
@@ -74,7 +78,7 @@ and +'a t = {
   os : string option;           (* Required OS; the first part of the 'arch' attribute. None for '*' *)
   machine : string option;      (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
   parsed_version : Version.t;
-  impl_type : [< impl_type] as 'a;
+  impl_type : 'a;
 }
 
 type generic_implementation = impl_type t
@@ -239,6 +243,10 @@ let parse_command local_dir elem : command =
 
 let is_source impl = impl.machine = Some "src"
 
+let existing_source = function
+  | {impl_type = `binary_of source; _} -> source
+  | {impl_type = #existing; _} as existing -> existing
+
 let get_command_opt command_name impl = StringMap.find command_name impl.props.commands
 
 let get_command_ex command_name impl : command =
@@ -251,16 +259,6 @@ let get_langs impl =
     | Some langs -> Str.split U.re_space langs
     | None -> ["en"] in
   Support.Utils.filter_map Support.Locale.parse_lang langs
-
-(** Is this implementation in the cache? *)
-let is_available_locally config impl =
-  match impl.impl_type with
-  | `package_impl {package_state;_} -> package_state = `installed
-  | `local_impl path -> config.system#file_exists path
-  | `cache_impl {digests;_} ->
-      match Stores.lookup_maybe config.system digests config.stores with
-      | None -> false
-      | Some _path -> true
 
 let is_retrievable_without_network cache_impl =
   let ok_without_network elem =

@@ -585,7 +585,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
                       `problem (msg, Some (wait_for_mirror mirror)) |> Lwt.return
               )
 
-    method download_impls (impls:Impl.generic_implementation list) : [ `success | `aborted_by_user ] Lwt.t =
+    method download_impls (impls:Impl.existing Impl.t list) : [ `success | `aborted_by_user ] Lwt.t =
       (* todo: external fetcher on Windows? *)
 
       let zi_impls = ref [] in

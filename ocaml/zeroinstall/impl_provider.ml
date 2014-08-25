@@ -140,7 +140,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
       let is_available impl =
         try
           let open Impl in
-          match impl.impl_type with
+          match (Impl.existing_source impl).impl_type with
           | `package_impl {package_state;_} -> package_state = `installed
           | `local_impl path -> config.system#file_exists path
           | `cache_impl {digests;_} -> Stores.check_available cached_digests digests
@@ -275,7 +275,8 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
             | None -> if config.help_with_testing then Testing else Stable
             | Some s -> s in
 
-          let impls = List.sort (compare_impls stability_policy) @@ List.concat (main_impls :: List.map get_impls extra_feeds) in
+          let impls = List.concat (main_impls :: List.map get_impls extra_feeds) in
+          let impls = List.sort (compare_impls stability_policy) (impls :> Impl.generic_implementation list) in
 
           let replacement =
             match master_feed with
@@ -313,7 +314,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
             (* It's not cached, but might still be OK... *)
             else (
               let open Impl in
-              match impl.impl_type with
+              match (Impl.existing_source impl).impl_type with
               | `local_impl path -> `Missing_local_impl path
               | `package_impl _ -> if config.network_use = Offline then `Not_cached_and_offline else `Acceptable
               | `cache_impl {retrieval_methods = [];_} -> `No_retrieval_methods

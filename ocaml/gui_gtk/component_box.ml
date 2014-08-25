@@ -602,7 +602,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
               item#connect#activate ==> (fun () ->
                 U.xdg_open_dir config.system path
               ) in
-            begin match impl.Impl.impl_type with
+            begin match (Impl.existing_source impl).Impl.impl_type with
             | `local_impl path -> add_open_item path
             | `cache_impl info ->
                 let path = Stores.lookup_maybe config.system info.Impl.digests config.stores in
