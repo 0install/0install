@@ -302,21 +302,26 @@ let export (system:system) name value =
 let find_bin_dir_in ~warn_about_path config paths =
   let system = config.system in
   let cache_home = List.hd config.basedirs.Support.Basedir.cache in
+  let home_bin = system#getenv "HOME" |> pipe_some (fun home -> Some (home +/ "bin")) in
+
   let best =
-    paths |> U.first_match (fun path ->
-      let path = U.realpath system path in
-      let starts x = U.starts_with path x in
-      if starts "/bin" || starts "/sbin" then None
-      else if starts cache_home then None (* print "Skipping cache: %s" path *)
-      else (
-        try
-          Unix.(access path [W_OK]);
-          (* /usr/local/bin is OK if we're running as root *)
-          if starts "/usr/" && not (starts "/usr/local/bin") then None
-          else Some path
-        with Unix.Unix_error _ -> None
-      )
-    ) in
+    match home_bin with
+    | Some home_bin when List.mem home_bin paths -> Some home_bin
+    | _ ->
+      paths |> U.first_match (fun path ->
+        let path = U.realpath system path in
+        let starts x = U.starts_with path x in
+        if starts "/bin" || starts "/sbin" then None
+        else if starts cache_home then None (* print "Skipping cache: %s" path *)
+        else (
+          try
+            Unix.(access path [W_OK]);
+            (* /usr/local/bin is OK if we're running as root *)
+            if starts "/usr/" && not (starts "/usr/local/bin") then None
+            else Some path
+          with Unix.Unix_error _ -> None
+        )
+      ) in
 
     match best with
     | Some path -> path
