@@ -15,6 +15,16 @@ let (@@) a b = a b
 let (|>) f x = x f
 ENDIF
 
+IFDEF OCAML_LT_4_02 THEN
+module Bytes = struct
+  include String
+
+  let to_string = String.copy
+  let unsafe_to_string x = x
+  let unsafe_of_string x = x
+end
+ENDIF
+
 type filepath = string
 type varname = string
 

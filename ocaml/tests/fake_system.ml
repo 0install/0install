@@ -332,7 +332,7 @@ class fake_system tmpdir =
       let tmp_fd = Unix.openfile tmpfile [Unix.O_RDWR] 0o644 in
       Unix.unlink tmpfile;
 
-      ignore @@ Unix.write tmp_fd msg 0 (String.length msg);
+      ignore @@ Unix.write tmp_fd (Bytes.unsafe_of_string msg) 0 (String.length msg);
       ignore @@ Unix.lseek tmp_fd 0 Unix.SEEK_SET;
       U.finally_do
         (fun old_stdin -> Unix.dup2 old_stdin Unix.stdin; Unix.close old_stdin)
@@ -521,13 +521,13 @@ let fake_packagekit _config =
 (** Read all input from a channel. *)
 let input_all ch =
   let b = Buffer.create 100 in
-  let buf = String.create 256 in
+  let buf = Bytes.create 256 in
   try
     while true do
       let got = input ch buf 0 256 in
       if got = 0 then
         raise End_of_file;
-      Buffer.add_substring b buf 0 got
+      Buffer.add_substring b (Bytes.to_string buf) 0 got
     done;
     failwith "!"
   with End_of_file -> Buffer.contents b

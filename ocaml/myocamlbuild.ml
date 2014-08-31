@@ -177,6 +177,7 @@ let () =
 
     let defines_portable = ref [] in
     if (major_version < 4 || (major_version == 4 && minor_version < 1)) then add "-DOCAML_LT_4_01" defines_portable;
+    if (major_version < 4 || (major_version == 4 && minor_version < 2)) then add "-DOCAML_LT_4_02" defines_portable;
     if use_dbus then add "-DHAVE_DBUS" defines_portable;
     if gtk_dir <> None then add "-DHAVE_GTK" defines_portable;
     if have_ocurl_lwt then add "-DHAVE_OCURL_LWT" defines_portable;

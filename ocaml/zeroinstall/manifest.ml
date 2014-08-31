@@ -328,13 +328,13 @@ let copy_with_verify (system:system) src dst ~digest ~required_hash ~mode =
   src |> system#with_open_in [Open_rdonly;Open_binary] (fun ic ->
     dst |> system#with_open_out [Open_creat;Open_excl;Open_wronly;Open_binary] ~mode (fun oc ->
       let bufsize = 4096 in
-      let buf = String.create bufsize in
+      let buf = Bytes.create bufsize in
       try
         while true do
           let got = input ic buf 0 bufsize in
           if got = 0 then raise End_of_file;
           assert (got > 0);
-          let data = String.sub buf 0 got in
+          let data = Bytes.sub buf 0 got |> Bytes.to_string in
           H.update digest data;
           output_string oc data
         done

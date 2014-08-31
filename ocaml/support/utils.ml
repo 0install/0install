@@ -312,7 +312,7 @@ let rmtree ~even_if_locked (sys:system) root =
 
 let copy_channel ic oc =
   let bufsize = 4096 in
-  let buf = String.create bufsize in
+  let buf = Bytes.create bufsize in
   try
     while true do
       let got = input ic buf 0 bufsize in
@@ -437,7 +437,7 @@ let format_date t =
     t.tm_mday
 
 let read_upto n ch : string =
-  let buf = String.create n in
+  let buf = Bytes.create n in
   let saved = ref 0 in
   try
     while !saved < n do
@@ -447,9 +447,9 @@ let read_upto n ch : string =
       assert (got > 0);
       saved := !saved + got
     done;
-    buf
+    Bytes.unsafe_to_string buf
   with End_of_file ->
-    String.sub buf 0 !saved
+    Bytes.sub buf 0 !saved |> Bytes.unsafe_to_string
 
 let is_dir system path =
   match system#stat path with
@@ -464,11 +464,11 @@ let read_file (system:system) path =
   match system#stat path with
   | None -> raise_safe "File '%s' doesn't exist" path
   | Some info ->
-      let buf = String.create (info.Unix.st_size) in
+      let buf = Bytes.create (info.Unix.st_size) in
       path |> system#with_open_in [Open_rdonly;Open_binary] (fun ic ->
         really_input ic buf 0 info.Unix.st_size
       );
-      buf
+      Bytes.unsafe_to_string buf
 
 let safe_int_of_string s =
   try int_of_string s

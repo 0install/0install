@@ -40,7 +40,8 @@ let read_chunk ch : J.json option Lwt.t =
   | None -> Lwt.return None
   | Some size ->
       let size = U.safe_int_of_string size in
-      let buf = String.create size in
+      let buf = Bytes.create size in
+      let buf = Bytes.unsafe_to_string buf in   (* Needed for old Lwt API *)
       lwt () = Lwt_io.read_into_exactly ch buf 0 size in
       log_info "Message from peer: %s" buf;
       Lwt.return (Some (J.from_string buf))

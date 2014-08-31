@@ -4,6 +4,8 @@
 
 (** Secure hashes. *)
 
+open Common
+
 class type digest_context =
   object
     method update : string -> unit
@@ -16,7 +18,6 @@ class type digest_context =
   end
 
 IFDEF HAVE_SHA THEN
-open Common
 
 (* Implementation using the "sha" package *)
 
@@ -80,10 +81,10 @@ let base32_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
 (** Return the digest as a base-32-encoded ASCII string (with no padding characters) *)
 let b32_digest ctx =
   let raw_digest = ctx#to_bin in
-  let str_digest = String.create ((String.length raw_digest * 8 + 4) / 5) in
+  let str_digest = Bytes.create ((String.length raw_digest * 8 + 4) / 5) in
   let in_byte = ref 0 in
   let in_bit = ref 3 in
-  for i = 0 to String.length str_digest - 1 do
+  for i = 0 to Bytes.length str_digest - 1 do
     (* Read next five bits from raw_digest *)
     let vl =
       if !in_byte = String.length raw_digest then 0 else
@@ -93,7 +94,7 @@ let b32_digest ctx =
         Char.code raw_digest.[!in_byte - 1] lsl (8 - !in_bit)
       ) else 0 in
 
-    str_digest.[i] <- base32_chars.[(vl lor vh) land 31];
+    Bytes.set str_digest i (base32_chars.[(vl lor vh) land 31]);
     if !in_bit >= 5 then
       in_bit := !in_bit - 5
     else (
@@ -101,13 +102,15 @@ let b32_digest ctx =
       incr in_byte
     )
   done;
-  str_digest
+  Bytes.unsafe_to_string str_digest
 
 (** Read until the end of the channel, adding each byte to the digest. *)
 let update_from_channel ctx ch =
-  let buf = String.create 4096 in
+  let buf = Bytes.create 4096 in
   let rec read () =
-    match input ch buf 0 (String.length buf) with
+    match input ch buf 0 (Bytes.length buf) with
     | 0 -> ()
-    | n -> ctx#update (String.sub buf 0 n); read () in
+    | n ->
+        let data = Bytes.sub buf 0 n |> Bytes.unsafe_to_string in
+        ctx#update data; read () in
   read ()

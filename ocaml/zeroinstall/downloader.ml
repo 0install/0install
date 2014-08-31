@@ -58,7 +58,7 @@ let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.
           if !skip_bytes >= l then (
             skip_bytes := !skip_bytes - l
           ) else (
-            output ch data !skip_bytes (l - !skip_bytes);
+            output ch (Bytes.unsafe_of_string data) !skip_bytes (l - !skip_bytes);
             skip_bytes := 0
           );
           l
