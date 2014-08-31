@@ -132,7 +132,7 @@ let run_sat_test expected problem =
     )
   );
 
-  let root_req = Solver.ReqIface (fst @@ List.hd expected_items, false) in
+  let root_req = Zeroinstall.Solver_types.ReqIface (fst @@ List.hd expected_items, false) in
   let result = Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:false in
 
   match result, root_expected_version with

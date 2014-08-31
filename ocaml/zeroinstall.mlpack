@@ -42,6 +42,8 @@ Recipe
 Requirements
 Selections
 Solver
+Solver_core
+Solver_types
 Stores
 Tree
 Trust

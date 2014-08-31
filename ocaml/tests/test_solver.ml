@@ -622,7 +622,7 @@ let suite = "solver">::: [
         languages = Support.Locale.LangMap.empty;
         allowed_uses = StringSet.empty;
       }) in
-      let root_req = Solver.ReqIface ("http://foo/MultiArch.xml", false) in
+      let root_req = Solver_types.ReqIface ("http://foo/MultiArch.xml", false) in
       let impl_provider = make_impl_provider config scope_filter in
       match Solver.do_solve impl_provider root_req ~closest_match:false with
       | None -> assert false
@@ -685,7 +685,7 @@ let suite = "solver">::: [
         allowed_uses = StringSet.empty;
       }) in
       let impl_provider = new Impl_provider.default_impl_provider config feed_provider scope_filter in
-      let root_req = Solver.ReqIface (Test_0install.feed_dir +/ "Langs.xml", false) in
+      let root_req = Solver_types.ReqIface (Test_0install.feed_dir +/ "Langs.xml", false) in
       match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:false with
       | None -> assert_failure expected
       | Some results ->

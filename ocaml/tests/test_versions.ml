@@ -3,6 +3,7 @@
  *)
 
 open OUnit
+open Zeroinstall.General
 open Support.Common
 open Fake_system
 module Versions = Zeroinstall.Versions
@@ -16,6 +17,21 @@ let pv v =
 let invalid v =
   try ignore @@ pv v; assert false
   with Safe_exception _ -> () 
+
+let dummy_impl = Impl.({
+  qdom = ZI.make "dummy";
+  os = None;
+  machine = None;
+  stability = Testing;
+  props = {
+    attrs = Support.Qdom.AttrMap.empty;
+    requires = [];
+    commands = StringMap.empty;   (* (not used; we can provide any command) *)
+    bindings = [];
+  };
+  parsed_version = Versions.dummy;
+  impl_type = `local_impl "/dummy";
+})
 
 let assert_order a b =
   assert ((pv a) < (pv b))
@@ -116,7 +132,7 @@ let suite = "versions">::: [
     let r = ref (Impl.make_version_restriction "2.6..!3 | 3.2.2.. | 1 | ..!0.2") in
 
     let test v result =
-      let impl = {Zeroinstall.Solver.dummy_impl with Impl.parsed_version = Versions.parse_version v} in
+      let impl = {dummy_impl with Impl.parsed_version = Versions.parse_version v} in
       assert_equal result @@ (!r)#meets_restriction impl in
 
     test "0.1"  true;
@@ -170,11 +186,11 @@ let suite = "versions">::: [
   );
 
   "restrictions">:: (fun () ->
-    let v6 = {Zeroinstall.Solver.dummy_impl with
+    let v6 = {dummy_impl with
       Impl.parsed_version = (Versions.parse_version "6");
       Impl.impl_type = `package_impl {Impl.package_distro = "RPM"; Impl.package_state = `installed};
     } in
-    let v7 = {Zeroinstall.Solver.dummy_impl with
+    let v7 = {dummy_impl with
       Impl.parsed_version = (Versions.parse_version "7");
       Impl.impl_type = `package_impl {Impl.package_distro = "Gentoo"; Impl.package_state = `installed};
     } in
