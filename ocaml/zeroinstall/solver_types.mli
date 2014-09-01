@@ -26,8 +26,8 @@ module type MODEL = sig
   val to_string : impl -> string
   val command_to_string : command -> string
 
-  (* A dummy implementation, used to get diagnostic information if the solve fails. It satisfies all requirements,
-     even conflicting ones. *)
+  (* A dummy implementation, used to get diagnostic information if the solve fails.
+   * It satisfies all requirements, even conflicting ones. *)
   val dummy_impl : impl
 
   (** A fake <command> used to generate diagnostics if the solve fails. *)
