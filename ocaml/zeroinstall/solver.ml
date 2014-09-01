@@ -13,7 +13,7 @@ module AttrMap = Qdom.AttrMap
 
 module Model = struct
   type impl = Impl.generic_implementation
-  type impl_provider = Impl_provider.impl_provider
+  type t = Impl_provider.impl_provider
   type command = Impl.command
   type dependency = Impl.dependency
   type restriction = Impl.restriction
@@ -49,10 +49,10 @@ module Model = struct
 
   let get_command impl name = StringMap.find name impl.Impl.props.Impl.commands
 
-  let requires impl = impl.Impl.props.Impl.requires
-  let command_requires command = command.Impl.command_requires
+  let requires impl_provider impl = List.filter impl_provider#is_dep_needed Impl.(impl.props.requires)
+  let command_requires impl_provider command = List.filter impl_provider#is_dep_needed Impl.(command.command_requires)
 
-  let to_selection iface commands dep_in_use impl =
+  let to_selection impl_provider iface commands impl =
     let attrs = Impl.(impl.props.attrs)
       |> AttrMap.remove ("", FeedAttr.stability)
 
@@ -91,7 +91,7 @@ module Model = struct
         in
         let child_nodes = List.filter want_command_child command_elem.Qdom.child_nodes in
         let add_command_dep child_nodes dep =
-          if dep.Impl.dep_importance <> Impl.Dep_restricts && dep_in_use dep then
+          if dep.Impl.dep_importance <> Impl.Dep_restricts && impl_provider#is_dep_needed dep then
             dep.Impl.dep_qdom :: child_nodes
           else
             child_nodes in
@@ -101,8 +101,8 @@ module Model = struct
       );
 
       List.iter copy_elem impl.Impl.props.Impl.bindings;
-      requires impl |> List.iter (fun dep ->
-        if dep_in_use dep && dep.Impl.dep_importance <> Impl.Dep_restricts then
+      requires impl_provider impl |> List.iter (fun dep ->
+        if dep.Impl.dep_importance <> Impl.Dep_restricts then
           copy_elem (dep.Impl.dep_qdom)
       );
 
@@ -134,7 +134,6 @@ module Model = struct
       Binding.parse_binding binding
       |> pipe_some Binding.get_command
     )
-  let is_dep_needed impl_provider dep = impl_provider#is_dep_needed dep
   let restricts_only dep = (dep.Impl.dep_importance = Impl.Dep_restricts)
 end
 

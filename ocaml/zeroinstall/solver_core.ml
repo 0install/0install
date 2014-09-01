@@ -53,7 +53,7 @@ module Make (Model : Solver_types.MODEL) = struct
       method get_state : decision_state
     end
 
-  class impl_candidates (clause : S.at_most_one_clause option) (vars : (S.lit * Model.impl) list) =
+  class impl_candidates model (clause : S.at_most_one_clause option) (vars : (S.lit * Model.impl) list) =
     object (_ : #candidates)
       method get_clause = clause
 
@@ -97,7 +97,7 @@ module Make (Model : Solver_types.MODEL) = struct
                 let impl = match S.get_user_data_for_lit lit with
                   | SolverData.ImplElem impl -> impl
                   | _ -> assert false in
-                Selected (Model.requires impl)
+                Selected (Model.requires model impl)
             | None ->
                 match S.get_best_undecided clause with
                 | Some lit -> Undecided lit
@@ -109,7 +109,7 @@ module Make (Model : Solver_types.MODEL) = struct
     end
 
   (** Holds all the commands with a given name within an interface. *)
-  class command_candidates (clause : S.at_most_one_clause option) (vars : (S.lit * Model.command) list) =
+  class command_candidates model (clause : S.at_most_one_clause option) (vars : (S.lit * Model.command) list) =
     object (_ : #candidates)
       method get_clause = clause
 
@@ -126,7 +126,7 @@ module Make (Model : Solver_types.MODEL) = struct
                 let command = match S.get_user_data_for_lit lit with
                   | SolverData.CommandElem command -> command
                   | _ -> assert false in
-                Selected (Model.command_requires command)
+                Selected (Model.command_requires model command)
             | None ->
                 match S.get_best_undecided clause with
                 | Some lit -> Undecided lit
@@ -217,8 +217,7 @@ module Make (Model : Solver_types.MODEL) = struct
     object
       method get_selections : Selections.t
       method get_selected : source:bool -> General.iface_uri -> Model.impl option
-      method impl_provider : Impl_provider.impl_provider
-      method impl_provider : Impl_provider.impl_provider
+      method impl_provider : Model.t
       method implementations : ((General.iface_uri * bool) * (S.lit * Model.impl) option) list
       method requirements : Solver_types.requirements
     end
@@ -229,7 +228,7 @@ module Make (Model : Solver_types.MODEL) = struct
   (** Create a <selections> document from the result of a solve.
    * The use of Maps ensures that the inputs will be sorted, so we will have a stable output.
    *)
-  let get_selections dep_in_use root_req impls commands =
+  let get_selections model root_req impls commands =
     (* For each implementation, remember which commands we need. *)
     let commands_needed = Hashtbl.create 10 in
     let check_command ((command_name, iface, _source), _) =
@@ -241,7 +240,7 @@ module Make (Model : Solver_types.MODEL) = struct
       | None -> None      (* This interface wasn't used *)
       | Some (_lit, impl) ->
           let commands = Hashtbl.find_all commands_needed iface in
-          Some (Model.to_selection iface commands dep_in_use impl)
+          Some (Model.to_selection model iface commands impl)
     ) in
 
     let root_attrs =
@@ -344,8 +343,8 @@ module Make (Model : Solver_types.MODEL) = struct
     )
 
   (* Add the implementations of an interface to the ImplCache (called the first time we visit it). *)
-  let make_impl_clause sat ~closest_match replacements impl_provider iface_uri ~source =
-    let {Model.replacement; impls} = Model.implementations impl_provider iface_uri ~source in
+  let make_impl_clause sat ~closest_match replacements model iface_uri ~source =
+    let {Model.replacement; impls} = Model.implementations model iface_uri ~source in
 
     (* Insert dummy_impl (last) if we're trying to diagnose a problem. *)
     let impls =
@@ -358,7 +357,7 @@ module Make (Model : Solver_types.MODEL) = struct
           (var, impl)
       ) in
     let impl_clause = if impls <> [] then Some (S.at_most_one sat (List.map fst impls)) else None in
-    let clause = new impl_candidates impl_clause impls in
+    let clause = new impl_candidates model impl_clause impls in
 
     (* If we have a <replaced-by>, remember to add a conflict with our replacement *)
     replacement |> if_some (fun replacement ->
@@ -369,7 +368,7 @@ module Make (Model : Solver_types.MODEL) = struct
     clause, impls
 
   (* Create a new CommandCache entry (called the first time we request this key). *)
-  let make_commands_clause sat lookup_impl process_self_commands process_deps key =
+  let make_commands_clause model sat lookup_impl process_self_commands process_deps key =
     let (command, iface, source) = key in
     let impls = lookup_impl (iface, source) in
     let commands = impls#get_commands command in
@@ -379,7 +378,7 @@ module Make (Model : Solver_types.MODEL) = struct
       (var, elem) in
     let vars = List.map make_provides_command commands in
     let command_clause = if vars <> [] then Some (S.at_most_one sat @@ List.map fst vars) else None in
-    let data = new command_candidates command_clause vars in
+    let data = new command_candidates model command_clause vars in
 
     (data, fun () ->
       let depend_on_impl (command_var, command) (impl_var, _command) =
@@ -388,14 +387,14 @@ module Make (Model : Solver_types.MODEL) = struct
         (* Commands can depend on other commands in the same implementation *)
         process_self_commands command_var iface (Model.command_self_commands command);
         (* Process command-specific dependencies *)
-        process_deps command_var (Model.command_requires command);
+        process_deps command_var (Model.command_requires model command);
       in
       List.iter2 depend_on_impl vars commands
     )
 
   (** Starting from [root_req], explore all the feeds, commands and implementations we might need, adding
    * all of them to [sat_problem]. *)
-  let build_problem impl_provider root_req sat ~closest_match =
+  let build_problem model root_req sat ~closest_match =
     (* For each (iface, command, source) we have a list of implementations (or commands). *)
     let impl_cache = ImplCache.create () in
     let command_cache = CommandCache.create () in
@@ -406,21 +405,20 @@ module Make (Model : Solver_types.MODEL) = struct
     let replacements = ref [] in
 
     let rec add_impls_to_cache (iface_uri, source) =
-      let clause, impls = make_impl_clause sat ~closest_match replacements impl_provider iface_uri ~source in
+      let clause, impls = make_impl_clause sat ~closest_match replacements model iface_uri ~source in
       (clause, fun () ->
         impls |> List.iter (fun (impl_var, impl) ->
           require_machine_group impl_var impl;
           process_self_commands impl_var iface_uri (Model.impl_self_commands impl);
-          process_deps impl_var (Model.requires impl);
+          process_deps impl_var (Model.requires model impl);
         )
       )
-    and add_commands_to_cache key = make_commands_clause sat lookup_impl process_self_commands process_deps key
+    and add_commands_to_cache key = make_commands_clause model sat lookup_impl process_self_commands process_deps key
     and lookup_impl key = ImplCache.lookup impl_cache add_impls_to_cache key
     and lookup_command key = CommandCache.lookup command_cache add_commands_to_cache key
     and process_self_commands user_var dep_iface = List.iter (process_self_command sat lookup_command user_var dep_iface)
-    and process_deps user_var = List.iter (fun dep ->
-      if Model.is_dep_needed impl_provider dep then process_dep sat lookup_impl lookup_command user_var dep
-    ) in
+    and process_deps user_var = List.iter (process_dep sat lookup_impl lookup_command user_var)
+    in
 
     (* This recursively builds the whole problem up. *)
     begin match root_req with
@@ -433,7 +431,7 @@ module Make (Model : Solver_types.MODEL) = struct
     add_replaced_by_conflicts sat impl_clauses !replacements;
     impl_clauses, command_clauses
 
-  let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match =
+  let do_solve (model:Model.t) root_req ~closest_match =
     (* The basic plan is this:
        1. Scan the root interface and all dependencies recursively, building up a SAT problem.
        2. Solve the SAT problem. Whenever there are multiple options, try the most preferred one first.
@@ -449,9 +447,7 @@ module Make (Model : Solver_types.MODEL) = struct
 
     let sat = S.create () in
 
-    let impl_clauses, command_clauses = build_problem impl_provider root_req sat ~closest_match in
-
-    let dep_in_use dep = Model.is_dep_needed impl_provider dep in
+    let impl_clauses, command_clauses = build_problem model root_req sat ~closest_match in
 
     let lookup = function
       | Solver_types.ReqIface r -> (ImplCache.get_exn r impl_clauses :> candidates)
@@ -475,7 +471,7 @@ module Make (Model : Solver_types.MODEL) = struct
               (* We've already selected a candidate for this component. Now check its dependencies. *)
 
               let check_dep dep =
-                if Model.restricts_only dep || not (dep_in_use dep) then (
+                if Model.restricts_only dep then (
                   (* Restrictions don't express that we do or don't want the
                      dependency, so skip them here. If someone else needs this,
                      we'll handle it when we get to them.
@@ -514,7 +510,7 @@ module Make (Model : Solver_types.MODEL) = struct
 
             let commands = command_clauses |> CommandCache.bindings |> List.filter was_selected in
             let impls = impl_clauses |> ImplCache.bindings |> List.filter was_selected in
-            get_selections dep_in_use root_req impls commands |> Selections.create
+            get_selections model root_req impls commands |> Selections.create
 
           method get_selected ~source iface =
             ImplCache.get (iface, source) impl_clauses
@@ -524,7 +520,7 @@ module Make (Model : Solver_types.MODEL) = struct
                 | _ -> None
             )
 
-          method impl_provider = impl_provider
+          method impl_provider = model
 
           method implementations =
             impl_clauses |> ImplCache.bindings |> List.map (fun (key, impl_candidates) -> (key, impl_candidates#get_selected))
