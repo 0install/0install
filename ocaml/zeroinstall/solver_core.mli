@@ -9,7 +9,7 @@ module Make : functor (Model : Solver_types.MODEL) -> sig
 
   class type result =
     object
-      method get_selections : Support.Qdom.element list
+      method get_selections : (General.iface_uri * Model.impl * string list) list
 
       (* The remaining methods are used to provide diagnostics *)
       method get_selected : source:bool -> General.iface_uri -> Model.impl option

@@ -219,7 +219,7 @@ module Make (Model : Solver_types.MODEL) = struct
 
   class type result =
     object
-      method get_selections : Support.Qdom.element list
+      method get_selections : (General.iface_uri * Model.impl * string list) list
 
       (* The remaining methods are used to provide diagnostics *)
       method get_selected : source:bool -> General.iface_uri -> Model.impl option
@@ -500,7 +500,7 @@ module Make (Model : Solver_types.MODEL) = struct
               | None -> None      (* This interface wasn't used *)
               | Some (_lit, impl) ->
                   let commands = Hashtbl.find_all commands_needed iface in
-                  Some (Model.to_selection model iface commands impl)
+                  Some (iface, impl, commands)
             )
 
           method get_selected ~source iface =

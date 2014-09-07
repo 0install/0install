@@ -164,7 +164,6 @@ let do_solve impl_provider root_req ~closest_match =
      * The use of Maps ensures that the inputs will be sorted, so we will have a stable output.
      *)
     let selections = Selections.create (
-        let selections = r#get_selections in
         let root_attrs =
           match root_req with
           | ReqCommand (command, iface, _source) ->
@@ -172,7 +171,12 @@ let do_solve impl_provider root_req ~closest_match =
               |> AttrMap.add_no_ns "command" command
           | ReqIface (iface, _source) ->
               AttrMap.singleton "interface" iface in
-        ZI.make ~attrs:root_attrs ~child_nodes:(List.rev selections) "selections"
+        let child_nodes = r#get_selections
+          |> List.map (fun (iface, impl, commands) ->
+            Model.to_selection impl_provider iface commands impl
+          )
+          |> List.rev in
+        ZI.make ~attrs:root_attrs ~child_nodes "selections"
       ) in
 
     (* Build the results object *)

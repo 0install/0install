@@ -31,7 +31,6 @@ module type MODEL = sig
   val get_command : impl -> string -> command option
   val requires : t -> impl -> dependency list
   val command_requires : t -> command -> dependency list
-  val to_selection : t -> iface_uri -> string list -> impl -> Support.Qdom.element
   val machine : impl -> string option
   val restrictions : dependency -> restriction list
   val meets_restriction : impl -> restriction -> bool
