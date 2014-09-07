@@ -96,7 +96,7 @@ module Make (Model : Solver_types.MODEL) = struct
   module S = Support.Sat.MakeSAT(SolverData)
 
   type requirements =
-    | ReqCommand of (string * Model.Role.t)
+    | ReqCommand of (Model.command_name * Model.Role.t)
     | ReqRole of Model.Role.t
 
   type decision_state =
@@ -193,9 +193,12 @@ module Make (Model : Solver_types.MODEL) = struct
 
   module CommandRoleEntry =
     struct
-      type t = (string * Model.Role.t)
+      type t = (Model.command_name * Model.Role.t)
       type value = command_candidates
-      let compare = compare
+      let compare ((an, ar):t) ((bn, br):t) =
+        match String.compare (an :> string) (bn :> string) with
+        | 0 -> Model.Role.compare ar br
+        | r -> r
     end
 
   module RoleEntry =
@@ -212,7 +215,7 @@ module Make (Model : Solver_types.MODEL) = struct
 
   class type result =
     object
-      method get_selections : (Model.Role.t * Model.impl * string list) list
+      method get_selections : (Model.Role.t * Model.impl * Model.command_name list) list
 
       (* The remaining methods are used to provide diagnostics *)
       method get_selected : Model.Role.t -> Model.impl option

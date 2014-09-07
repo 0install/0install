@@ -19,6 +19,7 @@ module type MODEL = sig
   type command
   type dependency
   type restriction
+  type command_name = private string
   type impl_response = {
     replacement : Role.t option;
     impls : impl list;
@@ -34,20 +35,20 @@ module type MODEL = sig
   (** A fake <command> used to generate diagnostics if the solve fails. *)
   val dummy_command : command
 
-  val get_command : impl -> string -> command option
+  val get_command : impl -> command_name -> command option
   val requires : t -> impl -> dependency list
   val command_requires : t -> command -> dependency list
   val machine : impl -> string option
   val restrictions : dependency -> restriction list
   val meets_restriction : impl -> restriction -> bool
   val dep_role : dependency -> Role.t
-  val dep_required_commands : dependency -> string list
+  val dep_required_commands : dependency -> command_name list
   val dep_essential : dependency -> bool
   val implementations : t -> Role.t -> impl_response
 
   (** An implementation can bind to itself. e.g. "test" command that requires its own "run" command.
    * Get all such command names. *)
-  val impl_self_commands : impl -> string list
-  val command_self_commands : command -> string list
+  val impl_self_commands : impl -> command_name list
+  val command_self_commands : command -> command_name list
   val restricts_only : dependency -> bool
 end
