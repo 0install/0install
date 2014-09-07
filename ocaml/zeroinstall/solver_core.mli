@@ -15,7 +15,6 @@ module Make : functor (Model : Solver_types.MODEL) -> sig
       method get_commands_needed : Model.Role.t -> Model.command_name list
 
       (* The remaining methods are used to provide diagnostics *)
-      method get_selected : Model.Role.t -> Model.impl option
       method implementations : (Model.Role.t * (diagnostics * Model.impl) option) list
     end
 

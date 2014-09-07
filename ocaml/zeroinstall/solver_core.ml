@@ -224,7 +224,6 @@ module Make (Model : Solver_types.MODEL) = struct
       method get_commands_needed : Model.Role.t -> Model.command_name list
 
       (* The remaining methods are used to provide diagnostics *)
-      method get_selected : Model.Role.t -> Model.impl option
       method implementations : (Model.Role.t * (diagnostics * Model.impl) option) list
     end
 
@@ -505,14 +504,6 @@ module Make (Model : Solver_types.MODEL) = struct
 
           method get_commands_needed role =
             Hashtbl.find_all commands_needed role
-
-          method get_selected role =
-            ImplCache.get role impl_clauses
-            |> pipe_some (fun candidates ->
-                match candidates#get_selected with
-                | Some (_lit, impl) when impl != Model.dummy_impl -> Some impl
-                | _ -> None
-            )
 
           method implementations =
             impl_clauses |> ImplCache.bindings |> List.map (fun (key, impl_candidates) -> (key, impl_candidates#get_selected))

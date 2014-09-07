@@ -207,7 +207,13 @@ let do_solve impl_provider root_req ~closest_match =
     Some (
       object (_ : result)
         method get_selections = xml_selections
-        method get_selected ~source iface = r#get_selected (iface, source)
+        method get_selected ~source iface =
+          try
+            let impl = Core.RoleMap.find (iface, source) selections in
+            if impl == Model.dummy_impl then None
+            else Some impl
+          with Not_found -> None
+
         method impl_provider = impl_provider
         method implementations = r#implementations
         method requirements = root_req
