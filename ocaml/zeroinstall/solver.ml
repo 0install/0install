@@ -183,7 +183,8 @@ let do_solve impl_provider root_req ~closest_match =
     (** Create a <selections> document from the result of a solve.
      * The use of Maps ensures that the inputs will be sorted, so we will have a stable output.
      *)
-    let selections = Selections.create (
+    let selections = r#get_selections in
+    let xml_selections = Selections.create (
         let root_attrs =
           match root_req with
           | ReqCommand (command, iface, _source) ->
@@ -191,9 +192,11 @@ let do_solve impl_provider root_req ~closest_match =
               |> AttrMap.add_no_ns "command" command
           | ReqIface (iface, _source) ->
               AttrMap.singleton "interface" iface in
-        let child_nodes = r#get_selections
-          |> List.map (fun ((iface, _source), impl, commands) ->
+        let child_nodes = selections
+          |> Core.RoleMap.bindings
+          |> List.map (fun ((iface, _source) as role, impl) ->
             (* TODO: update selections format to handle source here *)
+            let commands = r#get_commands_needed role in
             Model.to_selection impl_provider iface commands impl
           )
           |> List.rev in
@@ -203,7 +206,7 @@ let do_solve impl_provider root_req ~closest_match =
     (* Build the results object *)
     Some (
       object (_ : result)
-        method get_selections = selections
+        method get_selections = xml_selections
         method get_selected ~source iface = r#get_selected (iface, source)
         method impl_provider = impl_provider
         method implementations = r#implementations

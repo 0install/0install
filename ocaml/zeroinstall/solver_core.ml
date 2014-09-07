@@ -31,8 +31,11 @@ module Cache(CacheEntry : CACHE_ENTRY) : sig
   (** The cache is used in [build_problem], while the clauses are still being added. *)
   type t
 
+  module M : Map.S with
+   type key = CacheEntry.t
+
   (** Once the problem is built, an immutable snapshot is taken. *)
-  type snapshot
+  type snapshot = CacheEntry.value M.t
 
   val create : unit -> t
 
@@ -210,12 +213,15 @@ module Make (Model : Solver_types.MODEL) = struct
   module ImplCache = Cache(RoleEntry)
   module CommandCache = Cache(CommandRoleEntry)
 
+  module RoleMap = ImplCache.M
+
   type diagnostics = S.lit
   let explain = S.explain_reason
 
   class type result =
     object
-      method get_selections : (Model.Role.t * Model.impl * Model.command_name list) list
+      method get_selections : Model.impl RoleMap.t
+      method get_commands_needed : Model.Role.t -> Model.command_name list
 
       (* The remaining methods are used to provide diagnostics *)
       method get_selected : Model.Role.t -> Model.impl option
@@ -474,29 +480,31 @@ module Make (Model : Solver_types.MODEL) = struct
     | None -> None
     | Some _solution ->
         (* Build the results object *)
-        let was_selected (_, candidates) =
+        let was_selected _key candidates =
           match candidates#get_clause with
           | None -> false
           | Some clause -> S.get_selected clause <> None in
-        let commands = command_clauses |> CommandCache.bindings |> List.filter was_selected in
-        let impls = impl_clauses |> ImplCache.bindings |> List.filter was_selected in
+        let commands = command_clauses |> CommandCache.M.filter was_selected in
+        let impls = impl_clauses
+          |> ImplCache.M.filter was_selected
+          |> ImplCache.M.map (fun candidates ->
+              match candidates#get_selected with
+              | None -> assert false
+              | Some (_lit, impl) -> impl
+          ) in
 
         (* For each implementation, remember which commands we need. *)
         let commands_needed = Hashtbl.create 10 in
-        let check_command ((command_name, role), _) =
+        let check_command (command_name, role) _value =
           Hashtbl.add commands_needed role command_name in
-        List.iter check_command commands;
+        commands |> CommandCache.M.iter check_command;
 
         Some (
-        object
-          method get_selections =
-            impls |> U.filter_map (fun (role, impls) ->
-              match impls#get_selected with
-              | None -> None      (* This interface wasn't used *)
-              | Some (_lit, impl) ->
-                  let commands = Hashtbl.find_all commands_needed role in
-                  Some (role, impl, commands)
-            )
+        object (_ : result)
+          method get_selections = impls
+
+          method get_commands_needed role =
+            Hashtbl.find_all commands_needed role
 
           method get_selected role =
             ImplCache.get role impl_clauses

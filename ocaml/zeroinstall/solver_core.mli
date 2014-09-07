@@ -7,9 +7,12 @@
 module Make : functor (Model : Solver_types.MODEL) -> sig
   type diagnostics
 
+  module RoleMap : Map.S with type key = Model.Role.t
+
   class type result =
     object
-      method get_selections : (Model.Role.t * Model.impl * Model.command_name list) list
+      method get_selections : Model.impl RoleMap.t
+      method get_commands_needed : Model.Role.t -> Model.command_name list
 
       (* The remaining methods are used to provide diagnostics *)
       method get_selected : Model.Role.t -> Model.impl option
