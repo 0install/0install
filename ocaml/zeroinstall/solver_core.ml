@@ -96,6 +96,10 @@ module Make (Model : Solver_types.MODEL) = struct
 
   module S = Support.Sat.MakeSAT(SolverData)
 
+  type requirements =
+    | ReqCommand of (string * iface_uri * bool)
+    | ReqIface of (iface_uri * bool)
+
   type decision_state =
     | Undecided of S.lit                  (* The next candidate to try *)
     | Selected of Model.dependency list    (* The dependencies to check next *)
@@ -392,8 +396,8 @@ module Make (Model : Solver_types.MODEL) = struct
 
     (* This recursively builds the whole problem up. *)
     begin match root_req with
-      | Solver_types.ReqIface r -> (lookup_impl r)#get_vars
-      | Solver_types.ReqCommand r -> (lookup_command r)#get_vars end
+      | ReqIface r -> (lookup_impl r)#get_vars
+      | ReqCommand r -> (lookup_command r)#get_vars end
     |> S.at_least_one sat ~reason:"need root";          (* Must get what we came for! *)
 
     (* All impl_candidates and command_candidates have now been added, so snapshot the cache. *)
@@ -401,7 +405,12 @@ module Make (Model : Solver_types.MODEL) = struct
     add_replaced_by_conflicts sat impl_clauses !replacements;
     impl_clauses, command_clauses
 
-  let do_solve (model:Model.t) root_req ~closest_match =
+  let do_solve (model:Model.t) root_role ?command ~closest_match =
+    let root_req =
+      match root_role, command with
+      | (i, s), None -> ReqIface (i, s)
+      | (i, s), Some c -> ReqCommand (c, i, s) in
+
     (* The basic plan is this:
        1. Scan the root interface and all dependencies recursively, building up a SAT problem.
        2. Solve the SAT problem. Whenever there are multiple options, try the most preferred one first.
@@ -420,8 +429,8 @@ module Make (Model : Solver_types.MODEL) = struct
     let impl_clauses, command_clauses = build_problem model root_req sat ~closest_match in
 
     let lookup = function
-      | Solver_types.ReqIface r -> (ImplCache.get_exn r impl_clauses :> candidates)
-      | Solver_types.ReqCommand r -> (CommandCache.get_exn r command_clauses) in
+      | ReqIface r -> (ImplCache.get_exn r impl_clauses :> candidates)
+      | ReqCommand r -> (CommandCache.get_exn r command_clauses) in
 
     (* Run the solve *)
 
@@ -449,11 +458,11 @@ module Make (Model : Solver_types.MODEL) = struct
                   None
                 ) else (
                   let dep_iface = Model.dep_iface dep in
-                  match find_undecided @@ Solver_types.ReqIface (dep_iface, false) with
+                  match find_undecided @@ ReqIface (dep_iface, false) with
                   | Some lit -> Some lit
                   | None ->
                       (* Command dependencies next *)
-                      let check_command_dep name = find_undecided @@ Solver_types.ReqCommand (name, dep_iface, false) in
+                      let check_command_dep name = find_undecided @@ ReqCommand (name, dep_iface, false) in
                       Support.Utils.first_match check_command_dep (Model.dep_required_commands dep)
                 )
                 in
@@ -461,8 +470,8 @@ module Make (Model : Solver_types.MODEL) = struct
               | Some lit -> Some lit
               | None ->   (* All dependencies checked; now to the impl (if we're a <command>) *)
                   match req with
-                  | Solver_types.ReqCommand (_command, iface, source) -> find_undecided @@ Solver_types.ReqIface (iface, source)
-                  | Solver_types.ReqIface _ -> None     (* We're not a <command> *)
+                  | ReqCommand (_command, iface, source) -> find_undecided @@ ReqIface (iface, source)
+                  | ReqIface _ -> None     (* We're not a <command> *)
         ) in
       find_undecided root_req in
 

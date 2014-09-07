@@ -11,6 +11,10 @@ module Qdom = Support.Qdom
 module FeedAttr = Constants.FeedAttr
 module AttrMap = Qdom.AttrMap
 
+type requirements =
+  | ReqCommand of (string * General.iface_uri * bool)
+  | ReqIface of (General.iface_uri * bool)
+
 module Model = struct
   type impl = Impl.generic_implementation
   type t = Impl_provider.impl_provider
@@ -21,6 +25,7 @@ module Model = struct
     replacement : iface_uri option;
     impls : impl list;
   }
+  type role = (iface_uri * bool)
 
   let to_string impl = (Versions.format_version impl.Impl.parsed_version) ^ " - " ^ Qdom.show_with_loc impl.Impl.qdom
   let command_to_string command = Qdom.show_with_loc command.Impl.command_qdom
@@ -145,11 +150,16 @@ class type result =
     method get_selected : source:bool -> General.iface_uri -> Model.impl option
     method impl_provider : Impl_provider.impl_provider
     method implementations : ((General.iface_uri * bool) * (Core.diagnostics * Model.impl) option) list
-    method requirements : Solver_types.requirements
+    method requirements : requirements
   end
 
 let do_solve impl_provider root_req ~closest_match =
-  Core.do_solve impl_provider root_req ~closest_match |> pipe_some (fun r ->
+  let root_role, root_command =
+    match root_req with
+    | ReqIface (iface, source) -> (iface, source), None
+    | ReqCommand (command, iface, source) -> (iface, source), Some command in
+
+  Core.do_solve impl_provider root_role ?command:root_command ~closest_match |> pipe_some (fun r ->
     (** Create a <selections> document from the result of a solve.
      * The use of Maps ensures that the inputs will be sorted, so we will have a stable output.
      *)
@@ -157,10 +167,10 @@ let do_solve impl_provider root_req ~closest_match =
         let selections = r#get_selections in
         let root_attrs =
           match root_req with
-          | Solver_types.ReqCommand (command, iface, _source) ->
+          | ReqCommand (command, iface, _source) ->
               AttrMap.singleton "interface" iface
               |> AttrMap.add_no_ns "command" command
-          | Solver_types.ReqIface (iface, _source) ->
+          | ReqIface (iface, _source) ->
               AttrMap.singleton "interface" iface in
         ZI.make ~attrs:root_attrs ~child_nodes:(List.rev selections) "selections"
       ) in
@@ -208,8 +218,8 @@ let get_root_requirements config requirements =
   }) in
 
   let root_req = match command with
-  | Some command -> Solver_types.ReqCommand (command, interface_uri, source)
-  | None -> Solver_types.ReqIface (interface_uri, source) in
+  | Some command -> ReqCommand (command, interface_uri, source)
+  | None -> ReqIface (interface_uri, source) in
 
   (scope_filter, root_req)
 

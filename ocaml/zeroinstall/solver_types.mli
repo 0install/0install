@@ -6,12 +6,6 @@
 
 open General
 
-(** We can either be trying to find an implementation, or a command within an implementation.
- * The last component is [true] if we're looking for source. *)
-type requirements =
-  | ReqCommand of (string * iface_uri * bool)
-  | ReqIface of (iface_uri * bool)
-
 module type MODEL = sig
   type t
   type impl
@@ -22,6 +16,7 @@ module type MODEL = sig
     replacement : iface_uri option;
     impls : impl list;
   }
+  type role = (iface_uri * bool)
 
   val to_string : impl -> string
   val command_to_string : command -> string

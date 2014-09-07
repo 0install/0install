@@ -269,13 +269,13 @@ let examine_extra_restrictions report extra_restrictions =
 
 (** If we wanted a command on the root, add that as a restriction. *)
 let process_root_req report = function
-  | Solver_types.ReqCommand (root_command, root_iface, source) ->
+  | Solver.ReqCommand (root_command, root_iface, source) ->
       let component = find_component_ex (root_iface, source) report in
       component#filter_impls (fun impl ->
         if StringMap.mem root_command Impl.(impl.props.commands) then None
         else Some (`MissingCommand root_command)
       )
-  | Solver_types.ReqIface _ -> ()
+  | Solver.ReqIface _ -> ()
 
 (** Find an implementation which requires a machine group. Use this to
     explain the rejection of all implementations requiring other groups. *)

@@ -16,7 +16,7 @@ module Make : functor (Model : Solver_types.MODEL) -> sig
       method implementations : ((General.iface_uri * bool) * (diagnostics * Model.impl) option) list
     end
 
-  val do_solve : Model.t -> Solver_types.requirements -> closest_match:bool -> result option
+  val do_solve : Model.t -> Model.role -> ?command:string -> closest_match:bool -> result option
 
   (** Request diagnostics-of-last-resort (fallback used when [Diagnostics] can't work out what's wrong).
    * Gets a report from the underlying SAT solver. *)
