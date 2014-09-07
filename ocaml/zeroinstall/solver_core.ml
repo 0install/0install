@@ -8,15 +8,85 @@ open General
 open Support.Common
 module U = Support.Utils
 
+type ('a, 'b) partition_result =
+  | Left of 'a
+  | Right of 'b
+
+let partition fn lst =
+  let pass = ref [] in
+  let fail = ref [] in
+  ListLabels.iter lst ~f:(fun item ->
+    match fn item with
+    | Left x -> pass := x :: !pass
+    | Right x -> fail := x :: !fail
+  );
+  (List.rev !pass, List.rev !fail)
+
+module type CACHE_ENTRY = sig
+  type t
+  type value
+  val compare : t -> t -> int
+end
+
+module Cache(CacheEntry : CACHE_ENTRY) : sig
+  (** The cache is used in [build_problem], while the clauses are still being added. *)
+  type t
+
+  (** Once the problem is built, an immutable snapshot is taken. *)
+  type snapshot
+
+  val create : unit -> t
+
+  (** [lookup cache make key] will look up [key] in [cache].
+   * If not found, create it with [value, process = make key], add [value] to the cache,
+   * and then call [process ()] on it.
+   * [make] must not be recursive (since the key hasn't been added yet),
+   * but [process] can be. In other words, [make] does whatever setup *must*
+   * be done before anyone can use this cache entry, while [process] does
+   * setup that can be done afterwards. *)
+  val lookup : t -> (CacheEntry.t -> (CacheEntry.value * (unit -> unit))) -> CacheEntry.t -> CacheEntry.value
+
+  val snapshot : t -> snapshot
+  val get : CacheEntry.t -> snapshot -> CacheEntry.value option
+  val get_exn : CacheEntry.t -> snapshot -> CacheEntry.value
+
+  (** The sorted bindings *)
+  val bindings : snapshot -> (CacheEntry.t * CacheEntry.value) list
+end = struct
+  module M = Map.Make(CacheEntry)
+
+  type snapshot = CacheEntry.value M.t
+  type t = snapshot ref
+
+  let create () = ref M.empty
+
+  let lookup table make key =
+    try M.find key !table
+    with Not_found ->
+      let value, process = make key in
+      table := M.add key value !table;
+      process ();
+      value
+
+  let snapshot table = !table
+
+  let get key map =
+    try Some (M.find key map)
+    with Not_found -> None
+
+  let get_exn = M.find
+  let bindings = M.bindings
+end
+
 module Make (Model : Solver_types.MODEL) = struct
   (** We attach this data to each SAT variable. *)
   module SolverData =
     struct
-      type t =
+      type t = (* If the SAT variable is True then we selected this... *)
         | ImplElem of Model.impl
         | CommandElem of Model.command
         | MachineGroup of string
-        | Interface of iface_uri      (* True if this interface is selected *)
+        | Interface of iface_uri
       let to_string = function
         | ImplElem impl -> Model.to_string impl
         | CommandElem command -> Model.command_to_string command
@@ -30,20 +100,6 @@ module Make (Model : Solver_types.MODEL) = struct
     | Undecided of S.lit                  (* The next candidate to try *)
     | Selected of Model.dependency list    (* The dependencies to check next *)
     | Unselected
-
-  type ('a, 'b) partition_result =
-    | Left of 'a
-    | Right of 'b
-
-  let partition fn lst =
-    let pass = ref [] in
-    let fail = ref [] in
-    ListLabels.iter lst ~f:(fun item ->
-      match fn item with
-      | Left x -> pass := x :: !pass
-      | Right x -> fail := x :: !fail
-    );
-    (List.rev !pass, List.rev !fail)
 
   class type candidates =
     object
@@ -132,13 +188,6 @@ module Make (Model : Solver_types.MODEL) = struct
                 | None -> Unselected        (* No remaining candidates, and none was chosen. *)
     end
 
-  module type CACHE_ENTRY =
-    sig
-      type t
-      type value
-      val compare : t -> t -> int
-    end
-
   module CommandIfaceEntry =
     struct
       type t = (string * iface_uri * bool)
@@ -156,57 +205,6 @@ module Make (Model : Solver_types.MODEL) = struct
         match compare ia ib with
         | 0 -> compare sa sb
         | x -> x
-    end
-
-  module Cache(CacheEntry : CACHE_ENTRY) :
-    sig
-      (** The cache is used in [build_problem], while the clauses are still being added. *)
-      type t
-
-      (** Once the problem is built, an immutable snapshot is taken. *)
-      type snapshot
-
-      val create : unit -> t
-
-      (** [lookup cache make key] will look up [key] in [cache].
-       * If not found, create it with [value, process = make key], add [value] to the cache,
-       * and then call [process ()] on it.
-       * [make] must not be recursive (since the key hasn't been added yet),
-       * but [process] can be. In other words, [make] does whatever setup *must*
-       * be done before anyone can use this cache entry, while [process] does
-       * setup that can be done afterwards. *)
-      val lookup : t -> (CacheEntry.t -> (CacheEntry.value * (unit -> unit))) -> CacheEntry.t -> CacheEntry.value
-
-      val snapshot : t -> snapshot
-      val get : CacheEntry.t -> snapshot -> CacheEntry.value option
-      val get_exn : CacheEntry.t -> snapshot -> CacheEntry.value
-
-      (** The sorted bindings *)
-      val bindings : snapshot -> (CacheEntry.t * CacheEntry.value) list
-    end = struct
-      module M = Map.Make(CacheEntry)
-
-      type snapshot = CacheEntry.value M.t
-      type t = snapshot ref
-
-      let create () = ref M.empty
-
-      let lookup table make key =
-        try M.find key !table
-        with Not_found ->
-          let value, process = make key in
-          table := M.add key value !table;
-          process ();
-          value
-
-      let snapshot table = !table
-
-      let get key map =
-        try Some (M.find key map)
-        with Not_found -> None
-
-      let get_exn = M.find
-      let bindings = M.bindings
     end
 
   module ImplCache = Cache(IfaceEntry)
