@@ -213,6 +213,15 @@ module Make (Model : Solver_types.MODEL) = struct
   type diagnostics = S.lit
   let explain = S.explain_reason
 
+  class type result =
+    object
+      method get_selections : Support.Qdom.element list
+
+      (* The remaining methods are used to provide diagnostics *)
+      method get_selected : source:bool -> General.iface_uri -> Model.impl option
+      method implementations : ((General.iface_uri * bool) * (diagnostics * Model.impl) option) list
+    end
+
   (* Make each interface conflict with its replacement (if any).
    * We do this at the end because if we didn't use the replacement feed, there's no need to conflict
    * (avoids getting it added to feeds_used). *)
