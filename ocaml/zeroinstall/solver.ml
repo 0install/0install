@@ -16,16 +16,27 @@ type requirements =
   | ReqIface of (General.iface_uri * bool)
 
 module Model = struct
+  module Role = struct
+    type t = (iface_uri * bool)
+    let to_string = function
+      | iface_uri, false -> iface_uri
+      | iface_uri, true -> iface_uri ^ "#source"
+
+    (* Sort the interfaces by URI so we have a stable output. *)
+    let compare (ib, sb) (ia, sa) =
+      match String.compare ia ib with
+      | 0 -> compare sa sb
+      | x -> x
+  end
   type impl = Impl.generic_implementation
   type t = Impl_provider.impl_provider
   type command = Impl.command
   type dependency = Impl.dependency
   type restriction = Impl.restriction
   type impl_response = {
-    replacement : iface_uri option;
+    replacement : Role.t option;
     impls : impl list;
   }
-  type role = (iface_uri * bool)
 
   let to_string impl = (Versions.format_version impl.Impl.parsed_version) ^ " - " ^ Qdom.show_with_loc impl.Impl.qdom
   let command_to_string command = Qdom.show_with_loc command.Impl.command_qdom
@@ -121,12 +132,19 @@ module Model = struct
   let machine impl = impl.Impl.machine
   let restrictions dep = dep.Impl.dep_restrictions
   let meets_restriction impl r = impl == dummy_impl || r#meets_restriction impl
-  let dep_iface dep = dep.Impl.dep_iface
+  let dep_role dep = (dep.Impl.dep_iface, false)
   let dep_required_commands dep = dep.Impl.dep_required_commands
   let dep_essential dep = dep.Impl.dep_importance = Impl.Dep_essential
-  let implementations impl_provider iface_uri ~source =
+
+  let implementations impl_provider (iface_uri, source) =
     let {Impl_provider.replacement; impls; rejects = _} = impl_provider#get_implementations iface_uri ~source in
+    let replacement = replacement |> pipe_some (fun replacement ->
+      if replacement = iface_uri then (
+        log_warning "Interface %s replaced-by itself!" iface_uri; None
+      ) else Some (replacement, source)
+    ) in
     {replacement; impls}
+
   let impl_self_commands impl =
     Impl.(impl.props.bindings)
     |> U.filter_map (fun binding ->
@@ -172,7 +190,8 @@ let do_solve impl_provider root_req ~closest_match =
           | ReqIface (iface, _source) ->
               AttrMap.singleton "interface" iface in
         let child_nodes = r#get_selections
-          |> List.map (fun (iface, impl, commands) ->
+          |> List.map (fun ((iface, _source), impl, commands) ->
+            (* TODO: update selections format to handle source here *)
             Model.to_selection impl_provider iface commands impl
           )
           |> List.rev in
@@ -183,14 +202,9 @@ let do_solve impl_provider root_req ~closest_match =
     Some (
       object (_ : result)
         method get_selections = selections
-
-        method get_selected ~source iface =
-          r#get_selected ~source iface
-
+        method get_selected ~source iface = r#get_selected (iface, source)
         method impl_provider = impl_provider
-
         method implementations = r#implementations
-
         method requirements = root_req
       end
     )

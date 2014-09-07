@@ -4,7 +4,6 @@
 
 (** Select a compatible set of components to run a program. *)
 
-open General
 open Support.Common
 module U = Support.Utils
 
@@ -86,19 +85,19 @@ module Make (Model : Solver_types.MODEL) = struct
         | ImplElem of Model.impl
         | CommandElem of Model.command
         | MachineGroup of string
-        | Interface of iface_uri
+        | Role of Model.Role.t
       let to_string = function
         | ImplElem impl -> Model.to_string impl
         | CommandElem command -> Model.command_to_string command
         | MachineGroup name -> name
-        | Interface iface -> iface
+        | Role role -> Model.Role.to_string role
     end
 
   module S = Support.Sat.MakeSAT(SolverData)
 
   type requirements =
-    | ReqCommand of (string * iface_uri * bool)
-    | ReqIface of (iface_uri * bool)
+    | ReqCommand of (string * Model.Role.t)
+    | ReqRole of Model.Role.t
 
   type decision_state =
     | Undecided of S.lit                  (* The next candidate to try *)
@@ -192,46 +191,40 @@ module Make (Model : Solver_types.MODEL) = struct
                 | None -> Unselected        (* No remaining candidates, and none was chosen. *)
     end
 
-  module CommandIfaceEntry =
+  module CommandRoleEntry =
     struct
-      type t = (string * iface_uri * bool)
+      type t = (string * Model.Role.t)
       type value = command_candidates
       let compare = compare
     end
 
-  module IfaceEntry =
+  module RoleEntry =
     struct
-      type t = (iface_uri * bool)
+      include Model.Role
       type value = impl_candidates
-
-      (* Sort the interfaces by URI so we have a stable output. *)
-      let compare (ib, sb) (ia, sa) =
-        match compare ia ib with
-        | 0 -> compare sa sb
-        | x -> x
     end
 
-  module ImplCache = Cache(IfaceEntry)
-  module CommandCache = Cache(CommandIfaceEntry)
+  module ImplCache = Cache(RoleEntry)
+  module CommandCache = Cache(CommandRoleEntry)
 
   type diagnostics = S.lit
   let explain = S.explain_reason
 
   class type result =
     object
-      method get_selections : (General.iface_uri * Model.impl * string list) list
+      method get_selections : (Model.Role.t * Model.impl * string list) list
 
       (* The remaining methods are used to provide diagnostics *)
-      method get_selected : source:bool -> General.iface_uri -> Model.impl option
-      method implementations : ((General.iface_uri * bool) * (diagnostics * Model.impl) option) list
+      method get_selected : Model.Role.t -> Model.impl option
+      method implementations : (Model.Role.t * (diagnostics * Model.impl) option) list
     end
 
   (* Make each interface conflict with its replacement (if any).
    * We do this at the end because if we didn't use the replacement feed, there's no need to conflict
    * (avoids getting it added to feeds_used). *)
   let add_replaced_by_conflicts sat impl_clauses =
-    List.iter (fun (source, clause, replacement) ->
-      ImplCache.get (replacement, source) impl_clauses
+    List.iter (fun (clause, replacement) ->
+      ImplCache.get replacement impl_clauses
       |> if_some (fun replacement_candidates ->
         (* Our replacement was also added to [sat], so conflict with it. *)
         let our_vars = clause#get_real_vars in
@@ -272,9 +265,9 @@ module Make (Model : Solver_types.MODEL) = struct
   (** If this binding depends on a command (<executable-in-*>), add that to the problem.
    * @param user_var indicates when this binding is used
    * @param dep_iface the required interface this binding targets *)
-  let process_self_command sat lookup_command user_var dep_iface name =
+  let process_self_command sat lookup_command user_var dep_role name =
     (* Note: we only call this for self-bindings, so we could be efficient by selecting the exact command here... *)
-    let candidates = lookup_command (name, dep_iface, false) in
+    let candidates = lookup_command (name, dep_role) in
     S.implies sat ~reason:"binding on command" user_var candidates#get_vars
 
   (* Process a dependency of [user_var]:
@@ -285,12 +278,12 @@ module Make (Model : Solver_types.MODEL) = struct
   let process_dep sat lookup_impl lookup_command user_var dep =
     (* Restrictions on the candidates *)
     let meets_restrictions impl = List.for_all (Model.meets_restriction impl) (Model.restrictions dep) in
-    let candidates = lookup_impl (Model.dep_iface dep, false) in
+    let candidates = lookup_impl (Model.dep_role dep) in
     let pass, fail = candidates#partition meets_restrictions in
 
     (* Dependencies on commands *)
     Model.dep_required_commands dep |> List.iter (fun name ->
-      let candidates = lookup_command (name, Model.dep_iface dep, false) in
+      let candidates = lookup_command (name, Model.dep_role dep) in
 
       if Model.dep_essential dep then (
         S.implies sat ~reason:"dep on command" user_var candidates#get_vars
@@ -298,7 +291,7 @@ module Make (Model : Solver_types.MODEL) = struct
         (* An optional dependency is selected when any implementation of the target interface
          * is selected. Force [dep_iface_selected] to be true in that case. We only need to test
          * [pass] here, because we always avoid [fail] anyway. *)
-        let dep_iface_selected = S.add_variable sat (SolverData.Interface (Model.dep_iface dep)) in
+        let dep_iface_selected = S.add_variable sat (SolverData.Role (Model.dep_role dep)) in
         S.at_most_one sat (S.neg dep_iface_selected :: pass) |> ignore;
 
         (* If user_var is selected, then either we don't select this interface, or we select
@@ -317,8 +310,8 @@ module Make (Model : Solver_types.MODEL) = struct
     )
 
   (* Add the implementations of an interface to the ImplCache (called the first time we visit it). *)
-  let make_impl_clause sat ~closest_match replacements model iface_uri ~source =
-    let {Model.replacement; impls} = Model.implementations model iface_uri ~source in
+  let make_impl_clause sat ~closest_match replacements model role =
+    let {Model.replacement; impls} = Model.implementations model role in
 
     (* Insert dummy_impl (last) if we're trying to diagnose a problem. *)
     let impls =
@@ -335,16 +328,15 @@ module Make (Model : Solver_types.MODEL) = struct
 
     (* If we have a <replaced-by>, remember to add a conflict with our replacement *)
     replacement |> if_some (fun replacement ->
-      if replacement = iface_uri then log_warning "Interface %s replaced-by itself!" iface_uri
-      else replacements := (source, clause, replacement) :: !replacements;
+      replacements := (clause, replacement) :: !replacements;
     );
 
     clause, impls
 
   (* Create a new CommandCache entry (called the first time we request this key). *)
   let make_commands_clause model sat lookup_impl process_self_commands process_deps key =
-    let (command, iface, source) = key in
-    let impls = lookup_impl (iface, source) in
+    let (command, role) = key in
+    let impls = lookup_impl role in
     let commands = impls#get_commands command in
     let make_provides_command (_impl, elem) =
       (** [var] will be true iff this <command> is selected. *)
@@ -359,7 +351,7 @@ module Make (Model : Solver_types.MODEL) = struct
         (* For each command, require that we select the corresponding implementation. *)
         S.implies sat ~reason:"impl for command" command_var [impl_var];
         (* Commands can depend on other commands in the same implementation *)
-        process_self_commands command_var iface (Model.command_self_commands command);
+        process_self_commands command_var role (Model.command_self_commands command);
         (* Process command-specific dependencies *)
         process_deps command_var (Model.command_requires model command);
       in
@@ -378,25 +370,25 @@ module Make (Model : Solver_types.MODEL) = struct
     (* Handle <replaced-by> conflicts after building the problem. *)
     let replacements = ref [] in
 
-    let rec add_impls_to_cache (iface_uri, source) =
-      let clause, impls = make_impl_clause sat ~closest_match replacements model iface_uri ~source in
+    let rec add_impls_to_cache role =
+      let clause, impls = make_impl_clause sat ~closest_match replacements model role in
       (clause, fun () ->
         impls |> List.iter (fun (impl_var, impl) ->
           require_machine_group impl_var impl;
-          process_self_commands impl_var iface_uri (Model.impl_self_commands impl);
+          process_self_commands impl_var role (Model.impl_self_commands impl);
           process_deps impl_var (Model.requires model impl);
         )
       )
     and add_commands_to_cache key = make_commands_clause model sat lookup_impl process_self_commands process_deps key
     and lookup_impl key = ImplCache.lookup impl_cache add_impls_to_cache key
     and lookup_command key = CommandCache.lookup command_cache add_commands_to_cache key
-    and process_self_commands user_var dep_iface = List.iter (process_self_command sat lookup_command user_var dep_iface)
+    and process_self_commands user_var dep_role = List.iter (process_self_command sat lookup_command user_var dep_role)
     and process_deps user_var = List.iter (process_dep sat lookup_impl lookup_command user_var)
     in
 
     (* This recursively builds the whole problem up. *)
     begin match root_req with
-      | ReqIface r -> (lookup_impl r)#get_vars
+      | ReqRole r -> (lookup_impl r)#get_vars
       | ReqCommand r -> (lookup_command r)#get_vars end
     |> S.at_least_one sat ~reason:"need root";          (* Must get what we came for! *)
 
@@ -407,9 +399,9 @@ module Make (Model : Solver_types.MODEL) = struct
 
   let do_solve (model:Model.t) root_role ?command ~closest_match =
     let root_req =
-      match root_role, command with
-      | (i, s), None -> ReqIface (i, s)
-      | (i, s), Some c -> ReqCommand (c, i, s) in
+      match command with
+      | None -> ReqRole root_role
+      | Some c -> ReqCommand (c, root_role) in
 
     (* The basic plan is this:
        1. Scan the root interface and all dependencies recursively, building up a SAT problem.
@@ -429,7 +421,7 @@ module Make (Model : Solver_types.MODEL) = struct
     let impl_clauses, command_clauses = build_problem model root_req sat ~closest_match in
 
     let lookup = function
-      | ReqIface r -> (ImplCache.get_exn r impl_clauses :> candidates)
+      | ReqRole r -> (ImplCache.get_exn r impl_clauses :> candidates)
       | ReqCommand r -> (CommandCache.get_exn r command_clauses) in
 
     (* Run the solve *)
@@ -457,12 +449,12 @@ module Make (Model : Solver_types.MODEL) = struct
                      If noone wants it, it will be set to unselected at the end. *)
                   None
                 ) else (
-                  let dep_iface = Model.dep_iface dep in
-                  match find_undecided @@ ReqIface (dep_iface, false) with
+                  let dep_role = Model.dep_role dep in
+                  match find_undecided (ReqRole dep_role) with
                   | Some lit -> Some lit
                   | None ->
                       (* Command dependencies next *)
-                      let check_command_dep name = find_undecided @@ ReqCommand (name, dep_iface, false) in
+                      let check_command_dep name = find_undecided @@ ReqCommand (name, dep_role) in
                       Support.Utils.first_match check_command_dep (Model.dep_required_commands dep)
                 )
                 in
@@ -470,8 +462,8 @@ module Make (Model : Solver_types.MODEL) = struct
               | Some lit -> Some lit
               | None ->   (* All dependencies checked; now to the impl (if we're a <command>) *)
                   match req with
-                  | ReqCommand (_command, iface, source) -> find_undecided @@ ReqIface (iface, source)
-                  | ReqIface _ -> None     (* We're not a <command> *)
+                  | ReqCommand (_command, role) -> find_undecided @@ ReqRole role
+                  | ReqRole _ -> None     (* We're not a <command> *)
         ) in
       find_undecided root_req in
 
@@ -488,23 +480,23 @@ module Make (Model : Solver_types.MODEL) = struct
 
         (* For each implementation, remember which commands we need. *)
         let commands_needed = Hashtbl.create 10 in
-        let check_command ((command_name, iface, _source), _) =
-          Hashtbl.add commands_needed iface command_name in
+        let check_command ((command_name, role), _) =
+          Hashtbl.add commands_needed role command_name in
         List.iter check_command commands;
 
         Some (
         object
           method get_selections =
-            impls |> U.filter_map (fun ((iface, _source), impls) ->
+            impls |> U.filter_map (fun (role, impls) ->
               match impls#get_selected with
               | None -> None      (* This interface wasn't used *)
               | Some (_lit, impl) ->
-                  let commands = Hashtbl.find_all commands_needed iface in
-                  Some (iface, impl, commands)
+                  let commands = Hashtbl.find_all commands_needed role in
+                  Some (role, impl, commands)
             )
 
-          method get_selected ~source iface =
-            ImplCache.get (iface, source) impl_clauses
+          method get_selected role =
+            ImplCache.get role impl_clauses
             |> pipe_some (fun candidates ->
                 match candidates#get_selected with
                 | Some (_lit, impl) when impl != Model.dummy_impl -> Some impl

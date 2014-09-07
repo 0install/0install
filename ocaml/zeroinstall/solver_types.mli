@@ -4,19 +4,25 @@
 
 (** This defines what the solver sees (hiding the raw XML, etc). *)
 
-open General
-
 module type MODEL = sig
+  module Role : sig
+    (** A role that needs to be filled by a single implementation.
+     * If two dependencies require the same role then they will both
+     * get the same implementation. *)
+    type t
+    val to_string : t -> string
+    val compare : t -> t -> int
+  end
+
   type t
   type impl
   type command
   type dependency
   type restriction
   type impl_response = {
-    replacement : iface_uri option;
+    replacement : Role.t option;
     impls : impl list;
   }
-  type role = (iface_uri * bool)
 
   val to_string : impl -> string
   val command_to_string : command -> string
@@ -34,10 +40,10 @@ module type MODEL = sig
   val machine : impl -> string option
   val restrictions : dependency -> restriction list
   val meets_restriction : impl -> restriction -> bool
-  val dep_iface : dependency -> iface_uri
+  val dep_role : dependency -> Role.t
   val dep_required_commands : dependency -> string list
   val dep_essential : dependency -> bool
-  val implementations : t -> iface_uri -> source:bool -> impl_response
+  val implementations : t -> Role.t -> impl_response
 
   (** An implementation can bind to itself. e.g. "test" command that requires its own "run" command.
    * Get all such command names. *)
