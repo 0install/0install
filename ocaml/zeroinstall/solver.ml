@@ -139,8 +139,49 @@ end
 
 module Core = Solver_core.Make(Model)
 
-class type result = Core.result
-let do_solve = Core.do_solve
+class type result =
+  object
+    method get_selections : Selections.t
+    method get_selected : source:bool -> General.iface_uri -> Model.impl option
+    method impl_provider : Impl_provider.impl_provider
+    method implementations : ((General.iface_uri * bool) * (Core.diagnostics * Model.impl) option) list
+    method requirements : Solver_types.requirements
+  end
+
+let do_solve impl_provider root_req ~closest_match =
+  Core.do_solve impl_provider root_req ~closest_match |> pipe_some (fun r ->
+    (** Create a <selections> document from the result of a solve.
+     * The use of Maps ensures that the inputs will be sorted, so we will have a stable output.
+     *)
+    let selections = Selections.create (
+        let selections = r#get_selections in
+        let root_attrs =
+          match root_req with
+          | Solver_types.ReqCommand (command, iface, _source) ->
+              AttrMap.singleton "interface" iface
+              |> AttrMap.add_no_ns "command" command
+          | Solver_types.ReqIface (iface, _source) ->
+              AttrMap.singleton "interface" iface in
+        ZI.make ~attrs:root_attrs ~child_nodes:(List.rev selections) "selections"
+      ) in
+
+    (* Build the results object *)
+    Some (
+      object (_ : result)
+        method get_selections = selections
+
+        method get_selected ~source iface =
+          r#get_selected ~source iface
+
+        method impl_provider = impl_provider
+
+        method implementations = r#implementations
+
+        method requirements = root_req
+      end
+    )
+  )
+
 let explain = Core.explain
 type diagnostics = Core.diagnostics
 
@@ -177,10 +218,10 @@ let solve_for config feed_provider requirements =
     let scope_filter, root_req = get_root_requirements config requirements in
 
     let impl_provider = (new Impl_provider.default_impl_provider config feed_provider scope_filter :> Impl_provider.impl_provider) in
-    match Core.do_solve impl_provider root_req ~closest_match:false with
+    match do_solve impl_provider root_req ~closest_match:false with
     | Some result -> (true, result)
     | None ->
-        match Core.do_solve impl_provider root_req ~closest_match:true with
+        match do_solve impl_provider root_req ~closest_match:true with
         | Some result -> (false, result)
         | None -> failwith "No solution, even with closest_match!"
   with Safe_exception _ as ex -> reraise_with_context ex "... solving for interface %s" requirements.Requirements.interface_uri

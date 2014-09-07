@@ -7,7 +7,6 @@
 open General
 open Support.Common
 module U = Support.Utils
-module AttrMap = Support.Qdom.AttrMap
 
 module Make (Model : Solver_types.MODEL) = struct
   (** We attach this data to each SAT variable. *)
@@ -213,44 +212,8 @@ module Make (Model : Solver_types.MODEL) = struct
   module ImplCache = Cache(IfaceEntry)
   module CommandCache = Cache(CommandIfaceEntry)
 
-  class type result =
-    object
-      method get_selections : Selections.t
-      method get_selected : source:bool -> General.iface_uri -> Model.impl option
-      method impl_provider : Model.t
-      method implementations : ((General.iface_uri * bool) * (S.lit * Model.impl) option) list
-      method requirements : Solver_types.requirements
-    end
-
   type diagnostics = S.lit
   let explain = S.explain_reason
-
-  (** Create a <selections> document from the result of a solve.
-   * The use of Maps ensures that the inputs will be sorted, so we will have a stable output.
-   *)
-  let get_selections model root_req impls commands =
-    (* For each implementation, remember which commands we need. *)
-    let commands_needed = Hashtbl.create 10 in
-    let check_command ((command_name, iface, _source), _) =
-      Hashtbl.add commands_needed iface command_name in
-    List.iter check_command commands;
-
-    let selections = impls |> U.filter_map (fun ((iface, _source), impls) ->
-      match impls#get_selected with
-      | None -> None      (* This interface wasn't used *)
-      | Some (_lit, impl) ->
-          let commands = Hashtbl.find_all commands_needed iface in
-          Some (Model.to_selection model iface commands impl)
-    ) in
-
-    let root_attrs =
-      match root_req with
-      | Solver_types.ReqCommand (command, iface, _source) ->
-          AttrMap.singleton "interface" iface
-          |> AttrMap.add_no_ns "command" command
-      | Solver_types.ReqIface (iface, _source) ->
-          AttrMap.singleton "interface" iface in
-    ZI.make ~attrs:root_attrs ~child_nodes:(List.rev selections) "selections"
 
   (* Make each interface conflict with its replacement (if any).
    * We do this at the end because if we didn't use the replacement feed, there's no need to conflict
@@ -500,17 +463,29 @@ module Make (Model : Solver_types.MODEL) = struct
     | None -> None
     | Some _solution ->
         (* Build the results object *)
-        Some (
-        object (_ : result)
-          method get_selections =
-            let was_selected (_, candidates) =
-              match candidates#get_clause with
-              | None -> false
-              | Some clause -> S.get_selected clause <> None in
+        let was_selected (_, candidates) =
+          match candidates#get_clause with
+          | None -> false
+          | Some clause -> S.get_selected clause <> None in
+        let commands = command_clauses |> CommandCache.bindings |> List.filter was_selected in
+        let impls = impl_clauses |> ImplCache.bindings |> List.filter was_selected in
 
-            let commands = command_clauses |> CommandCache.bindings |> List.filter was_selected in
-            let impls = impl_clauses |> ImplCache.bindings |> List.filter was_selected in
-            get_selections model root_req impls commands |> Selections.create
+        (* For each implementation, remember which commands we need. *)
+        let commands_needed = Hashtbl.create 10 in
+        let check_command ((command_name, iface, _source), _) =
+          Hashtbl.add commands_needed iface command_name in
+        List.iter check_command commands;
+
+        Some (
+        object
+          method get_selections =
+            impls |> U.filter_map (fun ((iface, _source), impls) ->
+              match impls#get_selected with
+              | None -> None      (* This interface wasn't used *)
+              | Some (_lit, impl) ->
+                  let commands = Hashtbl.find_all commands_needed iface in
+                  Some (Model.to_selection model iface commands impl)
+            )
 
           method get_selected ~source iface =
             ImplCache.get (iface, source) impl_clauses
@@ -520,12 +495,8 @@ module Make (Model : Solver_types.MODEL) = struct
                 | _ -> None
             )
 
-          method impl_provider = model
-
           method implementations =
             impl_clauses |> ImplCache.bindings |> List.map (fun (key, impl_candidates) -> (key, impl_candidates#get_selected))
-
-          method requirements = root_req
         end
     )
 end
