@@ -34,7 +34,8 @@ module Model = struct
   type dependency = Impl.dependency
   type restriction = Impl.restriction
   type command_name = string
-  type impl_response = {
+  type machine_group = string
+  type role_information = {
     replacement : Role.t option;
     impls : impl list;
   }
