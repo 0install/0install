@@ -33,10 +33,6 @@ module type MODEL = sig
   (** An identifier for a command within a role. *)
   type command_name = private string
 
-  (** Some architectures support multiple incompatible binary types (e.g. 32-bit and 64-bit).
-   * The solver will avoid selecting implementations with different machine groups. *)
-  type machine_group = string
-
   (** Information provided to the solver about a role. *)
   type role_information = {
     replacement : Role.t option;  (** Another role that conflicts with this one. *)
@@ -62,7 +58,7 @@ module type MODEL = sig
   (** As [requires], but for commands. *)
   val command_requires : t -> command -> dependency list
 
-  val machine : impl -> machine_group option
+  val machine : impl -> Arch.machine_group option
   val restrictions : dependency -> restriction list
   val meets_restriction : impl -> restriction -> bool
 

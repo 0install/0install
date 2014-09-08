@@ -261,15 +261,13 @@ module Make (Model : Solver_types.MODEL) = struct
 
     (* If [impl] requires a particular machine group, add a constraint to the problem. *)
     fun impl_var impl ->
-      Model.machine impl |> if_some (function
-        | "src" -> ()
-        | machine ->
-            let group_var =
-              let open Arch in
-              match get_machine_group machine with
-              | Machine_group_default -> machine_group_default
-              | Machine_group_64 -> machine_group_64 in
-            S.implies sat ~reason:"machine group" impl_var [group_var];
+      Model.machine impl |> if_some (fun group ->
+        let group_var =
+          let open Arch in
+          match group with
+          | Machine_group_default -> machine_group_default
+          | Machine_group_64 -> machine_group_64 in
+        S.implies sat ~reason:"machine group" impl_var [group_var];
       )
 
   (** If this binding depends on a command (<executable-in-*>), add that to the problem.

@@ -40,7 +40,6 @@ module Model = struct
   type dependency = Impl.dependency
   type restriction = Impl.restriction
   type command_name = string
-  type machine_group = string
   type role_information = {
     replacement : Role.t option;
     impls : impl list;
@@ -137,7 +136,11 @@ module Model = struct
       ~child_nodes:(List.rev !child_nodes)
       ~source_hint:impl.Impl.qdom "selection"
 
-  let machine impl = impl.Impl.machine
+  let machine impl =
+    match impl.Impl.machine with
+    | None | Some "src" -> None
+    | Some machine -> Some (Arch.get_machine_group machine)
+
   let restrictions dep = dep.Impl.dep_restrictions
   let meets_restriction impl r = impl == dummy_impl || r#meets_restriction impl
 
