@@ -2,7 +2,9 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(** Select a compatible set of components to run a program. *)
+(** Select a compatible set of components to run a program.
+ * See [Solver] for the instantiation of this functor on the
+ * actual 0install types. *)
 
 module Make : functor (Model : Solver_types.MODEL) -> sig
   type diagnostics

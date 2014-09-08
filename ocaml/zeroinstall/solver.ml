@@ -2,7 +2,8 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(** Select a compatible set of components to run a program. *)
+(** Select a compatible set of components to run a program. 
+ * This instantiates the [Solver_core] functor with the concrete 0install types. *)
 
 open General
 open Support.Common
@@ -16,7 +17,12 @@ type requirements =
   | ReqIface of (General.iface_uri * bool)
 
 module Model = struct
+  (** See [Solver_types.MODEL] for documentation. *)
+
   module Role = struct
+    (** A role is an interface and a flag indicating whether we want source or a binary.
+     * This allows e.g. using an old version of a compiler to compile the source for the
+     * new version (which requires selecting two different versions of the same interface). *)
     type t = (iface_uri * bool)
     let to_string = function
       | iface_uri, false -> iface_uri
@@ -134,6 +140,8 @@ module Model = struct
   let machine impl = impl.Impl.machine
   let restrictions dep = dep.Impl.dep_restrictions
   let meets_restriction impl r = impl == dummy_impl || r#meets_restriction impl
+
+  (* note: currently, only dependencies on binaries are supported. *)
   let dep_role dep = (dep.Impl.dep_iface, false)
   let dep_required_commands dep = dep.Impl.dep_required_commands
   let dep_essential dep = dep.Impl.dep_importance = Impl.Dep_essential
