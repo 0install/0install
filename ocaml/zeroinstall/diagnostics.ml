@@ -304,14 +304,11 @@ let get_failure_report (result:Solver.result) : component SelMap.t =
   let root_req = result#requirements in
 
   let report =
-    let get_selected map ((iface, source) as key, selected_candidate) =
-      match selected_candidate with
-      | None -> map    (* Not part of the (dummy) solution *)
-      | Some (diagnostics, impl) ->
-          let impl = if impl.Impl.parsed_version = Versions.dummy then None else Some impl in
-          let impl_candidates = impl_provider#get_implementations iface ~source in
-          let component = new component impl_candidates diagnostics impl in
-          SelMap.add key component map in
+    let get_selected map ((iface, source) as key, (diagnostics, impl)) =
+      let impl = if impl.Impl.parsed_version = Versions.dummy then None else Some impl in
+      let impl_candidates = impl_provider#get_implementations iface ~source in
+      let component = new component impl_candidates diagnostics impl in
+      SelMap.add key component map in
     List.fold_left get_selected SelMap.empty impls in
 
   process_root_req report root_req;

@@ -23,7 +23,7 @@ class type result =
     (* The remaining methods are used to provide diagnostics *)
     method get_selected : source:bool -> General.iface_uri -> Impl.generic_implementation option
     method impl_provider : Impl_provider.impl_provider
-    method implementations : ((General.iface_uri * bool) * (diagnostics * Impl.generic_implementation) option) list
+    method implementations : ((General.iface_uri * bool) * (diagnostics * Impl.generic_implementation)) list
     method requirements : requirements
   end
 

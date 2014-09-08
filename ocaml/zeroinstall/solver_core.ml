@@ -52,8 +52,7 @@ module Cache(CacheEntry : CACHE_ENTRY) : sig
   val get : CacheEntry.t -> snapshot -> CacheEntry.value option
   val get_exn : CacheEntry.t -> snapshot -> CacheEntry.value
 
-  (** The sorted bindings *)
-  val bindings : snapshot -> (CacheEntry.t * CacheEntry.value) list
+  val filter_map : (CacheEntry.t -> 'a -> 'b option) -> 'a M.t -> 'b M.t
 end = struct
   module M = Map.Make(CacheEntry)
 
@@ -77,7 +76,13 @@ end = struct
     with Not_found -> None
 
   let get_exn = M.find
-  let bindings = M.bindings
+
+  let filter_map f m =
+    M.merge (fun key ao _bo ->
+      match ao with
+      | Some x -> f key x
+      | None -> assert false
+    ) m M.empty
 end
 
 module Make (Model : Solver_types.MODEL) = struct
@@ -218,14 +223,11 @@ module Make (Model : Solver_types.MODEL) = struct
   type diagnostics = S.lit
   let explain = S.explain_reason
 
-  class type result =
-    object
-      method get_selections : Model.impl RoleMap.t
-      method get_commands_needed : Model.Role.t -> Model.command_name list
-
-      (* The remaining methods are used to provide diagnostics *)
-      method implementations : (Model.Role.t * (diagnostics * Model.impl) option) list
-    end
+  type selection = {
+    impl : Model.impl;                  (** The implementation chosen to fill the role *)
+    commands : Model.command_name list; (** The commands required *)
+    diagnostics : diagnostics;          (** Extra information useful for diagnostics *)
+  }
 
   (* Make each interface conflict with its replacement (if any).
    * We do this at the end because if we didn't use the replacement feed, there's no need to conflict
@@ -484,13 +486,6 @@ module Make (Model : Solver_types.MODEL) = struct
           | None -> false
           | Some clause -> S.get_selected clause <> None in
         let commands = command_clauses |> CommandCache.M.filter was_selected in
-        let impls = impl_clauses
-          |> ImplCache.M.filter was_selected
-          |> ImplCache.M.map (fun candidates ->
-              match candidates#get_selected with
-              | None -> assert false
-              | Some (_lit, impl) -> impl
-          ) in
 
         (* For each implementation, remember which commands we need. *)
         let commands_needed = Hashtbl.create 10 in
@@ -498,15 +493,13 @@ module Make (Model : Solver_types.MODEL) = struct
           Hashtbl.add commands_needed role command_name in
         commands |> CommandCache.M.iter check_command;
 
-        Some (
-        object (_ : result)
-          method get_selections = impls
-
-          method get_commands_needed role =
-            Hashtbl.find_all commands_needed role
-
-          method implementations =
-            impl_clauses |> ImplCache.bindings |> List.map (fun (key, impl_candidates) -> (key, impl_candidates#get_selected))
-        end
-    )
+        Some (impl_clauses
+          |> ImplCache.filter_map (fun role candidates ->
+              match candidates#get_selected with
+              | None -> None
+              | Some (lit, impl) ->
+                  let commands = Hashtbl.find_all commands_needed role in
+                  Some {impl; commands; diagnostics = lit}
+          )
+        )
 end

@@ -169,7 +169,7 @@ class type result =
     method get_selections : Selections.t
     method get_selected : source:bool -> General.iface_uri -> Model.impl option
     method impl_provider : Impl_provider.impl_provider
-    method implementations : ((General.iface_uri * bool) * (Core.diagnostics * Model.impl) option) list
+    method implementations : ((General.iface_uri * bool) * (Core.diagnostics * Model.impl)) list
     method requirements : requirements
   end
 
@@ -179,11 +179,10 @@ let do_solve impl_provider root_req ~closest_match =
     | ReqIface (iface, source) -> (iface, source), None
     | ReqCommand (command, iface, source) -> (iface, source), Some command in
 
-  Core.do_solve impl_provider root_role ?command:root_command ~closest_match |> pipe_some (fun r ->
+  Core.do_solve impl_provider root_role ?command:root_command ~closest_match |> pipe_some (fun selections ->
     (** Create a <selections> document from the result of a solve.
      * The use of Maps ensures that the inputs will be sorted, so we will have a stable output.
      *)
-    let selections = r#get_selections in
     let xml_selections = Selections.create (
         let root_attrs =
           match root_req with
@@ -194,10 +193,9 @@ let do_solve impl_provider root_req ~closest_match =
               AttrMap.singleton "interface" iface in
         let child_nodes = selections
           |> Core.RoleMap.bindings
-          |> List.map (fun ((iface, _source) as role, impl) ->
+          |> List.map (fun ((iface, _source), selection) ->
             (* TODO: update selections format to handle source here *)
-            let commands = r#get_commands_needed role in
-            Model.to_selection impl_provider iface commands impl
+            Model.to_selection impl_provider iface selection.Core.commands selection.Core.impl
           )
           |> List.rev in
         ZI.make ~attrs:root_attrs ~child_nodes "selections"
@@ -209,13 +207,17 @@ let do_solve impl_provider root_req ~closest_match =
         method get_selections = xml_selections
         method get_selected ~source iface =
           try
-            let impl = Core.RoleMap.find (iface, source) selections in
+            let selection = Core.RoleMap.find (iface, source) selections in
+            let impl = Core.(selection.impl) in
             if impl == Model.dummy_impl then None
             else Some impl
           with Not_found -> None
 
         method impl_provider = impl_provider
-        method implementations = r#implementations
+        method implementations =
+          selections |> Core.RoleMap.bindings |> List.map (fun (role, sel) ->
+            (role, Core.(sel.diagnostics, sel.impl))
+          )
         method requirements = root_req
       end
     )
