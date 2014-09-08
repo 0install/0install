@@ -481,25 +481,24 @@ module Make (Model : Solver_types.MODEL) = struct
     | None -> None
     | Some _solution ->
         (* Build the results object *)
-        let was_selected _key candidates =
-          match candidates#get_clause with
-          | None -> false
-          | Some clause -> S.get_selected clause <> None in
-        let commands = command_clauses |> CommandCache.M.filter was_selected in
 
         (* For each implementation, remember which commands we need. *)
         let commands_needed = Hashtbl.create 10 in
-        let check_command (command_name, role) _value =
-          Hashtbl.add commands_needed role command_name in
-        commands |> CommandCache.M.iter check_command;
+        command_clauses
+        |> CommandCache.M.iter (fun (command_name, role) candidates ->
+            candidates#get_clause |> if_some (fun clause ->
+              if S.get_selected clause <> None then
+                Hashtbl.add commands_needed role command_name
+            )
+        );
 
-        Some (impl_clauses
+        Some (
+          impl_clauses
           |> ImplCache.filter_map (fun role candidates ->
-              match candidates#get_selected with
-              | None -> None
-              | Some (lit, impl) ->
-                  let commands = Hashtbl.find_all commands_needed role in
-                  Some {impl; commands; diagnostics = lit}
+              candidates#get_selected |> pipe_some (fun (lit, impl) ->
+                let commands = Hashtbl.find_all commands_needed role in
+                Some {impl; commands; diagnostics = lit}
+              )
           )
         )
 end
