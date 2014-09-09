@@ -9,9 +9,9 @@
 (** {2 Types} **)
 
 type importance =
-  | Dep_essential       (* Must select a version of the dependency *)
-  | Dep_recommended     (* Prefer to select a version, if possible *)
-  | Dep_restricts       (* Just adds restrictions without expressing any opinion *)
+  [ `essential       (* Must select a version of the dependency *)
+  | `recommended     (* Prefer to select a version, if possible *)
+  | `restricts ]     (* Just adds restrictions without expressing any opinion *)
 
 type distro_retrieval_method = {
   distro_size : Int64.t option;

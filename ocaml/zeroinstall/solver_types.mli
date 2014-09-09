@@ -24,14 +24,26 @@ module type MODEL = sig
    * might depend on a test runner). *)
   type command
 
-  (** A dependency indicates that an impl or command requires another role to be filled. *)
-  type dependency
-
   (** A restriction limits which implementations can fill a role. *)
   type restriction
 
   (** An identifier for a command within a role. *)
   type command_name = private string
+
+  (** A dependency indicates that an impl or command requires another role to be filled. *)
+  type dependency = {
+    dep_role : Role.t;
+    dep_restrictions : restriction list;    (** Restrictions on how the role is filled *)
+
+    (** If the dependency is [`essential] then its role must be filled.
+     * Otherwise, we just prefer to fill it if possible.
+     * A [`restricts] dependency does not cause the solver to try to fill a role, it just
+     * adds restrictions if it is used for some other reason. *)
+    dep_importance : [ `essential | `recommended | `restricts ];
+
+    (** Any commands on [dep_role] required by this dependency. *)
+    dep_required_commands : command_name list;
+  }
 
   (** Information provided to the solver about a role. *)
   type role_information = {
@@ -59,22 +71,7 @@ module type MODEL = sig
   val command_requires : t -> command -> dependency list
 
   val machine : impl -> Arch.machine_group option
-  val restrictions : dependency -> restriction list
   val meets_restriction : impl -> restriction -> bool
-
-  (** The role that this dependency requires. *)
-  val dep_role : dependency -> Role.t
-
-  (** Any commands required by this dependency. *)
-  val dep_required_commands : dependency -> command_name list
-
-  (** If the dependency is essential then its role must be filled.
-   * Otherwise, we just prefer to fill it if possible. *)
-  val dep_essential : dependency -> bool
-
-  (** A restrict-only dependency does not cause the solver to try to fill a role, it just
-   * adds restrictions if it is used for some other reason. *)
-  val restricts_only : dependency -> bool
 
   (** An implementation can bind to itself. e.g. "test" command that requires its own "run" command.
    * Get all such command names. *)

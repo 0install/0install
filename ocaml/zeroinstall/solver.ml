@@ -37,9 +37,14 @@ module Model = struct
   type impl = Impl.generic_implementation
   type t = Impl_provider.impl_provider
   type command = Impl.command
-  type dependency = Impl.dependency
   type restriction = Impl.restriction
   type command_name = string
+  type dependency = {
+    dep_role : Role.t;
+    dep_restrictions : restriction list;
+    dep_importance : [ `essential | `recommended | `restricts ];
+    dep_required_commands : command_name list;
+  }
   type role_information = {
     replacement : Role.t option;
     impls : impl list;
@@ -72,8 +77,19 @@ module Model = struct
 
   let get_command impl name = StringMap.find name impl.Impl.props.Impl.commands
 
-  let requires impl_provider impl = List.filter impl_provider#is_dep_needed Impl.(impl.props.requires)
-  let command_requires impl_provider command = List.filter impl_provider#is_dep_needed Impl.(command.command_requires)
+  let make_deps impl_provider zi_deps =
+    zi_deps |> U.filter_map (fun zi_dep ->
+      if impl_provider#is_dep_needed zi_dep then Some {
+        (* note: currently, only dependencies on binaries are supported. *)
+        dep_role = (zi_dep.Impl.dep_iface, false);
+        dep_importance = zi_dep.Impl.dep_importance;
+        dep_required_commands = zi_dep.Impl.dep_required_commands;
+        dep_restrictions = zi_dep.Impl.dep_restrictions;
+      } else None
+    )
+
+  let requires impl_provider impl = make_deps impl_provider Impl.(impl.props.requires)
+  let command_requires impl_provider command = make_deps impl_provider Impl.(command.command_requires)
 
   let to_selection impl_provider iface commands impl =
     let attrs = Impl.(impl.props.attrs)
@@ -114,7 +130,7 @@ module Model = struct
         in
         let child_nodes = List.filter want_command_child command_elem.Qdom.child_nodes in
         let add_command_dep child_nodes dep =
-          if dep.Impl.dep_importance <> Impl.Dep_restricts && impl_provider#is_dep_needed dep then
+          if dep.Impl.dep_importance <> `restricts && impl_provider#is_dep_needed dep then
             dep.Impl.dep_qdom :: child_nodes
           else
             child_nodes in
@@ -124,8 +140,8 @@ module Model = struct
       );
 
       List.iter copy_elem impl.Impl.props.Impl.bindings;
-      requires impl_provider impl |> List.iter (fun dep ->
-        if dep.Impl.dep_importance <> Impl.Dep_restricts then
+      Impl.(impl.props.requires) |> List.iter (fun dep ->
+        if impl_provider#is_dep_needed dep && dep.Impl.dep_importance <> `restricts then
           copy_elem (dep.Impl.dep_qdom)
       );
 
@@ -141,13 +157,7 @@ module Model = struct
     | None | Some "src" -> None
     | Some machine -> Some (Arch.get_machine_group machine)
 
-  let restrictions dep = dep.Impl.dep_restrictions
   let meets_restriction impl r = impl == dummy_impl || r#meets_restriction impl
-
-  (* note: currently, only dependencies on binaries are supported. *)
-  let dep_role dep = (dep.Impl.dep_iface, false)
-  let dep_required_commands dep = dep.Impl.dep_required_commands
-  let dep_essential dep = dep.Impl.dep_importance = Impl.Dep_essential
 
   let implementations impl_provider (iface_uri, source) =
     let {Impl_provider.replacement; impls; rejects = _} = impl_provider#get_implementations iface_uri ~source in
@@ -170,7 +180,6 @@ module Model = struct
       Binding.parse_binding binding
       |> pipe_some Binding.get_command
     )
-  let restricts_only dep = (dep.Impl.dep_importance = Impl.Dep_restricts)
 end
 
 module Core = Solver_core.Make(Model)

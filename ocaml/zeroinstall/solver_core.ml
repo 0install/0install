@@ -284,22 +284,24 @@ module Make (Model : Solver_types.MODEL) = struct
      - ensure that we don't pick an incompatbile version if we select [user_var]
      - ensure that we do pick a compatible version if we select [user_var] (for "essential" dependencies only) *)
   let process_dep sat lookup_impl lookup_command user_var dep =
+    let { Model.dep_role; dep_importance; dep_required_commands; dep_restrictions } = dep in
+
     (* Restrictions on the candidates *)
-    let meets_restrictions impl = List.for_all (Model.meets_restriction impl) (Model.restrictions dep) in
-    let candidates = lookup_impl (Model.dep_role dep) in
+    let meets_restrictions impl = List.for_all (Model.meets_restriction impl) dep_restrictions in
+    let candidates = lookup_impl dep_role in
     let pass, fail = candidates#partition meets_restrictions in
 
     (* Dependencies on commands *)
-    Model.dep_required_commands dep |> List.iter (fun name ->
-      let candidates = lookup_command (name, Model.dep_role dep) in
+    dep_required_commands |> List.iter (fun name ->
+      let candidates = lookup_command (name, dep_role) in
 
-      if Model.dep_essential dep then (
+      if dep_importance = `essential then (
         S.implies sat ~reason:"dep on command" user_var candidates#get_vars
       ) else (
         (* An optional dependency is selected when any implementation of the target interface
          * is selected. Force [dep_iface_selected] to be true in that case. We only need to test
          * [pass] here, because we always avoid [fail] anyway. *)
-        let dep_iface_selected = S.add_variable sat (SolverData.Role (Model.dep_role dep)) in
+        let dep_iface_selected = S.add_variable sat (SolverData.Role dep_role) in
         S.at_most_one sat (S.neg dep_iface_selected :: pass) |> ignore;
 
         (* If user_var is selected, then either we don't select this interface, or we select
@@ -308,7 +310,7 @@ module Make (Model : Solver_types.MODEL) = struct
       );
     );
 
-    if Model.dep_essential dep then (
+    if dep_importance = `essential then (
       S.implies sat ~reason:"essential dep" user_var pass     (* Must choose a suitable candidate *)
     ) else (
       (* If [user_var] is selected, don't select an incompatible version of the optional dependency.
@@ -450,20 +452,20 @@ module Make (Model : Solver_types.MODEL) = struct
               (* We've already selected a candidate for this component. Now check its dependencies. *)
 
               let check_dep dep =
-                if Model.restricts_only dep then (
+                let { Model.dep_role; dep_importance; dep_required_commands; dep_restrictions = _ } = dep in
+                if dep_importance = `restricts then (
                   (* Restrictions don't express that we do or don't want the
                      dependency, so skip them here. If someone else needs this,
                      we'll handle it when we get to them.
                      If noone wants it, it will be set to unselected at the end. *)
                   None
                 ) else (
-                  let dep_role = Model.dep_role dep in
                   match find_undecided (ReqRole dep_role) with
                   | Some lit -> Some lit
                   | None ->
                       (* Command dependencies next *)
                       let check_command_dep name = find_undecided @@ ReqCommand (name, dep_role) in
-                      Support.Utils.first_match check_command_dep (Model.dep_required_commands dep)
+                      Support.Utils.first_match check_command_dep dep_required_commands
                 )
                 in
               match Support.Utils.first_match check_dep deps with

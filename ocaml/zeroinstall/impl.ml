@@ -11,9 +11,9 @@ module FeedAttr = Constants.FeedAttr
 module AttrMap = Support.Qdom.AttrMap
 
 type importance =
-  | Dep_essential       (* Must select a version of the dependency *)
-  | Dep_recommended     (* Prefer to select a version, if possible *)
-  | Dep_restricts       (* Just adds restrictions without expressing any opinion *)
+  [ `essential       (* Must select a version of the dependency *)
+  | `recommended     (* Prefer to select a version, if possible *)
+  | `restricts ]     (* Just adds restrictions without expressing any opinion *)
 
 type distro_retrieval_method = {
   distro_size : Int64.t option;
@@ -201,11 +201,11 @@ let parse_dep local_dir dep =
   );
 
   let importance =
-    if ZI.tag dep = Some "restricts" then Dep_restricts
+    if ZI.tag dep = Some "restricts" then `restricts
     else (
       match ZI.get_attribute_opt FeedAttr.importance dep with
-      | None | Some "essential" -> Dep_essential
-      | _ -> Dep_recommended
+      | None | Some "essential" -> `essential
+      | _ -> `recommended
     ) in
 
   let restrictions =

@@ -216,7 +216,7 @@ let suite = "distro">::: [
       with Not_found -> skip_if true "No host python-gobject found"; assert false in
     let () =
       match host_gobject.props.requires with
-      | [ {dep_importance = Dep_restricts; dep_iface = "http://repo.roscidus.com/python/python"; dep_restrictions = [_]; _ } ] -> ()
+      | [ {dep_importance = `restricts; dep_iface = "http://repo.roscidus.com/python/python"; dep_restrictions = [_]; _ } ] -> ()
       | _ -> assert_failure "No host restriction for host python-gobject" in
     let from_feed = Zeroinstall.Feed_url.format_url (`distribution_feed feed.F.url) in
     let sel = ZI.make "selection"

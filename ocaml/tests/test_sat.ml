@@ -112,7 +112,7 @@ let run_sat_test expected problem =
           end in
         let dep = Impl.({
           dep_qdom = dummy_dep;
-          dep_importance = Dep_essential;
+          dep_importance = `essential;
           dep_iface = lib;
           dep_restrictions = [restriction];
           dep_required_commands = [];
