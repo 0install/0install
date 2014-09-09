@@ -142,7 +142,7 @@ let run_sat_test expected problem =
   | None, _ -> assert_failure "Expected success, but failed"
   | Some _, "FAIL" -> assert_failure "Expected failure, but found solution!"
   | Some result, _ ->
-      let sels = result#get_selections in
+      let sels = Solver.selections result in
       let actual = ref [] in
       sels |> Selections.iter (fun sel ->
         let iface = ZI.get_attribute "interface" sel in
@@ -284,7 +284,7 @@ let suite = "sat">::: [
       "libb[1,2] => libc 0 0";
     ] in
     let selected = ref StringMap.empty in
-    s#get_selections |> Selections.iter (fun sel ->
+    Solver.selections s |> Selections.iter (fun sel ->
       let iface = ZI.get_attribute "interface" sel in
       selected := StringMap.add iface (ZI.get_attribute_opt "version" sel) !selected
     );

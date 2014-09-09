@@ -15,7 +15,7 @@ let make_watcher solver_box tools ~trust_db reqs =
   let original_selections =
     match original_solve with
     | (false, _) -> StringMap.empty
-    | (true, results) -> Zeroinstall.Selections.make_selection_map results#get_selections in
+    | (true, results) -> Zeroinstall.Selections.make_selection_map (Zeroinstall.Solver.selections results) in
 
   object (_ : #Zeroinstall.Progress.watcher)
     val mutable n_completed_downloads = 0

@@ -174,11 +174,11 @@ let justify_decision config feed_provider requirements q_iface q_impl =
   try
     match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:false with
     | Some result ->
-        let test_sels = result#get_selections in
+        let test_sels = Solver.selections result in
         let (ready, actual_selections) = Solver.solve_for config feed_provider requirements in
         assert ready;   (* If we can solve we a constraint, we can solve without. *)
         justify_preference test_sels !wanted q_iface q_impl
-          ~old_sels:actual_selections#get_selections
+          ~old_sels:(Solver.selections actual_selections)
           ~compare:impl_provider#get_watched_compare !candidates
     | None ->
         match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:true with

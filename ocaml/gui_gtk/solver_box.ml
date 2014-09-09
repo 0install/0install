@@ -233,7 +233,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
           match mode with
           | `Select_only -> on_success ()
           | `Download_only | `Select_for_run ->
-              let sels = results#get_selections in
+              let sels = Zeroinstall.Solver.selections results in
               match_lwt Driver.download_selections config tools#distro (lazy fetcher) ~include_packages:true ~feed_provider:watcher#feed_provider sels with
               | `aborted_by_user -> widgets.ok_button#set_active false; Lwt.return ()
               | `success -> on_success ()
@@ -286,7 +286,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
     | `ok ->
         let (ready, results) = watcher#results in
         assert ready;
-        `Success results#get_selections |> Lwt.return
+        `Success (Zeroinstall.Solver.selections results) |> Lwt.return
     | `aborted_by_user -> `Aborted_by_user |> Lwt.return in
 
   object

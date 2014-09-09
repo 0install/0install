@@ -182,7 +182,7 @@ let get_selections options ~refresh ?test_callback reqs mode =
         log_info "Quick solve failed; can't select without updating feeds";
         select_with_refresh true
     | (true, results) ->
-        let sels = results#get_selections in
+        let sels = Zeroinstall.Solver.selections results in
         if mode = `Select_only || Zeroinstall.Driver.get_unavailable_selections config ~distro:tools#distro sels = [] then (
           (* (in select mode, we only care that we've made a selection, not that we've cached the implementations) *)
 

@@ -295,14 +295,14 @@ let check_machine_groups report =
     ) in
     RoleMap.iter filter report
 
-let get_failure_report (result:Solver.result) : component RoleMap.t =
-  let model = result#model in
-  let impls = result#raw_selections in
-  let root_req = result#requirements in
+let get_failure_report result : component RoleMap.t =
+  let model = Solver.model result in
+  let impls = Solver.raw_selections result in
+  let root_req = Solver.requirements result in
 
   let report =
     let get_selected role impl =
-      let diagnostics = lazy (result#explain role) in
+      let diagnostics = lazy (Solver.explain result role) in
       let impl = if impl == Model.dummy_impl then None else Some impl in
       let impl_candidates = Model.implementations model role in
       let rejects = Model.rejects model role in

@@ -22,18 +22,12 @@ end
 
 module RoleMap : Map.S with type key = Model.Role.t
 
-class type result =
-  object
-    method get_selections : Selections.t
+type result
 
-    (* The remaining methods are used to provide diagnostics *)
-    method get_selected : source:bool -> General.iface_uri -> Impl.generic_implementation option
-    method model : Model.t
-    method impl_provider : Impl_provider.impl_provider
-    method raw_selections : Impl.generic_implementation RoleMap.t
-    method explain : Model.Role.t -> string
-    method requirements : Model.requirements
-  end
+val selections : result -> Selections.t
+
+(** Get the impl_provider used for this solve. Useful for diagnostics and in the GUI to list the candidates. *)
+val impl_provider : result -> Impl_provider.impl_provider
 
 (** Convert [Requirements.t] to requirements for the solver.
  * This looks at the host system to get some values (whether we have multi-arch support, default CPU and OS). *)
@@ -49,3 +43,10 @@ val do_solve : Impl_provider.impl_provider -> Model.requirements -> closest_matc
  * Runs [do_solve ~closest_match:false] and reports (true, results) on success.
  * On failure, tries again with [~closest_match:true] and reports (false, results) for diagnostics. *)
 val solve_for : General.config -> Feed_provider.feed_provider -> Requirements.t -> bool * result
+
+(* The remaining functions are used to provide diagnostics *)
+val get_selected : result -> Model.Role.t -> Impl.generic_implementation option
+val raw_selections : result -> Impl.generic_implementation RoleMap.t
+val explain : result -> Model.Role.t -> string
+val requirements : result -> Model.requirements
+val model : result -> Model.t

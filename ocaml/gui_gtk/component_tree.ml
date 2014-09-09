@@ -280,7 +280,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
           model#set ~row ~column:problem true;
           model#set ~row ~column:version_col "(problem)" in
 
-    let sels = new_results#get_selections in
+    let sels = Zeroinstall.Solver.selections new_results in
     Hashtbl.clear feed_to_iface;
     Hashtbl.clear default_summary_str;
     model#clear ();

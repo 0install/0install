@@ -114,7 +114,7 @@ class console_ui =
         match result with
         | (false, result, _) -> raise_safe "%s" (Diagnostics.get_failure_reason config result)
         | (true, result, feed_provider) ->
-            let sels = result#get_selections in
+            let sels = Solver.selections result in
             match mode with
             | `Select_only -> Lwt.return (`Success sels)
             | `Download_only | `Select_for_run ->

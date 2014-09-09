@@ -118,7 +118,7 @@ let have_source_for feed_provider iface =
 
 let list_impls (results:Solver.result) iface =
   let make_list ~source selected_impl =
-    let candidates = results#impl_provider#get_implementations iface ~source in
+    let candidates = (Solver.impl_provider results)#get_implementations iface ~source in
 
     let by_version (a,_) (b,_) = compare b.Impl.parsed_version a.Impl.parsed_version in
 
@@ -129,10 +129,10 @@ let list_impls (results:Solver.result) iface =
 
     Some (selected_impl, all_impls) in
 
-  match results#get_selected ~source:true iface with
+  match Solver.get_selected results (iface, true) with
   | Some _ as source_impl -> make_list ~source:true source_impl
   | None ->
-      match results#get_selected ~source:false iface with
+      match Solver.get_selected results (iface, false) with
       | Some _ as bin_impl -> make_list ~source:false bin_impl
       | None -> make_list ~source:false None
 
@@ -281,7 +281,7 @@ let compile config feed_provider iface ~autocompile =
 
 let get_bug_report_details config ~iface (ready, results) =
   let system = config.system in
-  let sels = results#get_selections in
+  let sels = Solver.selections results in
   let root_iface = Selections.root_iface sels in
 
   let issue_file = "/etc/issue" in
@@ -323,7 +323,7 @@ let get_bug_report_details config ~iface (ready, results) =
 let run_test config distro test_callback (ready, results) =
   try_lwt
     if ready then (
-      let sels = results#get_selections in
+      let sels = Solver.selections results in
       match Driver.get_unavailable_selections config ~distro sels with
       | [] -> test_callback sels
       | missing ->

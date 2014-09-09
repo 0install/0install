@@ -46,7 +46,7 @@ let suite = "apps">::: [
     let () =
       match Zeroinstall.Solver.solve_for config feed_provider r with
       | (true, results) ->
-          let sels = results#get_selections |> Zeroinstall.Selections.as_xml in
+          let sels = Zeroinstall.Solver.selections results |> Zeroinstall.Selections.as_xml in
           {sels with
             Q.child_nodes = sels.Q.child_nodes |> List.map (fun child ->
               {child with Q.attrs = child.Q.attrs |> Q.AttrMap.add_no_ns "version" "0.1-pre"}

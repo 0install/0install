@@ -222,7 +222,7 @@ let make_solver_test test_elem =
       let reason = Zeroinstall.Diagnostics.get_failure_reason config result in
       Fake_system.assert_str_equal !expected_problem reason
     else (
-      let actual_sels = result#get_selections in
+      let actual_sels = Solver.selections result in
       assert (ZI.tag (Selections.as_xml actual_sels) = Some "selections");
       if ready then (
         let changed = Whatchanged.show_changes (fake_system :> system) (Some (Selections.create !expected_selections)) actual_sels in
@@ -593,7 +593,7 @@ let suite = "solver">::: [
     match Solver.solve_for config (feed_provider :> Feed_provider.feed_provider) r with
     | (false, _) -> assert false
     | (true, results) ->
-        let sels = results#get_selections in
+        let sels = Solver.selections results in
         let index = Selections.make_selection_map sels in
         let sel = StringMap.find_safe (Selections.root_iface sels) index in
         let command = Command.get_command_ex "run" sel in
@@ -627,7 +627,7 @@ let suite = "solver">::: [
       match Solver.do_solve impl_provider root_req ~closest_match:false with
       | None -> assert false
       | Some results ->
-          let sels = results#get_selections in
+          let sels = Solver.selections results in
           let index = Selections.make_selection_map sels in
           Fake_system.assert_str_equal expected @@ ZI.get_attribute "arch" (StringMap.find_safe "http://foo/MultiArch.xml" index);
           Fake_system.assert_str_equal expected @@ ZI.get_attribute "arch" (StringMap.find_safe "http://foo/MultiArchLib.xml" index) in
@@ -655,7 +655,7 @@ let suite = "solver">::: [
       match Solver.solve_for config feed_provider r with
       | (false, _) -> assert false
       | (true, results) ->
-          let sels = results#get_selections in
+          let sels = Solver.selections results in
           Selections.make_selection_map sels in
 
     let results = do_solve r in
@@ -689,7 +689,7 @@ let suite = "solver">::: [
       match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:false with
       | None -> assert_failure expected
       | Some results ->
-          match (Selections.as_xml results#get_selections).Support.Qdom.child_nodes with
+          match (Selections.as_xml (Solver.selections results)).Support.Qdom.child_nodes with
           | [sel] -> Fake_system.assert_str_equal expected @@ ZI.get_attribute "id" sel
           | _ -> assert false in
 

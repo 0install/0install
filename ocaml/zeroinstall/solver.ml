@@ -195,66 +195,21 @@ end
 module Core = Solver_core.Make(Model)
 module RoleMap = Core.RoleMap
 
-class type result =
-  object
-    method get_selections : Selections.t
-    method get_selected : source:bool -> General.iface_uri -> Model.impl option
-    method model : Model.t
-    method impl_provider : Impl_provider.impl_provider
-    method raw_selections : Impl.generic_implementation RoleMap.t
-    method explain : Model.Role.t -> string
-    method requirements : Model.requirements
-  end
+type result = {
+  root_req : Model.requirements;
+  selections : Core.selection RoleMap.t;
+  impl_provider : Impl_provider.impl_provider;
+}
 
 let do_solve impl_provider root_req ~closest_match =
   Core.do_solve impl_provider root_req ~closest_match |> pipe_some (fun selections ->
-    (** Create a <selections> document from the result of a solve.
-     * The use of Maps ensures that the inputs will be sorted, so we will have a stable output.
-     *)
-    let xml_selections = Selections.create (
-        let root_attrs =
-          match root_req with
-          | Model.ReqCommand (command, (iface, _source)) ->
-              AttrMap.singleton "interface" iface
-              |> AttrMap.add_no_ns "command" command
-          | Model.ReqRole (iface, _source) ->
-              AttrMap.singleton "interface" iface in
-        let child_nodes = selections
-          |> Core.RoleMap.bindings
-          |> List.map (fun ((iface, _source), selection) ->
-            (* TODO: update selections format to handle source here *)
-            Model.to_selection impl_provider iface selection.Core.commands selection.Core.impl
-          ) in
-        ZI.make ~attrs:root_attrs ~child_nodes "selections"
-      ) in
 
     (* Build the results object *)
-    Some (
-      object (_ : result)
-        method get_selections = xml_selections
-        method get_selected ~source iface =
-          try
-            let selection = Core.RoleMap.find (iface, source) selections in
-            let impl = Core.(selection.impl) in
-            if impl == Model.dummy_impl then None
-            else Some impl
-          with Not_found -> None
-
-        method model = impl_provider
-        method impl_provider = impl_provider
-
-        method raw_selections =
-          selections |> Core.RoleMap.map (fun sel -> sel.Core.impl)
-
-        method explain role =
-          try
-            let sel = Core.RoleMap.find role selections in
-            Core.explain sel.Core.diagnostics
-          with Not_found -> "Role not used!"
-
-        method requirements = root_req
-      end
-    )
+    Some {
+      root_req;
+      selections;
+      impl_provider;
+    }
   )
 
 let get_root_requirements config requirements =
@@ -297,3 +252,46 @@ let solve_for config feed_provider requirements =
         | Some result -> (false, result)
         | None -> failwith "No solution, even with closest_match!"
   with Safe_exception _ as ex -> reraise_with_context ex "... solving for interface %s" requirements.Requirements.interface_uri
+
+let selections result =
+  (** Create a <selections> document from the result of a solve.
+   * The use of Maps ensures that the inputs will be sorted, so we will have a stable output.
+   *)
+  Selections.create (
+    let root_attrs =
+      match result.root_req with
+      | Model.ReqCommand (command, (iface, _source)) ->
+          AttrMap.singleton "interface" iface
+          |> AttrMap.add_no_ns "command" command
+      | Model.ReqRole (iface, _source) ->
+          AttrMap.singleton "interface" iface in
+    let child_nodes = result.selections
+      |> Core.RoleMap.bindings
+      |> List.map (fun ((iface, _source), selection) ->
+        (* TODO: update selections format to handle source here *)
+        Model.to_selection result.impl_provider iface selection.Core.commands selection.Core.impl
+      ) in
+    ZI.make ~attrs:root_attrs ~child_nodes "selections"
+  )
+
+let get_selected result role =
+  try
+    let selection = Core.RoleMap.find role result.selections in
+    let impl = Core.(selection.impl) in
+    if impl == Model.dummy_impl then None
+    else Some impl
+  with Not_found -> None
+
+let impl_provider result = result.impl_provider
+let requirements result = result.root_req
+
+let explain result role =
+  try
+    let sel = Core.RoleMap.find role result.selections in
+    Core.explain sel.Core.diagnostics
+  with Not_found -> "Role not used!"
+
+let model result = result.impl_provider
+
+let raw_selections result =
+  result.selections |> Core.RoleMap.map (fun sel -> sel.Core.impl)

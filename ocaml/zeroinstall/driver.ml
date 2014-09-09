@@ -184,7 +184,7 @@ let quick_solve tools reqs =
   let feed_provider = new Feed_provider_impl.feed_provider config distro in
   match Solver.solve_for config feed_provider reqs with
   | (true, results) ->
-      let sels = results#get_selections in
+      let sels = Solver.selections results in
       if get_unavailable_selections config ~distro sels = [] then
         Some sels   (* A set of valid selections, available locally *)
       else
