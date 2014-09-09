@@ -64,19 +64,18 @@ module type MODEL = sig
    * The dependencies should be ordered with the most important first.
    * The solver will prefer to select the best possible version of an earlier
    * dependency, even if that means selecting a worse version of a later one
-   * ([restricts_only] dependencies are ignored for this). *)
-  val requires : t -> impl -> dependency list
+   * ([restricts_only] dependencies are ignored for this).
+   *
+   * An implementation or command can also bind to itself.
+   * e.g. "test" command that requires its own "run" command.
+   * We also return all such required commands. *)
+  val requires : t -> impl -> dependency list * command_name list
 
   (** As [requires], but for commands. *)
-  val command_requires : t -> command -> dependency list
+  val command_requires : t -> command -> dependency list * command_name list
 
   val machine : impl -> Arch.machine_group option
   val meets_restriction : impl -> restriction -> bool
-
-  (** An implementation can bind to itself. e.g. "test" command that requires its own "run" command.
-   * Get all such command names. *)
-  val impl_self_commands : impl -> command_name list
-  val command_self_commands : command -> command_name list
 
   (* A dummy implementation, used to get diagnostic information if the solve fails.
    * It satisfies all requirements, even conflicting ones. *)

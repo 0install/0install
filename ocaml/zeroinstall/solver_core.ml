@@ -108,8 +108,10 @@ module Make (Model : Solver_types.MODEL) = struct
     | ReqRole of Model.Role.t
 
   type decision_state =
-    | Undecided of S.lit                  (* The next candidate to try *)
-    | Selected of Model.dependency list    (* The dependencies to check next *)
+    (* The next candidate to try *)
+    | Undecided of S.lit
+    (* The dependencies to check next *)
+    | Selected of (Model.dependency list * Model.command_name list)
     | Unselected
 
   class type candidates =
@@ -360,10 +362,11 @@ module Make (Model : Solver_types.MODEL) = struct
       let depend_on_impl (command_var, command) (impl_var, _command) =
         (* For each command, require that we select the corresponding implementation. *)
         S.implies sat ~reason:"impl for command" command_var [impl_var];
+        let deps, self_commands = Model.command_requires model command in
         (* Commands can depend on other commands in the same implementation *)
-        process_self_commands command_var role (Model.command_self_commands command);
+        process_self_commands command_var role self_commands;
         (* Process command-specific dependencies *)
-        process_deps command_var (Model.command_requires model command);
+        process_deps command_var deps
       in
       List.iter2 depend_on_impl vars commands
     )
@@ -385,8 +388,9 @@ module Make (Model : Solver_types.MODEL) = struct
       (clause, fun () ->
         impls |> List.iter (fun (impl_var, impl) ->
           require_machine_group impl_var impl;
-          process_self_commands impl_var role (Model.impl_self_commands impl);
-          process_deps impl_var (Model.requires model impl);
+          let deps, self_commands = Model.requires model impl in
+          process_self_commands impl_var role self_commands;
+          process_deps impl_var deps
         )
       )
     and add_commands_to_cache key = make_commands_clause model sat lookup_impl process_self_commands process_deps key
@@ -406,6 +410,10 @@ module Make (Model : Solver_types.MODEL) = struct
     let impl_clauses, command_clauses = ImplCache.snapshot impl_cache, CommandCache.snapshot command_cache in
     add_replaced_by_conflicts sat impl_clauses !replacements;
     impl_clauses, command_clauses
+
+  let role_of_req = function
+    | ReqRole r -> r
+    | ReqCommand (_, r) -> r
 
   let do_solve (model:Model.t) root_role ?command ~closest_match =
     let root_req =
@@ -448,9 +456,13 @@ module Make (Model : Solver_types.MODEL) = struct
           match candidates#get_state with
           | Unselected -> None
           | Undecided lit -> Some lit
-          | Selected deps ->
+          | Selected (deps, self_commands) ->
               (* We've already selected a candidate for this component. Now check its dependencies. *)
-
+              let check_self_command name = find_undecided (ReqCommand (name, role_of_req req)) in
+              match Support.Utils.first_match check_self_command self_commands with
+              | Some _ as r -> r
+              | None ->
+              (* Self-commands already done; now try the dependencies *)
               let check_dep dep =
                 let { Model.dep_role; dep_importance; dep_required_commands; dep_restrictions = _ } = dep in
                 if dep_importance = `restricts then (
@@ -469,11 +481,12 @@ module Make (Model : Solver_types.MODEL) = struct
                 )
                 in
               match Support.Utils.first_match check_dep deps with
-              | Some lit -> Some lit
-              | None ->   (* All dependencies checked; now to the impl (if we're a <command>) *)
-                  match req with
-                  | ReqCommand (_command, role) -> find_undecided @@ ReqRole role
-                  | ReqRole _ -> None     (* We're not a <command> *)
+              | Some _ as r -> r
+              | None ->
+              (* All dependencies checked; now to the impl (if we're a <command>) *)
+              match req with
+              | ReqCommand (_command, role) -> find_undecided (ReqRole role)
+              | ReqRole _ -> None     (* We're not a <command> *)
         ) in
       find_undecided root_req in
 

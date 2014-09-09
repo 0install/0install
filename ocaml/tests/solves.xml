@@ -871,4 +871,59 @@ Can't find all required implementations:
     </selections>
   </test>
 
+  <test name='self-deps'>
+    <interface local-path="prog.xml">
+      <name>prog</name>
+      <summary>unit-tests need self</summary>
+
+      <implementation id="." version='1'>
+	<command name='run' path='prog.py'>
+	  <requires interface='./lib1.xml' importance='recommended'/>
+	</command>
+	<command name='foo' path='foo.py'>
+	  <requires interface='./lib2.xml' importance='recommended'/>
+	</command>
+	<command name='test'>
+	  <executable-in-path name='prog'/>
+	</command>
+	<executable-in-path name='prog-foo' command='foo'/>
+      </implementation>
+    </interface>
+
+    <interface local-path="lib1.xml">
+      <name>lib1</name>
+      <summary>lib1</summary>
+
+      <implementation id='old' version='1.0' local-path='.'/>
+      <implementation id='new' version='2.0' local-path='.'/>
+    </interface>
+
+    <interface local-path="lib2.xml">
+      <name>lib2</name>
+      <summary>lib2</summary>
+
+      <implementation id='old' version='1.0' local-path='.'/>
+      <implementation id='new' version='2.0' local-path='.'/>
+    </interface>
+
+    <requirements interface='./prog.xml' command='test'/>
+
+    <selections interface="/root/prog.xml" command="test">
+      <selection interface="/root/lib1.xml" version='2.0' id='new' local-path='/root'/>
+      <selection interface="/root/lib2.xml" version='2.0' id='new' local-path='/root'/>
+      <selection interface="/root/prog.xml" version='1' id='.' local-path='/root'>
+	<command name='foo' path='foo.py'>
+          <requires interface="/root/lib2.xml" importance='recommended'/>
+	</command>
+	<command name='run' path='prog.py'>
+          <requires interface="/root/lib1.xml" importance='recommended'/>
+	</command>
+	<command name="test">
+          <executable-in-path name="prog"/>
+        </command>
+	<executable-in-path command="foo" name="prog-foo"/>
+      </selection>
+    </selections>
+  </test>
+
 </test-cases>

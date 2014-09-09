@@ -77,19 +77,26 @@ module Model = struct
 
   let get_command impl name = StringMap.find name impl.Impl.props.Impl.commands
 
-  let make_deps impl_provider zi_deps =
-    zi_deps |> U.filter_map (fun zi_dep ->
-      if impl_provider#is_dep_needed zi_dep then Some {
-        (* note: currently, only dependencies on binaries are supported. *)
-        dep_role = (zi_dep.Impl.dep_iface, false);
-        dep_importance = zi_dep.Impl.dep_importance;
-        dep_required_commands = zi_dep.Impl.dep_required_commands;
-        dep_restrictions = zi_dep.Impl.dep_restrictions;
-      } else None
-    )
+  let make_deps impl_provider zi_deps self_bindings =
+    let deps = zi_deps
+      |> U.filter_map (fun zi_dep ->
+        if impl_provider#is_dep_needed zi_dep then Some {
+          (* note: currently, only dependencies on binaries are supported. *)
+          dep_role = (zi_dep.Impl.dep_iface, false);
+          dep_importance = zi_dep.Impl.dep_importance;
+          dep_required_commands = zi_dep.Impl.dep_required_commands;
+          dep_restrictions = zi_dep.Impl.dep_restrictions;
+        } else None
+      ) in
+    let self_commands = self_bindings
+      |> U.filter_map (fun binding ->
+        Binding.parse_binding binding
+        |> pipe_some Binding.get_command
+      ) in
+    (deps, self_commands)
 
-  let requires impl_provider impl = make_deps impl_provider Impl.(impl.props.requires)
-  let command_requires impl_provider command = make_deps impl_provider Impl.(command.command_requires)
+  let requires impl_provider impl = make_deps impl_provider Impl.(impl.props.requires) Impl.(impl.props.bindings)
+  let command_requires impl_provider command = make_deps impl_provider Impl.(command.command_requires) Impl.(command.command_bindings)
 
   let to_selection impl_provider iface commands impl =
     let attrs = Impl.(impl.props.attrs)
@@ -167,19 +174,6 @@ module Model = struct
       ) else Some (replacement, source)
     ) in
     {replacement; impls}
-
-  let impl_self_commands impl =
-    Impl.(impl.props.bindings)
-    |> U.filter_map (fun binding ->
-      Binding.parse_binding binding
-      |> pipe_some Binding.get_command
-    )
-  let command_self_commands command =
-    command.Impl.command_bindings
-    |> U.filter_map (fun binding ->
-      Binding.parse_binding binding
-      |> pipe_some Binding.get_command
-    )
 end
 
 module Core = Solver_core.Make(Model)
