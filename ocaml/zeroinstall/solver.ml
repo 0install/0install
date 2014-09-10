@@ -29,7 +29,7 @@ module Model = struct
       | iface_uri, true -> iface_uri ^ "#source"
 
     (* Sort the interfaces by URI so we have a stable output. *)
-    let compare (ib, sb) (ia, sa) =
+    let compare (ia, sa) (ib, sb) =
       match String.compare ia ib with
       | 0 -> compare sa sb
       | x -> x
@@ -210,8 +210,7 @@ let do_solve impl_provider root_req ~closest_match =
           |> List.map (fun ((iface, _source), selection) ->
             (* TODO: update selections format to handle source here *)
             Model.to_selection impl_provider iface selection.Core.commands selection.Core.impl
-          )
-          |> List.rev in
+          ) in
         ZI.make ~attrs:root_attrs ~child_nodes "selections"
       ) in
 
