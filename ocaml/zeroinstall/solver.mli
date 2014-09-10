@@ -4,14 +4,21 @@
 
 (** Select a compatible set of components to run a program. *)
 
-(** We can either be trying to find an implementation, or a command within an implementation.
- * The last component is [true] if we're looking for source. *)
-type requirements =
-  | ReqCommand of (string * General.iface_uri * bool)
-  | ReqIface of (General.iface_uri * bool)
+module Model : sig
+  include Solver_types.MODEL with
+    type Role.t = General.iface_uri * bool and
+    type impl = Impl.generic_implementation
 
-module Model : Solver_types.MODEL with
- type Role.t = General.iface_uri * bool
+  type rejection
+
+  val id_of_impl : impl -> string
+  val version : impl -> Versions.parsed_version
+  val string_of_restriction : restriction -> string
+  val rejects : t -> Role.t -> (impl * rejection) list
+  val describe_problem : impl -> rejection -> string
+  val format_machine : impl -> string
+  val user_restrictions : t -> Role.t -> restriction option
+end
 
 module RoleMap : Map.S with type key = Model.Role.t
 
@@ -21,21 +28,22 @@ class type result =
 
     (* The remaining methods are used to provide diagnostics *)
     method get_selected : source:bool -> General.iface_uri -> Impl.generic_implementation option
+    method model : Model.t
     method impl_provider : Impl_provider.impl_provider
     method raw_selections : Impl.generic_implementation RoleMap.t
     method explain : Model.Role.t -> string
-    method requirements : requirements
+    method requirements : Model.requirements
   end
 
 (** Convert [Requirements.t] to requirements for the solver.
  * This looks at the host system to get some values (whether we have multi-arch support, default CPU and OS). *)
-val get_root_requirements : General.config -> Requirements.t -> Impl_provider.scope_filter * requirements
+val get_root_requirements : General.config -> Requirements.t -> Impl_provider.scope_filter * Model.requirements
 
 (** Find a set of implementations which satisfy these requirements. Consider using [solve_for] instead.
     @param closest_match adds a lowest-ranked (but valid) implementation to every interface, so we can always
            select something. Useful for diagnostics.
     @return None if the solve fails (only happens if [closest_match] is false. *)
-val do_solve : Impl_provider.impl_provider -> requirements -> closest_match:bool -> result option
+val do_solve : Impl_provider.impl_provider -> Model.requirements -> closest_match:bool -> result option
 
 (** High-level solver interface.
  * Runs [do_solve ~closest_match:false] and reports (true, results) on success.

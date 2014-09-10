@@ -17,14 +17,13 @@ module Make : functor (Model : Solver_types.MODEL) -> sig
 
   module RoleMap : Map.S with type key = Model.Role.t
 
-  (** [do_solve model role] finds an implementation for the given role, plus any other implementations needed
+  (** [do_solve model req] finds an implementation matching the given requirements, plus any other implementations needed
    * to satisfy its dependencies.
-   * @param command can be used to require a particular command
    * @param closest_match adds a lowest-ranked (but valid) implementation to
    *   every interface, so we can always select something. Useful for diagnostics.
    *   Note: always try with [~closest_match:false] first, or it may miss a valid solution.
    * @return None if the solve fails (only happens if [closest_match] is false). *)
-  val do_solve : Model.t -> Model.Role.t -> ?command:Model.command_name -> closest_match:bool -> selection RoleMap.t option
+  val do_solve : Model.t -> Model.requirements -> closest_match:bool -> selection RoleMap.t option
 
   (** Request diagnostics-of-last-resort (fallback used when [Diagnostics] can't work out what's wrong).
    * Gets a report from the underlying SAT solver. *)

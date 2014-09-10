@@ -95,17 +95,13 @@ module Make (Model : Solver_types.MODEL) = struct
         | MachineGroup of string
         | Role of Model.Role.t
       let to_string = function
-        | ImplElem impl -> Model.to_string impl
+        | ImplElem impl -> Model.impl_to_string impl
         | CommandElem command -> Model.command_to_string command
         | MachineGroup name -> name
         | Role role -> Model.Role.to_string role
     end
 
   module S = Support.Sat.MakeSAT(SolverData)
-
-  type requirements =
-    | ReqCommand of (Model.command_name * Model.Role.t)
-    | ReqRole of Model.Role.t
 
   type decision_state =
     (* The next candidate to try *)
@@ -402,8 +398,8 @@ module Make (Model : Solver_types.MODEL) = struct
 
     (* This recursively builds the whole problem up. *)
     begin match root_req with
-      | ReqRole r -> (lookup_impl r)#get_vars
-      | ReqCommand r -> (lookup_command r)#get_vars end
+      | Model.ReqRole r -> (lookup_impl r)#get_vars
+      | Model.ReqCommand r -> (lookup_command r)#get_vars end
     |> S.at_least_one sat ~reason:"need root";          (* Must get what we came for! *)
 
     (* All impl_candidates and command_candidates have now been added, so snapshot the cache. *)
@@ -412,15 +408,10 @@ module Make (Model : Solver_types.MODEL) = struct
     impl_clauses, command_clauses
 
   let role_of_req = function
-    | ReqRole r -> r
-    | ReqCommand (_, r) -> r
+    | Model.ReqRole r -> r
+    | Model.ReqCommand (_, r) -> r
 
-  let do_solve (model:Model.t) root_role ?command ~closest_match =
-    let root_req =
-      match command with
-      | None -> ReqRole root_role
-      | Some c -> ReqCommand (c, root_role) in
-
+  let do_solve (model:Model.t) root_req ~closest_match =
     (* The basic plan is this:
        1. Scan the root interface and all dependencies recursively, building up a SAT problem.
        2. Solve the SAT problem. Whenever there are multiple options, try the most preferred one first.
@@ -439,8 +430,8 @@ module Make (Model : Solver_types.MODEL) = struct
     let impl_clauses, command_clauses = build_problem model root_req sat ~closest_match in
 
     let lookup = function
-      | ReqRole r -> (ImplCache.get_exn r impl_clauses :> candidates)
-      | ReqCommand r -> (CommandCache.get_exn r command_clauses) in
+      | Model.ReqRole r -> (ImplCache.get_exn r impl_clauses :> candidates)
+      | Model.ReqCommand r -> (CommandCache.get_exn r command_clauses) in
 
     (* Run the solve *)
 
@@ -458,7 +449,7 @@ module Make (Model : Solver_types.MODEL) = struct
           | Undecided lit -> Some lit
           | Selected (deps, self_commands) ->
               (* We've already selected a candidate for this component. Now check its dependencies. *)
-              let check_self_command name = find_undecided (ReqCommand (name, role_of_req req)) in
+              let check_self_command name = find_undecided (Model.ReqCommand (name, role_of_req req)) in
               match Support.Utils.first_match check_self_command self_commands with
               | Some _ as r -> r
               | None ->
@@ -472,11 +463,11 @@ module Make (Model : Solver_types.MODEL) = struct
                      If noone wants it, it will be set to unselected at the end. *)
                   None
                 ) else (
-                  match find_undecided (ReqRole dep_role) with
+                  match find_undecided (Model.ReqRole dep_role) with
                   | Some lit -> Some lit
                   | None ->
                       (* Command dependencies next *)
-                      let check_command_dep name = find_undecided @@ ReqCommand (name, dep_role) in
+                      let check_command_dep name = find_undecided @@ Model.ReqCommand (name, dep_role) in
                       Support.Utils.first_match check_command_dep dep_required_commands
                 )
                 in
@@ -485,8 +476,8 @@ module Make (Model : Solver_types.MODEL) = struct
               | None ->
               (* All dependencies checked; now to the impl (if we're a <command>) *)
               match req with
-              | ReqCommand (_command, role) -> find_undecided (ReqRole role)
-              | ReqRole _ -> None     (* We're not a <command> *)
+              | Model.ReqCommand (_command, role) -> find_undecided (Model.ReqRole role)
+              | Model.ReqRole _ -> None     (* We're not a <command> *)
         ) in
       find_undecided root_req in
 

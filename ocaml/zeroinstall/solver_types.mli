@@ -51,7 +51,7 @@ module type MODEL = sig
     impls : impl list;            (** Candidates to fill the role. *)
   }
 
-  val to_string : impl -> string
+  val impl_to_string : impl -> string
   val command_to_string : command -> string
 
   (** The list of candidates to fill a role. *)
@@ -76,6 +76,10 @@ module type MODEL = sig
 
   val machine : impl -> Arch.machine_group option
   val meets_restriction : impl -> restriction -> bool
+
+  type requirements =
+    | ReqCommand of (command_name * Role.t)
+    | ReqRole of Role.t
 
   (* A dummy implementation, used to get diagnostic information if the solve fails.
    * It satisfies all requirements, even conflicting ones. *)

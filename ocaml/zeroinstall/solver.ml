@@ -12,10 +12,6 @@ module Qdom = Support.Qdom
 module FeedAttr = Constants.FeedAttr
 module AttrMap = Qdom.AttrMap
 
-type requirements =
-  | ReqCommand of (string * General.iface_uri * bool)
-  | ReqIface of (General.iface_uri * bool)
-
 module Model = struct
   (** See [Solver_types.MODEL] for documentation. *)
 
@@ -39,6 +35,7 @@ module Model = struct
   type command = Impl.command
   type restriction = Impl.restriction
   type command_name = string
+  type rejection = Impl_provider.rejection
   type dependency = {
     dep_role : Role.t;
     dep_restrictions : restriction list;
@@ -49,9 +46,15 @@ module Model = struct
     replacement : Role.t option;
     impls : impl list;
   }
+  type requirements =
+    | ReqCommand of (command_name * Role.t)
+    | ReqRole of Role.t
 
-  let to_string impl = (Versions.format_version impl.Impl.parsed_version) ^ " - " ^ Qdom.show_with_loc impl.Impl.qdom
+  let impl_to_string impl = (Versions.format_version impl.Impl.parsed_version) ^ " - " ^ Qdom.show_with_loc impl.Impl.qdom
+  let id_of_impl impl = Impl.get_attr_ex FeedAttr.id impl
   let command_to_string command = Qdom.show_with_loc command.Impl.command_qdom
+  let version impl = impl.Impl.parsed_version
+  let describe_problem = Impl_provider.describe_problem
 
   let dummy_impl =
     let open Impl in {
@@ -164,7 +167,13 @@ module Model = struct
     | None | Some "src" -> None
     | Some machine -> Some (Arch.get_machine_group machine)
 
+  let format_machine impl =
+    match impl.Impl.machine with
+    | None -> "any"
+    | Some machine -> machine
+
   let meets_restriction impl r = impl == dummy_impl || r#meets_restriction impl
+  let string_of_restriction r = r#to_string
 
   let implementations impl_provider (iface_uri, source) =
     let {Impl_provider.replacement; impls; rejects = _} = impl_provider#get_implementations iface_uri ~source in
@@ -174,6 +183,13 @@ module Model = struct
       ) else Some (replacement, source)
     ) in
     {replacement; impls}
+
+  let rejects impl_provider (iface_uri, source) =
+    let candidates = impl_provider#get_implementations iface_uri ~source in
+    candidates.Impl_provider.rejects
+
+  let user_restrictions impl_provider (iface, _source) =
+    StringMap.find iface impl_provider#extra_restrictions
 end
 
 module Core = Solver_core.Make(Model)
@@ -183,29 +199,25 @@ class type result =
   object
     method get_selections : Selections.t
     method get_selected : source:bool -> General.iface_uri -> Model.impl option
+    method model : Model.t
     method impl_provider : Impl_provider.impl_provider
     method raw_selections : Impl.generic_implementation RoleMap.t
     method explain : Model.Role.t -> string
-    method requirements : requirements
+    method requirements : Model.requirements
   end
 
 let do_solve impl_provider root_req ~closest_match =
-  let root_role, root_command =
-    match root_req with
-    | ReqIface (iface, source) -> (iface, source), None
-    | ReqCommand (command, iface, source) -> (iface, source), Some command in
-
-  Core.do_solve impl_provider root_role ?command:root_command ~closest_match |> pipe_some (fun selections ->
+  Core.do_solve impl_provider root_req ~closest_match |> pipe_some (fun selections ->
     (** Create a <selections> document from the result of a solve.
      * The use of Maps ensures that the inputs will be sorted, so we will have a stable output.
      *)
     let xml_selections = Selections.create (
         let root_attrs =
           match root_req with
-          | ReqCommand (command, iface, _source) ->
+          | Model.ReqCommand (command, (iface, _source)) ->
               AttrMap.singleton "interface" iface
               |> AttrMap.add_no_ns "command" command
-          | ReqIface (iface, _source) ->
+          | Model.ReqRole (iface, _source) ->
               AttrMap.singleton "interface" iface in
         let child_nodes = selections
           |> Core.RoleMap.bindings
@@ -228,6 +240,7 @@ let do_solve impl_provider root_req ~closest_match =
             else Some impl
           with Not_found -> None
 
+        method model = impl_provider
         method impl_provider = impl_provider
 
         method raw_selections =
@@ -267,8 +280,8 @@ let get_root_requirements config requirements =
   }) in
 
   let root_req = match command with
-  | Some command -> ReqCommand (command, interface_uri, source)
-  | None -> ReqIface (interface_uri, source) in
+  | Some command -> Model.ReqCommand (command, (interface_uri, source))
+  | None -> Model.ReqRole (interface_uri, source) in
 
   (scope_filter, root_req)
 

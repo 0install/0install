@@ -926,4 +926,27 @@ Can't find all required implementations:
     </selections>
   </test>
 
+  <test name='self-deps-diag'>
+    <interface local-path="prog.xml">
+      <name>prog</name>
+      <summary>self-commands not available</summary>
+
+      <implementation id="." version='1'>
+	<command name='test'>
+	  <executable-in-path name='p1' command='missing-1'/>
+	</command>
+	<executable-in-path name='p2' command='missing-2'/>
+      </implementation>
+    </interface>
+
+    <requirements fails='true' interface='./prog.xml' command='test'/>
+
+    <problem>
+Can't find all required implementations:
+- /root/prog.xml -> (problem)
+    Rejected candidates:
+      . (1): No missing-2 command
+    </problem>
+  </test>
+
 </test-cases>
