@@ -8,8 +8,3 @@
     for each component we couldn't select, which constraints caused the candidates
     to be rejected. *)
 val get_failure_reason : General.config -> Solver.result -> string
-
-(** Run a solve with a single implementation as the only choice for an interface.
-    If no solution is possible, explain why not.
-    If a solution is possible, explain why it isn't the preferred solution. *)
-val justify_decision : General.config -> Feed_provider.feed_provider -> Requirements.t -> General.iface_uri -> Feed_url.global_id -> string

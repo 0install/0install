@@ -237,7 +237,7 @@ let make_solver_test test_elem =
         feed = Feed_url.parse iface;
         id = ZI.get_attribute "id" elem;
       }) in
-      let reason = Zeroinstall.Diagnostics.justify_decision config (feed_provider :> Feed_provider.feed_provider) !reqs iface g_id in
+      let reason = Zeroinstall.Justify.justify_decision config (feed_provider :> Feed_provider.feed_provider) !reqs iface g_id in
       Fake_system.assert_str_equal (trim elem.Support.Qdom.last_text_inside) reason
     );
   )
@@ -550,7 +550,7 @@ let suite = "solver">::: [
 
     let justify expected iface feed id =
       let g_id = Feed_url.({feed; id}) in
-      let actual = Diagnostics.justify_decision config (feed_provider :> Feed_provider.feed_provider) reqs iface g_id in
+      let actual = Justify.justify_decision config (feed_provider :> Feed_provider.feed_provider) reqs iface g_id in
       Fake_system.assert_str_equal expected actual in
 
     justify

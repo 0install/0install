@@ -606,7 +606,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
 
             let explain = GMenu.menu_item ~packing:menu#add ~label:"Explain this decision" () in
             explain#connect#activate ==> (fun () ->
-              let reason = Zeroinstall.Diagnostics.justify_decision config watcher#feed_provider reqs iface (Impl.get_id impl) in
+              let reason = Zeroinstall.Justify.justify_decision config watcher#feed_provider reqs iface (Impl.get_id impl) in
               show_explanation_box ~parent:window iface version_str reason
             );
             menu#popup ~button:(B.button bev) ~time:(B.time bev);
