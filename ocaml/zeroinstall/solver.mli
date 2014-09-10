@@ -4,17 +4,14 @@
 
 (** Select a compatible set of components to run a program. *)
 
-type diagnostics
-
-(** Request diagnostics-of-last-resort (fallback used when [Diagnostics] can't work out what's wrong).
- * Gets a report from the underlying SAT solver. *)
-val explain : diagnostics -> string
-
 (** We can either be trying to find an implementation, or a command within an implementation.
  * The last component is [true] if we're looking for source. *)
 type requirements =
   | ReqCommand of (string * General.iface_uri * bool)
   | ReqIface of (General.iface_uri * bool)
+
+type role = General.iface_uri * bool
+module RoleMap : Map.S with type key = role
 
 class type result =
   object
@@ -23,7 +20,8 @@ class type result =
     (* The remaining methods are used to provide diagnostics *)
     method get_selected : source:bool -> General.iface_uri -> Impl.generic_implementation option
     method impl_provider : Impl_provider.impl_provider
-    method implementations : ((General.iface_uri * bool) * (diagnostics * Impl.generic_implementation)) list
+    method raw_selections : Impl.generic_implementation RoleMap.t
+    method explain : role -> string
     method requirements : requirements
   end
 

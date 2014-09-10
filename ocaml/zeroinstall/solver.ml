@@ -177,13 +177,17 @@ module Model = struct
 end
 
 module Core = Solver_core.Make(Model)
+module RoleMap = Core.RoleMap
+
+type role = Model.Role.t
 
 class type result =
   object
     method get_selections : Selections.t
     method get_selected : source:bool -> General.iface_uri -> Model.impl option
     method impl_provider : Impl_provider.impl_provider
-    method implementations : ((General.iface_uri * bool) * (Core.diagnostics * Model.impl)) list
+    method raw_selections : Impl.generic_implementation RoleMap.t
+    method explain : role -> string
     method requirements : requirements
   end
 
@@ -227,17 +231,20 @@ let do_solve impl_provider root_req ~closest_match =
           with Not_found -> None
 
         method impl_provider = impl_provider
-        method implementations =
-          selections |> Core.RoleMap.bindings |> List.map (fun (role, sel) ->
-            (role, Core.(sel.diagnostics, sel.impl))
-          )
+
+        method raw_selections =
+          selections |> Core.RoleMap.map (fun sel -> sel.Core.impl)
+
+        method explain role =
+          try
+            let sel = Core.RoleMap.find role selections in
+            Core.explain sel.Core.diagnostics
+          with Not_found -> "Role not used!"
+
         method requirements = root_req
       end
     )
   )
-
-let explain = Core.explain
-type diagnostics = Core.diagnostics
 
 let get_root_requirements config requirements =
   let { Requirements.command; interface_uri; source; extra_restrictions; os; cpu; message = _ } = requirements in

@@ -11,12 +11,7 @@ module FeedAttr = Constants.FeedAttr
 
 module U = Support.Utils
 
-module SelMap = Map.Make (
-  struct
-    type t = (iface_uri * bool)
-    let compare = compare
-  end
-)
+module RoleMap = Solver.RoleMap
 
 let spf = Printf.sprintf
 
@@ -116,7 +111,7 @@ let format_report buf (iface_uri, _source) component =
     [candidates] is the result from the impl_provider.
     [impl] is the selected implementation, or [None] if we chose [dummy_impl].
     [diagnostics] can be used to produce diagnostics as a last resort. *)
-class component candidates (diagnostics:Solver.diagnostics) (selected_impl:Impl.generic_implementation option) =
+class component candidates (diagnostics:string Lazy.t) (selected_impl:Impl.generic_implementation option) =
   let {Impl_provider.impls = orig_good; Impl_provider.rejects = orig_bad; Impl_provider.replacement} = candidates in
   (* orig_good is all the implementations passed to the SAT solver (these are the
      ones with a compatible OS, CPU, etc). They are sorted most desirable first. *)
@@ -170,7 +165,7 @@ let get_machine_group impl =
   | Some m -> Some (Arch.get_machine_group m)
 
 let find_component key report =
-  try Some (SelMap.find key report)
+  try Some (RoleMap.find key report)
   with Not_found -> None
 
 let find_component_ex key report =
@@ -228,7 +223,7 @@ let examine_selection report (iface_uri, source) component =
   (* Note any conflicts caused by <replaced-by> elements *)
   let () =
     match component#replacement with
-    | Some replacement when SelMap.mem (replacement, source) report -> (
+    | Some replacement when RoleMap.mem (replacement, source) report -> (
         component#note (ReplacedByConflict replacement);
         component#reject_all (`ConflictsInterface replacement);
         match find_component (replacement, source) report with
@@ -249,7 +244,7 @@ let examine_selection report (iface_uri, source) component =
 
 let reject_if_unselected _key component =
   if component#impl = None then (
-    component#reject_all (`DiagnosticsFailure (Solver.explain component#diagnostics));
+    component#reject_all (`DiagnosticsFailure (Lazy.force component#diagnostics));
     component#note NoCandidates;
   )
 
@@ -289,33 +284,33 @@ let check_machine_groups report =
         | None -> ()
         | Some group -> raise (Found (impl, group)) in
 
-  try SelMap.iter check report
+  try RoleMap.iter check report
   with Found (example_impl, example_group) ->
     let filter _key component = component#filter_impls (fun impl ->
       match get_machine_group impl with
       | Some group when group <> example_group -> Some (`MachineGroupConflict example_impl)
       | _ -> None
     ) in
-    SelMap.iter filter report
+    RoleMap.iter filter report
 
-let get_failure_report (result:Solver.result) : component SelMap.t =
+let get_failure_report (result:Solver.result) : component RoleMap.t =
   let impl_provider = result#impl_provider in
-  let impls = result#implementations in
+  let impls = result#raw_selections in
   let root_req = result#requirements in
 
   let report =
-    let get_selected map ((iface, source) as key, (diagnostics, impl)) =
+    let get_selected ((iface, source) as key) impl =
+      let diagnostics = lazy (result#explain key) in
       let impl = if impl.Impl.parsed_version = Versions.dummy then None else Some impl in
       let impl_candidates = impl_provider#get_implementations iface ~source in
-      let component = new component impl_candidates diagnostics impl in
-      SelMap.add key component map in
-    List.fold_left get_selected SelMap.empty impls in
+      new component impl_candidates diagnostics impl in
+    Solver.RoleMap.mapi get_selected impls in
 
   process_root_req report root_req;
   examine_extra_restrictions report impl_provider#extra_restrictions;
   check_machine_groups report;
-  SelMap.iter (examine_selection report) report;
-  SelMap.iter reject_if_unselected report;
+  RoleMap.iter (examine_selection report) report;
+  RoleMap.iter reject_if_unselected report;
 
   report
 
@@ -325,7 +320,7 @@ let get_failure_reason config result : string =
 
   let buf = Buffer.create 1000 in
   Buffer.add_string buf "Can't find all required implementations:\n";
-  SelMap.iter (format_report buf) reasons;
+  RoleMap.iter (format_report buf) reasons;
   if config.network_use = Offline then
     Buffer.add_string buf "Note: 0install is in off-line mode\n";
   Buffer.sub buf 0 (Buffer.length buf - 1)
