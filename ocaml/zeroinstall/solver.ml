@@ -179,15 +179,13 @@ end
 module Core = Solver_core.Make(Model)
 module RoleMap = Core.RoleMap
 
-type role = Model.Role.t
-
 class type result =
   object
     method get_selections : Selections.t
     method get_selected : source:bool -> General.iface_uri -> Model.impl option
     method impl_provider : Impl_provider.impl_provider
     method raw_selections : Impl.generic_implementation RoleMap.t
-    method explain : role -> string
+    method explain : Model.Role.t -> string
     method requirements : requirements
   end
 

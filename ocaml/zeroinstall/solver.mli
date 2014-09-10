@@ -10,8 +10,10 @@ type requirements =
   | ReqCommand of (string * General.iface_uri * bool)
   | ReqIface of (General.iface_uri * bool)
 
-type role = General.iface_uri * bool
-module RoleMap : Map.S with type key = role
+module Model : Solver_types.MODEL with
+ type Role.t = General.iface_uri * bool
+
+module RoleMap : Map.S with type key = Model.Role.t
 
 class type result =
   object
@@ -21,7 +23,7 @@ class type result =
     method get_selected : source:bool -> General.iface_uri -> Impl.generic_implementation option
     method impl_provider : Impl_provider.impl_provider
     method raw_selections : Impl.generic_implementation RoleMap.t
-    method explain : role -> string
+    method explain : Model.Role.t -> string
     method requirements : requirements
   end
 

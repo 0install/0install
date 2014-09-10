@@ -11,6 +11,7 @@ module FeedAttr = Constants.FeedAttr
 
 module U = Support.Utils
 
+module Model = Solver.Model
 module RoleMap = Solver.RoleMap
 
 let spf = Printf.sprintf
