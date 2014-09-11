@@ -122,11 +122,14 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
       ) in
 
       if have_valid then (
-        errors |> List.iter (fun ex -> log_warning ~ex "Error downloading key for %s" feed);
+        errors |> List.iter (fun ex -> log_warning ~ex "Error checking signature for %s" feed);
         `success (sigs, messages) |> Lwt.return
       ) else (
         let msg = errors |> List.map Printexc.to_string |> String.concat ";" in
-        `problem (Printf.sprintf "Error downloading key for '%s': %s" feed msg) |> Lwt.return
+        let msg =
+          if messages <> "" then msg ^ "\n" ^ messages
+          else msg in
+        `problem (Printf.sprintf "Error checking signature for '%s': %s" feed msg) |> Lwt.return
       )
     ) in
 

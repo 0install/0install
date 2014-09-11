@@ -89,8 +89,8 @@ let run_gpg_full system ?stdin args =
     lwt () = Lwt_io.close child#stdin in
 
     (* Join the collection threads *)
-    lwt stdout = stdout in
-    lwt stderr = stderr in
+    lwt stdout = stdout
+    and stderr = stderr in
     lwt status = child#close in
     Lwt.return (stdout, stderr, status)
   with ex ->
