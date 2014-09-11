@@ -213,13 +213,13 @@ let make_solver_test test_elem =
     let (ready, result) = Zeroinstall.Solver.solve_for config (feed_provider :> Feed_provider.feed_provider) !reqs in
     if ready && !fails then assert_failure "Expected solve to fail, but it didn't!";
     if not ready && not (!fails) then (
-      let reason = Zeroinstall.Diagnostics.get_failure_reason config result in
+      let reason = Zeroinstall.Solver.get_failure_reason config result in
       assert_failure ("Solve failed (not ready)\n" ^ reason)
     );
     assert (ready = (not !fails));
 
     if (!fails) then
-      let reason = Zeroinstall.Diagnostics.get_failure_reason config result in
+      let reason = Zeroinstall.Solver.get_failure_reason config result in
       Fake_system.assert_str_equal !expected_problem reason
     else (
       let actual_sels = Solver.selections result in

@@ -336,7 +336,7 @@ let suite = "distro">::: [
         let sel = StringMap.find_safe "http://example.com/bittorrent" sels in
         let run = Zeroinstall.Command.get_command_ex "run" sel in
         Fake_system.assert_str_equal "/bin/sh" (ZI.get_attribute "path" run)
-    | (false, results) -> failwith @@ Zeroinstall.Diagnostics.get_failure_reason config results end;
+    | (false, results) -> failwith @@ Zeroinstall.Solver.get_failure_reason config results end;
     Fake_system.fake_log#reset;
 
     (* Part II *)

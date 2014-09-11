@@ -247,7 +247,7 @@ let handle_bg options flags args =
                 ) else if not ready then (
                   let msg = Printf.sprintf "Can't update 0install app '%s' (run '0install update %s' to fix)" name name in
                   !notify ~timeout:10 ~msg;
-                  log_warning "Update of 0install app %s failed: %s" name (Zeroinstall.Diagnostics.get_failure_reason config result);
+                  log_warning "Update of 0install app %s failed: %s" name (Zeroinstall.Solver.get_failure_reason config result);
                   raise (System_exit 1)
                 ) else (
                   log_info "Background update: GUI unavailable; downloading with no UI";

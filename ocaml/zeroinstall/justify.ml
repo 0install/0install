@@ -184,5 +184,5 @@ let justify_decision config feed_provider requirements q_iface q_impl =
         match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:true with
         | None -> failwith "No solution, even with closest_match!"
         | Some result ->
-            return "There is no possible selection using %s.\n%s" !wanted @@ Diagnostics.get_failure_reason config result
+            return "There is no possible selection using %s.\n%s" !wanted @@ Solver.get_failure_reason config result
   with Return x -> x

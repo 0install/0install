@@ -88,3 +88,45 @@ module type MODEL = sig
   (** A fake <command> used to generate diagnostics if the solve fails. *)
   val dummy_command : command
 end
+
+module type DIAGNOSTICS = sig
+  (** Used to provide diagnostics *)
+
+  include MODEL
+
+  (** The solution produced by the solver (or its best attempt at one) *)
+  type result
+
+  (** The reason why the model rejected an implementation before it got to the solver. *)
+  type rejection
+
+  (** Get the candidates which were rejected for a role (and not passed to the solver). *)
+  val rejects : t -> Role.t -> (impl * rejection) list
+
+  (** A version number. Used for display and sorting the results. *)
+  type version
+  val version : impl -> version
+  val format_version : version -> string
+
+  (** Get any user-specified restrictions affecting a role.
+   * These are used to filter out implementations before they get to the solver. *)
+  val user_restrictions : t -> Role.t -> restriction option
+
+  module RoleMap : Map.S with type key = Role.t
+
+  val id_of_impl : impl -> string
+  val format_machine : impl -> string
+  val string_of_restriction : restriction -> string
+  val describe_problem : impl -> rejection -> string
+
+  val get_selected : result -> Role.t -> impl option
+
+  (** Get the final assignment of implementations to roles. *)
+  val raw_selections : result -> impl RoleMap.t
+
+  (** Get diagnostics-of-last-resort. *)
+  val explain : result -> Role.t -> string
+
+  val requirements : result -> requirements
+  val model : result -> t
+end

@@ -12,7 +12,7 @@ module Qdom = Support.Qdom
 module FeedAttr = Constants.FeedAttr
 module AttrMap = Qdom.AttrMap
 
-module Model = struct
+module CoreModel = struct
   (** See [Solver_types.MODEL] for documentation. *)
 
   module Role = struct
@@ -192,20 +192,52 @@ module Model = struct
     StringMap.find iface impl_provider#extra_restrictions
 end
 
-module Core = Solver_core.Make(Model)
-module RoleMap = Core.RoleMap
+module Core = Solver_core.Make(CoreModel)
 
-type result = {
-  root_req : Model.requirements;
-  selections : Core.selection RoleMap.t;
-  impl_provider : Impl_provider.impl_provider;
-}
+module Model =
+  struct
+    include CoreModel
+
+    module RoleMap = Core.RoleMap
+
+    type result = {
+      root_req : requirements;
+      selections : Core.selection RoleMap.t;
+      impl_provider : Impl_provider.impl_provider;
+    }
+
+    type version = Versions.parsed_version
+    let format_version = Versions.format_version
+
+    let get_selected result role =
+      try
+        let selection = RoleMap.find role result.selections in
+        let impl = Core.(selection.impl) in
+        if impl == dummy_impl then None
+        else Some impl
+      with Not_found -> None
+
+    let requirements result = result.root_req
+
+    let explain result role =
+      try
+        let sel = RoleMap.find role result.selections in
+        Core.explain sel.Core.diagnostics
+      with Not_found -> "Role not used!"
+
+    let model result = result.impl_provider
+
+    let raw_selections result =
+      result.selections |> RoleMap.map (fun sel -> sel.Core.impl)
+  end
+
+let impl_provider = Model.model
 
 let do_solve impl_provider root_req ~closest_match =
   Core.do_solve impl_provider root_req ~closest_match |> pipe_some (fun selections ->
 
     (* Build the results object *)
-    Some {
+    Some { Model.
       root_req;
       selections;
       impl_provider;
@@ -258,12 +290,13 @@ let selections result =
    * The use of Maps ensures that the inputs will be sorted, so we will have a stable output.
    *)
   Selections.create (
+    let open Model in
     let root_attrs =
       match result.root_req with
-      | Model.ReqCommand (command, (iface, _source)) ->
+      | ReqCommand (command, (iface, _source)) ->
           AttrMap.singleton "interface" iface
           |> AttrMap.add_no_ns "command" command
-      | Model.ReqRole (iface, _source) ->
+      | ReqRole (iface, _source) ->
           AttrMap.singleton "interface" iface in
     let child_nodes = result.selections
       |> Core.RoleMap.bindings
@@ -274,24 +307,13 @@ let selections result =
     ZI.make ~attrs:root_attrs ~child_nodes "selections"
   )
 
-let get_selected result role =
-  try
-    let selection = Core.RoleMap.find role result.selections in
-    let impl = Core.(selection.impl) in
-    if impl == Model.dummy_impl then None
-    else Some impl
-  with Not_found -> None
+module Diagnostics = Diagnostics.Make (Model)
 
-let impl_provider result = result.impl_provider
-let requirements result = result.root_req
+(** Return a message explaining why the solve failed. *)
+let get_failure_reason config result =
+  let msg = Diagnostics.get_failure_reason result in
 
-let explain result role =
-  try
-    let sel = Core.RoleMap.find role result.selections in
-    Core.explain sel.Core.diagnostics
-  with Not_found -> "Role not used!"
-
-let model result = result.impl_provider
-
-let raw_selections result =
-  result.selections |> Core.RoleMap.map (fun sel -> sel.Core.impl)
+  if config.network_use = Offline then
+    msg ^ "\nNote: 0install is in off-line mode"
+  else
+    msg

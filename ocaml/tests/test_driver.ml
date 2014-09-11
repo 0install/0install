@@ -204,7 +204,7 @@ let suite = "driver">::: [
     let tools = fake_fetcher config handler distro in
     let (ready, result, _fp) = Driver.solve_with_downloads config tools#distro tools#fetcher ~watcher:tools#ui#watcher reqs ~force:true ~update_local:true |> Lwt_main.run in
     if not ready then
-      failwith @@ Diagnostics.get_failure_reason config result;
+      failwith @@ Solver.get_failure_reason config result;
 
     match (Solver.selections result |> Selections.as_xml).Q.child_nodes with
     | [ sel ] -> Fake_system.assert_str_equal "package:fallback:prog:1.0:*" (ZI.get_attribute "id" sel)

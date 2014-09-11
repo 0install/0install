@@ -116,7 +116,7 @@ let have_source_for feed_provider iface =
     )
   )
 
-let list_impls (results:Solver.result) iface =
+let list_impls results iface =
   let make_list ~source selected_impl =
     let candidates = (Solver.impl_provider results)#get_implementations iface ~source in
 
@@ -129,10 +129,10 @@ let list_impls (results:Solver.result) iface =
 
     Some (selected_impl, all_impls) in
 
-  match Solver.get_selected results (iface, true) with
+  match Solver.Model.get_selected results (iface, true) with
   | Some _ as source_impl -> make_list ~source:true source_impl
   | None ->
-      match Solver.get_selected results (iface, false) with
+      match Solver.Model.get_selected results (iface, false) with
       | Some _ as bin_impl -> make_list ~source:false bin_impl
       | None -> make_list ~source:false None
 
@@ -306,7 +306,7 @@ let get_bug_report_details config ~iface (ready, results) =
   if ready then (
     Tree.print config (Buffer.add_string b) sels
   ) else (
-    Buffer.add_string b @@ Diagnostics.get_failure_reason config results
+    Buffer.add_string b @@ Solver.get_failure_reason config results
   );
 
   let platform = system#platform in
