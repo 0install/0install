@@ -332,8 +332,8 @@ let suite = "distro">::: [
       end in
     begin match Zeroinstall.Solver.solve_for config feed_provider requirements with
     | (true, results) ->
-        let sels = Zeroinstall.Solver.selections results |> Zeroinstall.Selections.make_selection_map in
-        let sel = StringMap.find_safe "http://example.com/bittorrent" sels in
+        let sels = Zeroinstall.Solver.selections results in
+        let sel = Zeroinstall.Selections.find_ex "http://example.com/bittorrent" sels in
         let run = Zeroinstall.Command.get_command_ex "run" sel in
         Fake_system.assert_str_equal "/bin/sh" (ZI.get_attribute "path" run)
     | (false, results) -> failwith @@ Zeroinstall.Solver.get_failure_reason config results end;

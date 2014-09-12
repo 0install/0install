@@ -10,6 +10,7 @@ module FeedAttr = Constants.FeedAttr
 module U = Support.Utils
 
 let spf = Printf.sprintf
+let () = ignore on_windows
 
 exception Return of string
 
@@ -74,8 +75,6 @@ let maybe_justify_local_preference wanted_id actual_id candidates compare =
    [test_sels] is the selections with the constraint.
    [old_sels] are the selections we get with an unconstrained solve. *)
 let justify_preference test_sels wanted q_iface wanted_id ~old_sels ~compare candidates =
-  let index = Selections.make_selection_map test_sels in
-
   let actual_selection = Selections.find q_iface old_sels in
 
   let () =
@@ -100,10 +99,9 @@ let justify_preference test_sels wanted q_iface wanted_id ~old_sels ~compare can
     let do_add msg = changes := msg :: !changes in
     Printf.ksprintf do_add fmt in
 
-  old_sels |> Selections.iter (fun old_sel ->
-    let old_iface = ZI.get_attribute FeedAttr.interface old_sel in
+  old_sels |> Selections.iter (fun old_iface old_sel ->
     if old_iface <> q_iface || not used_impl then (
-      match StringMap.find old_iface index with
+      match Selections.find old_iface test_sels with
       | Some new_sel ->
           let old_version = ZI.get_attribute FeedAttr.version old_sel in
           let new_version = ZI.get_attribute FeedAttr.version new_sel in

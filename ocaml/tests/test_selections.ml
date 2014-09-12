@@ -17,6 +17,11 @@ let get_sels config fake_system uri =
   let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
   `String (0, output) |> Xmlm.make_input |> Q.parse_input None |> Selections.create
 
+let get_bindings sels =
+  let result = ref [] in
+  sels |> Selections.iter (fun iface sel -> result := (iface, sel) :: !result);
+  List.rev !result
+
 let suite = "selections">::: [
   "selections">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     let import name =
@@ -47,13 +52,13 @@ let suite = "selections">::: [
 
     assert_equal "http://foo/Source.xml" @@ ZI.get_attribute "interface" s;
 
-    let index = Selections.make_selection_map (Selections.create s) in
-    assert_equal 2 @@ StringMap.cardinal index;
+    let bindings = Selections.create s |> get_bindings in
+    assert_equal 2 @@ List.length bindings;
 
-    let ifaces = StringMap.bindings index |> List.map fst in
+    let ifaces = List.map fst bindings in
     Fake_system.equal_str_lists ["http://foo/Compiler.xml"; "http://foo/Source.xml"] @@ ifaces;
 
-    match StringMap.bindings index |> List.map snd with
+    match List.map snd bindings with
     | [comp; src] -> (
         assert_str_equal "sha1=345" @@ ZI.get_attribute "id" comp;
         assert_str_equal "1.0" @@ ZI.get_attribute "version" comp;
@@ -109,8 +114,8 @@ let suite = "selections">::: [
   "local-path">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     let iface = Test_0install.feed_dir +/ "Local.xml" in
 
-    let index = Selections.make_selection_map (get_sels config fake_system iface) in
-    let sel = StringMap.find_safe iface index in
+    let index = get_sels config fake_system iface in
+    let sel = Selections.find_ex iface index in
     let () =
       match Selections.get_source sel with
       | Selections.LocalSelection local_path ->
@@ -120,8 +125,7 @@ let suite = "selections">::: [
     let iface = Test_0install.feed_dir +/ "Local2.xml" in
     (* Add a newer implementation and try again *)
     let sels = get_sels config fake_system iface in
-    let index = Selections.make_selection_map sels in
-    let sel = StringMap.find_safe iface index in
+    let sel = Selections.find_ex iface sels in
     let tools = Fake_system.make_tools config in
     assert (Driver.get_unavailable_selections ~distro:tools#distro config sels <> []);
 
@@ -136,8 +140,7 @@ let suite = "selections">::: [
   "commands">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     let iface = Test_0install.feed_dir +/ "Command.xml" in
     let sels = get_sels config fake_system iface in
-    let index = Selections.make_selection_map sels in
-    let sel = StringMap.find_safe iface index in
+    let sel = Selections.find_ex iface sels in
 
     assert_equal "c" @@ ZI.get_attribute "id" sel;
     let run = Command.get_command_ex "run" sel in
@@ -149,7 +152,7 @@ let suite = "selections">::: [
       match Selections.get_dependencies ~restricts:true run with
       | dep :: _ ->
           let dep_impl_uri = ZI.get_attribute "interface" dep in
-          let dep_impl = StringMap.find_safe dep_impl_uri index in
+          let dep_impl = Selections.find_ex dep_impl_uri sels in
           assert_equal "sha1=256" @@ ZI.get_attribute "id" dep_impl;
       | _ -> assert false in
 
@@ -159,9 +162,8 @@ let suite = "selections">::: [
     fake_system#set_argv [| Test_0install.test_0install; "download"; "--offline"; "--xml"; runexec|];
     let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
     let s3 = `String (0, output) |> Xmlm.make_input |> Q.parse_input None |> Selections.create in
-    let index = Selections.make_selection_map s3 in
 
-    let runnable_impl = StringMap.find_safe runnable index in
+    let runnable_impl = Selections.find_ex runnable s3 in
     runnable_impl |> ZI.filter_map (fun child ->
       if ZI.tag child = Some "command" then Some (ZI.get_attribute "name" child) else None
     ) |> Fake_system.equal_str_lists ["foo"; "run"]

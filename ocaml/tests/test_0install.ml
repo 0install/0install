@@ -256,8 +256,8 @@ let suite = "0install">::: [
 
     let local_uri = U.abspath system (feed_dir +/ "Local.xml") in
     let out = run ["download"; local_uri; "--xml"] in
-    let sels = selections_of_string out |> Zeroinstall.Selections.make_selection_map in
-    let sel = StringMap.find_safe local_uri sels in
+    let sels = selections_of_string out in
+    let sel = Selections.find_ex local_uri sels in
     assert_str_equal "0.1" @@ ZI.get_attribute "version" sel;
 
     let () =
@@ -669,8 +669,7 @@ let suite = "0install">::: [
 
     let out = run_0install fake_system ["select"; feed_dir +/ "Local.xml"; "--xml"] in
     let sels = selections_of_string ~path:local_uri out in
-    let index = Zeroinstall.Selections.make_selection_map sels in
-    let sel = StringMap.find_safe local_uri index in
+    let sel = Selections.find_ex local_uri sels in
     assert_str_equal "0.1" (ZI.get_attribute "version" sel);
 
     let out = run_0install fake_system ["select"; feed_dir +/ "runnable/RunExec.xml"] in
@@ -680,8 +679,7 @@ let suite = "0install">::: [
     fake_system#putenv "DISPLAY" ":foo";
     let out = run_0install fake_system ["select"; "--xml"; local_uri] in
     let sels = selections_of_string ~path:local_uri out in
-    let index = Zeroinstall.Selections.make_selection_map sels in
-    let sel = StringMap.find_safe local_uri index in
+    let sel = Selections.find_ex local_uri sels in
 
     assert_str_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" @@ ZI.get_attribute "id" sel;
   );

@@ -326,8 +326,7 @@ let complete_option_value (completer:completer) args (_, handler, values, carg) 
         match Apps.lookup_app config app with
         | None -> completer#add_interfaces pre
         | Some path ->
-            Apps.get_selections_no_updates config.system path |> Zeroinstall.Selections.iter (fun sel ->
-              let uri = ZI.get_attribute "interface" sel in
+            Apps.get_selections_no_updates config.system path |> Zeroinstall.Selections.iter (fun uri _sel ->
               if starts_with uri pre then completer#add Add uri
             )
       )

@@ -15,12 +15,11 @@ module FeedAttr = Constants.FeedAttr
  * included. *)
 let as_tree sels =
   let seen = Hashtbl.create 10 in (* detect cycles *)
-  let index = Selections.make_selection_map sels in
 
   let rec build_node (uri:string) commands ~essential =
     if Hashtbl.mem seen uri then None
     else (
-      let sel = StringMap.find uri index in
+      let sel = Selections.find uri sels in
 
       (* We ignore optional non-selected dependencies; if another component has an
        * essential dependency on it, we'll include it then. *)

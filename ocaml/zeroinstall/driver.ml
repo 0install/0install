@@ -33,9 +33,9 @@ let get_unavailable_selections config ?distro sels =
         | None -> false
         | Some distro -> not @@ Distro.is_installed config distro elem
   in
-  sels |> Selections.iter (fun sel ->
+  sels |> Selections.iter (fun iface sel ->
     if needs_download sel then (
-      Support.Qdom.log_elem Support.Logging.Info "Missing selection of %s:" (ZI.get_attribute "interface" sel) sel;
+      Support.Qdom.log_elem Support.Logging.Info "Missing selection of %s:" iface sel;
       missing := sel :: !missing
     )
   );

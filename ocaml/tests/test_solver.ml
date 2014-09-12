@@ -594,12 +594,11 @@ let suite = "solver">::: [
     | (false, _) -> assert false
     | (true, results) ->
         let sels = Solver.selections results in
-        let index = Selections.make_selection_map sels in
-        let sel = StringMap.find_safe (Selections.root_iface sels) index in
+        let sel = Zeroinstall.Selections.find_ex (Selections.root_iface sels) sels in
         let command = Command.get_command_ex "run" sel in
         match Selections.get_dependencies ~restricts:true command with
         | [dep] ->
-            let dep_impl = StringMap.find_safe (ZI.get_attribute "interface" dep) index in
+            let dep_impl = Zeroinstall.Selections.find_ex (ZI.get_attribute "interface" dep) sels in
             let command = Command.get_command_ex "run" dep_impl in
             Fake_system.assert_str_equal "test-gui" (ZI.get_attribute "path" command)
         | _ -> assert false
@@ -628,9 +627,8 @@ let suite = "solver">::: [
       | None -> assert false
       | Some results ->
           let sels = Solver.selections results in
-          let index = Selections.make_selection_map sels in
-          Fake_system.assert_str_equal expected @@ ZI.get_attribute "arch" (StringMap.find_safe "http://foo/MultiArch.xml" index);
-          Fake_system.assert_str_equal expected @@ ZI.get_attribute "arch" (StringMap.find_safe "http://foo/MultiArchLib.xml" index) in
+          Fake_system.assert_str_equal expected @@ ZI.get_attribute "arch" (Zeroinstall.Selections.find_ex "http://foo/MultiArch.xml" sels);
+          Fake_system.assert_str_equal expected @@ ZI.get_attribute "arch" (Zeroinstall.Selections.find_ex "http://foo/MultiArchLib.xml" sels) in
 
     (* On an i686 system we can only use the i486 implementation *)
     check_arch "Linux-i486" "i686";
@@ -654,18 +652,16 @@ let suite = "solver">::: [
     let do_solve r =
       match Solver.solve_for config feed_provider r with
       | (false, _) -> assert false
-      | (true, results) ->
-          let sels = Solver.selections results in
-          Selections.make_selection_map sels in
+      | (true, results) -> Solver.selections results in
 
     let results = do_solve r in
-    Fake_system.assert_str_equal "0.2" @@ ZI.get_attribute "version" (StringMap.find_safe uri results);
-    Fake_system.assert_str_equal "3" @@ ZI.get_attribute "version" (StringMap.find_safe versions results);
+    Fake_system.assert_str_equal "0.2" @@ ZI.get_attribute "version" (Zeroinstall.Selections.find_ex uri results);
+    Fake_system.assert_str_equal "3" @@ ZI.get_attribute "version" (Zeroinstall.Selections.find_ex versions results);
 
     let extras = StringMap.singleton uri "0.1" in
     let results = do_solve {r with Requirements.extra_restrictions = extras} in
-    Fake_system.assert_str_equal "0.1" @@ ZI.get_attribute "version" (StringMap.find_safe uri results);
-    assert (not (StringMap.mem versions results));
+    Fake_system.assert_str_equal "0.1" @@ ZI.get_attribute "version" (Zeroinstall.Selections.find_ex uri results);
+    assert (Zeroinstall.Selections.find versions results = None);
 
     let extras = StringMap.singleton uri "0.3" in
     let r = {r with Requirements.extra_restrictions = extras} in

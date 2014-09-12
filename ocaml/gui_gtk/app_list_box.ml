@@ -111,8 +111,7 @@ let show_help_for_iface tools ~gui uri : unit Lwt.t =
   match_lwt get_selections tools ~gui uri with
   | `Aborted_by_user -> Lwt.return ()
   | `Success sels ->
-      let index = Zeroinstall.Selections.make_selection_map sels in
-      let sel = StringMap.find_safe uri index in
+      let sel = Zeroinstall.Selections.find_ex uri sels in
       show_help tools#config sel;
       Lwt.return ()
 

@@ -144,8 +144,7 @@ let run_sat_test expected problem =
   | Some result, _ ->
       let sels = Solver.selections result in
       let actual = ref [] in
-      sels |> Selections.iter (fun sel ->
-        let iface = ZI.get_attribute "interface" sel in
+      sels |> Selections.iter (fun iface sel ->
         let version = ZI.get_attribute "version" sel in
         actual := (iface, version) :: !actual
       );
@@ -284,8 +283,7 @@ let suite = "sat">::: [
       "libb[1,2] => libc 0 0";
     ] in
     let selected = ref StringMap.empty in
-    Solver.selections s |> Selections.iter (fun sel ->
-      let iface = ZI.get_attribute "interface" sel in
+    Solver.selections s |> Selections.iter (fun iface sel ->
       selected := StringMap.add iface (ZI.get_attribute_opt "version" sel) !selected
     );
     assert_equal (Some "2") (StringMap.find_safe "prog" !selected);

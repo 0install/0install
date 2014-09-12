@@ -13,22 +13,12 @@ module Selections = Zeroinstall.Selections
 
 let show_changes (system:system) old_selections new_selections =
   let changes = ref false in
-
-  let old_index =
-    match old_selections with
-    | None -> StringMap.empty
-    | Some old_selections -> Selections.make_selection_map old_selections in
-
-  let new_index = Selections.make_selection_map new_selections in
-
-  let lookup name index = StringMap.find name index in
-
   let v sel = ZI.get_attribute "version" sel in
-
   let print fmt = Support.Utils.print system fmt in
 
-  old_index |> StringMap.iter (fun iface old_sel ->
-    match lookup iface new_index with
+  old_selections
+  |> if_some (Selections.iter (fun iface old_sel ->
+    match Selections.find iface new_selections with
     | None ->
         print "No longer used: %s" iface;
         changes := true
@@ -37,11 +27,11 @@ let show_changes (system:system) old_selections new_selections =
           print "%s: %s -> %s" iface (v old_sel) (v new_sel);
           changes := true
         )
-  );
+  ));
 
-  new_selections |> Selections.iter (fun new_sel ->
-    let iface = ZI.get_attribute "interface" new_sel in
-    if not (StringMap.mem iface old_index) then (
+  new_selections |> Selections.iter (fun iface new_sel ->
+    let old_sel = old_selections |> pipe_some (Selections.find iface) in
+    if old_sel = None then (
       print "%s: new -> %s" iface (v new_sel);
       changes := true
     )

@@ -9,8 +9,12 @@ module U = Support.Utils
 module Q = Support.Qdom
 module FeedAttr = Constants.FeedAttr
 
-type t = Support.Qdom.element
 type selection = Support.Qdom.element
+
+type t = {
+  root : Support.Qdom.element;
+  index : selection StringMap.t;
+}
 
 type impl_source =
   | CacheSelection of Manifest.digest list
@@ -43,13 +47,14 @@ let get_path system stores elem =
   | LocalSelection path -> Some path
   | CacheSelection digests -> Some (Stores.lookup_any system digests stores)
 
-let root_iface sels = ZI.get_attribute FeedAttr.interface sels
+let root_iface sels = ZI.get_attribute FeedAttr.interface sels.root
+
 let root_command sels =
-  match ZI.get_attribute_opt FeedAttr.command sels with
+  match ZI.get_attribute_opt FeedAttr.command sels.root with
   | None | Some "" -> None
   | Some _ as command -> command
 
-let iter fn sels = ZI.iter fn sels ~name:"selection"
+let iter fn sels = StringMap.iter fn sels.index
 
 (** Create a map from interface URI to <selection> elements. *)
 let make_selection_map sels =
@@ -65,29 +70,30 @@ let get_runner elem =
 
 let create root =
   ZI.check_tag "selections" root;
-  let old_commands = root.Q.child_nodes |> List.filter (fun child -> ZI.tag child = Some "command") in
-  if old_commands = [] then root
-  else (
-    (* 0launch 0.52 to 1.1 *)
-    try
-      let iface = ref (Some (root_iface root)) in
-      let index = ref (make_selection_map root) in
-      old_commands |> List.iter (fun command ->
-        let current_iface = !iface |? lazy (Q.raise_elem "No additional command expected here!" command) in
-        let sel = StringMap.find current_iface !index |? lazy (Q.raise_elem "Missing selection for '%s' needed by" current_iface command) in
-        let command = {command with Q.attrs = command.Q.attrs |> Q.AttrMap.add_no_ns "name" "run"} in
-        index := !index |> StringMap.add current_iface {sel with Q.child_nodes = command :: sel.Q.child_nodes};
-        match get_runner command with
-        | None -> iface := None
-        | Some runner -> iface := Some (ZI.get_attribute "interface" runner)
-      );
-      {
-        root with
-        Q.child_nodes = !index |> StringMap.map_bindings (fun _ child -> child);
-        Q.attrs = root.Q.attrs |> Q.AttrMap.add_no_ns "command" "run"
-      }
-    with Safe_exception _ as ex -> reraise_with_context ex "... migrating from old selections format"
-  )
+  let root =
+    match root.Q.child_nodes |> List.filter (fun child -> ZI.tag child = Some "command") with
+    | [] -> root
+    | old_commands ->
+        (* 0launch 0.52 to 1.1 *)
+        try
+          let iface = ref (Some (ZI.get_attribute FeedAttr.interface root)) in
+          let index = ref (make_selection_map root) in
+          old_commands |> List.iter (fun command ->
+            let current_iface = !iface |? lazy (Q.raise_elem "No additional command expected here!" command) in
+            let sel = StringMap.find current_iface !index |? lazy (Q.raise_elem "Missing selection for '%s' needed by" current_iface command) in
+            let command = {command with Q.attrs = command.Q.attrs |> Q.AttrMap.add_no_ns "name" "run"} in
+            index := !index |> StringMap.add current_iface {sel with Q.child_nodes = command :: sel.Q.child_nodes};
+            match get_runner command with
+            | None -> iface := None
+            | Some runner -> iface := Some (ZI.get_attribute "interface" runner)
+          );
+          {
+            root with
+            Q.child_nodes = !index |> StringMap.map_bindings (fun _ child -> child);
+            Q.attrs = root.Q.attrs |> Q.AttrMap.add_no_ns "command" "run"
+          }
+        with Safe_exception _ as ex -> reraise_with_context ex "... migrating from old selections format" in
+  { root; index = make_selection_map root }
 
 let load_selections system path =
   let root = Q.parse_file system path in
@@ -116,14 +122,13 @@ let get_id sel =
 })
 
 let equal a b =
-  Support.Qdom.compare_nodes ~ignore_whitespace:true a b = 0
+  Support.Qdom.compare_nodes ~ignore_whitespace:true a.root b.root = 0
 
-let as_xml sels = sels
+let as_xml sels = sels.root
 
-let find iface sels =
-  let is_our_iface sel = ZI.tag sel = Some "selection" && ZI.get_attribute FeedAttr.interface sel = iface in
-  try Some (List.find is_our_iface sels.Q.child_nodes)
-  with Not_found -> None
+let find iface sels = StringMap.find iface sels.index
+
+let find_ex iface sels = find iface sels |? lazy (raise_safe "Interface '%s' not found in selections!" iface)
 
 let root_sel sels =
   let iface = root_iface sels in

@@ -125,7 +125,8 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
           | Some stability_str, Some impl, Some version ->
               if col = version_vc#get_oid then (
                 let current = Printf.sprintf "Currently preferred version: %s (%s)" version stability_str in
-                let prev_version = StringMap.find iface watcher#original_selections
+                let prev_version = watcher#original_selections
+                  |> pipe_some (Zeroinstall.Selections.find iface)
                   |> pipe_some (fun sel -> ZI.get_attribute_opt FeedAttr.version sel) in
                 match prev_version with
                 | Some prev_version when version <> prev_version ->
@@ -256,7 +257,8 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
                 match user_stability with
                 | Some s -> String.uppercase (Impl.format_stability s)
                 | None -> Impl.get_attr_ex FeedAttr.stability impl in
-              let prev_version = StringMap.find uri watcher#original_selections
+              let prev_version = watcher#original_selections
+                |> pipe_some (Zeroinstall.Selections.find uri)
                 |> pipe_some (fun old_sel ->
                   let old_version = ZI.get_attribute FeedAttr.version old_sel in
                   if old_version = version then None

@@ -26,9 +26,6 @@ val create : Support.Qdom.element -> t
 (** Create a [selections] value from a file (parse + create). *)
 val load_selections : system -> filepath -> t
 
-(** Create a map from interface URI to the corresponding selection. *)
-val make_selection_map : t -> selection StringMap.t
-
 (** The interface attribute on the root (i.e. the interface of the program itself) *)
 val root_iface : t -> General.iface_uri
 
@@ -39,18 +36,18 @@ val root_command : t -> string option
 val root_sel : t -> selection
 
 (** Iterate over the <selection> elements. *)
-val iter : (selection -> unit) -> t -> unit
+val iter : (General.iface_uri -> selection -> unit) -> t -> unit
 
 (** Check whether the XML of two sets of selections are the same, ignoring whitespace. *)
 val equal : t -> t -> bool
 
-(** Find the selection for a given interface.
- * This is slow; use [make_selection_map] for multiple lookups. *)
+(** Find the selection for a given interface. *)
 val find : General.iface_uri -> t -> selection option
 
-(** Convert a selections document to XML in the latest format.
- * Note: this may be the exact XML passed to [create] if it was
- * already in the right format. *)
+(** Like [find], but raise an exception if not found. *)
+val find_ex : General.iface_uri -> t -> selection
+
+(** Convert a selections document to XML in the latest format. *)
 val as_xml : t -> Support.Qdom.element
 
 
