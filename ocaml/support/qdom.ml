@@ -334,8 +334,10 @@ module NsQuery (Ns : NsType) = struct
       if ns = Ns.ns && (name = None || name = Some elem_name) then fn elem else ()
     in List.iter fn2 node.child_nodes
 
-  let fold_left ~f init node tag =
-    let fn2 m elem = if elem.tag = (Ns.ns, tag) then f m elem else m in
+  let fold_left ?name ~init fn node =
+    let fn2 m elem =
+      let (ns, elem_name) = elem.tag in
+      if ns = Ns.ns && (name = None || name = Some elem_name) then fn m elem else m in
     List.fold_left fn2 init node.child_nodes
 
   let check_tag expected elem =

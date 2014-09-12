@@ -58,9 +58,9 @@ let iter fn sels = StringMap.iter fn sels.index
 
 (** Create a map from interface URI to <selection> elements. *)
 let make_selection_map sels =
-  let add_selection m sel =
+  sels |> ZI.fold_left ~init:StringMap.empty ~name:"selection" (fun m sel ->
     StringMap.add (ZI.get_attribute "interface" sel) sel m
-  in ZI.fold_left ~f:add_selection StringMap.empty sels "selection"
+  )
 
 let get_runner elem =
   match elem |> ZI.map ~name:"runner" (fun a -> a) with

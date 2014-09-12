@@ -37,9 +37,9 @@ class trust_db config =
         | None -> StringMap.empty
         | Some path ->
             let root = Q.parse_file config.system path in
-            TRUST.fold_left StringMap.empty root "key" ~f:(fun keys key ->
+            root |> TRUST.fold_left ~init:StringMap.empty ~name:"key" (fun keys key ->
               let domains =
-                TRUST.fold_left StringSet.empty key "domain" ~f:(fun map domain ->
+                key |> TRUST.fold_left ~init:StringSet.empty ~name:"domain" (fun map domain ->
                   StringSet.add (TRUST.get_attribute "value" domain) map
                 ) in
               StringMap.add (TRUST.get_attribute "fingerprint" key) domains keys

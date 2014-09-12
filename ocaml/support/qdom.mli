@@ -111,7 +111,7 @@ module NsQuery :
 
       val get_attribute_opt : string -> element -> string option
 
-      val fold_left : f:('a -> element -> 'a) -> 'a -> element -> string -> 'a
+      val fold_left : ?name:string -> init:'a -> ('a -> element -> 'a) -> element -> 'a
 
       (** Apply [fn] to each child node in our namespace with local name [name] *)
       val map : ?name:string -> (element -> 'a) -> element -> 'a list
