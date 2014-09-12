@@ -65,29 +65,6 @@ let get_command = function
   | ExecutableBinding {command; _} -> Some command
   | GenericBinding elem -> ZI.get_attribute_opt "command" elem
 
-(* Return all bindings in document order *)
-let collect_bindings impls root =
-  let bindings = ref [] in
-
-  let rec process ~deps ~commands iface parent =
-    let process_child node =
-      match ZI.tag node with
-      | Some "requires" | Some "runner" when deps ->
-          let dep_iface = ZI.get_attribute "interface" node in
-          if StringMap.mem dep_iface impls then process ~deps:false ~commands:false dep_iface node
-          else ()
-      | Some "command" when commands -> process ~deps:true ~commands:false iface node
-      | _ -> match parse_binding node with
-             | None -> ()
-             | Some binding -> bindings := (iface, binding) :: !bindings in
-    ZI.iter process_child parent in
-
-  root |> Selections.iter (fun iface node ->
-    try process ~deps:true ~commands:true iface node
-    with Safe_exception _ as ex -> reraise_with_context ex "... getting bindings from selection %s" iface
-  );
-  List.rev !bindings
-
 let get_default name = match name with
   | "PATH" -> Some "/bin:/usr/bin"
   | "XDG_CONFIG_DIRS" -> Some "/etc/xdg"

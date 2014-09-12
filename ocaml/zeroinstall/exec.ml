@@ -108,7 +108,7 @@ let make_selection_map system stores sels =
 let get_exec_args config ?main sels args =
   let env = Env.create config.system#environment in
   let impls = make_selection_map config.system config.stores sels in
-  let bindings = Binding.collect_bindings impls sels in
+  let bindings = Selections.collect_bindings sels in
   let launcher_builder = get_launcher_builder config in
 
   (* Do <environment> bindings; collect executable bindings *)

@@ -133,3 +133,26 @@ let find_ex iface sels = find iface sels |? lazy (raise_safe "Interface '%s' not
 let root_sel sels =
   let iface = root_iface sels in
   find iface sels |? lazy (raise_safe "Can't find a selection for the root (%s)!" iface)
+
+(* Return all bindings in document order *)
+let collect_bindings t =
+  let bindings = ref [] in
+
+  let rec process ~deps ~commands iface parent =
+    let process_child node =
+      match ZI.tag node with
+      | Some "requires" | Some "runner" when deps ->
+          let dep_iface = ZI.get_attribute "interface" node in
+          if StringMap.mem dep_iface t.index then process ~deps:false ~commands:false dep_iface node
+          else ()
+      | Some "command" when commands -> process ~deps:true ~commands:false iface node
+      | _ -> match Binding.parse_binding node with
+             | None -> ()
+             | Some binding -> bindings := (iface, binding) :: !bindings in
+    ZI.iter process_child parent in
+
+  t |> iter (fun iface node ->
+    try process ~deps:true ~commands:true iface node
+    with Safe_exception _ as ex -> reraise_with_context ex "... getting bindings from selection %s" iface
+  );
+  List.rev !bindings
