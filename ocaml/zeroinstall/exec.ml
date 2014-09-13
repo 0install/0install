@@ -98,7 +98,7 @@ let make_selection_map system stores sels =
     let path =
       try Selections.get_path system stores sel
       with Stores.Not_stored msg ->
-        raise_safe "Missing implementation for '%s' %s: %s" iface (ZI.get_attribute "version" sel) msg
+        raise_safe "Missing implementation for '%s' %s: %s" iface (Element.version sel) msg
     in
     let value = (sel, path) in
     map := StringMap.add iface value !map
@@ -113,7 +113,7 @@ let get_exec_args config ?main sels args =
 
   (* Do <environment> bindings; collect executable bindings *)
   let exec_bindings =
-    bindings |> Support.Utils.filter_map (fun (iface, binding) -> match binding with
+    bindings |> Support.Utils.filter_map (fun (iface, binding) -> match Binding.parse_binding2 binding with
       | Binding.EnvironmentBinding b -> Binding.do_env_binding env impls iface b; None
       | Binding.ExecutableBinding b -> Some (iface, b)
       | Binding.GenericBinding elem -> Support.Qdom.log_elem Support.Logging.Warning "Unsupported binding type:" elem; None

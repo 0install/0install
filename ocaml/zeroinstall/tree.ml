@@ -8,7 +8,6 @@ open Support.Common
 open General
 
 module U = Support.Utils
-module FeedAttr = Constants.FeedAttr
 
 (** Convert selections as a dependency tree (as displayed by "0install show",
  * etc). If multiple components share a dependency, only the first one is
@@ -16,7 +15,7 @@ module FeedAttr = Constants.FeedAttr
 let as_tree sels =
   let seen = Hashtbl.create 10 in (* detect cycles *)
 
-  let rec build_node (uri:string) commands ~essential =
+  let rec build_node (uri:string) ~essential =
     if Hashtbl.mem seen uri then None
     else (
       let sel = Selections.find uri sels in
@@ -30,24 +29,30 @@ let as_tree sels =
 
         let details =
           match sel with
-          | Some impl when ZI.get_attribute_opt FeedAttr.version impl = None -> `Problem
+          | Some impl when Element.version_opt impl = None -> `Problem
           | Some impl ->
-              let deps = ref @@ Selections.get_dependencies ~restricts:false impl in
+              let deps = ref [] in
 
-              ListLabels.iter commands ~f:(fun c ->
-                match Command.get_command c impl with
-                | Some command -> deps := !deps @ Selections.get_dependencies ~restricts:false command
-                | None -> Support.Qdom.log_elem Support.Logging.Warning "Missing command '%s' in" c impl
+              Element.selection_children impl |> List.iter (function
+                | `command command ->
+                    Element.command_children command |> List.iter (function
+                      | #Element.dependency as dep -> deps := dep :: !deps
+                      | #Element.binding -> ()
+                    )
+                | #Element.dependency as dep -> deps := dep :: !deps
+                | #Element.binding -> ()
               );
 
+              let follow_dep dep =
+                let child_iface = Element.interface dep in
+                let essential = (Element.importance dep = `essential) in
+                build_node child_iface ~essential in
+
               let children =
-                !deps |> U.filter_map (fun dep ->
-                  let child_iface = ZI.get_attribute FeedAttr.interface dep in
-                  let essential =
-                    match ZI.get_attribute_opt FeedAttr.importance dep with
-                    | None | Some "essential" -> true
-                    | _ -> false in
-                  build_node child_iface (Command.get_required_commands dep) ~essential
+                !deps |> U.filter_map (function
+                  | `restricts _ -> None
+                  | `requires dep -> follow_dep dep
+                  | `runner dep -> follow_dep dep
                 ) in
 
               `Selected (impl, children)
@@ -61,12 +66,7 @@ let as_tree sels =
   in
 
   let root_iface = Selections.root_iface sels in
-  let commands =
-    match Selections.root_command sels with
-    | None -> []
-    | Some command -> [command] in
-
-  match build_node root_iface commands ~essential:true with
+  match build_node root_iface ~essential:true with
   | None -> assert false
   | Some tree -> tree
 
@@ -104,10 +104,10 @@ let print config printer sels =
             printf "No selected version";
         | `Selected (impl, children) ->
             (* printf "ID: %s" (ZI.get_attribute "id" impl); *)
-            printf "Version: %s" (ZI.get_attribute "version" impl);
+            printf "Version: %s" (Element.version impl);
             (* print indent + "  Command:", command *)
             let path = match Selections.get_source impl with
-              | Selections.PackageSelection -> Printf.sprintf "(%s)" @@ ZI.get_attribute "id" impl
+              | Selections.PackageSelection -> Printf.sprintf "(%s)" @@ Element.id impl
               | Selections.LocalSelection path -> path
               | Selections.CacheSelection digests ->
                   match Stores.lookup_maybe config.system digests config.stores with

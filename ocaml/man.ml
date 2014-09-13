@@ -30,9 +30,9 @@ let find_and_exec_man config ?main ?fallback_name sels =
     | Some main -> main
     | None ->
         let command_name = Zeroinstall.Selections.root_command sels |? lazy (failwith "missing command") in
-        let selected_command = Zeroinstall.Command.get_command_ex command_name selected_impl in
-        match ZI.get_attribute_opt "path" selected_command with
-        | None -> Qdom.raise_elem "No main program for interface '%s'" interface_uri selected_command
+        let selected_command = Zeroinstall.Element.get_command_ex command_name selected_impl in
+        match Zeroinstall.Element.path selected_command with
+        | None -> Zeroinstall.Element.raise_elem "No main program for interface '%s'" interface_uri selected_command
         | Some path -> path in
 
   let prog_name = Filename.basename main in

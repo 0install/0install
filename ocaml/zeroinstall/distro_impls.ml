@@ -5,7 +5,6 @@
 (** Interacting with distribution package managers. *)
 
 open General
-open Support
 open Support.Common
 module FeedAttr = Constants.FeedAttr
 module U = Support.Utils
@@ -36,17 +35,13 @@ let iter_dir system fn path =
     matches the [id] attribute on [elem].
     Returns [false] if the cache is out-of-date. *)
 let check_cache id_prefix elem (cache:Distro_cache.cache) =
-  match ZI.get_attribute_opt "package" elem with
-  | None ->
-      Qdom.log_elem Support.Logging.Warning "Missing 'package' attribute" elem;
-      false
-  | Some package ->
-      let sel_id = ZI.get_attribute "id" elem in
-      let matches (installed_version, machine) =
-        let installed_id = Printf.sprintf "%s:%s:%s:%s" id_prefix package (Versions.format_version installed_version) (default "*" machine) in
-        (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
-        sel_id = installed_id in
-      List.exists matches (fst (cache#get package))
+  let package = Element.package elem in
+  let sel_id = Element.id elem in
+  let matches (installed_version, machine) =
+    let installed_id = Printf.sprintf "%s:%s:%s:%s" id_prefix package (Versions.format_version installed_version) (default "*" machine) in
+    (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
+    sel_id = installed_id in
+  List.exists matches (fst (cache#get package))
 
 module Debian = struct
   let dpkg_db_status = "/var/lib/dpkg/status"

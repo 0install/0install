@@ -5,6 +5,7 @@
 (** The app browser dialog *)
 
 open Zeroinstall.General
+open Zeroinstall
 open Support.Common
 open Gtk_common
 
@@ -12,7 +13,6 @@ module F = Zeroinstall.Feed
 module Q = Support.Qdom
 module U = Support.Utils
 module FC = Zeroinstall.Feed_cache
-module FeedAttr = Zeroinstall.Constants.FeedAttr
 module Feed_url = Zeroinstall.Feed_url
 module Basedir = Support.Basedir
 
@@ -69,8 +69,8 @@ let by_name_ignore_case (n1, p1, u1) (n2, p2, u2) =
 (** Use [xdg-open] to show the help files for this implementation. *)
 let show_help config sel =
   let system = config.system in
-  let help_dir = ZI.get_attribute_opt FeedAttr.doc_dir sel in
-  let id = ZI.get_attribute FeedAttr.id sel in
+  let help_dir = Element.doc_dir sel in
+  let id = Element.id sel in
 
   let path =
     if U.starts_with id "package:" then (
@@ -82,14 +82,14 @@ let show_help config sel =
           else
             help_dir
     ) else (
-      let path = Zeroinstall.Selections.get_path system config.stores sel |? lazy (raise_safe "BUG: not cached!") in
+      let path = Selections.get_path system config.stores sel |? lazy (raise_safe "BUG: not cached!") in
       match help_dir with
       | Some help_dir -> path +/ help_dir
       | None ->
-          match Zeroinstall.Command.get_command "run" sel with
+          match Element.get_command "run" sel with
           | None -> path
           | Some run ->
-              match ZI.get_attribute_opt "path" run with
+              match Element.path run with
               | None -> path
               | Some main ->
                   (* Hack for ROX applications. They should be updated to set doc-dir. *)
@@ -99,9 +99,9 @@ let show_help config sel =
     ) in
   U.xdg_open_dir ~exec:false system path
 
-let get_selections tools ~(gui:Zeroinstall.Ui.ui_handler) uri =
-  let reqs = Zeroinstall.Requirements.default_requirements uri in
-  match Zeroinstall.Driver.quick_solve tools reqs with
+let get_selections tools ~(gui:Ui.ui_handler) uri =
+  let reqs = Requirements.default_requirements uri in
+  match Driver.quick_solve tools reqs with
   | Some sels -> Lwt.return (`Success sels)
   | None ->
       (* Slow path: program isn't cached yet *)
@@ -111,7 +111,7 @@ let show_help_for_iface tools ~gui uri : unit Lwt.t =
   match_lwt get_selections tools ~gui uri with
   | `Aborted_by_user -> Lwt.return ()
   | `Success sels ->
-      let sel = Zeroinstall.Selections.find_ex uri sels in
+      let sel = Selections.find_ex uri sels in
       show_help tools#config sel;
       Lwt.return ()
 
@@ -168,7 +168,7 @@ let run config dialog tools gui uri =
           let feed_url = Feed_url.master_feed_of_iface uri in
           let feed = FC.get_cached_feed config feed_url |? lazy (raise_safe "BUG: feed still not cached! %s" uri) in
           let exec args ~env = config.system#spawn_detach ~env (maybe_with_terminal tools#config.system feed args) in
-          Zeroinstall.Exec.execute_selections config ~exec sels [];
+          Exec.execute_selections config ~exec sels [];
           Lwt_unix.sleep 0.5
     finally
       Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.default_cursor);
@@ -239,7 +239,7 @@ let create config ~gui ~tools ~add_app =
 
   edit_item#connect#activate ==> (fun () ->
     let uri = !menu_iface |? lazy (raise_safe "BUG: no selected item!") in
-    let reqs = Zeroinstall.Requirements.default_requirements uri in
+    let reqs = Requirements.default_requirements uri in
     Gtk_utils.async ~parent:dialog (fun () ->
       lwt _ = gui#run_solver tools `Download_only reqs ~refresh:false in
       Lwt.return ()

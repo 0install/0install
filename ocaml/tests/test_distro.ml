@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open Zeroinstall
 open Zeroinstall.General
 open Support.Common
 open OUnit
@@ -219,9 +220,15 @@ let suite = "distro">::: [
       | [ {dep_importance = `restricts; dep_iface = "http://repo.roscidus.com/python/python"; dep_restrictions = [_]; _ } ] -> ()
       | _ -> assert_failure "No host restriction for host python-gobject" in
     let from_feed = Zeroinstall.Feed_url.format_url (`distribution_feed feed.F.url) in
-    let sel = ZI.make "selection"
-      ~attrs:(host_gobject.props.attrs |> Q.AttrMap.add_no_ns "from-feed" from_feed) in
-    assert (Distro.is_installed config distro sel)
+    let attrs = host_gobject.props.attrs
+      |> Q.AttrMap.add_no_ns "from-feed" from_feed in
+    let sel = ZI.make "selection" ~attrs in
+    let sels = ZI.make "selections"
+      ~attrs:(Q.AttrMap.singleton "interface" "http://repo.roscidus.com/python/python")
+      ~child_nodes:[sel] |> Element.parse_selections in
+    match Element.selections sels with
+    | [sel] -> assert (Distro.is_installed config distro sel)
+    | _ -> assert false
   );
 
   "rpm">:: Fake_system.with_fake_config (fun (config, fake_system) ->
@@ -334,8 +341,8 @@ let suite = "distro">::: [
     | (true, results) ->
         let sels = Zeroinstall.Solver.selections results in
         let sel = Zeroinstall.Selections.find_ex "http://example.com/bittorrent" sels in
-        let run = Zeroinstall.Command.get_command_ex "run" sel in
-        Fake_system.assert_str_equal "/bin/sh" (ZI.get_attribute "path" run)
+        let run = Zeroinstall.Element.get_command_ex "run" sel in
+        Fake_system.assert_str_equal "/bin/sh" (Zeroinstall.Element.path run |> default "missing")
     | (false, results) -> failwith @@ Zeroinstall.Solver.get_failure_reason config results end;
     Fake_system.fake_log#reset;
 

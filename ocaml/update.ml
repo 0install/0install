@@ -9,7 +9,6 @@ open Options
 open Support.Common
 
 module Selections = Zeroinstall.Selections
-module FeedAttr = Zeroinstall.Constants.FeedAttr
 module Apps = Zeroinstall.Apps
 module Impl = Zeroinstall.Impl
 module R = Zeroinstall.Requirements
@@ -63,7 +62,7 @@ let check_for_updates options reqs old_sels =
       let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider options.config tools#distro in
       check_replacement system @@ feed_provider#get_feed (Zeroinstall.Feed_url.master_feed_of_iface reqs.R.interface_uri);
       let root_sel = Selections.root_sel new_sels in
-      let root_version = ZI.get_attribute FeedAttr.version root_sel in
+      let root_version = Zeroinstall.Element.version root_sel in
       let changes = Whatchanged.show_changes system old_sels new_sels ||
         match old_sels with
         | None -> true

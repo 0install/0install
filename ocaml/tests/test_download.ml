@@ -4,6 +4,7 @@
 
 (* These tests actually run a dummy web-server. *)
 
+open Zeroinstall
 open Zeroinstall.General
 open Support.Common
 open OUnit
@@ -564,7 +565,7 @@ let suite = "download">::: [
 
     let sels = Zeroinstall.Selections.load_selections system selections_path in
     let sel = Zeroinstall.Selections.find_ex "http://example.com:8000/Hello.xml" sels in
-    assert_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" (ZI.get_attribute "id" sel);
+    assert_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" (Element.id sel);
 
     (* Untrust the key - we'll need to use the GUI to confirm it again *)
     trust_db#untrust_key ~domain "DE937DD411906ACF7C263B396FCF121BE2390E0B";

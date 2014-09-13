@@ -268,7 +268,7 @@ let compile config feed_provider iface ~autocompile =
       let sel = Selections.find iface sels in
       let sel = sel |? lazy (raise_safe "No implementation of root (%s)!" iface) in
       let min_version =
-        match sel.Q.attrs |> Q.AttrMap.get (COMPILE_NS.ns, "min-version") with
+        match Element.compile_min_version sel with
         | None -> our_min_version
         | Some min_version -> max our_min_version (Versions.parse_version min_version) in
       build_and_register config iface min_version
@@ -330,9 +330,9 @@ let run_test config distro test_callback (ready, results) =
           let details =
             missing |> List.map (fun sel ->
               Printf.sprintf "%s version %s\n  (%s)"
-                (ZI.get_attribute FeedAttr.interface sel)
-                (ZI.get_attribute FeedAttr.version sel)
-                (ZI.get_attribute FeedAttr.id sel)
+                (Element.interface sel)
+                (Element.version sel)
+                (Element.id sel)
             ) |> String.concat "\n\n- " in
           raise_safe "Can't run: the chosen versions have not been downloaded yet. I need:\n\n- %s" details
     ) else raise_safe "Can't do a test run - solve failed"

@@ -13,7 +13,7 @@ module Selections = Zeroinstall.Selections
 
 let show_changes (system:system) old_selections new_selections =
   let changes = ref false in
-  let v sel = ZI.get_attribute "version" sel in
+  let v sel = Zeroinstall.Element.version sel in
   let print fmt = Support.Utils.print system fmt in
 
   old_selections

@@ -5,7 +5,6 @@
 open Support.Common
 open OUnit
 open Zeroinstall
-open Zeroinstall.General
 
 module I = Impl_provider
 module U = Support.Utils
@@ -145,7 +144,7 @@ let run_sat_test expected problem =
       let sels = Solver.selections result in
       let actual = ref [] in
       sels |> Selections.iter (fun iface sel ->
-        let version = ZI.get_attribute "version" sel in
+        let version = Element.version sel in
         actual := (iface, version) :: !actual
       );
       let actual = List.sort compare !actual in
@@ -284,7 +283,7 @@ let suite = "sat">::: [
     ] in
     let selected = ref StringMap.empty in
     Solver.selections s |> Selections.iter (fun iface sel ->
-      selected := StringMap.add iface (ZI.get_attribute_opt "version" sel) !selected
+      selected := StringMap.add iface (Element.version_opt sel) !selected
     );
     assert_equal (Some "2") (StringMap.find_safe "prog" !selected);
     assert_equal (Some "2") (StringMap.find_safe "liba" !selected);

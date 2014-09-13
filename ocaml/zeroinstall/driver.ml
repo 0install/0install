@@ -5,7 +5,6 @@
 open General
 open Support.Common
 
-module FeedAttr = Constants.FeedAttr
 module U = Support.Utils
 let (>|=) = Lwt.(>|=)
 
@@ -35,7 +34,7 @@ let get_unavailable_selections config ?distro sels =
   in
   sels |> Selections.iter (fun iface sel ->
     if needs_download sel then (
-      Support.Qdom.log_elem Support.Logging.Info "Missing selection of %s:" iface sel;
+      Element.log_elem Support.Logging.Info "Missing selection of %s:" iface sel;
       missing := sel :: !missing
     )
   );
@@ -233,7 +232,7 @@ let download_selections config distro fetcher ~include_packages ~(feed_provider:
     Lwt.return `success
   ) else if config.network_use = Offline then (
     let format_sel sel =
-      ZI.get_attribute FeedAttr.interface sel ^ " " ^ ZI.get_attribute FeedAttr.version sel in
+      Element.interface sel ^ " " ^ Element.version sel in
     let items = missing |> List.map format_sel |> String.concat ", " in
     raise_safe "Can't download as in offline mode:\n%s" items
   ) else (

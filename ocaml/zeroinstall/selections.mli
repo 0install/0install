@@ -10,7 +10,7 @@ open Support.Common
 (** {2 Types} *)
 
 type t
-type selection = Support.Qdom.element
+type selection = [`selection] Element.t
 
 type impl_source =
   | CacheSelection of Manifest.digest list
@@ -65,13 +65,5 @@ val get_feed : selection -> General.feed_url
 (** Get the globally unique ID of this selection (feed + ID) *)
 val get_id : selection -> Feed_url.global_id
 
-(** Get the direct dependencies (excluding any inside commands) of this <selection> or <command>.
- * @param restricts include <restricts> elements too *)
-val get_dependencies : restricts:bool -> Support.Qdom.element -> Support.Qdom.element list
-
-(** Find the <runner> child of this element (selection or command), if any.
- * @raise Safe_exception if there are multiple runners. *)
-val get_runner : Support.Qdom.element -> Support.Qdom.element option
-
 (* Return all bindings in document order *)
-val collect_bindings : t -> (General.iface_uri * Binding.binding) list
+val collect_bindings : t -> (General.iface_uri * Element.binding) list

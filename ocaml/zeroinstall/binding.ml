@@ -59,6 +59,12 @@ let parse_binding elem =
   | Some "binding" -> Some (GenericBinding elem)
   | _ -> None
 
+let parse_binding2 = function
+  | `environment b -> EnvironmentBinding {var_name = Element.binding_name b; mode = get_mode (Element.as_xml b); source = get_source (Element.as_xml b)}
+  | `executable_in_path b -> ExecutableBinding {exec_type = InPath; name = Element.binding_name b; command = default "run" (Element.command b)}
+  | `executable_in_var b -> ExecutableBinding {exec_type = InVar; name = Element.binding_name b; command = default "run" (Element.command b)}
+  | `binding b -> GenericBinding (Element.as_xml b)
+
 (** Return the name of the command needed by this binding, if any. *)
 let get_command = function
   | EnvironmentBinding _ -> None

@@ -595,12 +595,12 @@ let suite = "solver">::: [
     | (true, results) ->
         let sels = Solver.selections results in
         let sel = Zeroinstall.Selections.find_ex (Selections.root_iface sels) sels in
-        let command = Command.get_command_ex "run" sel in
-        match Selections.get_dependencies ~restricts:true command with
-        | [dep] ->
-            let dep_impl = Zeroinstall.Selections.find_ex (ZI.get_attribute "interface" dep) sels in
-            let command = Command.get_command_ex "run" dep_impl in
-            Fake_system.assert_str_equal "test-gui" (ZI.get_attribute "path" command)
+        let command = Element.get_command_ex "run" sel in
+        match Element.command_children command with
+        | [`requires dep] ->
+            let dep_impl = Zeroinstall.Selections.find_ex (Element.interface dep) sels in
+            let command = Element.get_command_ex "run" dep_impl in
+            Fake_system.assert_str_equal "test-gui" (Element.path command |> default "missing")
         | _ -> assert false
   );
 
@@ -627,8 +627,10 @@ let suite = "solver">::: [
       | None -> assert false
       | Some results ->
           let sels = Solver.selections results in
-          Fake_system.assert_str_equal expected @@ ZI.get_attribute "arch" (Zeroinstall.Selections.find_ex "http://foo/MultiArch.xml" sels);
-          Fake_system.assert_str_equal expected @@ ZI.get_attribute "arch" (Zeroinstall.Selections.find_ex "http://foo/MultiArchLib.xml" sels) in
+          Zeroinstall.Selections.find_ex "http://foo/MultiArch.xml" sels
+          |> Element.arch |> default "missing" |> Fake_system.assert_str_equal expected;
+          Zeroinstall.Selections.find_ex "http://foo/MultiArchLib.xml" sels
+          |> Element.arch |> default "missing" |> Fake_system.assert_str_equal expected in
 
     (* On an i686 system we can only use the i486 implementation *)
     check_arch "Linux-i486" "i686";
@@ -655,12 +657,12 @@ let suite = "solver">::: [
       | (true, results) -> Solver.selections results in
 
     let results = do_solve r in
-    Fake_system.assert_str_equal "0.2" @@ ZI.get_attribute "version" (Zeroinstall.Selections.find_ex uri results);
-    Fake_system.assert_str_equal "3" @@ ZI.get_attribute "version" (Zeroinstall.Selections.find_ex versions results);
+    Fake_system.assert_str_equal "0.2" @@ Element.version (Zeroinstall.Selections.find_ex uri results);
+    Fake_system.assert_str_equal "3" @@ Element.version (Zeroinstall.Selections.find_ex versions results);
 
     let extras = StringMap.singleton uri "0.1" in
     let results = do_solve {r with Requirements.extra_restrictions = extras} in
-    Fake_system.assert_str_equal "0.1" @@ ZI.get_attribute "version" (Zeroinstall.Selections.find_ex uri results);
+    Fake_system.assert_str_equal "0.1" @@ Element.version (Zeroinstall.Selections.find_ex uri results);
     assert (Zeroinstall.Selections.find versions results = None);
 
     let extras = StringMap.singleton uri "0.3" in

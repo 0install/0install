@@ -17,6 +17,7 @@ Distro_impls
 Downloader
 Driver
 Dry_run
+Element
 Env
 Escape
 Exec

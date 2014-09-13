@@ -22,6 +22,12 @@ let get_bindings sels =
   sels |> Selections.iter (fun iface sel -> result := (iface, sel) :: !result);
   List.rev !result
 
+let get_dependencies elem =
+  Element.selection_children elem |> List.filter (function
+    | #Element.dependency -> true
+    | _ -> false
+  )
+
 let suite = "selections">::: [
   "selections">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     let import name =
@@ -60,24 +66,24 @@ let suite = "selections">::: [
 
     match List.map snd bindings with
     | [comp; src] -> (
-        assert_str_equal "sha1=345" @@ ZI.get_attribute "id" comp;
-        assert_str_equal "1.0" @@ ZI.get_attribute "version" comp;
+        assert_str_equal "sha1=345" @@ Element.id comp;
+        assert_str_equal "1.0" @@ Element.version comp;
 
-        assert_str_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" @@ ZI.get_attribute "id" src;
-        assert_str_equal "1.0" @@ ZI.get_attribute "version" src;
-        src.Q.attrs |> Q.AttrMap.get ("http://namespace", "foo") |> Fake_system.expect |> assert_str_equal "bar";
-        assert_str_equal "1.0" @@ ZI.get_attribute "version" src;
-        src.Q.attrs |> Q.AttrMap.get_no_ns "version-modifier" |> assert_equal None;
+        assert_str_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" @@ Element.id src;
+        assert_str_equal "1.0" @@ Element.version src;
+        (Element.as_xml src).Q.attrs |> Q.AttrMap.get ("http://namespace", "foo") |> Fake_system.expect |> assert_str_equal "bar";
+        assert_str_equal "1.0" @@ Element.version src;
+        (Element.as_xml src).Q.attrs |> Q.AttrMap.get_no_ns "version-modifier" |> assert_equal None;
 
-        let comp_bindings = comp |> ZI.filter_map Binding.parse_binding in
-        let comp_deps = Selections.get_dependencies ~restricts:true comp in
+        let comp_bindings = Element.bindings comp |> List.map Binding.parse_binding2 in
+        let comp_deps = get_dependencies comp in
         assert_equal [] @@ comp_bindings;
         assert_equal [] @@ comp_deps;
 
         let open Binding in
 
         let () =
-          match src |> ZI.filter_map Binding.parse_binding with
+          match Element.bindings src |> List.map Binding.parse_binding2 with
           | [EnvironmentBinding {mode = Replace; source = InsertPath "."; _};
              GenericBinding b;
              GenericBinding c] ->
@@ -90,10 +96,10 @@ let suite = "selections">::: [
           | Selections.CacheSelection [("sha256new", "RPUJPVVHEWJ673N736OCN7EMESYAEYM2UAY6OJ4MDFGUZ7QACLKA"); ("sha1", "345")] -> ()
           | _ -> assert false in
 
-        match Selections.get_dependencies ~restricts:true src with
-        | [dep] -> (
-            assert_str_equal "http://foo/Compiler.xml" @@ ZI.get_attribute "interface" dep;
-            match dep |> ZI.filter_map Binding.parse_binding with
+        match get_dependencies src with
+        | [`requires dep] -> (
+            assert_str_equal "http://foo/Compiler.xml" @@ Element.interface dep;
+            match Element.bindings dep |> List.map Binding.parse_binding2 with
             | [EnvironmentBinding {var_name = "PATH"; mode = Add {separator; _}; source = InsertPath "bin"};
                EnvironmentBinding {var_name = "NO_PATH"; mode = Add {separator = ","; _}; source = Value "bin"};
                EnvironmentBinding {var_name = "BINDIR"; mode = Replace; source = InsertPath "bin"};
@@ -142,18 +148,18 @@ let suite = "selections">::: [
     let sels = get_sels config fake_system iface in
     let sel = Selections.find_ex iface sels in
 
-    assert_equal "c" @@ ZI.get_attribute "id" sel;
-    let run = Command.get_command_ex "run" sel in
-    assert_equal "test-gui" @@ ZI.get_attribute "path" run;
-    run.Q.attrs |> Q.AttrMap.get ("http://custom", "attr") |> assert_equal (Some "namespaced");
-    assert_equal 1 @@ List.length (run.Q.child_nodes |> List.filter (fun node -> snd node.Q.tag = "child"));
+    assert_equal "c" @@ Element.id sel;
+    let run = Element.get_command_ex "run" sel in
+    assert_equal (Some "test-gui") @@ Element.path run;
+    (Element.as_xml run).Q.attrs |> Q.AttrMap.get ("http://custom", "attr") |> assert_equal (Some "namespaced");
+    assert_equal 1 @@ List.length ((Element.as_xml run).Q.child_nodes |> List.filter (fun node -> snd node.Q.tag = "child"));
 
     let () =
-      match Selections.get_dependencies ~restricts:true run with
-      | dep :: _ ->
-          let dep_impl_uri = ZI.get_attribute "interface" dep in
+      match Element.command_children run with
+      | `requires dep :: _ ->
+          let dep_impl_uri = Element.interface dep in
           let dep_impl = Selections.find_ex dep_impl_uri sels in
-          assert_equal "sha1=256" @@ ZI.get_attribute "id" dep_impl;
+          assert_equal "sha1=256" @@ Element.id dep_impl;
       | _ -> assert false in
 
     let runexec = Test_0install.feed_dir +/ "runnable" +/ "RunExec.xml" in
@@ -164,8 +170,9 @@ let suite = "selections">::: [
     let s3 = `String (0, output) |> Xmlm.make_input |> Q.parse_input None |> Selections.create in
 
     let runnable_impl = Selections.find_ex runnable s3 in
-    runnable_impl |> ZI.filter_map (fun child ->
-      if ZI.tag child = Some "command" then Some (ZI.get_attribute "name" child) else None
+    Element.selection_children runnable_impl |> U.filter_map (function
+      | `command child -> Some (Element.command_name child)
+      | _ -> None
     ) |> Fake_system.equal_str_lists ["foo"; "run"]
   );
 

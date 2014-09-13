@@ -117,14 +117,15 @@ class virtual distribution config =
     )
   ) in
 
-  let make_host_impl path version ?(commands=StringMap.empty) ?(requires=[]) from_feed id =
+  let make_host_impl path version ~package ?(commands=StringMap.empty) ?(requires=[]) from_feed id =
     let host_machine = system#platform in
     let props = { Impl.
       attrs = get_quick_test_attrs path
         |> Q.AttrMap.add_no_ns FeedAttr.from_feed (Feed_url.format_url (`distribution_feed from_feed))
         |> Q.AttrMap.add_no_ns FeedAttr.id id
         |> Q.AttrMap.add_no_ns FeedAttr.stability "packaged"
-        |> Q.AttrMap.add_no_ns FeedAttr.version version;
+        |> Q.AttrMap.add_no_ns FeedAttr.version version
+        |> Q.AttrMap.add_no_ns FeedAttr.package package;
       requires;
       bindings = [];
       commands;
@@ -154,14 +155,14 @@ class virtual distribution config =
               |> Q.AttrMap.add_no_ns "path" path
             ) in
           let commands = StringMap.singleton "run" Impl.({command_qdom = run; command_requires = []; command_bindings = []}) in
-          (id, make_host_impl path version ~commands url id)
+          (id, make_host_impl ~package:"host-python" path version ~commands url id)
         )
     | `remote_feed "http://repo.roscidus.com/python/python-gobject" as url ->
         Lazy.force python_info |> U.filter_map (function
           | (_, Some (path, version)) ->
               let id = "package:host:python-gobject:" ^ version in
               let requires = [make_restricts_distro "http://repo.roscidus.com/python/python" "host"] in
-              Some (id, make_host_impl path version ~requires url id)
+              Some (id, make_host_impl ~package:"host-python-gobject" path version ~requires url id)
           | (_, None) -> None
         )
     | _ -> [] in
@@ -261,8 +262,8 @@ class virtual distribution config =
      * returned map. Override this if you can provide a more efficient implementation. *)
     method is_installed elem =
       let master_feed =
-        match ZI.get_attribute_opt FeedAttr.from_feed elem with
-        | None -> ZI.get_attribute FeedAttr.interface elem |> Feed_url.parse_non_distro (* (for very old selections documents) *)
+        match Element.from_feed elem with
+        | None -> Element.interface elem |> Feed_url.parse_non_distro (* (for very old selections documents) *)
         | Some from_feed ->
             match Feed_url.parse from_feed with
             | `distribution_feed master_feed -> master_feed
@@ -270,7 +271,7 @@ class virtual distribution config =
       match Feed_cache.get_cached_feed config master_feed with
       | None -> false
       | Some master_feed ->
-          let wanted_id = ZI.get_attribute FeedAttr.id elem in
+          let wanted_id = Element.id elem in
           let impls = self#get_impls_for_feed master_feed in
           match StringMap.find wanted_id impls with
           | None -> false
@@ -365,17 +366,17 @@ class virtual distribution config =
   end
 
 let is_installed config (distro:distribution) elem =
-  match ZI.get_attribute_opt FeedAttr.quick_test_file elem with
+  match Element.quick_test_file elem with
   | None ->
-      let package_name = ZI.get_attribute FeedAttr.package elem in
+      let package_name = Element.package elem in
       distro#is_valid_package_name package_name && distro#is_installed elem
   | Some file ->
       match config.system#stat file with
       | None -> false
       | Some info ->
-          match ZI.get_attribute_opt FeedAttr.quick_test_mtime elem with
+          match Element.quick_test_mtime elem with
           | None -> true      (* quick-test-file exists and we don't care about the time *)
-          | Some required_mtime -> (Int64.of_float info.Unix.st_mtime) = Int64.of_string required_mtime
+          | Some required_mtime -> (Int64.of_float info.Unix.st_mtime) = required_mtime
 
 let install_distro_packages (distro:distribution) ui impls : [ `ok | `cancel ] Lwt.t =
   let groups = ref StringMap.empty in

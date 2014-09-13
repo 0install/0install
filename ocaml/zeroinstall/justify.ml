@@ -2,7 +2,6 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-open General
 open Support.Common
 module Qdom = Support.Qdom
 module FeedAttr = Constants.FeedAttr
@@ -103,13 +102,13 @@ let justify_preference test_sels wanted q_iface wanted_id ~old_sels ~compare can
     if old_iface <> q_iface || not used_impl then (
       match Selections.find old_iface test_sels with
       | Some new_sel ->
-          let old_version = ZI.get_attribute FeedAttr.version old_sel in
-          let new_version = ZI.get_attribute FeedAttr.version new_sel in
+          let old_version = Element.version old_sel in
+          let new_version = Element.version new_sel in
           if old_version <> new_version then
             add "%s: %s to %s" old_iface old_version new_version
           else (
-            let old_id = ZI.get_attribute FeedAttr.id old_sel in
-            let new_id = ZI.get_attribute FeedAttr.id new_sel in
+            let old_id = Element.id old_sel in
+            let new_id = Element.id new_sel in
             if old_id <> new_id then
               add "%s: %s to %s" old_iface old_id new_id
           )

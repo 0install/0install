@@ -7,6 +7,7 @@
 open Support.Common
 open Gtk_common
 open Zeroinstall.General
+open Zeroinstall
 
 module FeedAttr = Zeroinstall.Constants.FeedAttr
 module Feed_url = Zeroinstall.Feed_url
@@ -115,7 +116,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
         if col = component_vc#get_oid then (
           Printf.sprintf "Full name: %s" iface
         ) else if col = summary_vc#get_oid then (
-          match watcher#feed_provider#get_feed (Zeroinstall.Feed_url.master_feed_of_iface iface) with
+          match watcher#feed_provider#get_feed (Feed_url.master_feed_of_iface iface) with
           | Some (main_feed, _overrides) -> F.get_description config.langs main_feed |> default "-" |> first_para
           | None -> "-"
         ) else if col = action_vc#get_oid then (
@@ -126,14 +127,14 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
               if col = version_vc#get_oid then (
                 let current = Printf.sprintf "Currently preferred version: %s (%s)" version stability_str in
                 let prev_version = watcher#original_selections
-                  |> pipe_some (Zeroinstall.Selections.find iface)
-                  |> pipe_some (fun sel -> ZI.get_attribute_opt FeedAttr.version sel) in
+                  |> pipe_some (Selections.find iface)
+                  |> pipe_some (fun sel -> Element.version_opt sel) in
                 match prev_version with
                 | Some prev_version when version <> prev_version ->
                     Printf.sprintf "%s\nPreviously preferred version: %s" current prev_version
                 | _ -> current
               ) else if col = fetch_vc#get_oid then (
-                let (_fetch_str, fetch_tip) = Zeroinstall.Gui.get_fetch_info config impl in
+                let (_fetch_str, fetch_tip) = Gui.get_fetch_info config impl in
                 fetch_tip
               ) else ""
           | _ -> "No suitable version was found. Double-click here to find out why."
@@ -155,7 +156,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
   let module B = GdkEvent.Button in
   let show_menu row bev =
     let iface = model#get ~row ~column:interface_uri in
-    let have_source = Zeroinstall.Gui.have_source_for watcher#feed_provider iface in
+    let have_source = Gui.have_source_for watcher#feed_provider iface in
     let menu = GMenu.menu () in
     let packing = menu#add in
 
@@ -171,7 +172,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
     if have_source then (
       let compile ~autocompile () =
         Gtk_utils.async ~parent (fun () ->
-          lwt () = Zeroinstall.Gui.compile config watcher#feed_provider iface ~autocompile in
+          lwt () = Gui.compile config watcher#feed_provider iface ~autocompile in
           recalculate ~force:false;
           Lwt.return ()
         ) in
@@ -217,7 +218,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
 
     let rec process_tree parent (uri, details) =
       let (name, summary, feed_imports) =
-        let master_feed = Zeroinstall.Feed_url.master_feed_of_iface uri in
+        let master_feed = Feed_url.master_feed_of_iface uri in
         match feed_provider#get_feed master_feed with
         | Some (main_feed, _overrides) ->
             (main_feed.F.name,
@@ -231,7 +232,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
             (name, "", []) in
 
       let user_feeds = (feed_provider#get_iface_config uri).FC.extra_feeds in
-      let all_feeds = uri :: (user_feeds @ feed_imports |> List.map (fun {F.feed_src; _} -> Zeroinstall.Feed_url.format_url feed_src)) in
+      let all_feeds = uri :: (user_feeds @ feed_imports |> List.map (fun {F.feed_src; _} -> Feed_url.format_url feed_src)) in
 
       (* This is the set of feeds corresponding to this interface. It's used to correlate downloads with components.
        * Note: "distribution:" feeds give their master feed as their hint, so are not included here. *)
@@ -247,20 +248,20 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
 
       match details with
       | `Selected (sel, children) ->
-          begin match Zeroinstall.Gui.get_impl feed_provider sel with
+          begin match Gui.get_impl feed_provider sel with
           | None ->
               model#set ~row ~column:problem true;
               model#set ~row ~column:version_col "(problem)";
           | Some (impl, user_stability) ->
-              let version = ZI.get_attribute FeedAttr.version sel in
+              let version = Element.version sel in
               let stability_str =
                 match user_stability with
                 | Some s -> String.uppercase (Impl.format_stability s)
                 | None -> Impl.get_attr_ex FeedAttr.stability impl in
               let prev_version = watcher#original_selections
-                |> pipe_some (Zeroinstall.Selections.find uri)
+                |> pipe_some (Selections.find uri)
                 |> pipe_some (fun old_sel ->
-                  let old_version = ZI.get_attribute FeedAttr.version old_sel in
+                  let old_version = Element.version old_sel in
                   if old_version = version then None
                   else Some old_version
                 ) in
@@ -269,7 +270,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
                 | Some prev_version -> Printf.sprintf "%s (was %s)" version prev_version
                 | _ -> version in
 
-              let (fetch_str, _fetch_tip) = Zeroinstall.Gui.get_fetch_info config impl in
+              let (fetch_str, _fetch_tip) = Gui.get_fetch_info config impl in
               (* Store the summary string, so that we can recover it after displaying progress messages. *)
               Hashtbl.add default_summary_str uri summary;
 
@@ -282,11 +283,11 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
           model#set ~row ~column:problem true;
           model#set ~row ~column:version_col "(problem)" in
 
-    let sels = Zeroinstall.Solver.selections new_results in
+    let sels = Solver.selections new_results in
     Hashtbl.clear feed_to_iface;
     Hashtbl.clear default_summary_str;
     model#clear ();
-    Zeroinstall.Tree.as_tree sels |> process_tree model#get_iter_first;
+    Tree.as_tree sels |> process_tree model#get_iter_first;
     view#expand_all ();
     icon_cache#set_update_icons false in
 
