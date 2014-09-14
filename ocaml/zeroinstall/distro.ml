@@ -16,10 +16,10 @@ module Q = Support.Qdom
 let get_matching_package_impls distro feed =
   let best_score = ref 0 in
   let best_impls = ref [] in
-  ListLabels.iter feed.Feed.package_implementations ~f:(function (elem, _) as package_impl ->
-    match ZI.get_attribute_opt FeedAttr.package elem with
-    | Some package_name when distro#is_valid_package_name package_name ->
-        let distributions = default "" @@ ZI.get_attribute_opt "distributions" elem in
+  feed.Feed.package_implementations |> List.iter (function (elem, _) as package_impl ->
+    let package_name = Element.package elem in
+    if distro#is_valid_package_name package_name then (
+        let distributions = default "" @@ Element.distributions elem in
         let distro_names = Str.split_delim U.re_space distributions in
         let score_this_item =
           if distro_names = [] then 1                                 (* Generic <package-implementation>; no distribution specified *)
@@ -32,12 +32,12 @@ let get_matching_package_impls distro feed =
         if score_this_item = !best_score then (
           best_impls := package_impl :: !best_impls
         )
-    | _ -> ()
+    )
   );
   !best_impls
 
 type query = {
-  elem : Support.Qdom.element;      (* The <package-element> which generated this query *)
+  elem : [`package_impl] Element.t; (* The <package-element> which generated this query *)
   package_name : string;            (* The 'package' attribute on the <package-element> *)
   elem_props : Impl.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
   feed : Feed.feed;                 (* The feed containing the <package-element> *)
@@ -46,7 +46,7 @@ type query = {
 
 let make_query feed elem elem_props results = {
   elem;
-  package_name = ZI.get_attribute Constants.FeedAttr.package elem;
+  package_name = Element.package elem;
   elem_props;
   feed;
   results;
@@ -84,9 +84,8 @@ let get_quick_test_attrs path =
   |> Q.AttrMap.add_no_ns FeedAttr.quick_test_file path
   |> Q.AttrMap.add_no_ns FeedAttr.quick_test_mtime (Printf.sprintf "%.0f" mtime)
 
-let make_restricts_distro iface_uri distros =
-  let elem = ZI.make "restricts" in { Impl.
-    dep_qdom = elem;
+let make_restricts_distro iface_uri distros = { Impl.
+    dep_qdom = Element.dummy_restricts;
     dep_importance = `restricts;
     dep_iface = iface_uri;
     dep_restrictions = [Impl.make_distribtion_restriction distros];
@@ -244,7 +243,7 @@ class virtual distribution config =
 
       let open Impl in
       let impl = {
-        qdom = elem;
+        qdom = Element.as_xml elem;
         os = None;
         machine;
         stability = Packaged;
@@ -341,7 +340,7 @@ class virtual distribution config =
       | matches ->
           lwt available = packagekit#is_available in
           if available then (
-            let package_names = matches |> List.map (fun (elem, _props) -> ZI.get_attribute "package" elem) in
+            let package_names = matches |> List.map (fun (elem, _props) -> Element.package elem) in
             let hint = Feed_url.format_url feed.Feed.url in
             packagekit#check_for_candidates ~ui ~hint package_names
           ) else Lwt.return ()

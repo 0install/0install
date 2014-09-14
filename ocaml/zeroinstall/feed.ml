@@ -34,7 +34,7 @@ type feed_import = {
 
 type feed = {
   url : Feed_url.non_distro_feed;
-  root : Q.element;
+  root : [`feed] Element.t;
   name : string;
   implementations : 'a. ([> `cache_impl of Impl.cache_impl | `local_impl of filepath] as 'a) Impl.t StringMap.t;
   imported_feeds : feed_import list;
@@ -43,19 +43,8 @@ type feed = {
      This is the value of the feed's <replaced-by interface'...'/> element. *)
   replacement : string option;
 
-  package_implementations : (Q.element * Impl.properties) list;
+  package_implementations : ([`package_impl] Element.t * Impl.properties) list;
 }
-
-let rec filter_if_0install_version node =
-  match node.Q.attrs |> AttrMap.get_no_ns FeedAttr.if_0install_version with
-  | Some expr when not (Versions.parse_expr expr About.parsed_version) -> None
-  | Some _expr -> Some {
-    node with Q.child_nodes = U.filter_map filter_if_0install_version node.Q.child_nodes;
-    attrs = node.Q.attrs |> AttrMap.remove ("", FeedAttr.if_0install_version) 
-  }
-  | None -> Some {
-    node with Q.child_nodes = U.filter_map filter_if_0install_version node.Q.child_nodes;
-  }
 
 let parse_implementations (system:system) url root local_dir =
   let open Impl in
@@ -70,15 +59,15 @@ let parse_implementations (system:system) url root local_dir =
       s := {!s with Impl.attrs = new_attrs} in
 
     let get_required_attr name =
-      AttrMap.get_no_ns name !s.attrs |? lazy (Q.raise_elem "Missing attribute '%s' on" name node) in
+      AttrMap.get_no_ns name !s.attrs |? lazy (Element.raise_elem "Missing attribute '%s' on" name node) in
 
-    let id = ZI.get_attribute "id" node in
+    let id = Element.id node in
 
     let () =
       match local_dir with
       | None ->
           if AttrMap.mem ("", FeedAttr.local_path) !s.attrs then
-            Q.raise_elem "local-path in non-local feed! " node;
+            Element.raise_elem "local-path in non-local feed! " node;
       | Some dir ->
           let use rel_path =
             if Filename.is_relative rel_path then
@@ -92,7 +81,7 @@ let parse_implementations (system:system) url root local_dir =
                 use id in
 
     if StringMap.mem id !implementations then
-      Q.raise_elem "Duplicate ID '%s' in:" id node;
+      Element.raise_elem "Duplicate ID '%s' in:" id node;
     (* version-modifier *)
     AttrMap.get_no_ns FeedAttr.version_modifier !s.attrs
     |> if_some (fun modifier ->
@@ -102,11 +91,11 @@ let parse_implementations (system:system) url root local_dir =
     );
 
     let get_prop key =
-      AttrMap.get_no_ns key !s.attrs |? lazy (Q.raise_elem "Missing attribute '%s' on" key node) in
+      AttrMap.get_no_ns key !s.attrs |? lazy (Element.raise_elem "Missing attribute '%s' on" key node) in
 
     let (os, machine) =
       try Arch.parse_arch @@ default "*-*" @@ AttrMap.get_no_ns "arch" !s.attrs
-      with Safe_exception _ as ex -> reraise_with_context ex "... processing %s" (Q.show_with_loc node) in
+      with Safe_exception _ as ex -> reraise_with_context ex "... processing %s" (Element.show_with_loc node) in
 
     let stability =
       match AttrMap.get_no_ns FeedAttr.stability !s.attrs with
@@ -119,11 +108,11 @@ let parse_implementations (system:system) url root local_dir =
           assert (local_dir <> None);
           `local_impl local_path
       | None ->
-          let retrieval_methods = List.filter Recipe.is_retrieval_method node.Q.child_nodes in
+          let retrieval_methods = Element.retrieval_methods node in
           `cache_impl { digests = Stores.get_digests node; retrieval_methods; } in
 
     let impl = {
-      qdom = node;
+      qdom = Element.as_xml node;
       props = {!s with requires = List.rev !s.requires};
       os;
       machine;
@@ -134,64 +123,55 @@ let parse_implementations (system:system) url root local_dir =
     implementations := StringMap.add id impl !implementations
   in
 
-  let rec process_group state (group:Q.element) =
-    group |> ZI.iter (fun item ->
-      match ZI.tag item with
-      | Some "group" | Some "implementation" | Some "package-implementation" -> (
-          let s = ref state in
-          (* We've found a group or implementation. Scan for dependencies,
-             bindings and commands. Doing this here means that:
-             - We can share the code for groups and implementations here.
-             - The order doesn't matter, because these get processed first.
-             A side-effect is that the document root cannot contain these. *)
+  let process_item state item =
+    let s = ref state in
+    (* We've found a group or implementation. Scan for dependencies,
+       bindings and commands. Doing this here means that:
+       - We can share the code for groups and implementations here.
+       - The order doesn't matter, because these get processed first.
+       A side-effect is that the document root cannot contain these. *)
 
-          (* Upgrade main='...' to <command name='run' path='...'> etc *)
-          let handle_old_command attr_name command_name =
-            match ZI.get_attribute_opt attr_name item with
-            | None -> ()
-            | Some path ->
-                let new_command = make_command ~source_hint:item command_name path in
-                s := {!s with commands = StringMap.add command_name new_command !s.commands} in
-          handle_old_command FeedAttr.main "run";
-          handle_old_command FeedAttr.self_test "test";
+    (* Upgrade main='...' to <command name='run' path='...'> etc *)
+    let add_command ?path ?shell_command name =
+      let new_command =
+        Element.make_command ~source_hint:(Some item) ?path ?shell_command name
+        |> Impl.parse_command local_dir in
+      s := {!s with commands = StringMap.add name new_command !s.commands} in
 
-          item.Q.attrs |> AttrMap.get (COMPILE_NS.ns, "command") |> if_some (fun command ->
-            let new_command = make_command ~source_hint:item "compile" ~new_attr:"shell-command" command in
-            s := {!s with commands = StringMap.add "compile" new_command !s.commands}
-          );
+    Element.main item |> if_some (fun path -> add_command ~path "run");
+    Element.self_test item |> if_some (fun path -> add_command ~path "test");
+    Element.compile_command item |> if_some (fun shell_command -> add_command ~shell_command "compile");
 
-          let new_bindings = ref [] in
+    let new_bindings = ref [] in
 
-          item |> ZI.iter (fun child ->
-            match ZI.tag child with
-            | Some "requires" | Some "restricts" ->
-                let req = Impl.parse_dep local_dir child in
-                s := {!s with requires = req :: !s.requires}
-            | Some "command" ->
-                let command_name = ZI.get_attribute "name" child in
-                s := {!s with commands = StringMap.add command_name (Impl.parse_command local_dir child) !s.commands}
-            | Some tag when Binding.is_binding tag ->
-                new_bindings := child :: !new_bindings
-            | _ -> ()
-          );
-
-          if !new_bindings <> [] then
-            s := {!s with bindings = !s.bindings @ (List.rev !new_bindings)};
-
-          let new_attrs = !s.attrs |> AttrMap.add_all item.Q.attrs in
-
-          s := {!s with
-            attrs = new_attrs;
-            requires = !s.requires;
-          };
-
-          match ZI.tag item with
-          | Some "group" -> process_group !s item
-          | Some "implementation" -> process_impl item !s
-          | Some "package-implementation" -> package_implementations := (item, !s) :: !package_implementations
-          | _ -> assert false
-      )
+    Element.deps_and_bindings item |> List.iter (function
+      | `requires child  | `restricts child ->
+          let req = Impl.parse_dep local_dir child in
+          s := {!s with requires = req :: !s.requires}
+      | `command child ->
+          let command_name = Element.command_name child in
+          s := {!s with commands = StringMap.add command_name (Impl.parse_command local_dir child) !s.commands}
+      | #Element.binding as child ->
+          new_bindings := Element.element_of_binding child :: !new_bindings
       | _ -> ()
+    );
+
+    if !new_bindings <> [] then
+      s := {!s with bindings = !s.bindings @ (List.rev !new_bindings)};
+
+    let new_attrs = !s.attrs |> AttrMap.add_all (Element.as_xml item).Q.attrs in
+
+    {!s with
+      attrs = new_attrs;
+      requires = !s.requires;
+    } in
+
+  let rec process_group state group =
+    Element.group_children group |> List.iter (function
+      | `group item -> process_group (process_item state item) (item :> [`feed | `group] Element.t)
+      | `implementation item -> process_impl item (process_item state item)
+      | `package_impl item ->
+          package_implementations := (item, (process_item state item)) :: !package_implementations
     )
   in
 
@@ -200,10 +180,12 @@ let parse_implementations (system:system) url root local_dir =
     |> AttrMap.add_no_ns FeedAttr.from_feed url in
 
   (* 'main' on the <interface> (deprecated) *)
-  let root_commands = match ZI.get_attribute_opt FeedAttr.main root with
+  let root_commands = match Element.main root with
     | None -> StringMap.empty
     | Some path ->
-        let new_command = make_command ~source_hint:root "run" path in
+        let new_command =
+          Element.make_command ~source_hint:(Some root) ~path "run"
+          |> Impl.parse_command local_dir in
         StringMap.singleton "run" new_command in
 
   let root_state = {
@@ -212,31 +194,16 @@ let parse_implementations (system:system) url root local_dir =
     commands = root_commands;
     requires = [];
   } in
-  process_group root_state root;
+  process_group root_state (root :> [`feed | `group] Element.t);
 
   (!implementations, !package_implementations)
 
 let parse system root feed_local_path =
-  let root =
-    match filter_if_0install_version root with
-    | Some root -> root
-    | None -> Q.raise_elem "Feed requires 0install version %s (we are %s):" (ZI.get_attribute FeedAttr.if_0install_version root) About.version root
-  in
-
-  let () = match ZI.tag root with
-  | Some "interface" | Some "feed" -> ()
-  | _ ->
-      ZI.check_ns root;
-      Q.raise_elem "Expected <interface>, not" root in
-
-  let () = match ZI.get_attribute_opt "min-injector-version" root with
-  | Some min_version when Versions.parse_version min_version > About.parsed_version ->
-      Q.raise_elem "Feed requires 0install version %s or later (we are %s):" min_version About.version root
-  | _ -> () in
+  let root = Element.parse_feed root in
 
   let url =
     match feed_local_path with
-    | None -> ZI.get_attribute "uri" root
+    | None -> Element.uri root |? lazy (Element.raise_elem "Missing 'uri' attribute on non-local feed:" root)
     | Some path -> path in
 
   let local_dir =
@@ -251,20 +218,20 @@ let parse system root feed_local_path =
     else (
       match local_dir with
       | Some dir -> U.normpath @@ dir +/ raw_url
-      | None -> Q.raise_elem "Relative URI '%s' in non-local feed" raw_url elem
+      | None -> Element.raise_elem "Relative URI '%s' in non-local feed" raw_url elem
     ) in
 
   let parse_feed_import node =
-    let (feed_os, feed_machine) = match ZI.get_attribute_opt "arch" node with
+    let (feed_os, feed_machine) = match Element.arch node with
     | None -> (None, None)
     | Some arch -> Arch.parse_arch arch in
 
-    let feed_langs = match ZI.get_attribute_opt FeedAttr.langs node with
+    let feed_langs = match Element.langs node with
     | None -> None
     | Some langs -> Some (Str.split U.re_space langs) in
 
     {
-      feed_src = Feed_url.parse_non_distro @@ normalise_url (ZI.get_attribute FeedAttr.src node) node;
+      feed_src = Feed_url.parse_non_distro @@ normalise_url (Element.src node) node;
       feed_os;
       feed_machine;
       feed_langs;
@@ -275,16 +242,15 @@ let parse system root feed_local_path =
   let replacement = ref None in
   let imported_feeds = ref [] in
 
-  root |> ZI.iter (fun node ->
-    match ZI.tag node with
-    | Some "name" -> name := Some (Q.simple_content node)
-    | Some "feed" -> imported_feeds := parse_feed_import node :: !imported_feeds
-    | Some "replaced-by" ->
+  Element.feed_metadata root |> List.iter (function
+    | `name node -> name := Some (Element.simple_content node)
+    | `feed_import import -> imported_feeds := parse_feed_import import :: !imported_feeds
+    | `replaced_by node ->
         if !replacement = None then
-          replacement := Some (normalise_url (ZI.get_attribute FeedAttr.interface node) node)
+          replacement := Some (normalise_url (Element.interface node) node)
         else
-          Q.raise_elem "Multiple replacements!" node
-    | _ -> ()
+          Element.raise_elem "Multiple replacements!" node
+    | `feed_for _ | `category _ | `needs_terminal _ | `icon _ | `homepage _ -> ()
   );
 
   let implementations, package_implementations = parse_implementations system url root local_dir in
@@ -293,7 +259,7 @@ let parse system root feed_local_path =
     url = Feed_url.parse_non_distro url;
     name = (
       match !name with
-      | None -> Q.raise_elem "Missing <name> in" root
+      | None -> Element.raise_elem "Missing <name> in" root
       | Some name -> name
     );
     root;
@@ -359,23 +325,11 @@ let update_last_checked_time config url =
   let overrides = load_feed_overrides config url in
   save_feed_overrides config url {overrides with last_checked = Some config.system#time}
 
-let get_text tag langs feed =
-  let best = ref None in
-  feed.root |> ZI.iter ~name:tag (fun elem ->
-    let new_score = elem.Q.attrs |> AttrMap.get (xml_ns, FeedAttr.lang) |> Support.Locale.score_lang langs in
-    match !best with
-    | Some (_old_summary, old_score) when new_score <= old_score -> ()
-    | _ -> best := Some (elem.Q.last_text_inside, new_score)
-  );
-  match !best with
-  | None -> None
-  | Some (summary, _score) -> Some summary
-
-let get_summary = get_text "summary"
-let get_description = get_text "description"
-
 let get_feed_targets feed =
-  feed.root |> ZI.map ~name:"feed-for" (ZI.get_attribute FeedAttr.interface)
+  Element.feed_metadata feed.root |> U.filter_map (function
+    | `feed_for f -> Some (Element.interface f)
+    | _ -> None
+  )
 
 let make_user_import feed_src = {
   feed_src = (feed_src :> Feed_url.non_distro_feed);
@@ -386,10 +340,22 @@ let make_user_import feed_src = {
 }
 
 let get_category feed =
-  try
-    let elem = feed.root.Q.child_nodes |> List.find (fun node -> ZI.tag node = Some "category") in
-    Some elem.Q.last_text_inside
-  with Not_found -> None
+  Element.feed_metadata feed.root |> U.first_match (function
+    | `category c -> Some (Element.simple_content c)
+    | _ -> None
+  )
 
 let needs_terminal feed =
-  feed.root.Q.child_nodes |> List.exists (fun node -> ZI.tag node = Some "needs-terminal")
+  Element.feed_metadata feed.root |> List.exists (function
+    | `needs_terminal _ -> true
+    | _ -> false
+  )
+
+let icons feed =
+  Element.feed_metadata feed.root |> U.filter_map (function
+    | `icon icon -> Some icon
+    | _ -> None
+  )
+
+let get_summary langs feed = Element.get_summary langs feed.root
+let get_description langs feed = Element.get_description langs feed.root

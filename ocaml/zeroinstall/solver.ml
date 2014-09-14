@@ -93,8 +93,7 @@ module CoreModel = struct
       ) in
     let self_commands = self_bindings
       |> U.filter_map (fun binding ->
-        Binding.parse_binding binding
-        |> pipe_some Binding.get_command
+        Element.classify_binding binding |> Binding.parse_binding |> Binding.get_command
       ) in
     (deps, self_commands)
 
@@ -121,7 +120,7 @@ module CoreModel = struct
     if impl != dummy_impl then (
       let commands = List.sort compare commands in
 
-      let copy_elem elem =
+      let copy_qdom elem =
         (* Copy elem into parent (and strip out <version> elements). *)
         let open Qdom in
         let imported = {elem with
@@ -141,21 +140,24 @@ module CoreModel = struct
         let child_nodes = List.filter want_command_child command_elem.Qdom.child_nodes in
         let add_command_dep child_nodes dep =
           if dep.Impl.dep_importance <> `restricts && impl_provider#is_dep_needed dep then
-            dep.Impl.dep_qdom :: child_nodes
+            Element.as_xml dep.Impl.dep_qdom :: child_nodes
           else
             child_nodes in
         let child_nodes = List.fold_left add_command_dep child_nodes command.Impl.command_requires in
         let command_elem = {command_elem with Qdom.child_nodes = child_nodes} in
-        copy_elem command_elem
+        copy_qdom command_elem
       );
 
-      List.iter copy_elem impl.Impl.props.Impl.bindings;
+      let copy_elem elem =
+        copy_qdom (Element.as_xml elem) in
+
+      Impl.(impl.props.bindings) |> List.iter copy_elem;
       Impl.(impl.props.requires) |> List.iter (fun dep ->
         if impl_provider#is_dep_needed dep && dep.Impl.dep_importance <> `restricts then
           copy_elem (dep.Impl.dep_qdom)
       );
 
-      impl.Impl.qdom |> ZI.iter ~name:"manifest-digest" copy_elem;
+      impl.Impl.qdom |> ZI.iter ~name:"manifest-digest" copy_qdom;
     );
     ZI.make
       ~attrs

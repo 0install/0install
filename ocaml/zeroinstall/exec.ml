@@ -113,10 +113,10 @@ let get_exec_args config ?main sels args =
 
   (* Do <environment> bindings; collect executable bindings *)
   let exec_bindings =
-    bindings |> Support.Utils.filter_map (fun (iface, binding) -> match Binding.parse_binding2 binding with
+    bindings |> Support.Utils.filter_map (fun (iface, binding) -> match Binding.parse_binding binding with
       | Binding.EnvironmentBinding b -> Binding.do_env_binding env impls iface b; None
       | Binding.ExecutableBinding b -> Some (iface, b)
-      | Binding.GenericBinding elem -> Support.Qdom.log_elem Support.Logging.Warning "Unsupported binding type:" elem; None
+      | Binding.GenericBinding elem -> Element.log_elem Support.Logging.Warning "Unsupported binding type:" elem; None
     ) in
 
   (* Do <executable-in-*> bindings *)

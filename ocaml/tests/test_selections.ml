@@ -23,7 +23,7 @@ let get_bindings sels =
   List.rev !result
 
 let get_dependencies elem =
-  Element.selection_children elem |> List.filter (function
+  Element.deps_and_bindings elem |> List.filter (function
     | #Element.dependency -> true
     | _ -> false
   )
@@ -75,7 +75,7 @@ let suite = "selections">::: [
         assert_str_equal "1.0" @@ Element.version src;
         (Element.as_xml src).Q.attrs |> Q.AttrMap.get_no_ns "version-modifier" |> assert_equal None;
 
-        let comp_bindings = Element.bindings comp |> List.map Binding.parse_binding2 in
+        let comp_bindings = Element.bindings comp |> List.map Binding.parse_binding in
         let comp_deps = get_dependencies comp in
         assert_equal [] @@ comp_bindings;
         assert_equal [] @@ comp_deps;
@@ -83,12 +83,12 @@ let suite = "selections">::: [
         let open Binding in
 
         let () =
-          match Element.bindings src |> List.map Binding.parse_binding2 with
+          match Element.bindings src |> List.map Binding.parse_binding with
           | [EnvironmentBinding {mode = Replace; source = InsertPath "."; _};
              GenericBinding b;
              GenericBinding c] ->
-               assert_str_equal "/" @@ ZI.get_attribute "mount-point" b;
-               assert_str_equal "source" @@ ZI.get_attribute "foo" c;
+               assert_str_equal "/" @@ ZI.get_attribute "mount-point" (Element.as_xml b);
+               assert_str_equal "source" @@ ZI.get_attribute "foo" (Element.as_xml c);
           | _ -> assert false in
 
         let () =
@@ -99,12 +99,13 @@ let suite = "selections">::: [
         match get_dependencies src with
         | [`requires dep] -> (
             assert_str_equal "http://foo/Compiler.xml" @@ Element.interface dep;
-            match Element.bindings dep |> List.map Binding.parse_binding2 with
+            match Element.bindings dep |> List.map Binding.parse_binding with
             | [EnvironmentBinding {var_name = "PATH"; mode = Add {separator; _}; source = InsertPath "bin"};
                EnvironmentBinding {var_name = "NO_PATH"; mode = Add {separator = ","; _}; source = Value "bin"};
                EnvironmentBinding {var_name = "BINDIR"; mode = Replace; source = InsertPath "bin"};
                GenericBinding foo_binding] -> (
                  assert (separator = ";" || separator = ":");
+                 let foo_binding = Element.as_xml foo_binding in
 
                  assert_str_equal "compiler" @@ ZI.get_attribute "foo" foo_binding;
                  assert_equal (Some "child") @@ ZI.tag @@ List.hd foo_binding.Q.child_nodes;
@@ -170,7 +171,7 @@ let suite = "selections">::: [
     let s3 = `String (0, output) |> Xmlm.make_input |> Q.parse_input None |> Selections.create in
 
     let runnable_impl = Selections.find_ex runnable s3 in
-    Element.selection_children runnable_impl |> U.filter_map (function
+    Element.deps_and_bindings runnable_impl |> U.filter_map (function
       | `command child -> Some (Element.command_name child)
       | _ -> None
     ) |> Fake_system.equal_str_lists ["foo"; "run"]

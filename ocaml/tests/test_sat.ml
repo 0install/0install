@@ -72,8 +72,6 @@ class impl_provider =
 
 let re_dep = Str.regexp "\\([a-z]+\\)\\[\\([0-9]+\\)\\(,[0-9]+\\)?\\] => \\([a-z]+\\) \\([0-9]+\\) \\([0-9]+\\)"
 
-let dummy_dep = General.ZI.make "requires"
-
 let run_sat_test expected problem =
   let parse_id id =
     U.split_pair U.re_dash (trim id) in
@@ -110,7 +108,7 @@ let run_sat_test expected problem =
               impl.Impl.parsed_version >= min_v && impl.Impl.parsed_version <= max_v
           end in
         let dep = Impl.({
-          dep_qdom = dummy_dep;
+          dep_qdom = Element.dummy_restricts;
           dep_importance = `essential;
           dep_iface = lib;
           dep_restrictions = [restriction];

@@ -33,7 +33,7 @@ let as_tree sels =
           | Some impl ->
               let deps = ref [] in
 
-              Element.selection_children impl |> List.iter (function
+              Element.deps_and_bindings impl |> List.iter (function
                 | `command command ->
                     Element.command_children command |> List.iter (function
                       | #Element.dependency as dep -> deps := dep :: !deps

@@ -63,7 +63,7 @@ let rec build_command ?main ?(dry_run=false) impls command_iface command_name en
     let (command_sel, command_impl_path) = find_ex command_iface impls in
     let command =
       match command_name with
-      | None -> Element.make_command ~source_hint:(Some command_sel)
+      | None -> Element.make_command ~source_hint:(Some command_sel) "run"
       | Some command_name -> Element.get_command_ex command_name command_sel in
     let command_rel_path =
       let path = Element.path command in
@@ -119,7 +119,7 @@ let rec build_command ?main ?(dry_run=false) impls command_iface command_name en
 let get_required_commands dep =
   let commands =
     Element.bindings dep |> U.filter_map  (fun node ->
-      Binding.parse_binding2 node |> Binding.get_command
+      Binding.parse_binding node |> Binding.get_command
     ) in
   match Element.classify_dep dep with
   | `runner runner -> (default "run" @@ Element.command runner) :: commands

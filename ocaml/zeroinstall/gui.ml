@@ -149,14 +149,10 @@ let download_icon (fetcher:Fetch.fetcher) (feed_provider:Feed_provider.feed_prov
     | None -> None
     | Some (feed, _) ->
         (* Find a suitable icon to download *)
-        feed.F.root.Q.child_nodes |> U.first_match (fun child ->
-          match ZI.tag child with
-          | Some "icon" -> (
-              match ZI.get_attribute_opt "type" child with
-              | Some "image/png" -> ZI.get_attribute_opt "href" child
-              | _ -> log_debug "Skipping non-PNG icon"; None
-          )
-          | _ -> None
+        F.icons feed |> U.first_match (fun child ->
+          match Element.icon_type child with
+          | Some "image/png" -> Some (Element.href child)
+          | _ -> log_debug "Skipping non-PNG icon"; None
         ) in
 
   match icon_url with

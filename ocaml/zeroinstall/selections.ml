@@ -31,7 +31,7 @@ let get_source elem =
     else if Str.string_match re_package id 0 then
       PackageSelection
     else
-      CacheSelection (match Stores.get_digests (Element.as_xml elem) with
+      CacheSelection (match Stores.get_digests elem with
       | [] ->
           let id = Element.id elem in
           Element.raise_elem "No digests found for '%s':" id elem
@@ -110,7 +110,7 @@ let collect_bindings t =
       | #Element.binding as binding -> bindings := (iface, binding) :: !bindings
     ) in
   let process_impl iface parent =
-    Element.selection_children parent |> List.iter (function
+    Element.deps_and_bindings parent |> List.iter (function
       | `requires r -> process_dep r
       | `restricts r -> process_dep r
       | `command c -> process_command iface c

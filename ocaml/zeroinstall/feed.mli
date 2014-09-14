@@ -30,7 +30,7 @@ type feed_import = {
 
 type feed = {
   url : Feed_url.non_distro_feed;
-  root : Support.Qdom.element;
+  root : [`feed] Element.t;
   name : string;
   implementations : 'a. ([> `cache_impl of Impl.cache_impl | `local_impl of filepath] as 'a) Impl.t StringMap.t;
   imported_feeds : feed_import list;    (* Always of type Feed_import here *)
@@ -39,7 +39,7 @@ type feed = {
      This is the value of the feed's <replaced-by interface'...'/> element. *)
   replacement : General.iface_uri option;
 
-  package_implementations : (Support.Qdom.element * Impl.properties) list;
+  package_implementations : ([`package_impl] Element.t * Impl.properties) list;
 }
 
 (** {2 Parsing} *)
@@ -59,3 +59,4 @@ val make_user_import : [< Feed_url.non_distro_feed] -> feed_import
 
 val get_category : feed -> string option
 val needs_terminal : feed -> bool
+val icons : feed -> [`icon] Element.t list

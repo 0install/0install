@@ -7,6 +7,7 @@
 open Support.Common
 open Gtk_common
 open Zeroinstall.General
+open Zeroinstall
 
 module FeedAttr = Zeroinstall.Constants.FeedAttr
 module Impl = Zeroinstall.Impl
@@ -42,7 +43,7 @@ let add_description_text config ~trust_db ~heading_style ~link_style (buffer:GTe
   let iter = buffer#start_iter in
   buffer#insert ~iter ~tags:[heading_style] feed.F.name;
   buffer#insert ~iter (spf " (%s)" (default "-" @@ F.get_summary config.langs feed));
-  buffer#insert ~iter (spf "\n%s\n" (Zeroinstall.Feed_url.format_url feed.F.url));
+  buffer#insert ~iter (spf "\n%s\n" (Feed_url.format_url feed.F.url));
 
   if description.times <> [] then (
     buffer#insert ~iter "\n";
@@ -78,7 +79,7 @@ let add_description_text config ~trust_db ~heading_style ~link_style (buffer:GTe
   | `remote_feed _ as feed_url, sigs ->
       let module G = Support.Gpg in
       buffer#insert ~iter ~tags:[heading_style] "\nSignatures\n";
-      let domain = Zeroinstall.Trust.domain_from_url feed_url in
+      let domain = Trust.domain_from_url feed_url in
       sigs |> Lwt_list.iter_s (function
         | G.ValidSig {G.fingerprint; G.timestamp} ->
             lwt name = G.get_key_name config.system fingerprint in
@@ -101,7 +102,7 @@ let generate_feed_description config trust_db feed overrides =
     | `remote_feed _ as feed_url ->
         lwt sigs = get_sigs config feed_url in
         if sigs <> [] then (
-          let domain = Zeroinstall.Trust.domain_from_url feed_url in
+          let domain = Trust.domain_from_url feed_url in
           match trust_db#oldest_trusted_sig domain sigs with
           | Some last_modified -> times := ("Last upstream change", last_modified) :: !times
           | None -> ()
@@ -126,8 +127,9 @@ let generate_feed_description config trust_db feed overrides =
     | Some description -> Str.split (Str.regexp_string "\n\n") description |> List.map format_para
     | None -> ["-"] in
 
-  let homepages = feed.F.root |> ZI.map ~name:"homepage" (fun homepage ->
-    homepage.Q.last_text_inside;
+  let homepages = Element.feed_metadata feed.F.root |> U.filter_map (function
+    | `homepage homepage -> Some (Element.simple_content homepage)
+    | _ -> None
   ) in
 
   Lwt.return {
@@ -240,12 +242,12 @@ let add_remote_feed ~parent ~watcher ~recalculate tools iface () =
           try_lwt
             let url = entry#text in
             if url = "" then raise_safe "Enter a URL";
-            begin match Zeroinstall.Feed_url.parse_non_distro url with
+            begin match Feed_url.parse_non_distro url with
             | `local_feed _ -> raise_safe "Not a remote feed!"
             | `remote_feed _ as feed_url ->
                 let config = tools#config in
-                let fetcher = tools#make_fetcher (watcher :> Zeroinstall.Progress.watcher) in
-                lwt () = Zeroinstall.Gui.add_remote_feed config fetcher iface feed_url in
+                let fetcher = tools#make_fetcher (watcher :> Progress.watcher) in
+                lwt () = Gui.add_remote_feed config fetcher iface feed_url in
                 box#destroy ();
                 recalculate ~force:false;
                 Lwt.return () end
@@ -277,10 +279,10 @@ let add_local_feed ~parent ~recalculate config iface () =
     | `OK ->
         try
           let path = box#filename |? lazy (raise_safe "No filename!") in
-          match Zeroinstall.Feed_url.parse_non_distro path with
+          match Feed_url.parse_non_distro path with
           | `remote_feed _ -> raise_safe "Not a local feed!"
           | `local_feed _ as feed_url ->
-              Zeroinstall.Gui.add_feed config iface feed_url;
+              Gui.add_feed config iface feed_url;
               box#destroy ();
               recalculate ~force:false
         with Safe_exception _ as ex -> Alert_box.report_error ~parent:box ex
@@ -339,7 +341,7 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
     | [path] ->
         let iter = feeds_model#get_iter path in
         let feed_import = feeds_model#get ~row:iter ~column:feed_obj in
-        Zeroinstall.Gui.remove_feed config iface feed_import.F.feed_src;
+        Gui.remove_feed config iface feed_import.F.feed_src;
         remove_feed#misc#set_sensitive false;
         recalculate ~force:false;
     | _ -> log_warning "Impossible selection!"
@@ -413,7 +415,7 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
       let iface_config = watcher#feed_provider#get_iface_config iface in
       let extra_feeds = iface_config.FC.extra_feeds in
 
-      let master_feed = Zeroinstall.Feed_url.master_feed_of_iface iface in
+      let master_feed = Feed_url.master_feed_of_iface iface in
       let imported_feeds =
         match watcher#feed_provider#get_feed master_feed with
         | None -> []
@@ -433,8 +435,8 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
         let arch_value =
           match feed.F.feed_os, feed.F.feed_machine with
           | None, None -> ""
-          | os, machine -> Zeroinstall.Arch.format_arch os machine in
-        feeds_model#set ~row ~column:url (Zeroinstall.Feed_url.format_url feed.F.feed_src);
+          | os, machine -> Arch.format_arch os machine in
+        feeds_model#set ~row ~column:url (Feed_url.format_url feed.F.feed_src);
         feeds_model#set ~row ~column:arch arch_value;
         feeds_model#set ~row ~column:used (watcher#feed_provider#was_used feed.F.feed_src);
         feeds_model#set ~row ~column:feed_obj feed;
@@ -587,7 +589,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
             let menu = GMenu.menu () in
             let stability_menu = GMenu.menu_item ~packing:menu#add ~label:"Rating" () in
             let submenu = build_stability_menu (fun stability ->
-              Zeroinstall.Gui.set_impl_stability config (Impl.get_id impl) stability;
+              Gui.set_impl_stability config (Impl.get_id impl) stability;
               recalculate ~force:false
             ) in
             stability_menu#set_submenu submenu;
@@ -600,13 +602,13 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
             begin match impl.Impl.impl_type with
             | `local_impl path -> add_open_item path
             | `cache_impl info ->
-                let path = Zeroinstall.Stores.lookup_maybe config.system info.Impl.digests config.stores in
+                let path = Stores.lookup_maybe config.system info.Impl.digests config.stores in
                 path |> if_some add_open_item
             | `package_impl _ -> () end;
 
             let explain = GMenu.menu_item ~packing:menu#add ~label:"Explain this decision" () in
             explain#connect#activate ==> (fun () ->
-              let reason = Zeroinstall.Justify.justify_decision config watcher#feed_provider reqs iface (Impl.get_id impl) in
+              let reason = Justify.justify_decision config watcher#feed_provider reqs iface (Impl.get_id impl) in
               show_explanation_box ~parent:window iface version_str reason
             );
             menu#popup ~button:(B.button bev) ~time:(B.time bev);
@@ -619,7 +621,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
     method update =
       model#clear ();
       let (_ready, result) = watcher#results in
-      match Zeroinstall.Gui.list_impls result iface with
+      match Gui.list_impls result iface with
       | None -> view#misc#set_sensitive false
       | Some (selected, impls) ->
           view#misc#set_sensitive true;
@@ -630,7 +632,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
               match !cache |> StringMap.find feed with
               | Some result -> result
               | None ->
-                  let result = F.load_feed_overrides config (Zeroinstall.Feed_url.parse feed) in
+                  let result = F.load_feed_overrides config (Feed_url.parse feed) in
                   cache := !cache |> StringMap.add feed result;
                   result in
 
@@ -646,17 +648,17 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
             let arch_value =
               match impl.Impl.os, impl.Impl.machine with
               | None, None -> "any"
-              | os, machine -> Zeroinstall.Arch.format_arch os machine in
+              | os, machine -> Arch.format_arch os machine in
 
             let notes_value =
               match problem with
               | None -> "None"
-              | Some problem -> Zeroinstall.Impl_provider.describe_problem impl problem in
+              | Some problem -> Impl_provider.describe_problem impl problem in
 
-            let (fetch_str, fetch_tip) = Zeroinstall.Gui.get_fetch_info config impl in
+            let (fetch_str, fetch_tip) = Gui.get_fetch_info config impl in
 
             let row = model#append () in
-            model#set ~row ~column:version @@ Zeroinstall.Versions.format_version impl.Impl.parsed_version;
+            model#set ~row ~column:version @@ Versions.format_version impl.Impl.parsed_version;
             model#set ~row ~column:released @@ default "-" @@ Q.AttrMap.get_no_ns FeedAttr.released impl.Impl.props.Impl.attrs;
             model#set ~row ~column:stability @@ stability_value;
             model#set ~row ~column:langs @@ default "-" @@ Q.AttrMap.get_no_ns FeedAttr.langs impl.Impl.props.Impl.attrs;
@@ -703,7 +705,7 @@ let create tools ~trust_db reqs iface ~recalculate ~select_versions_tab ~watcher
   dialog#connect#response ==> (function
     | `COMPILE ->
         Gtk_utils.async ~parent:dialog (fun () ->
-          lwt () = Zeroinstall.Gui.compile config watcher#feed_provider iface ~autocompile:true in
+          lwt () = Gui.compile config watcher#feed_provider iface ~autocompile:true in
           recalculate ~force:false;
           Lwt.return ()
         )
@@ -714,7 +716,7 @@ let create tools ~trust_db reqs iface ~recalculate ~select_versions_tab ~watcher
   object
     method dialog = dialog
     method update : unit =
-      dialog#set_response_sensitive `COMPILE (Zeroinstall.Gui.have_source_for watcher#feed_provider iface);
+      dialog#set_response_sensitive `COMPILE (Gui.have_source_for watcher#feed_provider iface);
       feeds_tab#update;
       versions_tab#update
   end

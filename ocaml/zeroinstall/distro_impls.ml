@@ -187,7 +187,7 @@ module Debian = struct
         match Distro.get_matching_package_impls self feed with
         | [] -> Lwt.return ()
         | matches ->
-            let package_names = matches |> List.map (fun (elem, _props) -> (ZI.get_attribute "package" elem)) in
+            let package_names = matches |> List.map (fun (elem, _props) -> (Element.package elem)) in
 
             (* Check apt-cache to see whether we have the pacakges. If PackageKit isn't available, we'll use these
              * results directly. If it is available, we'll use these results to filter the PackageKit query, because

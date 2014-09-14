@@ -38,9 +38,8 @@ type impl_type =
   | `package_impl of package_impl ]
 
 type restriction = < meets_restriction : impl_type t -> bool; to_string : string >
-and binding = Support.Qdom.element
 and dependency = {
-  dep_qdom : Support.Qdom.element;
+  dep_qdom : Element.dependency_node Element.t;
   dep_importance : importance;
   dep_iface : General.iface_uri;
   dep_restrictions : restriction list;
@@ -51,12 +50,12 @@ and dependency = {
 and command = {
   mutable command_qdom : Support.Qdom.element;  (* Mutable because of distro's [fixup_main] *)
   command_requires : dependency list;
-  command_bindings : binding list;
+  command_bindings : Element.binding_node Element.t list;
 }
 and properties = {
   attrs : Support.Qdom.AttrMap.t;
   requires : dependency list;
-  bindings : binding list;
+  bindings : Element.binding_node Element.t list;
   commands : command Support.Common.StringMap.t;
 }
 and +'a t = {
@@ -86,11 +85,11 @@ val make_version_restriction : string -> restriction
 (** [parse_dep local_dir elem] parses the <requires>/<restricts> element.
  * [local_dir] is used to resolve relative interface names in local feeds
  * (use [None] for remote feeds). *)
-val parse_dep : Support.Common.filepath option -> Support.Qdom.element -> dependency
+val parse_dep : Support.Common.filepath option -> [< Element.dependency_node] Element.t -> dependency
 
 (** [parse_command local_dir elem] parses the <command> element.
  * [local_dir] is used to process dependencies (see [parse_dep]). *)
-val parse_command : Support.Common.filepath option -> Support.Qdom.element -> command
+val parse_command : Support.Common.filepath option -> [`command] Element.t -> command
 
 val get_attr_ex : string -> _ t -> string
 

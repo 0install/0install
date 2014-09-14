@@ -6,7 +6,7 @@
 
 (** Passed to [distribution#get_package_impls]. It provides details of the query and a place to collect the results. *)
 type query = {
-  elem : Support.Qdom.element;      (* The <package-element> which generated this query *)
+  elem : [`package_impl] Element.t; (* The <package-element> which generated this query *)
   package_name : string;            (* The 'package' attribute on the <package-element> *)
   elem_props : Impl.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
   feed : Feed.feed;                 (* The feed containing the <package-element> *)
@@ -94,4 +94,4 @@ val is_installed : General.config -> distribution -> Selections.selection -> boo
 val install_distro_packages : distribution -> #Packagekit.ui -> Impl.distro_implementation list -> [ `ok | `cancel ] Lwt.t
 
 (** Return the <package-implementation> elements that best match this distribution. *)
-val get_matching_package_impls : distribution -> Feed.feed -> (Support.Qdom.element * Impl.properties) list
+val get_matching_package_impls : distribution -> Feed.feed -> ([`package_impl] Element.t * Impl.properties) list
