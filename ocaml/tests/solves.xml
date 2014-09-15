@@ -172,6 +172,10 @@
         <implementation id='p3' version='3'></implementation>
       </group>
     </interface>
+    <interface uri='http://example.com/other.xml'>
+      <name>other</name>
+      <implementation id='o1' version='1'/>
+    </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
     <selections command="run" interface="http://example.com/prog.xml">
       <selection id='l2' interface='http://example.com/lib.xml' version='2'/>
@@ -202,7 +206,7 @@ Can't find all required implementations:
       Implementation to consider (http://example.com/prog.xml p4) does not exist!
     </justification>
     <justification interface='http://example.com/other.xml' id='o1'>
-      If http://example.com/other.xml o1 were the only option, the best available solution wouldn't use it.
+      If http://example.com/other.xml 1 were the only option, the best available solution wouldn't use it.
     </justification>
     <justification interface='http://example.com/lib.xml' id='l0'>
       http://example.com/lib.xml 0 cannot be used (regardless of other components): Not compatible with the requested OS type

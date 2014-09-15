@@ -178,7 +178,7 @@ module CoreModel = struct
   let string_of_restriction r = r#to_string
 
   let implementations impl_provider (iface_uri, source) =
-    let {Impl_provider.replacement; impls; rejects = _} = impl_provider#get_implementations iface_uri ~source in
+    let {Impl_provider.replacement; impls; rejects = _; compare = _} = impl_provider#get_implementations iface_uri ~source in
     let replacement = replacement |> pipe_some (fun replacement ->
       if replacement = iface_uri then (
         log_warning "Interface %s replaced-by itself!" iface_uri; None

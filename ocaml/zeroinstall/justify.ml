@@ -77,8 +77,8 @@ let justify_preference test_sels wanted q_iface wanted_id ~old_sels ~compare can
   let actual_selection = Selections.find q_iface old_sels in
 
   let () =
-    match actual_selection, compare with
-    | Some actual_selection, Some compare ->
+    match actual_selection with
+    | Some actual_selection ->
         let actual_id = Selections.get_id actual_selection in
 
         (* Was impl actually selected anyway? *)
@@ -129,7 +129,8 @@ let justify_preference test_sels wanted q_iface wanted_id ~old_sels ~compare can
 
 (** Run a solve with impl_id forced to be selected, and use that to explain why it wasn't (or was)
     selected in the normal case. *)
-let justify_decision config feed_provider requirements q_iface q_impl =
+let justify_decision config feed_provider requirements q_role q_impl =
+  let q_iface, source = q_role in
   let (scope_filter, root_req) = Solver.get_root_requirements config requirements in
 
   (* Note: there's a slight mismatch between the diagnostics system (which assumes each interface is used either for
@@ -145,7 +146,6 @@ let justify_decision config feed_provider requirements q_iface q_impl =
     let open Impl_provider in
     object
       inherit default_impl_provider config feed_provider scope_filter as super
-      initializer super#set_watch_iface q_iface
 
       method! get_implementations requested_iface ~source:want_source =
         let c = super#get_implementations requested_iface ~source:want_source in
@@ -156,7 +156,7 @@ let justify_decision config feed_provider requirements q_iface q_impl =
           try
             let our_impl = List.find is_ours c.impls in
             wanted := spf "%s %s" q_iface @@ Impl.get_attr_ex FeedAttr.version our_impl;
-            {impls = [our_impl]; replacement = c.replacement; rejects = []}
+            {impls = [our_impl]; replacement = c.replacement; rejects = []; compare = c.compare}
           with Not_found ->
             try
               let (our_impl, problem) = List.find (fun (cand, _) -> is_ours cand) c.rejects in
@@ -174,9 +174,11 @@ let justify_decision config feed_provider requirements q_iface q_impl =
         let test_sels = Solver.selections result in
         let (ready, actual_selections) = Solver.solve_for config feed_provider requirements in
         assert ready;   (* If we can solve we a constraint, we can solve without. *)
+
         justify_preference test_sels !wanted q_iface q_impl
           ~old_sels:(Solver.selections actual_selections)
-          ~compare:impl_provider#get_watched_compare !candidates
+          ~compare:(impl_provider#get_implementations q_iface ~source).Impl_provider.compare
+          !candidates
     | None ->
         match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:true with
         | None -> failwith "No solution, even with closest_match!"

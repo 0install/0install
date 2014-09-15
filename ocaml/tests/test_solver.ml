@@ -237,7 +237,7 @@ let make_solver_test test_elem =
         feed = Feed_url.parse iface;
         id = ZI.get_attribute "id" elem;
       }) in
-      let reason = Zeroinstall.Justify.justify_decision config (feed_provider :> Feed_provider.feed_provider) !reqs iface g_id in
+      let reason = Zeroinstall.Justify.justify_decision config (feed_provider :> Feed_provider.feed_provider) !reqs (iface, false) g_id in
       Fake_system.assert_str_equal (trim elem.Support.Qdom.last_text_inside) reason
     );
   )
@@ -434,7 +434,7 @@ let suite = "solver">::: [
 
     let test_solve scope_filter =
       let impl_provider = new default_impl_provider config (feed_provider :> Feed_provider.feed_provider) scope_filter in
-      let {replacement; impls; rejects = _} = impl_provider#get_implementations iface ~source:false in
+      let {replacement; impls; _} = impl_provider#get_implementations iface ~source:false in
       (* List.iter (fun (impl, r) -> failwith @@ describe_problem impl r) rejects; *)
       assert_equal ~msg:"replacement" (Some "http://example.com/replacement.xml") replacement;
       let ids = List.map (fun i -> Impl.get_attr_ex "id" i) impls in
@@ -553,15 +553,17 @@ let suite = "solver">::: [
       let actual = Justify.justify_decision config (feed_provider :> Feed_provider.feed_provider) reqs iface g_id in
       Fake_system.assert_str_equal expected actual in
 
+    let role = (iface, true) in
+
     justify
       "http://foo/Binary.xml 1.0 cannot be used (regardless of other components): We want source and this is a binary"
-      iface (Feed_url.master_feed_of_iface iface) "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
+      role (Feed_url.master_feed_of_iface iface) "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
     justify
       "http://foo/Binary.xml 1.0 was selected as the preferred version."
-      iface (`remote_feed "http://foo/Source.xml") "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
+      role (`remote_feed "http://foo/Source.xml") "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
     justify
       "0.1 is ranked lower than 1.0: newer versions are preferred"
-      iface (`remote_feed "http://foo/Source.xml") "old";
+      role (`remote_feed "http://foo/Source.xml") "old";
     justify
       ("There is no possible selection using http://foo/Binary.xml 3.\n" ^
       "Can't find all required implementations:\n" ^
@@ -572,11 +574,11 @@ let suite = "solver">::: [
       "      sha1=999 (5): Incompatible with restriction: version ..!1.0\n" ^
       "      sha1=345 (1.0): Incompatible with restriction: version ..!1.0\n" ^
       "      sha1=678 (0.1): Incompatible with restriction: version 1.0..")
-      iface (`remote_feed "http://foo/Source.xml") "impossible";
+      role (`remote_feed "http://foo/Source.xml") "impossible";
     justify
       ("http://foo/Compiler.xml 5 is selectable, but using it would produce a less optimal solution overall.\n\n" ^
       "The changes would be:\n\nhttp://foo/Binary.xml: 1.0 to 0.1")
-      "http://foo/Compiler.xml" (`remote_feed "http://foo/Compiler.xml") "sha1=999";
+      ("http://foo/Compiler.xml", false) (`remote_feed "http://foo/Compiler.xml") "sha1=999";
 
     import "Recursive.xml";
     let rec_impls = impl_provider#get_implementations "http://foo/Recursive.xml" ~source:false in

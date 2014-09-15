@@ -58,10 +58,11 @@ class impl_provider =
       with Not_found -> failwith name
     method set_impls name impls = Hashtbl.replace interfaces name impls
 
-    method get_implementations iface ~source:_ = {
-      I.replacement = None;
-      I.rejects = [];
-      I.impls =
+    method get_implementations iface ~source:_ = { I.
+      replacement = None;
+      rejects = [];
+      compare = (fun _ _ -> failwith "compare");
+      impls =
         try Hashtbl.find interfaces iface
         with Not_found -> failwith iface;
     }
