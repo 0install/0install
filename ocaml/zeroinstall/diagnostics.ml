@@ -176,7 +176,7 @@ module Make (Model : Solver_types.DIAGNOSTICS) = struct
      e.g. A depends on B and C. B and C both depend on D.
      C1 conflicts with D1. The depth-first priority order means we give priority
      to {A1, B1, D1}. Then we can't choose C1 because we prefer to keep D1. *)
-  let get_dependency_problem model report impl =
+  let get_dependency_problem role report impl =
     let check_dep dep =
       match find_component dep.Model.dep_role report with
       | None -> None      (* Not in the selections => can't be part of a conflict *)
@@ -188,7 +188,7 @@ module Make (Model : Solver_types.DIAGNOSTICS) = struct
                 if Model.meets_restriction dep_impl r then None
                 else Some (`DepFailsRestriction (dep, r)) in
               U.first_match check_restriction dep.Model.dep_restrictions in
-    let deps, commands_needed = Model.requires model impl in
+    let deps, commands_needed = Model.requires role impl in
     commands_needed |> U.first_match (fun command ->
       if Model.get_command impl command <> None then None
       else Some (`MissingCommand command : rejection_reason)
@@ -221,7 +221,7 @@ module Make (Model : Solver_types.DIAGNOSTICS) = struct
         )
 
   (* Find all restrictions that are in play and affect this interface *)
-  let examine_selection model report role component =
+  let examine_selection report role component =
     (* Note any conflicts caused by <replaced-by> elements *)
     let () =
       match component#replacement with
@@ -239,12 +239,12 @@ module Make (Model : Solver_types.DIAGNOSTICS) = struct
     match component#impl with
     | Some our_impl ->
         (* For each dependency of our selected impl, explain why it rejected impls in the dependency's interface. *)
-        let deps, _commands_needed = Model.requires model our_impl in
+        let deps, _commands_needed = Model.requires role our_impl in
         (* We can ignore [commands_needed] here because we obviously were selected. *)
         List.iter (examine_dep role our_impl report) deps
     | None ->
         (* For each of our remaining unrejected impls, check whether a dependency prevented its selection. *)
-        component#filter_impls (get_dependency_problem model report)
+        component#filter_impls (get_dependency_problem role report)
 
   let reject_if_unselected _key component =
     if component#impl = None then (
@@ -253,9 +253,9 @@ module Make (Model : Solver_types.DIAGNOSTICS) = struct
     )
 
   (* Check for user-supplied restrictions *)
-  let examine_extra_restrictions model report =
+  let examine_extra_restrictions report =
     report |> RoleMap.iter (fun role component ->
-      Model.user_restrictions model role |> if_some (fun restriction ->
+      Model.user_restrictions role |> if_some (fun restriction ->
         component#note (UserRequested restriction);
         component#apply_restrictions [restriction]
       )
@@ -293,7 +293,6 @@ module Make (Model : Solver_types.DIAGNOSTICS) = struct
       RoleMap.iter filter report
 
   let get_failure_report result : component RoleMap.t =
-    let model = Model.model result in
     let impls = Model.raw_selections result in
     let root_req = Model.requirements result in
 
@@ -301,15 +300,15 @@ module Make (Model : Solver_types.DIAGNOSTICS) = struct
       let get_selected role impl =
         let diagnostics = lazy (Model.explain result role) in
         let impl = if impl == Model.dummy_impl then None else Some impl in
-        let impl_candidates = Model.implementations model role in
-        let rejects = Model.rejects model role in
+        let impl_candidates = Model.implementations role in
+        let rejects = Model.rejects role in
         new component (impl_candidates, rejects) diagnostics impl in
       RoleMap.mapi get_selected impls in
 
     process_root_req report root_req;
-    examine_extra_restrictions model report;
+    examine_extra_restrictions report;
     check_machine_groups report;
-    RoleMap.iter (examine_selection model report) report;
+    RoleMap.iter (examine_selection report) report;
     RoleMap.iter reject_if_unselected report;
 
     report

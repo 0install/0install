@@ -501,8 +501,9 @@ let show_explanation_box ~parent iface version reason =
     box#show ()
   )
 
-let make_versions_tab config reqs ~recalculate ~watcher window iface =
+let make_versions_tab config reqs ~recalculate ~watcher window role =
   let vbox = GPack.vbox () in
+  let iface = role.Solver.iface in
 
   (* Stability policy *)
   let table = GPack.table
@@ -609,7 +610,8 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
             let explain = GMenu.menu_item ~packing:menu#add ~label:"Explain this decision" () in
             explain#connect#activate ==> (fun () ->
               (* TODO: support source roles too *)
-              let reason = Justify.justify_decision config watcher#feed_provider reqs (iface, false) (Impl.get_id impl) in
+              let {Solver.iface; source; _} = role in
+              let reason = Justify.justify_decision config watcher#feed_provider reqs iface ~source (Impl.get_id impl) in
               show_explanation_box ~parent:window iface version_str reason
             );
             menu#popup ~button:(B.button bev) ~time:(B.time bev);
@@ -622,60 +624,56 @@ let make_versions_tab config reqs ~recalculate ~watcher window iface =
     method update =
       model#clear ();
       let (_ready, result) = watcher#results in
-      match Gui.list_impls result iface with
-      | None -> view#misc#set_sensitive false
-      | Some (selected, impls) ->
-          view#misc#set_sensitive true;
+      let (selected, impls) = Gui.list_impls result role in
+      let get_overrides =
+        let cache = ref StringMap.empty in
+        fun feed ->
+          match !cache |> StringMap.find feed with
+          | Some result -> result
+          | None ->
+              let result = F.load_feed_overrides config (Feed_url.parse feed) in
+              cache := !cache |> StringMap.add feed result;
+              result in
 
-          let get_overrides =
-            let cache = ref StringMap.empty in
-            fun feed ->
-              match !cache |> StringMap.find feed with
-              | Some result -> result
-              | None ->
-                  let result = F.load_feed_overrides config (Feed_url.parse feed) in
-                  cache := !cache |> StringMap.add feed result;
-                  result in
+      impls |> List.iter (fun (impl, problem) ->
+        let from_feed = Impl.get_attr_ex FeedAttr.from_feed impl in
+        let impl_id = Impl.get_attr_ex FeedAttr.id impl in
+        let overrides = get_overrides from_feed in
+        let stability_value =
+          match StringMap.find impl_id overrides.F.user_stability with
+          | Some user_stability -> Impl.format_stability user_stability |> String.uppercase
+          | None -> Q.AttrMap.get_no_ns FeedAttr.stability impl.Impl.props.Impl.attrs |> default "testing" in
 
-          impls |> List.iter (fun (impl, problem) ->
-            let from_feed = Impl.get_attr_ex FeedAttr.from_feed impl in
-            let impl_id = Impl.get_attr_ex FeedAttr.id impl in
-            let overrides = get_overrides from_feed in
-            let stability_value =
-              match StringMap.find impl_id overrides.F.user_stability with
-              | Some user_stability -> Impl.format_stability user_stability |> String.uppercase
-              | None -> Q.AttrMap.get_no_ns FeedAttr.stability impl.Impl.props.Impl.attrs |> default "testing" in
+        let arch_value =
+          match impl.Impl.os, impl.Impl.machine with
+          | None, None -> "any"
+          | os, machine -> Arch.format_arch os machine in
 
-            let arch_value =
-              match impl.Impl.os, impl.Impl.machine with
-              | None, None -> "any"
-              | os, machine -> Arch.format_arch os machine in
+        let notes_value =
+          match problem with
+          | None -> "None"
+          | Some problem -> Impl_provider.describe_problem impl problem in
 
-            let notes_value =
-              match problem with
-              | None -> "None"
-              | Some problem -> Impl_provider.describe_problem impl problem in
+        let (fetch_str, fetch_tip) = Gui.get_fetch_info config impl in
 
-            let (fetch_str, fetch_tip) = Gui.get_fetch_info config impl in
-
-            let row = model#append () in
-            model#set ~row ~column:version @@ Versions.format_version impl.Impl.parsed_version;
-            model#set ~row ~column:released @@ default "-" @@ Q.AttrMap.get_no_ns FeedAttr.released impl.Impl.props.Impl.attrs;
-            model#set ~row ~column:stability @@ stability_value;
-            model#set ~row ~column:langs @@ default "-" @@ Q.AttrMap.get_no_ns FeedAttr.langs impl.Impl.props.Impl.attrs;
-            model#set ~row ~column:arch arch_value;
-            model#set ~row ~column:notes notes_value;
-            model#set ~row ~column:weight (if Some impl = selected then 700 else 400);
-            model#set ~row ~column:unusable (problem <> None);
-            model#set ~row ~column:fetch fetch_str;
-            model#set ~row ~column:tooltip fetch_tip;
-            model#set ~row ~column:item impl;
-          )
+        let row = model#append () in
+        model#set ~row ~column:version @@ Versions.format_version impl.Impl.parsed_version;
+        model#set ~row ~column:released @@ default "-" @@ Q.AttrMap.get_no_ns FeedAttr.released impl.Impl.props.Impl.attrs;
+        model#set ~row ~column:stability @@ stability_value;
+        model#set ~row ~column:langs @@ default "-" @@ Q.AttrMap.get_no_ns FeedAttr.langs impl.Impl.props.Impl.attrs;
+        model#set ~row ~column:arch arch_value;
+        model#set ~row ~column:notes notes_value;
+        model#set ~row ~column:weight (if Some impl = selected then 700 else 400);
+        model#set ~row ~column:unusable (problem <> None);
+        model#set ~row ~column:fetch fetch_str;
+        model#set ~row ~column:tooltip fetch_tip;
+        model#set ~row ~column:item impl;
+      )
   end
 
-let create tools ~trust_db reqs iface ~recalculate ~select_versions_tab ~watcher =
+let create tools ~trust_db reqs role ~recalculate ~select_versions_tab ~watcher =
   let config = tools#config in
-  let title = Printf.sprintf "Properties for %s" iface in
+  let title = Printf.sprintf "Properties for %s" (Solver.Model.Role.to_string role) in
   let dialog = GWindow.dialog ~title () in
   dialog#set_default_size
     ~width:(-1)
@@ -684,8 +682,8 @@ let create tools ~trust_db reqs iface ~recalculate ~select_versions_tab ~watcher
   (* Tabs *)
   let notebook = GPack.notebook ~packing:(dialog#vbox#pack ~expand:true ~fill:true) () in
   let label text = (GMisc.label ~text () :> GObj.widget) in
-  let feeds_tab = make_feeds_tab tools ~trust_db ~recalculate ~watcher dialog iface in
-  let versions_tab = make_versions_tab config reqs ~recalculate ~watcher dialog iface in
+  let feeds_tab = make_feeds_tab tools ~trust_db ~recalculate ~watcher dialog role.Solver.iface in
+  let versions_tab = make_versions_tab config reqs ~recalculate ~watcher dialog role in
   append_page notebook ~tab_label:(label "Feeds") (feeds_tab#widget);
   append_page notebook ~tab_label:(label "Versions") (versions_tab#widget);
 
@@ -706,7 +704,7 @@ let create tools ~trust_db reqs iface ~recalculate ~select_versions_tab ~watcher
   dialog#connect#response ==> (function
     | `COMPILE ->
         Gtk_utils.async ~parent:dialog (fun () ->
-          lwt () = Gui.compile config watcher#feed_provider iface ~autocompile:true in
+          lwt () = Gui.compile config watcher#feed_provider role.Solver.iface ~autocompile:true in
           recalculate ~force:false;
           Lwt.return ()
         )
@@ -717,7 +715,7 @@ let create tools ~trust_db reqs iface ~recalculate ~select_versions_tab ~watcher
   object
     method dialog = dialog
     method update : unit =
-      dialog#set_response_sensitive `COMPILE (Gui.have_source_for watcher#feed_provider iface);
+      dialog#set_response_sensitive `COMPILE (Gui.have_source_for watcher#feed_provider role.Solver.iface);
       feeds_tab#update;
       versions_tab#update
   end

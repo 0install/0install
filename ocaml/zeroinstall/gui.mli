@@ -39,9 +39,9 @@ val compile : General.config -> Feed_provider.feed_provider -> General.iface_uri
 val have_source_for : Feed_provider.feed_provider -> General.iface_uri -> bool
 
 (** List the implementations of this interface in the order they should be shown in the GUI.
- * @return (selected_version, implementations), or None if this interface wasn't used in the solve. *)
-val list_impls : Solver.Model.result -> General.iface_uri ->
-  (Impl.generic_implementation option * (Impl.generic_implementation * Impl_provider.rejection option) list) option
+ * @return (selected_version, implementations). *)
+val list_impls : Solver.Model.result -> Solver.role ->
+  (Impl.generic_implementation option * (Impl.generic_implementation * Impl_provider.rejection option) list)
 
 (* Returns (fetch-size, fetch-tooltip) *)
 val get_fetch_info : General.config -> Impl.generic_implementation -> (string * string)
@@ -56,8 +56,5 @@ val get_bug_report_details : General.config -> iface:General.iface_uri -> (bool 
  * @return the response from the server (on success).
  * @raise Safe_exception on failure. *)
 val send_bug_report : General.iface_uri -> string -> string Lwt.t
-
-(** Find the [Impl.implementation] which produced this selection. If there is an override on the stability, return that too. *)
-val get_impl : Feed_provider.feed_provider -> Selections.selection -> (Impl.generic_implementation * General.stability_level option) option
 
 val run_test : General.config -> Distro.distribution -> (Selections.t -> string Lwt.t) -> (bool * Solver.Model.result) -> string Lwt.t

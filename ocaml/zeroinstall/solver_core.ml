@@ -117,7 +117,7 @@ module Make (Model : Solver_types.MODEL) = struct
       method get_state : decision_state
     end
 
-  class impl_candidates model (clause : S.at_most_one_clause option) (vars : (S.lit * Model.impl) list) =
+  class impl_candidates role (clause : S.at_most_one_clause option) (vars : (S.lit * Model.impl) list) =
     object (_ : #candidates)
       method get_clause = clause
 
@@ -161,7 +161,7 @@ module Make (Model : Solver_types.MODEL) = struct
                 let impl = match S.get_user_data_for_lit lit with
                   | SolverData.ImplElem impl -> impl
                   | _ -> assert false in
-                Selected (Model.requires model impl)
+                Selected (Model.requires role impl)
             | None ->
                 match S.get_best_undecided clause with
                 | Some lit -> Undecided lit
@@ -173,7 +173,7 @@ module Make (Model : Solver_types.MODEL) = struct
     end
 
   (** Holds all the commands with a given name within an interface. *)
-  class command_candidates model (clause : S.at_most_one_clause option) (vars : (S.lit * Model.command) list) =
+  class command_candidates role (clause : S.at_most_one_clause option) (vars : (S.lit * Model.command) list) =
     object (_ : #candidates)
       method get_clause = clause
 
@@ -190,7 +190,7 @@ module Make (Model : Solver_types.MODEL) = struct
                 let command = match S.get_user_data_for_lit lit with
                   | SolverData.CommandElem command -> command
                   | _ -> assert false in
-                Selected (Model.command_requires model command)
+                Selected (Model.command_requires role command)
             | None ->
                 match S.get_best_undecided clause with
                 | Some lit -> Undecided lit
@@ -318,8 +318,8 @@ module Make (Model : Solver_types.MODEL) = struct
     )
 
   (* Add the implementations of an interface to the ImplCache (called the first time we visit it). *)
-  let make_impl_clause sat ~closest_match replacements model role =
-    let {Model.replacement; impls} = Model.implementations model role in
+  let make_impl_clause sat ~closest_match replacements role =
+    let {Model.replacement; impls} = Model.implementations role in
 
     (* Insert dummy_impl (last) if we're trying to diagnose a problem. *)
     let impls =
@@ -332,7 +332,7 @@ module Make (Model : Solver_types.MODEL) = struct
           (var, impl)
       ) in
     let impl_clause = if impls <> [] then Some (S.at_most_one sat (List.map fst impls)) else None in
-    let clause = new impl_candidates model impl_clause impls in
+    let clause = new impl_candidates role impl_clause impls in
 
     (* If we have a <replaced-by>, remember to add a conflict with our replacement *)
     replacement |> if_some (fun replacement ->
@@ -342,7 +342,7 @@ module Make (Model : Solver_types.MODEL) = struct
     clause, impls
 
   (* Create a new CommandCache entry (called the first time we request this key). *)
-  let make_commands_clause model sat lookup_impl process_self_commands process_deps key =
+  let make_commands_clause sat lookup_impl process_self_commands process_deps key =
     let (command, role) = key in
     let impls = lookup_impl role in
     let commands = impls#get_commands command in
@@ -352,13 +352,13 @@ module Make (Model : Solver_types.MODEL) = struct
       (var, elem) in
     let vars = List.map make_provides_command commands in
     let command_clause = if vars <> [] then Some (S.at_most_one sat @@ List.map fst vars) else None in
-    let data = new command_candidates model command_clause vars in
+    let data = new command_candidates role command_clause vars in
 
     (data, fun () ->
       let depend_on_impl (command_var, command) (impl_var, _command) =
         (* For each command, require that we select the corresponding implementation. *)
         S.implies sat ~reason:"impl for command" command_var [impl_var];
-        let deps, self_commands = Model.command_requires model command in
+        let deps, self_commands = Model.command_requires role command in
         (* Commands can depend on other commands in the same implementation *)
         process_self_commands command_var role self_commands;
         (* Process command-specific dependencies *)
@@ -369,7 +369,7 @@ module Make (Model : Solver_types.MODEL) = struct
 
   (** Starting from [root_req], explore all the feeds, commands and implementations we might need, adding
    * all of them to [sat_problem]. *)
-  let build_problem model root_req sat ~closest_match =
+  let build_problem root_req sat ~closest_match =
     (* For each (iface, command, source) we have a list of implementations (or commands). *)
     let impl_cache = ImplCache.create () in
     let command_cache = CommandCache.create () in
@@ -380,16 +380,16 @@ module Make (Model : Solver_types.MODEL) = struct
     let replacements = ref [] in
 
     let rec add_impls_to_cache role =
-      let clause, impls = make_impl_clause sat ~closest_match replacements model role in
+      let clause, impls = make_impl_clause sat ~closest_match replacements role in
       (clause, fun () ->
         impls |> List.iter (fun (impl_var, impl) ->
           require_machine_group impl_var impl;
-          let deps, self_commands = Model.requires model impl in
+          let deps, self_commands = Model.requires role impl in
           process_self_commands impl_var role self_commands;
           process_deps impl_var deps
         )
       )
-    and add_commands_to_cache key = make_commands_clause model sat lookup_impl process_self_commands process_deps key
+    and add_commands_to_cache key = make_commands_clause sat lookup_impl process_self_commands process_deps key
     and lookup_impl key = ImplCache.lookup impl_cache add_impls_to_cache key
     and lookup_command key = CommandCache.lookup command_cache add_commands_to_cache key
     and process_self_commands user_var dep_role = List.iter (process_self_command sat lookup_command user_var dep_role)
@@ -411,7 +411,7 @@ module Make (Model : Solver_types.MODEL) = struct
     | Model.ReqRole r -> r
     | Model.ReqCommand (_, r) -> r
 
-  let do_solve (model:Model.t) root_req ~closest_match =
+  let do_solve root_req ~closest_match =
     (* The basic plan is this:
        1. Scan the root interface and all dependencies recursively, building up a SAT problem.
        2. Solve the SAT problem. Whenever there are multiple options, try the most preferred one first.
@@ -427,7 +427,7 @@ module Make (Model : Solver_types.MODEL) = struct
 
     let sat = S.create () in
 
-    let impl_clauses, command_clauses = build_problem model root_req sat ~closest_match in
+    let impl_clauses, command_clauses = build_problem root_req sat ~closest_match in
 
     let lookup = function
       | Model.ReqRole r -> (ImplCache.get_exn r impl_clauses :> candidates)

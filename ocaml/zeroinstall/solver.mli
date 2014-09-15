@@ -4,24 +4,31 @@
 
 (** Select a compatible set of components to run a program. *)
 
+type scope = Impl_provider.impl_provider
+type role = {
+  scope : scope;
+  iface : General.iface_uri;
+  source : bool;
+}
+
 module Model : Solver_types.DIAGNOSTICS with
-  type Role.t = General.iface_uri * bool and
+  type Role.t = role and
   type impl = Impl.generic_implementation
 
 val selections : Model.result -> Selections.t
 
-(** Get the impl_provider used for this solve. Useful for diagnostics and in the GUI to list the candidates. *)
-val impl_provider : Model.result -> Impl_provider.impl_provider
+(** Get the impl_provider used for this role. Useful for diagnostics and in the GUI to list the candidates. *)
+val impl_provider : role -> Impl_provider.impl_provider
 
 (** Convert [Requirements.t] to requirements for the solver.
  * This looks at the host system to get some values (whether we have multi-arch support, default CPU and OS). *)
-val get_root_requirements : General.config -> Requirements.t -> Impl_provider.scope_filter * Model.requirements
+val get_root_requirements : General.config -> Requirements.t -> (Impl_provider.scope_filter -> Impl_provider.impl_provider) -> Model.requirements
 
 (** Find a set of implementations which satisfy these requirements. Consider using [solve_for] instead.
     @param closest_match adds a lowest-ranked (but valid) implementation to every interface, so we can always
            select something. Useful for diagnostics.
     @return None if the solve fails (only happens if [closest_match] is false. *)
-val do_solve : Impl_provider.impl_provider -> Model.requirements -> closest_match:bool -> Model.result option
+val do_solve : Model.requirements -> closest_match:bool -> Model.result option
 
 (** High-level solver interface.
  * Runs [do_solve ~closest_match:false] and reports (true, results) on success.

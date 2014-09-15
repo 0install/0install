@@ -130,12 +130,16 @@ let run_sat_test expected problem =
     )
   );
 
-  let root_req = Zeroinstall.Solver.Model.ReqRole (fst @@ List.hd expected_items, false) in
-  let result = Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:false in
+  let root_req = Solver.Model.ReqRole {
+    Solver.scope = (impl_provider :> Impl_provider.impl_provider);
+    iface = fst @@ List.hd expected_items;
+    source = false
+  } in
+  let result = Solver.do_solve root_req ~closest_match:false in
 
   match result, root_expected_version with
   | None, "FAIL" ->
-      let result = Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:true in
+      let result = Solver.do_solve root_req ~closest_match:true in
       Fake_system.expect result
   | None, _ -> assert_failure "Expected success, but failed"
   | Some _, "FAIL" -> assert_failure "Expected failure, but found solution!"

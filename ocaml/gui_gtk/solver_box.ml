@@ -13,6 +13,7 @@ module Requirements = Zeroinstall.Requirements
 module U = Support.Utils
 module Progress = Zeroinstall.Progress
 module Downloader = Zeroinstall.Downloader
+module RoleMap = Zeroinstall.Solver.Model.RoleMap
 
 let main_window_help = Help_box.create "0install Help" [
 ("Overview",
@@ -141,7 +142,7 @@ let make_dialog opt_message mode ~systray =
 let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false) mode reqs ~refresh watcher : solver_box =
   let config = tools#config in
   let refresh = ref refresh in
-  let component_boxes = ref StringMap.empty in
+  let component_boxes = ref RoleMap.empty in
 
   let report_bug iface =
     let run_test = test_callback |> pipe_some (fun test_callback ->
@@ -200,13 +201,14 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
     ) in
 
   (* Connect up the component tree view *)
-  let show_component iface ~select_versions_tab =
-    match StringMap.find iface !component_boxes with
+  let show_component role ~select_versions_tab =
+    let box = try Some (RoleMap.find role !component_boxes) with Not_found -> None in
+    match box with
     | Some box -> box#dialog#present ()
     | None ->
-        let box = Component_box.create tools ~trust_db reqs iface ~recalculate ~select_versions_tab ~watcher in
-        component_boxes := !component_boxes |> StringMap.add iface box;
-        box#dialog#connect#destroy ==> (fun () -> component_boxes := !component_boxes |> StringMap.remove iface);
+        let box = Component_box.create tools ~trust_db reqs role ~recalculate ~select_versions_tab ~watcher in
+        component_boxes := !component_boxes |> RoleMap.add role box;
+        box#dialog#connect#destroy ==> (fun () -> component_boxes := !component_boxes |> RoleMap.remove role);
         box#update;
         box#dialog#show () in
 
@@ -349,7 +351,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
       let (ready, _) = watcher#results in
       widgets.ok_button#misc#set_sensitive ready;
 
-      !component_boxes |> StringMap.iter (fun _iface box ->
+      !component_boxes |> RoleMap.iter (fun _role box ->
         box#update
       );
 

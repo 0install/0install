@@ -18,8 +18,15 @@ module D = Zeroinstall.Dbus
 
 let get_newest options feed_provider reqs =
   let module I = Zeroinstall.Impl_provider in
-  let (scope_filter, _root_key) = Zeroinstall.Solver.get_root_requirements options.config reqs in
-  let impl_provider = new I.default_impl_provider options.config feed_provider scope_filter in
+  let module Solver = Zeroinstall.Solver in
+  let impl_provider =
+    let make_impl_provider scope_filter = new I.default_impl_provider options.config feed_provider scope_filter in
+    let root_role =
+      match Solver.get_root_requirements options.config reqs make_impl_provider with
+      | Solver.Model.ReqRole role -> role
+      | Solver.Model.ReqCommand (_, role) -> role in
+    Solver.impl_provider root_role in
+
   let get_impls = impl_provider#get_implementations reqs.R.interface_uri in
 
   let best = ref None in

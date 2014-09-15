@@ -12,6 +12,13 @@ module Qdom = Support.Qdom
 module FeedAttr = Constants.FeedAttr
 module AttrMap = Qdom.AttrMap
 
+type scope = Impl_provider.impl_provider
+type role = {
+  scope : scope;
+  iface : iface_uri;
+  source : bool;
+}
+
 module CoreModel = struct
   (** See [Solver_types.MODEL] for documentation. *)
 
@@ -19,19 +26,18 @@ module CoreModel = struct
     (** A role is an interface and a flag indicating whether we want source or a binary.
      * This allows e.g. using an old version of a compiler to compile the source for the
      * new version (which requires selecting two different versions of the same interface). *)
-    type t = (iface_uri * bool)
+    type t = role
     let to_string = function
-      | iface_uri, false -> iface_uri
-      | iface_uri, true -> iface_uri ^ "#source"
+      | {iface; source = false; _} -> iface
+      | {iface; source = true; _} -> iface ^ "#source"
 
     (* Sort the interfaces by URI so we have a stable output. *)
-    let compare (ia, sa) (ib, sb) =
-      match String.compare ia ib with
-      | 0 -> compare sa sb
+    let compare role_a role_b =
+      match String.compare role_a.iface role_b.iface with
+      | 0 -> compare role_a.source role_b.source
       | x -> x
   end
   type impl = Impl.generic_implementation
-  type t = Impl_provider.impl_provider
   type command = Impl.command
   type restriction = Impl.restriction
   type command_name = string
@@ -80,12 +86,13 @@ module CoreModel = struct
 
   let get_command impl name = StringMap.find name impl.Impl.props.Impl.commands
 
-  let make_deps impl_provider zi_deps self_bindings =
+  let make_deps role zi_deps self_bindings =
+    let impl_provider = role.scope in
     let deps = zi_deps
       |> U.filter_map (fun zi_dep ->
         if impl_provider#is_dep_needed zi_dep then Some {
           (* note: currently, only dependencies on binaries are supported. *)
-          dep_role = (zi_dep.Impl.dep_iface, false);
+          dep_role = {scope = role.scope; iface = zi_dep.Impl.dep_iface; source = false};
           dep_importance = zi_dep.Impl.dep_importance;
           dep_required_commands = zi_dep.Impl.dep_required_commands;
           dep_restrictions = zi_dep.Impl.dep_restrictions;
@@ -97,10 +104,11 @@ module CoreModel = struct
       ) in
     (deps, self_commands)
 
-  let requires impl_provider impl = make_deps impl_provider Impl.(impl.props.requires) Impl.(impl.props.bindings)
-  let command_requires impl_provider command = make_deps impl_provider Impl.(command.command_requires) Impl.(command.command_bindings)
+  let requires role impl = make_deps role Impl.(impl.props.requires) Impl.(impl.props.bindings)
+  let command_requires role command = make_deps role Impl.(command.command_requires) Impl.(command.command_bindings)
 
-  let to_selection impl_provider iface commands impl =
+  let to_selection role commands impl =
+    let {scope = impl_provider; iface; source = _} = role in
     let attrs = Impl.(impl.props.attrs)
       |> AttrMap.remove ("", FeedAttr.stability)
 
@@ -177,21 +185,21 @@ module CoreModel = struct
   let meets_restriction impl r = impl == dummy_impl || r#meets_restriction impl
   let string_of_restriction r = r#to_string
 
-  let implementations impl_provider (iface_uri, source) =
-    let {Impl_provider.replacement; impls; rejects = _; compare = _} = impl_provider#get_implementations iface_uri ~source in
+  let implementations {scope = impl_provider; iface; source} =
+    let {Impl_provider.replacement; impls; rejects = _; compare = _} = impl_provider#get_implementations iface ~source in
     let replacement = replacement |> pipe_some (fun replacement ->
-      if replacement = iface_uri then (
-        log_warning "Interface %s replaced-by itself!" iface_uri; None
-      ) else Some (replacement, source)
+      if replacement = iface then (
+        log_warning "Interface %s replaced-by itself!" iface; None
+      ) else Some {scope = impl_provider; iface = replacement; source}
     ) in
     {replacement; impls}
 
-  let rejects impl_provider (iface_uri, source) =
-    let candidates = impl_provider#get_implementations iface_uri ~source in
+  let rejects {scope = impl_provider; iface; source} =
+    let candidates = impl_provider#get_implementations iface ~source in
     candidates.Impl_provider.rejects
 
-  let user_restrictions impl_provider (iface, _source) =
-    StringMap.find iface impl_provider#extra_restrictions
+  let user_restrictions role =
+    StringMap.find role.iface role.scope#extra_restrictions
 end
 
 module Core = Solver_core.Make(CoreModel)
@@ -205,7 +213,6 @@ module Model =
     type result = {
       root_req : requirements;
       selections : Core.selection RoleMap.t;
-      impl_provider : Impl_provider.impl_provider;
     }
 
     type version = Versions.parsed_version
@@ -227,26 +234,29 @@ module Model =
         Core.explain sel.Core.diagnostics
       with Not_found -> "Role not used!"
 
-    let model result = result.impl_provider
-
     let raw_selections result =
       result.selections |> RoleMap.map (fun sel -> sel.Core.impl)
+
+    let selected_commands result role =
+      try
+        let selection = RoleMap.find role result.selections in
+        Core.(selection.commands)
+      with Not_found -> []
   end
 
-let impl_provider = Model.model
+let impl_provider role = role.scope
 
-let do_solve impl_provider root_req ~closest_match =
-  Core.do_solve impl_provider root_req ~closest_match |> pipe_some (fun selections ->
+let do_solve root_req ~closest_match =
+  Core.do_solve root_req ~closest_match |> pipe_some (fun selections ->
 
     (* Build the results object *)
     Some { Model.
       root_req;
       selections;
-      impl_provider;
     }
   )
 
-let get_root_requirements config requirements =
+let get_root_requirements config requirements make_impl_provider =
   let { Requirements.command; interface_uri; source; extra_restrictions; os; cpu; message = _ } = requirements in
 
   (* This is for old feeds that have use='testing' instead of the newer
@@ -268,21 +278,23 @@ let get_root_requirements config requirements =
     allowed_uses = use;
   }) in
 
+  let impl_provider = make_impl_provider scope_filter in
+  let root_role = {scope = impl_provider; iface = interface_uri; source} in
   let root_req = match command with
-  | Some command -> Model.ReqCommand (command, (interface_uri, source))
-  | None -> Model.ReqRole (interface_uri, source) in
+  | Some command -> Model.ReqCommand (command, root_role)
+  | None -> Model.ReqRole root_role in
 
-  (scope_filter, root_req)
+  root_req
 
 let solve_for config feed_provider requirements =
   try
-    let scope_filter, root_req = get_root_requirements config requirements in
+    let make_impl_provider scope_filter = new Impl_provider.default_impl_provider config feed_provider scope_filter in
+    let root_req = get_root_requirements config requirements make_impl_provider in
 
-    let impl_provider = (new Impl_provider.default_impl_provider config feed_provider scope_filter :> Impl_provider.impl_provider) in
-    match do_solve impl_provider root_req ~closest_match:false with
+    match do_solve root_req ~closest_match:false with
     | Some result -> (true, result)
     | None ->
-        match do_solve impl_provider root_req ~closest_match:true with
+        match do_solve root_req ~closest_match:true with
         | Some result -> (false, result)
         | None -> failwith "No solution, even with closest_match!"
   with Safe_exception _ as ex -> reraise_with_context ex "... solving for interface %s" requirements.Requirements.interface_uri
@@ -295,16 +307,16 @@ let selections result =
     let open Model in
     let root_attrs =
       match result.root_req with
-      | ReqCommand (command, (iface, _source)) ->
-          AttrMap.singleton "interface" iface
+      | ReqCommand (command, role) ->
+          AttrMap.singleton "interface" role.iface
           |> AttrMap.add_no_ns "command" command
-      | ReqRole (iface, _source) ->
-          AttrMap.singleton "interface" iface in
+      | ReqRole role ->
+          AttrMap.singleton "interface" role.iface in
     let child_nodes = result.selections
       |> Core.RoleMap.bindings
-      |> List.map (fun ((iface, _source), selection) ->
+      |> List.map (fun (role, selection) ->
         (* TODO: update selections format to handle source here *)
-        Model.to_selection result.impl_provider iface selection.Core.commands selection.Core.impl
+        Model.to_selection role selection.Core.commands selection.Core.impl
       ) in
     ZI.make ~attrs:root_attrs ~child_nodes "selections"
   )

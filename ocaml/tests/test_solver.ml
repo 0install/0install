@@ -237,7 +237,7 @@ let make_solver_test test_elem =
         feed = Feed_url.parse iface;
         id = ZI.get_attribute "id" elem;
       }) in
-      let reason = Zeroinstall.Justify.justify_decision config (feed_provider :> Feed_provider.feed_provider) !reqs (iface, false) g_id in
+      let reason = Zeroinstall.Justify.justify_decision config (feed_provider :> Feed_provider.feed_provider) !reqs iface ~source:false g_id in
       Fake_system.assert_str_equal (trim elem.Support.Qdom.last_text_inside) reason
     );
   )
@@ -548,22 +548,20 @@ let suite = "solver">::: [
       source = true;
       command = Some "compile"}) in
 
-    let justify expected iface feed id =
+    let justify expected iface ~source feed id =
       let g_id = Feed_url.({feed; id}) in
-      let actual = Justify.justify_decision config (feed_provider :> Feed_provider.feed_provider) reqs iface g_id in
+      let actual = Justify.justify_decision config (feed_provider :> Feed_provider.feed_provider) reqs iface ~source g_id in
       Fake_system.assert_str_equal expected actual in
-
-    let role = (iface, true) in
 
     justify
       "http://foo/Binary.xml 1.0 cannot be used (regardless of other components): We want source and this is a binary"
-      role (Feed_url.master_feed_of_iface iface) "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
+      iface ~source:true (Feed_url.master_feed_of_iface iface) "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
     justify
       "http://foo/Binary.xml 1.0 was selected as the preferred version."
-      role (`remote_feed "http://foo/Source.xml") "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
+      iface ~source:true (`remote_feed "http://foo/Source.xml") "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
     justify
       "0.1 is ranked lower than 1.0: newer versions are preferred"
-      role (`remote_feed "http://foo/Source.xml") "old";
+      iface ~source:true (`remote_feed "http://foo/Source.xml") "old";
     justify
       ("There is no possible selection using http://foo/Binary.xml 3.\n" ^
       "Can't find all required implementations:\n" ^
@@ -574,11 +572,11 @@ let suite = "solver">::: [
       "      sha1=999 (5): Incompatible with restriction: version ..!1.0\n" ^
       "      sha1=345 (1.0): Incompatible with restriction: version ..!1.0\n" ^
       "      sha1=678 (0.1): Incompatible with restriction: version 1.0..")
-      role (`remote_feed "http://foo/Source.xml") "impossible";
+      iface ~source:true (`remote_feed "http://foo/Source.xml") "impossible";
     justify
       ("http://foo/Compiler.xml 5 is selectable, but using it would produce a less optimal solution overall.\n\n" ^
       "The changes would be:\n\nhttp://foo/Binary.xml: 1.0 to 0.1")
-      ("http://foo/Compiler.xml", false) (`remote_feed "http://foo/Compiler.xml") "sha1=999";
+      "http://foo/Compiler.xml" ~source:false (`remote_feed "http://foo/Compiler.xml") "sha1=999";
 
     import "Recursive.xml";
     let rec_impls = impl_provider#get_implementations "http://foo/Recursive.xml" ~source:false in
@@ -623,9 +621,13 @@ let suite = "solver">::: [
         languages = Support.Locale.LangMap.empty;
         allowed_uses = StringSet.empty;
       }) in
-      let root_req = Solver.Model.ReqRole ("http://foo/MultiArch.xml", false) in
       let impl_provider = make_impl_provider config scope_filter in
-      match Solver.do_solve impl_provider root_req ~closest_match:false with
+      let root_req = Solver.Model.ReqRole {
+        Solver.scope = impl_provider;
+        iface = "http://foo/MultiArch.xml";
+        source = false
+      } in
+      match Solver.do_solve root_req ~closest_match:false with
       | None -> assert false
       | Some results ->
           let sels = Solver.selections results in
@@ -685,8 +687,12 @@ let suite = "solver">::: [
         allowed_uses = StringSet.empty;
       }) in
       let impl_provider = new Impl_provider.default_impl_provider config feed_provider scope_filter in
-      let root_req = Solver.Model.ReqRole (Test_0install.feed_dir +/ "Langs.xml", false) in
-      match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:false with
+      let root_req = Solver.Model.ReqRole {
+        Solver.scope = impl_provider;
+        iface = Test_0install.feed_dir +/ "Langs.xml";
+        source = false
+      } in
+      match Solver.do_solve root_req ~closest_match:false with
       | None -> assert_failure expected
       | Some results ->
           match (Selections.as_xml (Solver.selections results)).Support.Qdom.child_nodes with

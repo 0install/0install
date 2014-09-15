@@ -5,8 +5,6 @@
 (** This defines what the solver sees (hiding the raw XML, etc). *)
 
 module type MODEL = sig
-  type t
-
   module Role : sig
     (** A role that needs to be filled by a single implementation.
      * If two dependencies require the same role then they will both
@@ -55,7 +53,7 @@ module type MODEL = sig
   val command_to_string : command -> string
 
   (** The list of candidates to fill a role. *)
-  val implementations : t -> Role.t -> role_information
+  val implementations : Role.t -> role_information
 
   val get_command : impl -> command_name -> command option
 
@@ -69,10 +67,10 @@ module type MODEL = sig
    * An implementation or command can also bind to itself.
    * e.g. "test" command that requires its own "run" command.
    * We also return all such required commands. *)
-  val requires : t -> impl -> dependency list * command_name list
+  val requires : Role.t -> impl -> dependency list * command_name list
 
   (** As [requires], but for commands. *)
-  val command_requires : t -> command -> dependency list * command_name list
+  val command_requires : Role.t -> command -> dependency list * command_name list
 
   val machine : impl -> Arch.machine_group option
   val meets_restriction : impl -> restriction -> bool
@@ -101,7 +99,7 @@ module type DIAGNOSTICS = sig
   type rejection
 
   (** Get the candidates which were rejected for a role (and not passed to the solver). *)
-  val rejects : t -> Role.t -> (impl * rejection) list
+  val rejects : Role.t -> (impl * rejection) list
 
   (** A version number. Used for display and sorting the results. *)
   type version
@@ -110,7 +108,7 @@ module type DIAGNOSTICS = sig
 
   (** Get any user-specified restrictions affecting a role.
    * These are used to filter out implementations before they get to the solver. *)
-  val user_restrictions : t -> Role.t -> restriction option
+  val user_restrictions : Role.t -> restriction option
 
   module RoleMap : Map.S with type key = Role.t
 
@@ -128,5 +126,6 @@ module type DIAGNOSTICS = sig
   val explain : result -> Role.t -> string
 
   val requirements : result -> requirements
-  val model : result -> t
+
+  val selected_commands : result -> Role.t -> command_name list
 end

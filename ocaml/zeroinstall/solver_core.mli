@@ -23,7 +23,7 @@ module Make : functor (Model : Solver_types.MODEL) -> sig
    *   every interface, so we can always select something. Useful for diagnostics.
    *   Note: always try with [~closest_match:false] first, or it may miss a valid solution.
    * @return None if the solve fails (only happens if [closest_match] is false). *)
-  val do_solve : Model.t -> Model.requirements -> closest_match:bool -> selection RoleMap.t option
+  val do_solve : Model.requirements -> closest_match:bool -> selection RoleMap.t option
 
   (** Request diagnostics-of-last-resort (fallback used when [Diagnostics] can't work out what's wrong).
    * Gets a report from the underlying SAT solver. *)
