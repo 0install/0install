@@ -223,7 +223,7 @@ let suite = "0install">::: [
     fake_slave#allow_download "http://foo/Binary.xml" binary_feed;
     fake_slave#allow_download "http://foo/Source.xml" source_feed;
     let out = run ["update"; "http://foo/Binary.xml"; "--source"] in
-    assert_contains "Binary.xml: new -> 1.0" out;
+    assert_contains "Binary.xml#source: new -> 1.0" out;
     assert_contains "Compiler.xml: new -> 1.0" out;
 
     (* New compiler released. *)
@@ -258,7 +258,7 @@ let suite = "0install">::: [
     let local_uri = U.abspath system (feed_dir +/ "Local.xml") in
     let out = run ["download"; local_uri; "--xml"] in
     let sels = selections_of_string out in
-    let sel = Selections.find_ex local_uri sels in
+    let sel = Selections.(get_selected_ex {iface = local_uri; source = false}) sels in
     assert_str_equal "0.1" @@ Element.version sel;
 
     let () =
@@ -670,7 +670,7 @@ let suite = "0install">::: [
 
     let out = run_0install fake_system ["select"; feed_dir +/ "Local.xml"; "--xml"] in
     let sels = selections_of_string ~path:local_uri out in
-    let sel = Selections.find_ex local_uri sels in
+    let sel = Selections.(get_selected_ex {iface = local_uri; source = false}) sels in
     assert_str_equal "0.1" (Element.version sel);
 
     let out = run_0install fake_system ["select"; feed_dir +/ "runnable/RunExec.xml"] in
@@ -680,7 +680,7 @@ let suite = "0install">::: [
     fake_system#putenv "DISPLAY" ":foo";
     let out = run_0install fake_system ["select"; "--xml"; local_uri] in
     let sels = selections_of_string ~path:local_uri out in
-    let sel = Selections.find_ex local_uri sels in
+    let sel = Selections.(get_selected_ex {iface = local_uri; source = false}) sels in
 
     assert_str_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" @@ Element.id sel;
   );

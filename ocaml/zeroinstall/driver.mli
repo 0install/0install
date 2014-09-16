@@ -32,7 +32,7 @@ val solve_with_downloads :
   Requirements.t ->
   force:bool ->
   update_local:bool ->
-  (bool * Solver.Model.result * Feed_provider.feed_provider) Lwt.t
+  (bool * Solver.Model.t * Feed_provider.feed_provider) Lwt.t
 
 (** Convenience wrapper for [fetcher#download_and_import_feed] that just gives the final result.
  * If the mirror replies first, but the primary succeeds, we return the primary. *)

@@ -38,9 +38,9 @@ let text_area ?(mono=false) ?(text="") ~packing () =
 
   tv#buffer
 
-let create config ?run_test ?last_error ~iface ~results =
+let create config ?run_test ?last_error ~role ~results =
   (* Collect information about system *)
-  let details = Zeroinstall.Gui.get_bug_report_details config ~iface results in
+  let details = Zeroinstall.Gui.get_bug_report_details config ~role results in
 
   (* Create dialog box *)
   let box = GWindow.dialog
@@ -114,7 +114,7 @@ let create config ?run_test ?last_error ~iface ~results =
         box#misc#set_sensitive false;
         Gtk_utils.async ~parent:box (fun () ->
           try_lwt
-            lwt reply = Zeroinstall.Gui.send_bug_report iface message in
+            lwt reply = Zeroinstall.Gui.send_bug_report role.Zeroinstall.Solver.iface message in
             box#destroy ();
             Alert_box.report_info ~title:"Report Sent OK" reply;
             Lwt.return ()

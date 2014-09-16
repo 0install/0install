@@ -11,11 +11,11 @@ type role = {
   source : bool;
 }
 
-module Model : Solver_types.DIAGNOSTICS with
+module Model : Sigs.SOLVER_RESULT with
   type Role.t = role and
   type impl = Impl.generic_implementation
 
-val selections : Model.result -> Selections.t
+val selections : Model.t -> Selections.t
 
 (** Get the impl_provider used for this role. Useful for diagnostics and in the GUI to list the candidates. *)
 val impl_provider : role -> Impl_provider.impl_provider
@@ -28,14 +28,14 @@ val get_root_requirements : General.config -> Requirements.t -> (Impl_provider.s
     @param closest_match adds a lowest-ranked (but valid) implementation to every interface, so we can always
            select something. Useful for diagnostics.
     @return None if the solve fails (only happens if [closest_match] is false. *)
-val do_solve : Model.requirements -> closest_match:bool -> Model.result option
+val do_solve : Model.requirements -> closest_match:bool -> Model.t option
 
 (** High-level solver interface.
  * Runs [do_solve ~closest_match:false] and reports (true, results) on success.
  * On failure, tries again with [~closest_match:true] and reports (false, results) for diagnostics. *)
-val solve_for : General.config -> Feed_provider.feed_provider -> Requirements.t -> bool * Model.result
+val solve_for : General.config -> Feed_provider.feed_provider -> Requirements.t -> bool * Model.t
 
 (** Why did this solve fail? We take the partial solution from the solver and show,
     for each component we couldn't select, which constraints caused the candidates
     to be rejected. *)
-val get_failure_reason : General.config -> Model.result -> string
+val get_failure_reason : General.config -> Model.t -> string

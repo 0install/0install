@@ -97,7 +97,7 @@ let have_source_for feed_provider iface =
 let list_impls results role =
   let {Solver.iface; source; scope = _} = role in
   let impl_provider = Solver.impl_provider role in
-  let selected_impl = Solver.Model.get_selected results role in
+  let selected_impl = Solver.Model.get_selected role results in
   let candidates = impl_provider#get_implementations iface ~source in
 
   let by_version (a,_) (b,_) = compare b.Impl.parsed_version a.Impl.parsed_version in
@@ -234,7 +234,7 @@ let compile config feed_provider iface ~autocompile =
       |] in
       let root = `String (0, stdout) |> Xmlm.make_input |> Q.parse_input None in
       let sels = Selections.create root in
-      let sel = Selections.find iface sels in
+      let sel = Selections.get_selected {Selections.iface; source = true} sels in
       let sel = sel |? lazy (raise_safe "No implementation of root (%s)!" iface) in
       let min_version =
         match Element.compile_min_version sel with
@@ -248,10 +248,14 @@ let compile config feed_provider iface ~autocompile =
   feed_provider#forget_user_feeds iface;
   Lwt.return ()      (* The plugin should now recalculate *)
 
-let get_bug_report_details config ~iface (ready, results) =
+let get_bug_report_details config ~role (ready, results) =
   let system = config.system in
   let sels = Solver.selections results in
-  let root_iface = Selections.root_iface sels in
+  let root_role =
+    let open Solver.Model in
+    match requirements results with
+    | ReqRole r -> r
+    | ReqCommand (_c, r) -> r in
 
   let issue_file = "/etc/issue" in
   let issue =
@@ -265,9 +269,9 @@ let get_bug_report_details config ~iface (ready, results) =
     let do_add msg = Buffer.add_string b msg in
     Printf.ksprintf do_add fmt in
 
-  add "Problem with %s\n" iface;
-  if iface <> root_iface then
-    add "  (while attempting to run %s)\n" root_iface;
+  add "Problem with %s\n" (Solver.Model.Role.to_string role);
+  if role <> root_role then
+    add "  (while attempting to run %s)\n" (Solver.Model.Role.to_string root_role);
   add "\n";
 
   add "0install version %s\n" About.version;

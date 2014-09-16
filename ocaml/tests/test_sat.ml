@@ -146,9 +146,9 @@ let run_sat_test expected problem =
   | Some result, _ ->
       let sels = Solver.selections result in
       let actual = ref [] in
-      sels |> Selections.iter (fun iface sel ->
+      sels |> Selections.iter (fun role sel ->
         let version = Element.version sel in
-        actual := (iface, version) :: !actual
+        actual := (role.Selections.iface, version) :: !actual
       );
       let actual = List.sort compare !actual in
       let expected = List.sort compare expected_items in
@@ -285,7 +285,8 @@ let suite = "sat">::: [
       "libb[1,2] => libc 0 0";
     ] in
     let selected = ref StringMap.empty in
-    Solver.selections s |> Selections.iter (fun iface sel ->
+    Solver.selections s |> Selections.iter (fun role sel ->
+      let iface = role.Selections.iface in
       selected := StringMap.add iface (Element.version_opt sel) !selected
     );
     assert_equal (Some "2") (StringMap.find_safe "prog" !selected);

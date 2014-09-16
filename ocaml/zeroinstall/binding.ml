@@ -86,11 +86,11 @@ let calc_new_value name mode value env =
               log_info "%s=%s" name value;  (* no old value; use new value directly *)
               value
 
-let do_env_binding env impls iface {var_name; mode; source} =
+let do_env_binding env sel {var_name; mode; source} =
   let add value = Env.put env var_name (calc_new_value var_name mode value env) in
   match source with
   | Value v -> add v
-  | InsertPath i -> match StringMap.find_safe iface impls with
+  | InsertPath i -> match Lazy.force sel with
     | (_, None) -> ()  (* a PackageSelection; skip binding *)
     | (_, Some p) -> add (p +/ i)
 

@@ -53,14 +53,19 @@ let get_args elem env =
         loop (Str.split_delim (Str.regexp_string separator) source)
   in get_args_loop (elem :> arg_parent)
 
-let find_ex iface impls =
-  StringMap.find iface impls |? lazy (raise_safe "Missing a selection for interface '%s'" iface)
+let find_ex role impls =
+  Selections.RoleMap.find role impls
+  |? lazy (raise_safe "Missing a selection for role '%s'" (Selections.Role.to_string role))
 
 (* Build up the argv array to execute this command.
    In --dry-run mode, don't complain if the target doesn't exist. *)
-let rec build_command ?main ?(dry_run=false) impls command_iface command_name env : string list =
+let rec build_command ?main ?(dry_run=false) impls req env : string list =
+  let command_role, command_name =
+    match req with
+    | Selections.ReqRole r -> (r, None)
+    | Selections.ReqCommand (c, r) -> (r, Some c) in
   try
-    let (command_sel, command_impl_path) = find_ex command_iface impls in
+    let (command_sel, command_impl_path) = find_ex command_role impls in
     let command =
       match command_name with
       | None -> Element.make_command ~source_hint:(Some command_sel) "run"
@@ -84,7 +89,7 @@ let rec build_command ?main ?(dry_run=false) impls command_iface command_name en
               if Filename.is_relative command_rel_path then
                 Element.raise_elem "Relative 'path' in " command
               else
-                command_rel_path      
+                command_rel_path
             )
             | Some dir -> (
               if Filename.is_relative command_rel_path then
@@ -112,15 +117,8 @@ let rec build_command ?main ?(dry_run=false) impls command_iface command_name en
     | Some runner ->
         let runner_args = get_args runner env in
         let runner_command_name = default "run" (Element.command runner) in
-        (build_command ~dry_run impls (Element.interface runner) (Some runner_command_name) env) @ runner_args @ args
-  with Safe_exception _ as ex -> reraise_with_context ex "... building command for %s" command_iface
-
-(** Collect all the commands needed by this dependency. *)
-let get_required_commands dep =
-  let commands =
-    Element.bindings dep |> U.filter_map  (fun node ->
-      Binding.parse_binding node |> Binding.get_command
-    ) in
-  match Element.classify_dep dep with
-  | `runner runner -> (default "run" @@ Element.command runner) :: commands
-  | `requires _ | `restricts _ -> commands
+        (* note: <runner> is always binary *)
+        let runner_role = {Selections.iface = Element.interface runner; source = false} in
+        let runner_req = Selections.ReqCommand (runner_command_name, runner_role) in
+        (build_command ~dry_run impls runner_req env) @ runner_args @ args
+  with Safe_exception _ as ex -> reraise_with_context ex "... building command for %s" (Selections.Role.to_string command_role)

@@ -172,7 +172,7 @@ module CoreModel = struct
       ~child_nodes:(List.rev !child_nodes)
       ~source_hint:impl.Impl.qdom "selection"
 
-  let machine impl =
+  let machine_group impl =
     match impl.Impl.machine with
     | None | Some "src" -> None
     | Some machine -> Some (Arch.get_machine_group machine)
@@ -210,7 +210,7 @@ module Model =
 
     module RoleMap = Core.RoleMap
 
-    type result = {
+    type t = {
       root_req : requirements;
       selections : Core.selection RoleMap.t;
     }
@@ -218,30 +218,27 @@ module Model =
     type version = Versions.parsed_version
     let format_version = Versions.format_version
 
-    let get_selected result role =
-      try
-        let selection = RoleMap.find role result.selections in
+    let get_selected role result =
+      RoleMap.find role result.selections |> pipe_some (fun selection ->
         let impl = Core.(selection.impl) in
         if impl == dummy_impl then None
         else Some impl
-      with Not_found -> None
+      )
 
     let requirements result = result.root_req
 
     let explain result role =
-      try
-        let sel = RoleMap.find role result.selections in
-        Core.explain sel.Core.diagnostics
-      with Not_found -> "Role not used!"
+      match RoleMap.find role result.selections with
+      | Some sel -> Core.explain sel.Core.diagnostics
+      | None -> "Role not used!"
 
     let raw_selections result =
       result.selections |> RoleMap.map (fun sel -> sel.Core.impl)
 
     let selected_commands result role =
-      try
-        let selection = RoleMap.find role result.selections in
-        Core.(selection.commands)
-      with Not_found -> []
+      match RoleMap.find role result.selections with
+      | Some selection -> Core.(selection.commands)
+      | None -> []
   end
 
 let impl_provider role = role.scope
@@ -309,9 +306,11 @@ let selections result =
       match result.root_req with
       | ReqCommand (command, role) ->
           AttrMap.singleton "interface" role.iface
+          |> AttrMap.add_no_ns "source" (string_of_bool role.source)
           |> AttrMap.add_no_ns "command" command
       | ReqRole role ->
-          AttrMap.singleton "interface" role.iface in
+          AttrMap.singleton "interface" role.iface
+          |> AttrMap.add_no_ns "source" (string_of_bool role.source) in
     let child_nodes = result.selections
       |> Core.RoleMap.bindings
       |> List.map (fun (role, selection) ->

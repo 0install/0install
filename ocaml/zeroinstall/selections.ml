@@ -9,15 +9,56 @@ module Q = Support.Qdom
 
 type selection = [`selection] Element.t
 
-type t = {
-  root : [`selections] Element.t;
-  index : selection StringMap.t;
-}
-
 type impl_source =
   | CacheSelection of Manifest.digest list
   | LocalSelection of string
   | PackageSelection
+
+type impl = selection
+type command_name = string
+
+type role = {
+  iface : General.iface_uri;
+  source : bool;
+}
+
+module Role = struct
+  type t = role
+
+  let to_string = function
+    | {iface; source = false} -> iface
+    | {iface; source = true} -> iface ^ "#source"
+
+  (* Sort the interfaces by URI so we have a stable output. *)
+  let compare role_a role_b =
+    match String.compare role_a.iface role_b.iface with
+    | 0 -> compare role_a.source role_b.source
+    | x -> x
+end
+
+module RoleMap = struct
+  include Map.Make(Role)
+  let find key map = try Some (find key map) with Not_found -> None
+end
+
+type t = {
+  root : [`selections] Element.t;
+  index : selection RoleMap.t;
+}
+
+type requirements =
+  | ReqCommand of (command_name * Role.t)
+  | ReqRole of Role.t
+
+type restriction = unit (* TODO: remove this *)
+type command = [`command] Element.t
+
+type dependency = {
+  dep_role : Role.t;
+  dep_restrictions : unit list;   (* Not used for selections *)
+  dep_importance : [ `essential | `recommended | `restricts ];
+  dep_required_commands : command_name list;
+}
 
 let re_initial_slash = Str.regexp "^/"
 let re_package = Str.regexp "^package:"
@@ -51,13 +92,40 @@ let root_command sels =
   | None | Some "" -> None
   | Some _ as command -> command
 
-let iter fn sels = StringMap.iter fn sels.index
+let get_selected role sels = RoleMap.find role sels.index
 
-(** Create a map from interface URI to <selection> elements. *)
+let get_selected_ex role sels =
+  get_selected role sels
+  |? lazy (raise_safe "Role '%s' not found in selections!" (Role.to_string role))
+
+let root_role sels =
+  let iface = root_iface sels in
+  let source = Element.source sels.root
+    |? lazy (
+      (* This is an old (0install < 2.8) selections document, with no source attribute. *)
+      RoleMap.find {iface; source = true} sels.index <> None
+    ) in
+  {iface; source}
+
+let root_sel sels =
+  let role = root_role sels in
+  get_selected role sels |? lazy (raise_safe "Can't find a selection for the root (%s)!" (Role.to_string role))
+
+let requirements sels =
+  match root_command sels with
+  | None -> ReqRole (root_role sels)
+  | Some command -> ReqCommand (command, root_role sels)
+
+let iter fn sels = RoleMap.iter fn sels.index
+
+(** Create a map from roles to <selection> elements. *)
 let make_selection_map sels =
   Element.selections sels |> List.fold_left (fun m sel ->
-    StringMap.add (Element.interface sel) sel m
-  ) StringMap.empty
+    let iface = Element.interface sel in
+    let machine = Element.arch sel |> pipe_some (fun arch -> snd (Arch.parse_arch arch)) in
+    let source = (machine = Some "src") in
+    RoleMap.add {iface; source} sel m
+  ) RoleMap.empty
 
 let create root =
   let root = Element.parse_selections root in
@@ -84,41 +152,78 @@ let equal a b =
 
 let as_xml sels = Element.as_xml sels.root
 
-let find iface sels = StringMap.find iface sels.index
-
-let find_ex iface sels = find iface sels |? lazy (raise_safe "Interface '%s' not found in selections!" iface)
-
-let root_sel sels =
-  let iface = root_iface sels in
-  find iface sels |? lazy (raise_safe "Can't find a selection for the root (%s)!" iface)
-
 (* Return all bindings in document order *)
 let collect_bindings t =
   let bindings = ref [] in
 
   let process_dep dep =
-    let dep_iface = Element.interface dep in
-    if StringMap.mem dep_iface t.index then (
-      let add_iface b = (dep_iface, b) in
-      bindings := List.map add_iface (Element.bindings dep) @ !bindings
+    (* TODO: dependencies are always binary for now *)
+    let dep_role = {iface = Element.interface dep; source = false} in
+    if RoleMap.mem dep_role t.index then (
+      let add_role b = (dep_role, b) in
+      bindings := List.map add_role (Element.bindings dep) @ !bindings
     ) in
-  let process_command iface command =
+  let process_command role command =
     Element.command_children command |> List.iter (function
       | `requires r -> process_dep r
       | `runner r -> process_dep r
       | `restricts r -> process_dep r
-      | #Element.binding as binding -> bindings := (iface, binding) :: !bindings
+      | #Element.binding as binding -> bindings := (role, binding) :: !bindings
     ) in
-  let process_impl iface parent =
+  let process_impl role parent =
     Element.deps_and_bindings parent |> List.iter (function
       | `requires r -> process_dep r
       | `restricts r -> process_dep r
-      | `command c -> process_command iface c
-      | #Element.binding as binding -> bindings := (iface, binding) :: !bindings
+      | `command c -> process_command role c
+      | #Element.binding as binding -> bindings := (role, binding) :: !bindings
     ) in
 
-  t |> iter (fun iface node ->
-    try process_impl iface node
-    with Safe_exception _ as ex -> reraise_with_context ex "... getting bindings from selection %s" iface
+  t |> iter (fun role node ->
+    try process_impl role node
+    with Safe_exception _ as ex -> reraise_with_context ex "... getting bindings from selection %s" (Role.to_string role)
   );
   List.rev !bindings
+
+(** Collect all the commands needed by this dependency. *)
+let get_required_commands dep =
+  let commands =
+    Element.bindings dep |> U.filter_map  (fun node ->
+      Binding.parse_binding node |> Binding.get_command
+    ) in
+  match Element.classify_dep dep with
+  | `runner runner -> (default "run" @@ Element.command runner) :: commands
+  | `requires _ | `restricts _ -> commands
+
+let make_deps children =
+  let self_commands = ref [] in
+  let make_dep ~importance elem = {
+    (* note: currently, only dependencies on binaries are supported. *)
+    dep_role = {iface = Element.interface elem; source = false};
+    dep_importance = importance;
+    dep_required_commands = get_required_commands elem;
+    dep_restrictions = [];
+  } in
+  let deps = children |> U.filter_map (function
+    | `requires r  -> Some (make_dep ~importance:(Element.importance r) r)
+    | `runner r -> Some (make_dep ~importance:(Element.importance r) r)
+    | #Element.binding as b ->
+        Binding.parse_binding b |> Binding.get_command |> if_some (fun name ->
+          self_commands := name :: !self_commands
+        );
+        None
+    | `restricts _ | `command _ -> None
+  ) in
+  (deps, !self_commands)
+
+let requires _role impl = make_deps (Element.deps_and_bindings impl)
+let command_requires _role command = make_deps (Element.command_children command)
+let get_command sel name = Element.get_command name sel
+
+let selected_commands sels role =
+  match get_selected role sels with
+  | None -> []
+  | Some sel ->
+      Element.deps_and_bindings sel |> U.filter_map (function
+        | `command c -> Some (Element.command_name c)
+        | _ -> None
+      )

@@ -9,8 +9,21 @@ open Support.Common
 
 (** {2 Types} *)
 
-type t
 type selection = [`selection] Element.t
+type role = {
+  iface : General.iface_uri;
+  source : bool;
+}
+include Sigs.CORE_MODEL with
+  type impl = selection and
+  type command_name = string and
+  type Role.t = role
+
+include Sigs.SELECTIONS with
+  type role := role and
+  type command_name := command_name and
+  type requirements := requirements and
+  type impl := selection
 
 type impl_source =
   | CacheSelection of Manifest.digest list
@@ -26,26 +39,23 @@ val create : Support.Qdom.element -> t
 (** Create a [selections] value from a file (parse + create). *)
 val load_selections : system -> filepath -> t
 
-(** The interface attribute on the root (i.e. the interface of the program itself) *)
-val root_iface : t -> General.iface_uri
+(** The role of the root selection. *)
+val root_role : t -> role
 
-(** The command on [root_iface] to run. *)
+(** The command on [root_role] to run. *)
 val root_command : t -> string option
 
-(** The selection for [root_iface]. *)
+(** The selection for [root_role]. *)
 val root_sel : t -> selection
 
 (** Iterate over the <selection> elements. *)
-val iter : (General.iface_uri -> selection -> unit) -> t -> unit
+val iter : (role -> selection -> unit) -> t -> unit
 
 (** Check whether the XML of two sets of selections are the same, ignoring whitespace. *)
 val equal : t -> t -> bool
 
-(** Find the selection for a given interface. *)
-val find : General.iface_uri -> t -> selection option
-
-(** Like [find], but raise an exception if not found. *)
-val find_ex : General.iface_uri -> t -> selection
+(** Like [get_selected], but raise an exception if not found. *)
+val get_selected_ex : role -> t -> selection
 
 (** Convert a selections document to XML in the latest format. *)
 val as_xml : t -> Support.Qdom.element
@@ -66,4 +76,4 @@ val get_feed : selection -> General.feed_url
 val get_id : selection -> Feed_url.global_id
 
 (* Return all bindings in document order *)
-val collect_bindings : t -> (General.iface_uri * Element.binding) list
+val collect_bindings : t -> (role * Element.binding) list

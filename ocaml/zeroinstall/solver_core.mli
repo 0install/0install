@@ -6,7 +6,7 @@
  * See [Solver] for the instantiation of this functor on the
  * actual 0install types. *)
 
-module Make : functor (Model : Solver_types.MODEL) -> sig
+module Make : functor (Model : Sigs.SOLVER_INPUT) -> sig
   type diagnostics
 
   type selection = {
@@ -15,7 +15,7 @@ module Make : functor (Model : Solver_types.MODEL) -> sig
     diagnostics : diagnostics;          (** Extra information useful for diagnostics *)
   }
 
-  module RoleMap : Map.S with type key = Model.Role.t
+  module RoleMap : Sigs.MAP with type key = Model.Role.t
 
   (** [do_solve model req] finds an implementation matching the given requirements, plus any other implementations needed
    * to satisfy its dependencies.

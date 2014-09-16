@@ -144,11 +144,11 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
   let refresh = ref refresh in
   let component_boxes = ref RoleMap.empty in
 
-  let report_bug iface =
+  let report_bug role =
     let run_test = test_callback |> pipe_some (fun test_callback ->
       Some (fun () -> Zeroinstall.Gui.run_test config tools#distro test_callback watcher#results)
     ) in
-    Bug_report_box.create ?run_test ?last_error:!Alert_box.last_error config ~iface ~results:watcher#results in
+    Bug_report_box.create ?run_test ?last_error:!Alert_box.last_error config ~role ~results:watcher#results in
 
   let need_recalculate = ref (Lwt.wait ()) in
   let recalculate ~force =
@@ -202,8 +202,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
 
   (* Connect up the component tree view *)
   let show_component role ~select_versions_tab =
-    let box = try Some (RoleMap.find role !component_boxes) with Not_found -> None in
-    match box with
+    match RoleMap.find role !component_boxes with
     | Some box -> box#dialog#present ()
     | None ->
         let box = Component_box.create tools ~trust_db reqs role ~recalculate ~select_versions_tab ~watcher in

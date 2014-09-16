@@ -71,7 +71,7 @@ let get_launcher_builder config =
     else
       new native_launcher_builder config
 
-let do_exec_binding dry_run builder env impls (iface_uri, {Binding.exec_type; Binding.name; Binding.command}) =
+let do_exec_binding dry_run builder env impls (role, {Binding.exec_type; Binding.name; Binding.command}) =
   validate_exec_name name;
 
   let exec_dir = builder#make_dir name in
@@ -83,7 +83,8 @@ let do_exec_binding dry_run builder env impls (iface_uri, {Binding.exec_type; Bi
     Dry_run.log "would create launcher %s" exec_path
   );
 
-  let command_argv = Command.build_command ~dry_run impls iface_uri (Some command) env in
+  let req = Selections.ReqCommand (command, role) in
+  let command_argv = Command.build_command ~dry_run impls req env in
 
   let () = match exec_type with
   | Binding.InPath -> Binding.prepend "PATH" exec_dir path_sep env
@@ -93,15 +94,15 @@ let do_exec_binding dry_run builder env impls (iface_uri, {Binding.exec_type; Bi
 
 (* Make a map from InterfaceURIs to the selected <selection> and (for non-native packages) paths *)
 let make_selection_map system stores sels =
-  let map = ref StringMap.empty in
-  sels |> Selections.iter (fun iface sel ->
+  let map = ref Selections.RoleMap.empty in
+  sels |> Selections.iter (fun role sel ->
     let path =
       try Selections.get_path system stores sel
       with Stores.Not_stored msg ->
-        raise_safe "Missing implementation for '%s' %s: %s" iface (Element.version sel) msg
+        raise_safe "Missing implementation for '%s' %s: %s" (Selections.Role.to_string role) (Element.version sel) msg
     in
     let value = (sel, path) in
-    map := StringMap.add iface value !map
+    map := Selections.RoleMap.add role value !map
   );
   !map
 
@@ -113,17 +114,21 @@ let get_exec_args config ?main sels args =
 
   (* Do <environment> bindings; collect executable bindings *)
   let exec_bindings =
-    bindings |> Support.Utils.filter_map (fun (iface, binding) -> match Binding.parse_binding binding with
-      | Binding.EnvironmentBinding b -> Binding.do_env_binding env impls iface b; None
-      | Binding.ExecutableBinding b -> Some (iface, b)
+    bindings |> Support.Utils.filter_map (fun (role, binding) -> match Binding.parse_binding binding with
+      | Binding.EnvironmentBinding b ->
+          let sel = lazy (
+            Selections.RoleMap.find role impls
+            |? lazy (raise_safe "Missing role '%s' in selections!" (Selections.Role.to_string role))
+          ) in
+          Binding.do_env_binding env sel b; None
+      | Binding.ExecutableBinding b -> Some (role, b)
       | Binding.GenericBinding elem -> Element.log_elem Support.Logging.Warning "Unsupported binding type:" elem; None
     ) in
 
   (* Do <executable-in-*> bindings *)
   List.iter (do_exec_binding config.dry_run launcher_builder env impls) exec_bindings;
 
-  let command = Selections.root_command sels in
-  let prog_args = (Command.build_command ?main ~dry_run:config.dry_run impls (Selections.root_iface sels) command env) @ args in
+  let prog_args = (Command.build_command ?main ~dry_run:config.dry_run impls (Selections.requirements sels) env) @ args in
 
   (prog_args, (Env.to_array env))
 

@@ -340,7 +340,7 @@ let suite = "distro">::: [
     begin match Zeroinstall.Solver.solve_for config feed_provider requirements with
     | (true, results) ->
         let sels = Zeroinstall.Solver.selections results in
-        let sel = Zeroinstall.Selections.find_ex "http://example.com/bittorrent" sels in
+        let sel = Zeroinstall.Selections.(get_selected_ex {iface = "http://example.com/bittorrent"; source = false}) sels in
         let run = Zeroinstall.Element.get_command_ex "run" sel in
         Fake_system.assert_str_equal "/bin/sh" (Zeroinstall.Element.path run |> default "missing")
     | (false, results) -> failwith @@ Zeroinstall.Solver.get_failure_reason config results end;

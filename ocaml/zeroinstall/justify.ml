@@ -73,8 +73,8 @@ let maybe_justify_local_preference wanted_id actual_id (candidates, compare) =
 (* We are able to select the specimen, but we preferred not to. Explain why.
    [test_sels] is the selections with the constraint.
    [old_sels] are the selections we get with an unconstrained solve. *)
-let justify_preference test_sels wanted q_iface wanted_id ~old_sels candidates =
-  let actual_selection = Selections.find q_iface old_sels in
+let justify_preference test_sels wanted q_role wanted_id ~old_sels candidates =
+  let actual_selection = Selections.get_selected q_role old_sels in
 
   let () =
     match actual_selection, candidates with
@@ -98,22 +98,22 @@ let justify_preference test_sels wanted q_iface wanted_id ~old_sels candidates =
     let do_add msg = changes := msg :: !changes in
     Printf.ksprintf do_add fmt in
 
-  old_sels |> Selections.iter (fun old_iface old_sel ->
-    if old_iface <> q_iface || not used_impl then (
-      match Selections.find old_iface test_sels with
+  old_sels |> Selections.iter (fun old_role old_sel ->
+    if Selections.Role.compare old_role q_role <> 0 || not used_impl then (
+      match Selections.get_selected  old_role test_sels with
       | Some new_sel ->
           let old_version = Element.version old_sel in
           let new_version = Element.version new_sel in
           if old_version <> new_version then
-            add "%s: %s to %s" old_iface old_version new_version
+            add "%s: %s to %s" (Selections.Role.to_string old_role) old_version new_version
           else (
             let old_id = Element.id old_sel in
             let new_id = Element.id new_sel in
             if old_id <> new_id then
-              add "%s: %s to %s" old_iface old_id new_id
+              add "%s: %s to %s" (Selections.Role.to_string old_role) old_id new_id
           )
       | None ->
-          add "%s: no longer used" old_iface
+          add "%s: no longer used" (Selections.Role.to_string old_role)
     )
   );
 
@@ -130,6 +130,7 @@ let justify_preference test_sels wanted q_iface wanted_id ~old_sels candidates =
 (** Run a solve with impl_id forced to be selected, and use that to explain why it wasn't (or was)
     selected in the normal case. *)
 let justify_decision config feed_provider requirements q_iface ~source q_impl =
+  let q_role = {Selections.iface = q_iface; source} in
 
   (* Note: there's a slight mismatch between the diagnostics system (which assumes each interface is used either for
      source or binaries, but not both, and the current implementation of the solver. *)
@@ -175,7 +176,7 @@ let justify_decision config feed_provider requirements q_iface ~source q_impl =
         let (ready, actual_selections) = Solver.solve_for config feed_provider requirements in
         assert ready;   (* If we can solve we a constraint, we can solve without. *)
 
-        justify_preference test_sels !wanted q_iface q_impl
+        justify_preference test_sels !wanted q_role q_impl
           ~old_sels:(Solver.selections actual_selections)
           !candidates
     | None ->

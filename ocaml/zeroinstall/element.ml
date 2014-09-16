@@ -155,6 +155,12 @@ let version_opt = ZI.get_attribute_opt "version"
 let id = ZI.get_attribute "id"
 let doc_dir = ZI.get_attribute_opt "doc-dir"
 let arch = ZI.get_attribute_opt "arch"
+let source elem =
+  match ZI.get_attribute_opt "source" elem with
+  | Some "true" -> Some true
+  | Some "false" -> Some false
+  | Some x -> Q.raise_elem "Invalid 'source' value '%s' on" x elem
+  | None -> None
 
 let uri = ZI.get_attribute_opt "uri"
 let src = ZI.get_attribute "src"

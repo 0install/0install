@@ -163,13 +163,12 @@ let suite = "feed">::: [
               );
 
               let env = Env.create [| |] in
-              let impls = StringMap.singleton "http://example.com/" ((), Some "/impl") in
 
               let check ?old binding =
                 begin match old with
                 | None -> Env.unset env "PATH"
                 | Some old -> Env.put env "PATH" old end;
-                B.do_env_binding env impls "http://example.com/" binding;
+                B.do_env_binding env (lazy ((), Some "/impl")) binding;
                 Env.get_exn env "PATH" in
 
               Fake_system.assert_str_equal "/impl/bin:/bin:/usr/bin" @@ check b0;
@@ -189,9 +188,8 @@ let suite = "feed">::: [
 
     let check ?impl ?old binding =
       let env = Env.create [| |] in
-      let impls = StringMap.singleton "http://example.com/" ((), impl) in
       old |> if_some (Env.put env binding.B.var_name);
-      B.do_env_binding env impls "http://example.com/" binding;
+      B.do_env_binding env (lazy ((), impl)) binding;
       Env.get_exn env binding.B.var_name in
 
     Fake_system.assert_str_equal "/impl/lib:/usr/lib" @@ check prepend ~impl:"/impl" ~old:"/usr/lib";

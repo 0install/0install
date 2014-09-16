@@ -31,7 +31,7 @@ module Cache(CacheEntry : CACHE_ENTRY) : sig
   (** The cache is used in [build_problem], while the clauses are still being added. *)
   type t
 
-  module M : Map.S with
+  module M : Sigs.MAP with
    type key = CacheEntry.t
 
   (** Once the problem is built, an immutable snapshot is taken. *)
@@ -54,7 +54,11 @@ module Cache(CacheEntry : CACHE_ENTRY) : sig
 
   val filter_map : (CacheEntry.t -> 'a -> 'b option) -> 'a M.t -> 'b M.t
 end = struct
-  module M = Map.Make(CacheEntry)
+  module M = struct
+    include Map.Make(CacheEntry)
+    let find_exn = find
+    let find key map = try Some (find_exn key map) with Not_found -> None
+  end
 
   type snapshot = CacheEntry.value M.t
   type t = snapshot ref
@@ -62,20 +66,17 @@ end = struct
   let create () = ref M.empty
 
   let lookup table make key =
-    try M.find key !table
-    with Not_found ->
+    M.find key !table |? lazy (
       let value, process = make key in
       table := M.add key value !table;
       process ();
       value
+    )
 
   let snapshot table = !table
 
-  let get key map =
-    try Some (M.find key map)
-    with Not_found -> None
-
-  let get_exn = M.find
+  let get = M.find
+  let get_exn = M.find_exn
 
   let filter_map f m =
     M.merge (fun key ao _bo ->
@@ -85,7 +86,7 @@ end = struct
     ) m M.empty
 end
 
-module Make (Model : Solver_types.MODEL) = struct
+module Make (Model : Sigs.SOLVER_INPUT) = struct
   (** We attach this data to each SAT variable. *)
   module SolverData =
     struct
@@ -259,7 +260,7 @@ module Make (Model : Solver_types.MODEL) = struct
 
     (* If [impl] requires a particular machine group, add a constraint to the problem. *)
     fun impl_var impl ->
-      Model.machine impl |> if_some (fun group ->
+      Model.machine_group impl |> if_some (fun group ->
         let group_var =
           let open Arch in
           match group with

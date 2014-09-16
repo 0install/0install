@@ -32,9 +32,9 @@ let get_unavailable_selections config ?distro sels =
         | None -> false
         | Some distro -> not @@ Distro.is_installed config distro elem
   in
-  sels |> Selections.iter (fun iface sel ->
+  sels |> Selections.iter (fun role sel ->
     if needs_download sel then (
-      Element.log_elem Support.Logging.Info "Missing selection of %s:" iface sel;
+      Element.log_elem Support.Logging.Info "Missing selection of %s:" (Selections.Role.to_string role) sel;
       missing := sel :: !missing
     )
   );

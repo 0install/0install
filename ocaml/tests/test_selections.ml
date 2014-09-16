@@ -28,6 +28,8 @@ let get_dependencies elem =
     | _ -> false
   )
 
+let binary iface = {Selections.iface; source = false}
+
 let suite = "selections">::: [
   "selections">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     let import name =
@@ -61,7 +63,7 @@ let suite = "selections">::: [
     let bindings = Selections.create s |> get_bindings in
     assert_equal 2 @@ List.length bindings;
 
-    let ifaces = List.map fst bindings in
+    let ifaces = bindings |> List.map (fun (role, _impl) -> role.Selections.iface) in
     Fake_system.equal_str_lists ["http://foo/Compiler.xml"; "http://foo/Source.xml"] @@ ifaces;
 
     match List.map snd bindings with
@@ -122,7 +124,7 @@ let suite = "selections">::: [
     let iface = Test_0install.feed_dir +/ "Local.xml" in
 
     let index = get_sels config fake_system iface in
-    let sel = Selections.find_ex iface index in
+    let sel = Selections.get_selected_ex (binary iface) index in
     let () =
       match Selections.get_source sel with
       | Selections.LocalSelection local_path ->
@@ -132,7 +134,7 @@ let suite = "selections">::: [
     let iface = Test_0install.feed_dir +/ "Local2.xml" in
     (* Add a newer implementation and try again *)
     let sels = get_sels config fake_system iface in
-    let sel = Selections.find_ex iface sels in
+    let sel = Selections.get_selected_ex (binary iface) sels in
     let tools = Fake_system.make_tools config in
     assert (Driver.get_unavailable_selections ~distro:tools#distro config sels <> []);
 
@@ -147,7 +149,7 @@ let suite = "selections">::: [
   "commands">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     let iface = Test_0install.feed_dir +/ "Command.xml" in
     let sels = get_sels config fake_system iface in
-    let sel = Selections.find_ex iface sels in
+    let sel = Selections.get_selected_ex (binary iface) sels in
 
     assert_equal "c" @@ Element.id sel;
     let run = Element.get_command_ex "run" sel in
@@ -159,7 +161,7 @@ let suite = "selections">::: [
       match Element.command_children run with
       | `requires dep :: _ ->
           let dep_impl_uri = Element.interface dep in
-          let dep_impl = Selections.find_ex dep_impl_uri sels in
+          let dep_impl = Selections.get_selected_ex (binary dep_impl_uri) sels in
           assert_equal "sha1=256" @@ Element.id dep_impl;
       | _ -> assert false in
 
@@ -170,7 +172,7 @@ let suite = "selections">::: [
     let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
     let s3 = `String (0, output) |> Xmlm.make_input |> Q.parse_input None |> Selections.create in
 
-    let runnable_impl = Selections.find_ex runnable s3 in
+    let runnable_impl = Selections.get_selected_ex (binary runnable) s3 in
     Element.deps_and_bindings runnable_impl |> U.filter_map (function
       | `command child -> Some (Element.command_name child)
       | _ -> None

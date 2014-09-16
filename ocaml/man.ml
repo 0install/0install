@@ -21,7 +21,7 @@ let exec_man config ?env args =
 
 (** Exec the man command to show the man-page for this interface. Never returns. *)
 let find_and_exec_man config ?main ?fallback_name sels =
-  let interface_uri = Zeroinstall.Selections.root_iface sels in
+  let interface_uri = Zeroinstall.Selections.((root_role sels).iface) in
   let selected_impl = Zeroinstall.Selections.root_sel sels in
   let system = config.system in
 

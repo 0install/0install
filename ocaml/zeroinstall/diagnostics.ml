@@ -8,7 +8,7 @@ open Support.Common
 
 module U = Support.Utils
 
-module Make (Model : Solver_types.DIAGNOSTICS) = struct
+module Make (Model : Sigs.SOLVER_RESULT) = struct
   module RoleMap = Model.RoleMap
 
   let spf = Printf.sprintf
@@ -159,12 +159,8 @@ module Make (Model : Solver_types.DIAGNOSTICS) = struct
       method original_bad = orig_bad
     end
 
-  let find_component key report =
-    try Some (RoleMap.find key report)
-    with Not_found -> None
-
   let find_component_ex role report =
-    match find_component role report with
+    match RoleMap.find role report with
     | Some c -> c
     | None -> raise_safe "Can't find component %s!" (Model.Role.to_string role)
 
@@ -178,7 +174,7 @@ module Make (Model : Solver_types.DIAGNOSTICS) = struct
      to {A1, B1, D1}. Then we can't choose C1 because we prefer to keep D1. *)
   let get_dependency_problem role report impl =
     let check_dep dep =
-      match find_component dep.Model.dep_role report with
+      match RoleMap.find dep.Model.dep_role report with
       | None -> None      (* Not in the selections => can't be part of a conflict *)
       | Some required_component ->
           match required_component#impl with
@@ -201,7 +197,7 @@ module Make (Model : Solver_types.DIAGNOSTICS) = struct
       of the required interface were rejected. *)
   let examine_dep requiring_role requiring_impl report dep =
     let {Model.dep_role = other_role; dep_restrictions; dep_importance = _; dep_required_commands} = dep in
-    match find_component other_role report with
+    match RoleMap.find other_role report with
     | None -> ()
     | Some required_component ->
         if dep_restrictions <> [] then (
@@ -228,7 +224,7 @@ module Make (Model : Solver_types.DIAGNOSTICS) = struct
       | Some replacement when RoleMap.mem replacement report -> (
           component#note (ReplacedByConflict replacement);
           component#reject_all (`ConflictsRole replacement);
-          match find_component replacement report with
+          match RoleMap.find replacement report with
           | Some replacement_component ->
               replacement_component#note (ReplacesConflict role);
               replacement_component#reject_all (`ConflictsRole role)
@@ -279,14 +275,14 @@ module Make (Model : Solver_types.DIAGNOSTICS) = struct
       match compoment#impl with
       | None -> ()
       | Some impl ->
-          match Model.machine impl with
+          match Model.machine_group impl with
           | None -> ()
           | Some group -> raise (Found (role, impl, group)) in
 
     try RoleMap.iter check report
     with Found (example_role, example_impl, example_group) ->
       let filter _key component = component#filter_impls (fun impl ->
-        match Model.machine impl with
+        match Model.machine_group impl with
         | Some group when group <> example_group -> Some (`MachineGroupConflict (example_role, example_impl))
         | _ -> None
       ) in

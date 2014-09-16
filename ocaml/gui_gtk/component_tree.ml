@@ -61,6 +61,8 @@ let walk_tree (model:GTree.tree_store) ~start ~stop fn =
   try walk ~start
   with Stop_walk -> ()
 
+module SolverTree = Tree.Make(Solver.Model)
+
 let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_bug ~recalculate ~watcher =
   (* Model *)
   let columns = new GTree.column_list in
@@ -128,7 +130,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
               if col = version_vc#get_oid then (
                 let current = Printf.sprintf "Currently preferred version: %s (%s)" version stability_str in
                 let prev_version = watcher#original_selections
-                  |> pipe_some (Selections.find iface)
+                  |> pipe_some (Selections.get_selected {Selections.iface; source = role.Solver.source})
                   |> pipe_some (fun sel -> Element.version_opt sel) in
                 match prev_version with
                 | Some prev_version when version <> prev_version ->
@@ -168,7 +170,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
     show_versions#connect#activate ==> (fun () -> show_component role ~select_versions_tab:true);
 
     let report_a_bug = GMenu.menu_item ~packing ~label:"Report a Bug..." () in
-    report_a_bug#connect#activate ==> (fun () -> report_bug iface);
+    report_a_bug#connect#activate ==> (fun () -> report_bug role);
     let compile_item = GMenu.menu_item ~packing ~label:"Compile" () in
 
     if have_source then (
@@ -261,7 +263,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
             | Some s -> String.uppercase (Impl.format_stability s)
             | None -> Impl.get_attr_ex FeedAttr.stability impl in
           let prev_version = watcher#original_selections
-            |> pipe_some (Selections.find uri)
+            |> pipe_some (Selections.get_selected {Selections.iface = uri; source = role.Solver.source})
             |> pipe_some (fun old_sel ->
               let old_version = Element.version old_sel in
               if old_version = version then None
@@ -288,7 +290,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
     Hashtbl.clear feed_to_iface;
     Hashtbl.clear default_summary_str;
     model#clear ();
-    Tree.result_as_tree new_results |> process_tree model#get_iter_first;
+    SolverTree.as_tree new_results |> process_tree model#get_iter_first;
     view#expand_all ();
     icon_cache#set_update_icons false in
 

@@ -2,9 +2,15 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(** This defines what the solver sees (hiding the raw XML, etc). *)
+(** Some useful abstract module types. *)
 
-module type MODEL = sig
+module type MAP = sig
+  include Map.S
+  (** Safe version of [find] that returns an option. *)
+  val find : key -> 'a t -> 'a option
+end
+
+module type CORE_MODEL = sig
   module Role : sig
     (** A role that needs to be filled by a single implementation.
      * If two dependencies require the same role then they will both
@@ -43,19 +49,9 @@ module type MODEL = sig
     dep_required_commands : command_name list;
   }
 
-  (** Information provided to the solver about a role. *)
-  type role_information = {
-    replacement : Role.t option;  (** Another role that conflicts with this one. *)
-    impls : impl list;            (** Candidates to fill the role. *)
-  }
-
-  val impl_to_string : impl -> string
-  val command_to_string : command -> string
-
-  (** The list of candidates to fill a role. *)
-  val implementations : Role.t -> role_information
-
-  val get_command : impl -> command_name -> command option
+  type requirements =
+    | ReqCommand of (command_name * Role.t)
+    | ReqRole of Role.t
 
   (** Get an implementation's dependencies.
    *
@@ -72,12 +68,29 @@ module type MODEL = sig
   (** As [requires], but for commands. *)
   val command_requires : Role.t -> command -> dependency list * command_name list
 
-  val machine : impl -> Arch.machine_group option
+  val get_command : impl -> command_name -> command option
+end
+
+module type SOLVER_INPUT = sig
+  (** This defines what the solver sees (hiding the raw XML, etc). *)
+
+  include CORE_MODEL
+
+  (** Information provided to the solver about a role. *)
+  type role_information = {
+    replacement : Role.t option;  (** Another role that conflicts with this one. *)
+    impls : impl list;            (** Candidates to fill the role. *)
+  }
+
+  val impl_to_string : impl -> string
+  val command_to_string : command -> string
+
+  (** The list of candidates to fill a role. *)
+  val implementations : Role.t -> role_information
+
   val meets_restriction : impl -> restriction -> bool
 
-  type requirements =
-    | ReqCommand of (command_name * Role.t)
-    | ReqRole of Role.t
+  val machine_group : impl -> Arch.machine_group option
 
   (* A dummy implementation, used to get diagnostic information if the solve fails.
    * It satisfies all requirements, even conflicting ones. *)
@@ -87,13 +100,35 @@ module type MODEL = sig
   val dummy_command : command
 end
 
-module type DIAGNOSTICS = sig
-  (** Used to provide diagnostics *)
+module type SELECTIONS = sig
+  (** Some selections previously produced by a solver.
+   * Note: logically, this should include CORE_MODEL, but that causes problems
+   * with duplicating RoleMap. *)
+  type t
 
-  include MODEL
+  type role
+  type impl
+  type command_name
+  type requirements
 
-  (** The solution produced by the solver (or its best attempt at one) *)
-  type result
+  val get_selected : role -> t -> impl option
+  val selected_commands : t -> role -> command_name list
+  val requirements : t -> requirements
+
+  module RoleMap : MAP with type key = role
+end
+
+module type SOLVER_RESULT = sig
+  (** The result of running the solver.
+   * Unlike the plain [SELECTIONS] type, this type can relate the selections back
+   * to the solver inputs, which is useful to provide diagnostics and the GUI. *)
+
+  include SOLVER_INPUT
+  include SELECTIONS with
+    type impl := impl and
+    type command_name := command_name and
+    type requirements := requirements and
+    type role := Role.t
 
   (** The reason why the model rejected an implementation before it got to the solver. *)
   type rejection
@@ -110,22 +145,14 @@ module type DIAGNOSTICS = sig
    * These are used to filter out implementations before they get to the solver. *)
   val user_restrictions : Role.t -> restriction option
 
-  module RoleMap : Map.S with type key = Role.t
-
   val id_of_impl : impl -> string
   val format_machine : impl -> string
   val string_of_restriction : restriction -> string
   val describe_problem : impl -> rejection -> string
 
-  val get_selected : result -> Role.t -> impl option
+  (** Get diagnostics-of-last-resort. *)
+  val explain : t -> Role.t -> string
 
   (** Get the final assignment of implementations to roles. *)
-  val raw_selections : result -> impl RoleMap.t
-
-  (** Get diagnostics-of-last-resort. *)
-  val explain : result -> Role.t -> string
-
-  val requirements : result -> requirements
-
-  val selected_commands : result -> Role.t -> command_name list
+  val raw_selections : t -> impl RoleMap.t
 end

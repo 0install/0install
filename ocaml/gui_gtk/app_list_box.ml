@@ -111,7 +111,7 @@ let show_help_for_iface tools ~gui uri : unit Lwt.t =
   match_lwt get_selections tools ~gui uri with
   | `Aborted_by_user -> Lwt.return ()
   | `Success sels ->
-      let sel = Selections.find_ex uri sels in
+      let sel = Selections.(get_selected_ex {iface = uri; source = false} sels) in
       show_help tools#config sel;
       Lwt.return ()
 

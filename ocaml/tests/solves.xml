@@ -6,7 +6,7 @@
       <implementation id='v1' version='1'><command name='run' path='main'/></implementation>
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
-    <selections command="run" interface="http://example.com/prog.xml">
+    <selections source="false" command="run" interface="http://example.com/prog.xml">
       <selection id='v1' interface='http://example.com/prog.xml' version='1'>
         <command name="run" path="main"/>
       </selection>
@@ -34,7 +34,7 @@
       </implementation>
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
-    <selections command="run" interface="http://example.com/prog.xml">
+    <selections source="false" command="run" interface="http://example.com/prog.xml">
       <selection id='l1' interface='http://example.com/lib1.xml' version='1'/>
       <selection id='l2' interface='http://example.com/lib2.xml' version='1'/>
       <selection id='v1' interface='http://example.com/prog.xml' version='1'>
@@ -56,7 +56,7 @@
       <implementation id='m3' version='3'><command name='run' path='main'/></implementation>
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
-    <selections command="run" interface="http://example.com/prog.xml">
+    <selections source="false" command="run" interface="http://example.com/prog.xml">
       <selection id='m3' interface='http://example.com/prog.xml' version='3'>
         <command name="run" path="main"/>
       </selection>
@@ -104,7 +104,7 @@
       </group>
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
-    <selections command="run" interface="http://example.com/prog.xml">
+    <selections source="false" command="run" interface="http://example.com/prog.xml">
       <selection id='z2' interface='http://example.com/lib.xml' version='2'>
 	<command name='run' path='prog'/>
 	<command name='test' path='test-prog'>
@@ -141,7 +141,7 @@
       </implementation>
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
-    <selections command='run' interface="http://example.com/prog.xml">
+    <selections source="false" command='run' interface="http://example.com/prog.xml">
       <selection id='v1' interface='http://example.com/prog.xml' version='1'>
         <command name='run'/>
       </selection>
@@ -177,7 +177,7 @@
       <implementation id='o1' version='1'/>
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
-    <selections command="run" interface="http://example.com/prog.xml">
+    <selections source="false" command="run" interface="http://example.com/prog.xml">
       <selection id='l2' interface='http://example.com/lib.xml' version='2'/>
       <selection id='p2' interface='http://example.com/prog.xml' version='2'>
         <command name="run" path="main"/>
@@ -260,7 +260,7 @@ Can't find all required implementations:
       </implementation>
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
-    <selections command="run" interface="http://example.com/prog.xml">
+    <selections source="false" command="run" interface="http://example.com/prog.xml">
       <selection id='v1' interface='http://example.com/prog.xml' version='1'>
         <command name="run" path="new-path"/>
       </selection>
@@ -286,7 +286,7 @@ Can't find all required implementations:
       </implementation>
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
-    <selections command="run" interface="http://example.com/prog.xml">
+    <selections source="false" command="run" interface="http://example.com/prog.xml">
       <selection id='l2' interface='http://example.com/lib2.xml' version='1'/>
       <selection id='v1' interface='http://example.com/prog.xml' version='1'>
         <command name="run" path="main"/>
@@ -328,7 +328,7 @@ Can't find all required implementations:
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
 
-    <selections command="run" interface="http://example.com/prog.xml">
+    <selections source="false" command="run" interface="http://example.com/prog.xml">
       <selection id='l12' interface='http://example.com/lib1.xml' version='2'/>
       <selection id='l21' interface='http://example.com/lib2.xml' version='1'/>
       <selection id='p1' interface='http://example.com/prog.xml' version='1'>
@@ -727,7 +727,7 @@ Can't find all required implementations:
 
     <requirements interface='http://gfxmonk.net/dist/0install/watchdog.xml' command='test'/>
 
-    <selections interface="http://gfxmonk.net/dist/0install/watchdog.xml" command="test">
+    <selections source="false" interface="http://gfxmonk.net/dist/0install/watchdog.xml" command="test">
       <selection id="sha1new=9e367bae00e50616d6b612e94713616a7fb5af4d"
                  interface="http://gfxmonk.net/dist/0install/nose.xml" released="2010-07-19" version="0.11.2">
         <command name="run" path="bin/nosetests"/>
@@ -760,7 +760,7 @@ Can't find all required implementations:
 
     <requirements interface='./OptionalMissing.xml'/>
 
-    <selections interface="/root/OptionalMissing.xml">
+    <selections source="false" interface="/root/OptionalMissing.xml">
       <selection id="a" interface="/root/OptionalMissing.xml" local-path="/root" version="0.1">
         <requires interface="http://localhost/Missing.xml" importance="recommended"/>
         <requires interface="http://foo/Binary.xml"/>
@@ -785,7 +785,7 @@ Can't find all required implementations:
 
     <requirements interface='./OptionalMissing.xml'/>
 
-    <selections interface="/root/OptionalMissing.xml">
+    <selections source="false" interface="/root/OptionalMissing.xml">
       <selection id="a" interface="/root/OptionalMissing.xml" local-path="/root" version="0.1">
         <requires interface="http://localhost/Missing.xml" importance="recommended">
 	  <executable-in-path name='missing'/>
@@ -802,7 +802,7 @@ Can't find all required implementations:
 
     <requirements interface='http://foo/Build.xml' command='run'/>
 
-    <selections interface='http://foo/Build.xml' command='run'>
+    <selections source="false" interface='http://foo/Build.xml' command='run'>
       <selection id="2" interface='http://foo/Build.xml' version='2'>
         <command name="run" path="idontexist"/>
         <requires interface="http://foo/Compiler-new.xml"/>
@@ -819,7 +819,7 @@ Can't find all required implementations:
 
     <requirements interface='./ReplacedConflicts.xml' command='run'/>
 
-    <selections interface="/root/ReplacedConflicts.xml" command="run">
+    <selections source="false" interface="/root/ReplacedConflicts.xml" command="run">
       <selection id="b" interface="/root/ReplacedConflicts.xml" local-path="/root" version="2">
         <command name="run" path="missing"/>
         <requires interface="http://localhost:8000/Hello"/>
@@ -837,7 +837,7 @@ Can't find all required implementations:
       <restricts interface='/root/ReplacedConflicts.xml' version='..!2'/>
     </requirements>
 
-    <selections interface="/root/ReplacedConflicts.xml" command="run">
+    <selections source="false" interface="/root/ReplacedConflicts.xml" command="run">
       <selection id="." interface="/root/Replaced.xml" version="0" local-path='/root'/>
       <selection id="a" interface="/root/ReplacedConflicts.xml" local-path="/root" version="1">
         <command name="run" path="missing"/>
@@ -863,7 +863,7 @@ Can't find all required implementations:
 
     <requirements interface='./prog.xml' command='test'/>
 
-    <selections interface="/root/prog.xml" command="test">
+    <selections source="false" interface="/root/prog.xml" command="test">
       <selection interface="/root/prog.xml" version='1' id='.' local-path='/root'>
 	<command name='foo' path='foo.py'/>
 	<command name='run' path='prog.py'/>
@@ -912,7 +912,7 @@ Can't find all required implementations:
 
     <requirements interface='./prog.xml' command='test'/>
 
-    <selections interface="/root/prog.xml" command="test">
+    <selections source="false" interface="/root/prog.xml" command="test">
       <selection interface="/root/lib1.xml" version='2.0' id='new' local-path='/root'/>
       <selection interface="/root/lib2.xml" version='2.0' id='new' local-path='/root'/>
       <selection interface="/root/prog.xml" version='1' id='.' local-path='/root'>

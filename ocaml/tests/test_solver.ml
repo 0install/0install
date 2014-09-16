@@ -33,6 +33,8 @@ module ListString = OUnitDiff.ListSimpleMake(EString)
 
 let cache_path_for config url = Feed_cache.get_save_cache_path config (`remote_feed url)
 
+let binary iface = {Selections.iface; source = false}
+
 let set_of_attrs elem : string list =
   let attrs = ref [] in
   elem.Q.attrs |> Q.AttrMap.iter_values (fun (ns, name) value ->
@@ -575,7 +577,7 @@ let suite = "solver">::: [
       iface ~source:true (`remote_feed "http://foo/Source.xml") "impossible";
     justify
       ("http://foo/Compiler.xml 5 is selectable, but using it would produce a less optimal solution overall.\n\n" ^
-      "The changes would be:\n\nhttp://foo/Binary.xml: 1.0 to 0.1")
+      "The changes would be:\n\nhttp://foo/Binary.xml#source: 1.0 to 0.1")
       "http://foo/Compiler.xml" ~source:false (`remote_feed "http://foo/Compiler.xml") "sha1=999";
 
     import "Recursive.xml";
@@ -594,11 +596,11 @@ let suite = "solver">::: [
     | (false, _) -> assert false
     | (true, results) ->
         let sels = Solver.selections results in
-        let sel = Zeroinstall.Selections.find_ex (Selections.root_iface sels) sels in
+        let sel = Zeroinstall.Selections.get_selected_ex (Selections.root_role sels) sels in
         let command = Element.get_command_ex "run" sel in
         match Element.command_children command with
         | [`requires dep] ->
-            let dep_impl = Zeroinstall.Selections.find_ex (Element.interface dep) sels in
+            let dep_impl = Zeroinstall.Selections.get_selected_ex (binary (Element.interface dep)) sels in
             let command = Element.get_command_ex "run" dep_impl in
             Fake_system.assert_str_equal "test-gui" (Element.path command |> default "missing")
         | _ -> assert false
@@ -631,9 +633,9 @@ let suite = "solver">::: [
       | None -> assert false
       | Some results ->
           let sels = Solver.selections results in
-          Zeroinstall.Selections.find_ex "http://foo/MultiArch.xml" sels
+          Zeroinstall.Selections.get_selected_ex (binary "http://foo/MultiArch.xml") sels
           |> Element.arch |> default "missing" |> Fake_system.assert_str_equal expected;
-          Zeroinstall.Selections.find_ex "http://foo/MultiArchLib.xml" sels
+          Zeroinstall.Selections.get_selected_ex (binary "http://foo/MultiArchLib.xml") sels
           |> Element.arch |> default "missing" |> Fake_system.assert_str_equal expected in
 
     (* On an i686 system we can only use the i486 implementation *)
@@ -661,13 +663,13 @@ let suite = "solver">::: [
       | (true, results) -> Solver.selections results in
 
     let results = do_solve r in
-    Fake_system.assert_str_equal "0.2" @@ Element.version (Zeroinstall.Selections.find_ex uri results);
-    Fake_system.assert_str_equal "3" @@ Element.version (Zeroinstall.Selections.find_ex versions results);
+    Fake_system.assert_str_equal "0.2" @@ Element.version (Zeroinstall.Selections.get_selected_ex (binary uri) results);
+    Fake_system.assert_str_equal "3" @@ Element.version (Zeroinstall.Selections.get_selected_ex (binary versions) results);
 
     let extras = StringMap.singleton uri "0.1" in
     let results = do_solve {r with Requirements.extra_restrictions = extras} in
-    Fake_system.assert_str_equal "0.1" @@ Element.version (Zeroinstall.Selections.find_ex uri results);
-    assert (Zeroinstall.Selections.find versions results = None);
+    Fake_system.assert_str_equal "0.1" @@ Element.version (Zeroinstall.Selections.get_selected_ex (binary uri) results);
+    assert (Zeroinstall.Selections.get_selected (binary versions) results = None);
 
     let extras = StringMap.singleton uri "0.3" in
     let r = {r with Requirements.extra_restrictions = extras} in

@@ -17,22 +17,22 @@ let show_changes (system:system) old_selections new_selections =
   let print fmt = Support.Utils.print system fmt in
 
   old_selections
-  |> if_some (Selections.iter (fun iface old_sel ->
-    match Selections.find iface new_selections with
+  |> if_some (Selections.iter (fun role old_sel ->
+    match Selections.get_selected role new_selections with
     | None ->
-        print "No longer used: %s" iface;
+        print "No longer used: %s" (Selections.Role.to_string role);
         changes := true
     | Some new_sel ->
         if (v old_sel) <> (v new_sel) then (
-          print "%s: %s -> %s" iface (v old_sel) (v new_sel);
+          print "%s: %s -> %s" (Selections.Role.to_string role) (v old_sel) (v new_sel);
           changes := true
         )
   ));
 
-  new_selections |> Selections.iter (fun iface new_sel ->
-    let old_sel = old_selections |> pipe_some (Selections.find iface) in
+  new_selections |> Selections.iter (fun role new_sel ->
+    let old_sel = old_selections |> pipe_some (Selections.get_selected role) in
     if old_sel = None then (
-      print "%s: new -> %s" iface (v new_sel);
+      print "%s: new -> %s" (Selections.Role.to_string role) (v new_sel);
       changes := true
     )
   );
