@@ -11,6 +11,8 @@ module U = Support.Utils
 module Make (Model : Sigs.SOLVER_RESULT) = struct
   module RoleMap = Model.RoleMap
 
+  let format_role () = Model.Role.to_string
+
   let spf = Printf.sprintf
 
   (* Why a particular implementation was rejected. This could be because the model rejected it,
@@ -41,13 +43,13 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
     | `FailsRestriction r -> "Incompatible with restriction: " ^ Model.string_of_restriction r
     | `DepFailsRestriction (dep, restriction) ->
         let dep_info = Model.dep_info dep in
-        spf "Requires %s %s" (Model.Role.to_string dep_info.Model.dep_role) (format_restrictions [restriction])
+        spf "Requires %a %s" format_role dep_info.Model.dep_role (format_restrictions [restriction])
     | `MachineGroupConflict (other_role, other_impl) ->
-        spf "Can't use %s with selection of %s (%s)"
+        spf "Can't use %s with selection of %a (%s)"
           (Model.format_machine impl)
-          (Model.Role.to_string other_role)
+          format_role other_role
           (Model.format_machine other_impl)
-    | `ConflictsRole other_role -> spf "Conflicts with %s" (Model.Role.to_string other_role)
+    | `ConflictsRole other_role -> spf "Conflicts with %a" format_role other_role
     | `MissingCommand command -> spf "No %s command" (command : Model.command_name :> string)
     | `DiagnosticsFailure msg -> spf "Reason for rejection unknown: %s" msg
 
@@ -62,8 +64,8 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
     let name_impl impl = Model.id_of_impl impl in
 
     let () = match component#impl with
-      | Some sel -> add "%s -> %s (%s)" (Model.Role.to_string role) (format_version sel) (name_impl sel)
-      | None -> add "%s -> (problem)" (Model.Role.to_string role) in
+      | Some sel -> add "%a -> %s (%s)" format_role role (format_version sel) (name_impl sel)
+      | None -> add "%a -> (problem)" format_role role in
 
     prefix := "\n    ";
 
@@ -84,12 +86,12 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
 
     ListLabels.iter component#notes ~f:(function
       | UserRequested r -> add "User requested %s" (format_restrictions [r])
-      | ReplacesConflict old -> add "Replaces (and therefore conflicts with) %s" (Model.Role.to_string old)
-      | ReplacedByConflict replacement -> add "Replaced by (and therefore conflicts with) %s" (Model.Role.to_string replacement)
+      | ReplacesConflict old -> add "Replaces (and therefore conflicts with) %a" format_role old
+      | ReplacedByConflict replacement -> add "Replaced by (and therefore conflicts with) %a" format_role replacement
       | Restricts (other_role, impl, r) ->
-          add "%s %s requires %s" (Model.Role.to_string other_role) (format_version impl) (format_restrictions r)
+          add "%a %s requires %s" format_role other_role (format_version impl) (format_restrictions r)
       | RequiresCommand (other_role, impl, command) ->
-          add "%s %s requires '%s' command" (Model.Role.to_string other_role) (format_version impl) (command :> string)
+          add "%a %s requires '%s' command" format_role other_role (format_version impl) (command :> string)
       | NoCandidates ->
           if component#original_good = [] then (
             if component#original_bad = [] then (
@@ -163,7 +165,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
   let find_component_ex role report =
     match RoleMap.find role report with
     | Some c -> c
-    | None -> raise_safe "Can't find component %s!" (Model.Role.to_string role)
+    | None -> raise_safe "Can't find component %a!" format_role role
 
   (* Did any dependency of [impl] prevent it being selected?
      This can only happen if a component conflicts with something more important
