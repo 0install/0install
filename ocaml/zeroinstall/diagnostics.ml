@@ -40,7 +40,8 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
     | `Model_rejection r -> Model.describe_problem impl r
     | `FailsRestriction r -> "Incompatible with restriction: " ^ Model.string_of_restriction r
     | `DepFailsRestriction (dep, restriction) ->
-        spf "Requires %s %s" (Model.Role.to_string dep.Model.dep_role) (format_restrictions [restriction])
+        let dep_info = Model.dep_info dep in
+        spf "Requires %s %s" (Model.Role.to_string dep_info.Model.dep_role) (format_restrictions [restriction])
     | `MachineGroupConflict (other_role, other_impl) ->
         spf "Can't use %s with selection of %s (%s)"
           (Model.format_machine impl)
@@ -174,7 +175,8 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
      to {A1, B1, D1}. Then we can't choose C1 because we prefer to keep D1. *)
   let get_dependency_problem role report impl =
     let check_dep dep =
-      match RoleMap.find dep.Model.dep_role report with
+      let dep_info = Model.dep_info dep in
+      match RoleMap.find dep_info.Model.dep_role report with
       | None -> None      (* Not in the selections => can't be part of a conflict *)
       | Some required_component ->
           match required_component#impl with
@@ -183,7 +185,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
               let check_restriction r =
                 if Model.meets_restriction dep_impl r then None
                 else Some (`DepFailsRestriction (dep, r)) in
-              U.first_match check_restriction dep.Model.dep_restrictions in
+              U.first_match check_restriction (Model.restrictions dep) in
     let deps, commands_needed = Model.requires role impl in
     commands_needed |> U.first_match (fun command ->
       if Model.get_command impl command <> None then None
@@ -196,10 +198,11 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
   (** A selected component has [dep] as a dependency. Use this to explain why some implementations
       of the required interface were rejected. *)
   let examine_dep requiring_role requiring_impl report dep =
-    let {Model.dep_role = other_role; dep_restrictions; dep_importance = _; dep_required_commands} = dep in
+    let {Model.dep_role = other_role; dep_importance = _; dep_required_commands} = Model.dep_info dep in
     match RoleMap.find other_role report with
     | None -> ()
     | Some required_component ->
+        let dep_restrictions = Model.restrictions dep in
         if dep_restrictions <> [] then (
           (* Report the restriction *)
           required_component#note (Restricts (requiring_role, requiring_impl, dep_restrictions));

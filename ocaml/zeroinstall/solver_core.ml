@@ -283,7 +283,8 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
      - ensure that we don't pick an incompatbile version if we select [user_var]
      - ensure that we do pick a compatible version if we select [user_var] (for "essential" dependencies only) *)
   let process_dep sat lookup_impl lookup_command user_var dep =
-    let { Model.dep_role; dep_importance; dep_required_commands; dep_restrictions } = dep in
+    let { Model.dep_role; dep_importance; dep_required_commands } = Model.dep_info dep in
+    let dep_restrictions = Model.restrictions dep in
 
     (* Restrictions on the candidates *)
     let meets_restrictions impl = List.for_all (Model.meets_restriction impl) dep_restrictions in
@@ -456,7 +457,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
               | None ->
               (* Self-commands already done; now try the dependencies *)
               let check_dep dep =
-                let { Model.dep_role; dep_importance; dep_required_commands; dep_restrictions = _ } = dep in
+                let { Model.dep_role; dep_importance; dep_required_commands } = Model.dep_info dep in
                 if dep_importance = `restricts then (
                   (* Restrictions don't express that we do or don't want the
                      dependency, so skip them here. If someone else needs this,

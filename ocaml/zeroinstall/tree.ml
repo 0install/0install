@@ -66,7 +66,7 @@ module Make (Model : MODEL) = struct
 
                 let children =
                   !deps |> U.filter_map (fun dep ->
-                    let {Model.dep_role; dep_restrictions = _; dep_importance; dep_required_commands = _} = dep in
+                    let {Model.dep_role; dep_importance; dep_required_commands = _} = Model.dep_info dep in
                     if dep_importance <> `restricts then
                       build_node dep_role ~essential:(dep_importance = `essential)
                     else None

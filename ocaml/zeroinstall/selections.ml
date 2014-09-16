@@ -50,12 +50,12 @@ type requirements =
   | ReqCommand of (command_name * Role.t)
   | ReqRole of Role.t
 
-type restriction = unit (* TODO: remove this *)
 type command = [`command] Element.t
 
-type dependency = {
+type dependency = [`requires | `runner] Element.t
+
+type dep_info = {
   dep_role : Role.t;
-  dep_restrictions : unit list;   (* Not used for selections *)
   dep_importance : [ `essential | `recommended | `restricts ];
   dep_required_commands : command_name list;
 }
@@ -196,16 +196,9 @@ let get_required_commands dep =
 
 let make_deps children =
   let self_commands = ref [] in
-  let make_dep ~importance elem = {
-    (* note: currently, only dependencies on binaries are supported. *)
-    dep_role = {iface = Element.interface elem; source = false};
-    dep_importance = importance;
-    dep_required_commands = get_required_commands elem;
-    dep_restrictions = [];
-  } in
   let deps = children |> U.filter_map (function
-    | `requires r  -> Some (make_dep ~importance:(Element.importance r) r)
-    | `runner r -> Some (make_dep ~importance:(Element.importance r) r)
+    | `requires r -> Some (r :> dependency)
+    | `runner r -> Some (r :> dependency)
     | #Element.binding as b ->
         Binding.parse_binding b |> Binding.get_command |> if_some (fun name ->
           self_commands := name :: !self_commands
@@ -214,6 +207,13 @@ let make_deps children =
     | `restricts _ | `command _ -> None
   ) in
   (deps, !self_commands)
+
+let dep_info elem = {
+    (* note: currently, only dependencies on binaries are supported. *)
+    dep_role = {iface = Element.interface elem; source = false};
+    dep_importance = Element.importance elem;
+    dep_required_commands = get_required_commands elem;
+  }
 
 let requires _role impl = make_deps (Element.deps_and_bindings impl)
 let command_requires _role command = make_deps (Element.command_children command)

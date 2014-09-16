@@ -28,16 +28,14 @@ module type CORE_MODEL = sig
    * might depend on a test runner). *)
   type command
 
-  (** A restriction limits which implementations can fill a role. *)
-  type restriction
-
   (** An identifier for a command within a role. *)
   type command_name = private string
 
   (** A dependency indicates that an impl or command requires another role to be filled. *)
-  type dependency = {
+  type dependency
+
+  type dep_info = {
     dep_role : Role.t;
-    dep_restrictions : restriction list;    (** Restrictions on how the role is filled *)
 
     (** If the dependency is [`essential] then its role must be filled.
      * Otherwise, we just prefer to fill it if possible.
@@ -65,6 +63,8 @@ module type CORE_MODEL = sig
    * We also return all such required commands. *)
   val requires : Role.t -> impl -> dependency list * command_name list
 
+  val dep_info : dependency -> dep_info
+
   (** As [requires], but for commands. *)
   val command_requires : Role.t -> command -> dependency list * command_name list
 
@@ -82,12 +82,17 @@ module type SOLVER_INPUT = sig
     impls : impl list;            (** Candidates to fill the role. *)
   }
 
+  (** A restriction limits which implementations can fill a role. *)
+  type restriction
+
   val impl_to_string : impl -> string
   val command_to_string : command -> string
 
   (** The list of candidates to fill a role. *)
   val implementations : Role.t -> role_information
 
+  (** Restrictions on how the role is filled *)
+  val restrictions : dependency -> restriction list
   val meets_restriction : impl -> restriction -> bool
 
   val machine_group : impl -> Arch.machine_group option

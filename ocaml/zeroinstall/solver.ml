@@ -42,9 +42,9 @@ module CoreModel = struct
   type restriction = Impl.restriction
   type command_name = string
   type rejection = Impl_provider.rejection
-  type dependency = {
+  type dependency = Role.t * Impl.dependency
+  type dep_info = {
     dep_role : Role.t;
-    dep_restrictions : restriction list;
     dep_importance : [ `essential | `recommended | `restricts ];
     dep_required_commands : command_name list;
   }
@@ -90,19 +90,23 @@ module CoreModel = struct
     let impl_provider = role.scope in
     let deps = zi_deps
       |> U.filter_map (fun zi_dep ->
-        if impl_provider#is_dep_needed zi_dep then Some {
-          (* note: currently, only dependencies on binaries are supported. *)
-          dep_role = {scope = role.scope; iface = zi_dep.Impl.dep_iface; source = false};
-          dep_importance = zi_dep.Impl.dep_importance;
-          dep_required_commands = zi_dep.Impl.dep_required_commands;
-          dep_restrictions = zi_dep.Impl.dep_restrictions;
-        } else None
+        if impl_provider#is_dep_needed zi_dep then Some (role, zi_dep)
+        else None
       ) in
     let self_commands = self_bindings
       |> U.filter_map (fun binding ->
         Element.classify_binding binding |> Binding.parse_binding |> Binding.get_command
       ) in
     (deps, self_commands)
+
+  let dep_info (role, dep) = {
+    (* note: currently, only dependencies on binaries are supported. *)
+    dep_role = {scope = role.scope; iface = dep.Impl.dep_iface; source = false};
+    dep_importance = dep.Impl.dep_importance;
+    dep_required_commands = dep.Impl.dep_required_commands;
+  }
+
+  let restrictions (_role, dep) = dep.Impl.dep_restrictions
 
   let requires role impl = make_deps role Impl.(impl.props.requires) Impl.(impl.props.bindings)
   let command_requires role command = make_deps role Impl.(command.command_requires) Impl.(command.command_bindings)
