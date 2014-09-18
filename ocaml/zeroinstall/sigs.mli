@@ -134,7 +134,7 @@ module type SOLVER_RESULT = sig
     type impl := impl and
     type command_name := command_name and
     type requirements := requirements and
-    type role := Role.t
+    type role = Role.t
 
   (** The reason why the model rejected an implementation before it got to the solver. *)
   type rejection
