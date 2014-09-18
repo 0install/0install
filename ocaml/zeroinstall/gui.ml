@@ -251,12 +251,7 @@ let compile config feed_provider iface ~autocompile =
 let get_bug_report_details config ~role (ready, results) =
   let system = config.system in
   let sels = Solver.selections results in
-  let root_role =
-    let open Solver.Model in
-    match requirements results with
-    | ReqRole r -> r
-    | ReqCommand (_c, r) -> r in
-
+  let root_role = Solver.Model.((requirements results).role) in
   let issue_file = "/etc/issue" in
   let issue =
     if system#file_exists issue_file then

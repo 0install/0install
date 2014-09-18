@@ -400,18 +400,14 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
 
     (* This recursively builds the whole problem up. *)
     begin match root_req with
-      | Model.ReqRole r -> (lookup_impl r)#get_vars
-      | Model.ReqCommand r -> (lookup_command r)#get_vars end
+      | {Model.role; command = None} -> (lookup_impl role)#get_vars
+      | {Model.role; command = Some command} -> (lookup_command (command, role))#get_vars end
     |> S.at_least_one sat ~reason:"need root";          (* Must get what we came for! *)
 
     (* All impl_candidates and command_candidates have now been added, so snapshot the cache. *)
     let impl_clauses, command_clauses = ImplCache.snapshot impl_cache, CommandCache.snapshot command_cache in
     add_replaced_by_conflicts sat impl_clauses !replacements;
     impl_clauses, command_clauses
-
-  let role_of_req = function
-    | Model.ReqRole r -> r
-    | Model.ReqCommand (_, r) -> r
 
   let do_solve root_req ~closest_match =
     (* The basic plan is this:
@@ -432,8 +428,8 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
     let impl_clauses, command_clauses = build_problem root_req sat ~closest_match in
 
     let lookup = function
-      | Model.ReqRole r -> (ImplCache.get_exn r impl_clauses :> candidates)
-      | Model.ReqCommand r -> (CommandCache.get_exn r command_clauses) in
+      | {Model.role; command = None} -> (ImplCache.get_exn role impl_clauses :> candidates)
+      | {Model.role; command = Some command} -> (CommandCache.get_exn (command, role) command_clauses) in
 
     (* Run the solve *)
 
@@ -451,7 +447,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
           | Undecided lit -> Some lit
           | Selected (deps, self_commands) ->
               (* We've already selected a candidate for this component. Now check its dependencies. *)
-              let check_self_command name = find_undecided (Model.ReqCommand (name, role_of_req req)) in
+              let check_self_command name = find_undecided {req with Model.command = Some name} in
               match Support.Utils.first_match check_self_command self_commands with
               | Some _ as r -> r
               | None ->
@@ -465,11 +461,11 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
                      If noone wants it, it will be set to unselected at the end. *)
                   None
                 ) else (
-                  match find_undecided (Model.ReqRole dep_role) with
+                  match find_undecided {Model.role = dep_role; command = None} with
                   | Some lit -> Some lit
                   | None ->
                       (* Command dependencies next *)
-                      let check_command_dep name = find_undecided @@ Model.ReqCommand (name, dep_role) in
+                      let check_command_dep name = find_undecided {Model.command = Some name; role = dep_role} in
                       Support.Utils.first_match check_command_dep dep_required_commands
                 )
                 in
@@ -477,9 +473,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
               | Some _ as r -> r
               | None ->
               (* All dependencies checked; now to the impl (if we're a <command>) *)
-              match req with
-              | Model.ReqCommand (_command, role) -> find_undecided (Model.ReqRole role)
-              | Model.ReqRole _ -> None     (* We're not a <command> *)
+              req.Model.command |> pipe_some (fun _command -> find_undecided {req with Model.command = None})
         ) in
       find_undecided root_req in
 

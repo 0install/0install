@@ -130,10 +130,13 @@ let run_sat_test expected problem =
     )
   );
 
-  let root_req = Solver.Model.ReqRole {
-    Solver.scope = (impl_provider :> Impl_provider.impl_provider);
-    iface = fst @@ List.hd expected_items;
-    source = false
+  let root_req = { Solver.Model.
+    role = {
+      Solver.scope = (impl_provider :> Impl_provider.impl_provider);
+      iface = fst @@ List.hd expected_items;
+      source = false
+    };
+    command = None
   } in
   let result = Solver.do_solve root_req ~closest_match:false in
 

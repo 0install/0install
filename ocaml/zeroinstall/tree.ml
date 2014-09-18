@@ -82,11 +82,8 @@ module Make (Model : MODEL) = struct
       )
     in
 
-    let root_role =
-      match Model.requirements result with
-      | Model.ReqRole r -> r
-      | Model.ReqCommand (_, r) -> r in
-    match build_node root_role ~essential:true with
+    let root_req = Model.requirements result in
+    match build_node root_req.Model.role ~essential:true with
     | None -> assert false
     | Some tree -> tree
 end

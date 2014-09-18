@@ -83,7 +83,7 @@ let do_exec_binding dry_run builder env impls (role, {Binding.exec_type; Binding
     Dry_run.log "would create launcher %s" exec_path
   );
 
-  let req = Selections.ReqCommand (command, role) in
+  let req = {Selections.command = Some command; role} in
   let command_argv = Command.build_command ~dry_run impls req env in
 
   let () = match exec_type with

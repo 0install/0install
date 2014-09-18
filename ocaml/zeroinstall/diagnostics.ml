@@ -264,13 +264,13 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
 
   (** If we wanted a command on the root, add that as a restriction. *)
   let process_root_req report = function
-    | Model.ReqCommand (root_command, root_role) ->
+    | {Model.command = Some root_command; role = root_role} ->
         let component = find_component_ex root_role report in
         component#filter_impls (fun impl ->
           if Model.get_command impl root_command <> None then None
           else Some (`MissingCommand root_command)
         )
-    | Model.ReqRole _ -> ()
+    | _ -> ()
 
   (** Find an implementation which requires a machine group. Use this to
       explain the rejection of all implementations requiring other groups. *)

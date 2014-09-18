@@ -46,9 +46,10 @@ type t = {
   index : selection RoleMap.t;
 }
 
-type requirements =
-  | ReqCommand of (command_name * Role.t)
-  | ReqRole of Role.t
+type requirements = {
+  role : Role.t;
+  command : command_name option;
+}
 
 type command = [`command] Element.t
 
@@ -111,10 +112,7 @@ let root_sel sels =
   let role = root_role sels in
   get_selected role sels |? lazy (raise_safe "Can't find a selection for the root (%s)!" (Role.to_string role))
 
-let requirements sels =
-  match root_command sels with
-  | None -> ReqRole (root_role sels)
-  | Some command -> ReqCommand (command, root_role sels)
+let requirements sels = {role = root_role sels; command = root_command sels}
 
 let iter fn sels = RoleMap.iter fn sels.index
 

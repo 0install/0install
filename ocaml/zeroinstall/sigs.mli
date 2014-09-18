@@ -47,9 +47,10 @@ module type CORE_MODEL = sig
     dep_required_commands : command_name list;
   }
 
-  type requirements =
-    | ReqCommand of (command_name * Role.t)
-    | ReqRole of Role.t
+  type requirements = {
+    role : Role.t;
+    command : command_name option;
+  }
 
   (** Get an implementation's dependencies.
    *

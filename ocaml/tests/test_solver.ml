@@ -624,10 +624,13 @@ let suite = "solver">::: [
         allowed_uses = StringSet.empty;
       }) in
       let impl_provider = make_impl_provider config scope_filter in
-      let root_req = Solver.Model.ReqRole {
-        Solver.scope = impl_provider;
-        iface = "http://foo/MultiArch.xml";
-        source = false
+      let root_req = { Solver.Model.
+        role = {
+          Solver.scope = impl_provider;
+          iface = "http://foo/MultiArch.xml";
+          source = false
+        };
+        command = None;
       } in
       match Solver.do_solve root_req ~closest_match:false with
       | None -> assert false
@@ -689,10 +692,13 @@ let suite = "solver">::: [
         allowed_uses = StringSet.empty;
       }) in
       let impl_provider = new Impl_provider.default_impl_provider config feed_provider scope_filter in
-      let root_req = Solver.Model.ReqRole {
-        Solver.scope = impl_provider;
-        iface = Test_0install.feed_dir +/ "Langs.xml";
-        source = false
+      let root_req = { Solver.Model.
+        role = {
+          Solver.scope = impl_provider;
+          iface = Test_0install.feed_dir +/ "Langs.xml";
+          source = false
+        };
+        command = None;
       } in
       match Solver.do_solve root_req ~closest_match:false with
       | None -> assert_failure expected

@@ -60,14 +60,10 @@ let find_ex role impls =
 (* Build up the argv array to execute this command.
    In --dry-run mode, don't complain if the target doesn't exist. *)
 let rec build_command ?main ?(dry_run=false) impls req env : string list =
-  let command_role, command_name =
-    match req with
-    | Selections.ReqRole r -> (r, None)
-    | Selections.ReqCommand (c, r) -> (r, Some c) in
   try
-    let (command_sel, command_impl_path) = find_ex command_role impls in
+    let (command_sel, command_impl_path) = find_ex req.Selections.role impls in
     let command =
-      match command_name with
+      match req.Selections.command with
       | None -> Element.make_command ~source_hint:(Some command_sel) "run"
       | Some command_name -> Element.get_command_ex command_name command_sel in
     let command_rel_path =
@@ -119,6 +115,6 @@ let rec build_command ?main ?(dry_run=false) impls req env : string list =
         let runner_command_name = default "run" (Element.command runner) in
         (* note: <runner> is always binary *)
         let runner_role = {Selections.iface = Element.interface runner; source = false} in
-        let runner_req = Selections.ReqCommand (runner_command_name, runner_role) in
+        let runner_req = {Selections.command = Some runner_command_name; role = runner_role} in
         (build_command ~dry_run impls runner_req env) @ runner_args @ args
-  with Safe_exception _ as ex -> reraise_with_context ex "... building command for %s" (Selections.Role.to_string command_role)
+  with Safe_exception _ as ex -> reraise_with_context ex "... building command for %s" (Selections.(Role.to_string req.role))

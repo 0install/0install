@@ -52,9 +52,10 @@ module CoreModel = struct
     replacement : Role.t option;
     impls : impl list;
   }
-  type requirements =
-    | ReqCommand of (command_name * Role.t)
-    | ReqRole of Role.t
+  type requirements = {
+    role : Role.t;
+    command : command_name option;
+  }
 
   let impl_to_string impl = (Versions.format_version impl.Impl.parsed_version) ^ " - " ^ Qdom.show_with_loc impl.Impl.qdom
   let id_of_impl impl = Impl.get_attr_ex FeedAttr.id impl
@@ -281,11 +282,7 @@ let get_root_requirements config requirements make_impl_provider =
 
   let impl_provider = make_impl_provider scope_filter in
   let root_role = {scope = impl_provider; iface = interface_uri; source} in
-  let root_req = match command with
-  | Some command -> Model.ReqCommand (command, root_role)
-  | None -> Model.ReqRole root_role in
-
-  root_req
+  {Model.command; role = root_role}
 
 let solve_for config feed_provider requirements =
   try
@@ -307,14 +304,11 @@ let selections result =
   Selections.create (
     let open Model in
     let root_attrs =
-      match result.root_req with
-      | ReqCommand (command, role) ->
-          AttrMap.singleton "interface" role.iface
-          |> AttrMap.add_no_ns "source" (string_of_bool role.source)
-          |> AttrMap.add_no_ns "command" command
-      | ReqRole role ->
-          AttrMap.singleton "interface" role.iface
-          |> AttrMap.add_no_ns "source" (string_of_bool role.source) in
+      begin match result.root_req.command with
+      | Some command -> AttrMap.singleton "command" command
+      | None -> AttrMap.empty end
+      |> AttrMap.add_no_ns "interface" result.root_req.role.iface
+      |> AttrMap.add_no_ns "source" (string_of_bool result.root_req.role.source) in
     let child_nodes = result.selections
       |> Core.RoleMap.bindings
       |> List.map (fun (role, selection) ->

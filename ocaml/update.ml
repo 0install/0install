@@ -21,10 +21,7 @@ let get_newest options feed_provider reqs =
   let module Solver = Zeroinstall.Solver in
   let impl_provider =
     let make_impl_provider scope_filter = new I.default_impl_provider options.config feed_provider scope_filter in
-    let root_role =
-      match Solver.get_root_requirements options.config reqs make_impl_provider with
-      | Solver.Model.ReqRole role -> role
-      | Solver.Model.ReqCommand (_, role) -> role in
+    let root_role = Solver.((get_root_requirements options.config reqs make_impl_provider).Model.role) in
     Solver.impl_provider root_role in
 
   let get_impls = impl_provider#get_implementations reqs.R.interface_uri in
