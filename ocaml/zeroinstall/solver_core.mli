@@ -19,11 +19,12 @@ module Make : functor (Model : Sigs.SOLVER_INPUT) -> sig
 
   (** [do_solve model req] finds an implementation matching the given requirements, plus any other implementations needed
    * to satisfy its dependencies.
-   * @param closest_match adds a lowest-ranked (but valid) implementation to
+   * @param dummy_impl adds a lowest-ranked (but valid) implementation to
    *   every interface, so we can always select something. Useful for diagnostics.
-   *   Note: always try with [~closest_match:false] first, or it may miss a valid solution.
+   *   You should ensure that [Model.get_command] always returns a dummy command for dummy_impl too.
+   *   Note: always try without a [dummy_impl] first, or it may miss a valid solution.
    * @return None if the solve fails (only happens if [closest_match] is false). *)
-  val do_solve : Model.requirements -> closest_match:bool -> selection RoleMap.t option
+  val do_solve : ?dummy_impl:Model.impl -> Model.requirements -> selection RoleMap.t option
 
   (** Request diagnostics-of-last-resort (fallback used when [Diagnostics] can't work out what's wrong).
    * Gets a report from the underlying SAT solver. *)

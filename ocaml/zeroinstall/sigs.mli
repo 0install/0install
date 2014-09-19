@@ -97,13 +97,6 @@ module type SOLVER_INPUT = sig
   val meets_restriction : impl -> restriction -> bool
 
   val machine_group : impl -> Arch.machine_group option
-
-  (* A dummy implementation, used to get diagnostic information if the solve fails.
-   * It satisfies all requirements, even conflicting ones. *)
-  val dummy_impl : impl
-
-  (** A fake <command> used to generate diagnostics if the solve fails. *)
-  val dummy_command : command
 end
 
 module type SELECTIONS = sig
@@ -161,4 +154,8 @@ module type SOLVER_RESULT = sig
 
   (** Get the final assignment of implementations to roles. *)
   val raw_selections : t -> impl RoleMap.t
+
+  (* A dummy implementation, used to get diagnostic information if the solve fails.
+   * It satisfies all requirements, even conflicting ones. *)
+  val dummy_impl : impl
 end

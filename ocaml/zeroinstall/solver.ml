@@ -85,7 +85,9 @@ module CoreModel = struct
     command_bindings = [];
   }
 
-  let get_command impl name = StringMap.find name impl.Impl.props.Impl.commands
+  let get_command impl name =
+    if impl == dummy_impl then Some dummy_command
+    else StringMap.find name impl.Impl.props.Impl.commands
 
   let make_deps role zi_deps self_bindings =
     let impl_provider = role.scope in
@@ -250,8 +252,8 @@ module Model =
 let impl_provider role = role.scope
 
 let do_solve root_req ~closest_match =
-  Core.do_solve root_req ~closest_match |> pipe_some (fun selections ->
-
+  let dummy_impl = if closest_match then Some Model.dummy_impl else None in
+  Core.do_solve ?dummy_impl root_req |> pipe_some (fun selections ->
     (* Build the results object *)
     Some { Model.
       root_req;

@@ -118,7 +118,12 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
       method get_state : decision_state
     end
 
-  class impl_candidates role (clause : S.at_most_one_clause option) (vars : (S.lit * Model.impl) list) =
+  class impl_candidates role (clause : S.at_most_one_clause option) (vars : (S.lit * Model.impl) list) dummy_impl =
+    let is_dummy =
+      match dummy_impl with
+      | None -> fun _ -> false
+      | Some dummy_impl -> (==) dummy_impl in
+
     object (_ : #candidates)
       method get_clause = clause
 
@@ -127,14 +132,13 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
         let match_command (impl_var, impl) =
           match Model.get_command impl name with
           | Some command -> Some (impl_var, command)
-          | None when impl == Model.dummy_impl -> Some (impl_var, Model.dummy_command)
           | None -> None in
         vars |> Support.Utils.filter_map match_command
 
       (** Get all variables, except dummy_impl (if present) *)
       method get_real_vars =
         vars |> Support.Utils.filter_map (fun (var, impl) ->
-          if impl == Model.dummy_impl then None
+          if is_dummy impl then None
           else Some var
         )
 
@@ -320,13 +324,14 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
     )
 
   (* Add the implementations of an interface to the ImplCache (called the first time we visit it). *)
-  let make_impl_clause sat ~closest_match replacements role =
+  let make_impl_clause sat ~dummy_impl replacements role =
     let {Model.replacement; impls} = Model.implementations role in
 
     (* Insert dummy_impl (last) if we're trying to diagnose a problem. *)
     let impls =
-      if closest_match then impls @ [Model.dummy_impl]
-      else impls in
+      match dummy_impl with
+      | None -> impls
+      | Some dummy_impl -> impls @ [dummy_impl] in
 
     let impls = impls
       |> List.map (fun impl ->
@@ -334,7 +339,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
           (var, impl)
       ) in
     let impl_clause = if impls <> [] then Some (S.at_most_one sat (List.map fst impls)) else None in
-    let clause = new impl_candidates role impl_clause impls in
+    let clause = new impl_candidates role impl_clause impls dummy_impl in
 
     (* If we have a <replaced-by>, remember to add a conflict with our replacement *)
     replacement |> if_some (fun replacement ->
@@ -371,7 +376,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
 
   (** Starting from [root_req], explore all the feeds, commands and implementations we might need, adding
    * all of them to [sat_problem]. *)
-  let build_problem root_req sat ~closest_match =
+  let build_problem root_req sat ~dummy_impl =
     (* For each (iface, command, source) we have a list of implementations (or commands). *)
     let impl_cache = ImplCache.create () in
     let command_cache = CommandCache.create () in
@@ -382,7 +387,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
     let replacements = ref [] in
 
     let rec add_impls_to_cache role =
-      let clause, impls = make_impl_clause sat ~closest_match replacements role in
+      let clause, impls = make_impl_clause sat ~dummy_impl replacements role in
       (clause, fun () ->
         impls |> List.iter (fun (impl_var, impl) ->
           require_machine_group impl_var impl;
@@ -409,7 +414,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
     add_replaced_by_conflicts sat impl_clauses !replacements;
     impl_clauses, command_clauses
 
-  let do_solve root_req ~closest_match =
+  let do_solve ?dummy_impl root_req =
     (* The basic plan is this:
        1. Scan the root interface and all dependencies recursively, building up a SAT problem.
        2. Solve the SAT problem. Whenever there are multiple options, try the most preferred one first.
@@ -425,7 +430,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
 
     let sat = S.create () in
 
-    let impl_clauses, command_clauses = build_problem root_req sat ~closest_match in
+    let impl_clauses, command_clauses = build_problem root_req sat ~dummy_impl in
 
     let lookup = function
       | {Model.role; command = None} -> (ImplCache.get_exn role impl_clauses :> candidates)
