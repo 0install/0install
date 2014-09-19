@@ -5,6 +5,7 @@
 (** The "0install add-feed" command *)
 
 open Options
+open Zeroinstall
 open Zeroinstall.General
 open Support.Common
 
@@ -35,7 +36,7 @@ let edit_feeds_interactive config (mode:[`add | `remove]) feed_url =
   let feed = FC.get_cached_feed config feed_url |? lazy (failwith "Feed still not cached!") in
   let new_import = F.make_user_import feed_url in
   match F.get_feed_targets feed with
-  | [] -> Q.raise_elem "Missing <feed-for> element; feed can't be used as a feed for any other interface." feed.F.root
+  | [] -> Element.raise_elem "Missing <feed-for> element; feed can't be used as a feed for any other interface." feed.F.root
   | candidate_interfaces ->
       (* Display the options to the user *)
       let i = ref 0 in

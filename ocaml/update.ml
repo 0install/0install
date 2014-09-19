@@ -9,7 +9,6 @@ open Options
 open Support.Common
 
 module Selections = Zeroinstall.Selections
-module FeedAttr = Zeroinstall.Constants.FeedAttr
 module Apps = Zeroinstall.Apps
 module Impl = Zeroinstall.Impl
 module R = Zeroinstall.Requirements
@@ -19,8 +18,12 @@ module D = Zeroinstall.Dbus
 
 let get_newest options feed_provider reqs =
   let module I = Zeroinstall.Impl_provider in
-  let (scope_filter, _root_key) = Zeroinstall.Solver.get_root_requirements options.config reqs in
-  let impl_provider = new I.default_impl_provider options.config feed_provider scope_filter in
+  let module Solver = Zeroinstall.Solver in
+  let impl_provider =
+    let make_impl_provider scope_filter = new I.default_impl_provider options.config feed_provider scope_filter in
+    let root_role = Solver.((get_root_requirements options.config reqs make_impl_provider).Model.role) in
+    Solver.impl_provider root_role in
+
   let get_impls = impl_provider#get_implementations reqs.R.interface_uri in
 
   let best = ref None in
@@ -63,7 +66,7 @@ let check_for_updates options reqs old_sels =
       let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider options.config tools#distro in
       check_replacement system @@ feed_provider#get_feed (Zeroinstall.Feed_url.master_feed_of_iface reqs.R.interface_uri);
       let root_sel = Selections.root_sel new_sels in
-      let root_version = ZI.get_attribute FeedAttr.version root_sel in
+      let root_version = Zeroinstall.Element.version root_sel in
       let changes = Whatchanged.show_changes system old_sels new_sels ||
         match old_sels with
         | None -> true
@@ -120,7 +123,7 @@ let handle options flags args =
         let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config tools#distro in
         let (ready, result) = Zeroinstall.Solver.solve_for config feed_provider reqs in
         let old_sels =
-          if ready then Some result#get_selections
+          if ready then Some (Zeroinstall.Solver.selections result)
           else None in
         ignore @@ check_for_updates options reqs old_sels
   )
@@ -227,7 +230,7 @@ let handle_bg options flags args =
          * so the user can see a systray icon for the download. If that's not possible, we download silently too. *)
         let fetcher = tools#make_fetcher watcher in
         let (ready, result, feed_provider) = Zeroinstall.Driver.solve_with_downloads config distro fetcher ~watcher reqs ~force:true ~update_local:true |> Lwt_main.run in
-        let new_sels = result#get_selections in
+        let new_sels = Zeroinstall.Solver.selections result in
 
         let new_sels =
           if !need_gui || not ready || Zeroinstall.Driver.get_unavailable_selections config ~distro new_sels <> [] then (
@@ -247,7 +250,7 @@ let handle_bg options flags args =
                 ) else if not ready then (
                   let msg = Printf.sprintf "Can't update 0install app '%s' (run '0install update %s' to fix)" name name in
                   !notify ~timeout:10 ~msg;
-                  log_warning "Update of 0install app %s failed: %s" name (Zeroinstall.Diagnostics.get_failure_reason config result);
+                  log_warning "Update of 0install app %s failed: %s" name (Zeroinstall.Solver.get_failure_reason config result);
                   raise (System_exit 1)
                 ) else (
                   log_info "Background update: GUI unavailable; downloading with no UI";

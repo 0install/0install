@@ -2,7 +2,8 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(** Select a compatible set of components to run a program. *)
+(** Select a compatible set of components to run a program. 
+ * This instantiates the [Solver_core] functor with the concrete 0install types. *)
 
 open General
 open Support.Common
@@ -11,623 +12,256 @@ module Qdom = Support.Qdom
 module FeedAttr = Constants.FeedAttr
 module AttrMap = Qdom.AttrMap
 
-(** We attach this data to each SAT variable. *)
-module SolverData =
-  struct
-    type t =
-      | ImplElem of Impl.generic_implementation
-      | CommandElem of Impl.command
-      | MachineGroup of string
-      | Interface of iface_uri      (* True if this interface is selected *)
-    let to_string = function
-      | ImplElem impl -> (Versions.format_version impl.Impl.parsed_version) ^ " - " ^ Qdom.show_with_loc impl.Impl.qdom
-      | CommandElem command -> Qdom.show_with_loc command.Impl.command_qdom
-      | MachineGroup name -> name
-      | Interface iface -> iface
-  end
-
-module S = Support.Sat.MakeSAT(SolverData)
-
-type decision_state =
-  | Undecided of S.lit                  (* The next candidate to try *)
-  | Selected of Impl.dependency list    (* The dependencies to check next *)
-  | Unselected
-
-type ('a, 'b) partition_result =
-  | Left of 'a
-  | Right of 'b
-
-let partition fn lst =
-  let pass = ref [] in
-  let fail = ref [] in
-  ListLabels.iter lst ~f:(fun item ->
-    match fn item with
-    | Left x -> pass := x :: !pass
-    | Right x -> fail := x :: !fail
-  );
-  (List.rev !pass, List.rev !fail)
-
-class type candidates =
-  object
-    method get_clause : S.at_most_one_clause option
-    method get_vars : S.lit list
-    method get_state : decision_state
-  end
-
-(* A dummy implementation, used to get diagnostic information if the solve fails. It satisfies all requirements,
-   even conflicting ones. *)
-let dummy_impl =
-  let open Impl in {
-    qdom = ZI.make "dummy";
-    os = None;
-    machine = None;
-    stability = Testing;
-    props = {
-      attrs = AttrMap.empty;
-      requires = [];
-      commands = StringMap.empty;   (* (not used; we can provide any command) *)
-      bindings = [];
-    };
-    parsed_version = Versions.dummy;
-    impl_type = `local_impl "/dummy";
-  }
-
-(** A fake <command> used to generate diagnostics if the solve fails. *)
-let dummy_command = { Impl.
-  command_qdom = ZI.make "dummy-command";
-  command_requires = [];
-  command_bindings = [];
+type scope = Impl_provider.impl_provider
+type role = {
+  scope : scope;
+  iface : iface_uri;
+  source : bool;
 }
 
-class impl_candidates (clause : S.at_most_one_clause option) (vars : (S.lit * Impl.generic_implementation) list) =
-  object (_ : #candidates)
-    method get_clause = clause
+module CoreModel = struct
+  (** See [Solver_types.MODEL] for documentation. *)
 
-    (** Get just those implementations that have a command with this name. *)
-    method get_commands name =
-      let match_command (impl_var, impl) =
-        match StringMap.find name impl.Impl.props.Impl.commands with
-        | Some command -> Some (impl_var, command)
-        | None when impl.Impl.parsed_version == Versions.dummy -> Some (impl_var, dummy_command)
-        | None -> None in
-      vars |> Support.Utils.filter_map match_command
-
-    (** Get all variables, except dummy_impl (if present) *)
-    method get_real_vars =
-      vars |> Support.Utils.filter_map (fun (var, impl) ->
-        if impl == dummy_impl then None
-        else Some var
-      )
-
-    method get_vars =
-      List.map (fun (var, _impl) -> var) vars
-
-    method get_selected =
-      match clause with
-      | None -> None      (* There were never any candidates *)
-      | Some clause ->
-          match S.get_selected clause with
-          | None -> None
-          | Some lit ->
-              match S.get_user_data_for_lit lit with
-                | SolverData.ImplElem impl -> Some (lit, impl)
-                | _ -> assert false
-
-    method get_state =
-      match clause with
-      | None -> Unselected      (* There were never any candidates *)
-      | Some clause ->
-          match S.get_selected clause with
-          | Some lit ->
-              (* We've already chosen which <implementation> to use. Follow dependencies. *)
-              let impl = match S.get_user_data_for_lit lit with
-                | SolverData.ImplElem impl -> impl
-                | _ -> assert false in
-              Selected impl.Impl.props.Impl.requires
-          | None ->
-              match S.get_best_undecided clause with
-              | Some lit -> Undecided lit
-              | None -> Unselected        (* No remaining candidates, and none was chosen. *)
-
-      (** Apply [test impl] to each implementation, partitioning the vars into two lists.
-          Only defined for [impl_candidates]. *)
-      method partition test = partition (fun (var, impl) -> if test impl then Left var else Right var) vars
-  end
-
-(** Holds all the commands with a given name within an interface. *)
-class command_candidates (clause : S.at_most_one_clause option) (vars : (S.lit * Impl.command) list) =
-  object (_ : #candidates)
-    method get_clause = clause
-
-    method get_vars =
-      List.map (fun (var, _command) -> var) vars
-
-    method get_state =
-      match clause with
-      | None -> Unselected      (* There were never any candidates *)
-      | Some clause ->
-          match S.get_selected clause with
-          | Some lit ->
-              (* We've already chosen which <command> to use. Follow dependencies. *)
-              let command = match S.get_user_data_for_lit lit with
-                | SolverData.CommandElem command -> command
-                | _ -> assert false in
-              Selected command.Impl.command_requires
-          | None ->
-              match S.get_best_undecided clause with
-              | Some lit -> Undecided lit
-              | None -> Unselected        (* No remaining candidates, and none was chosen. *)
-  end
-
-module type CACHE_ENTRY =
-  sig
-    type t
-    type value
-    val compare : t -> t -> int
-  end
-
-module CommandIfaceEntry =
-  struct
-    type t = (string * iface_uri * bool)
-    type value = command_candidates
-    let compare = compare
-  end
-
-module IfaceEntry =
-  struct
-    type t = (iface_uri * bool)
-    type value = impl_candidates
+  module Role = struct
+    (** A role is an interface and a flag indicating whether we want source or a binary.
+     * This allows e.g. using an old version of a compiler to compile the source for the
+     * new version (which requires selecting two different versions of the same interface). *)
+    type t = role
+    let to_string = function
+      | {iface; source = false; _} -> iface
+      | {iface; source = true; _} -> iface ^ "#source"
 
     (* Sort the interfaces by URI so we have a stable output. *)
-    let compare (ib, sb) (ia, sa) =
-      match compare ia ib with
-      | 0 -> compare sa sb
+    let compare role_a role_b =
+      match String.compare role_a.iface role_b.iface with
+      | 0 -> compare role_a.source role_b.source
       | x -> x
   end
+  type impl = Impl.generic_implementation
+  type command = Impl.command
+  type restriction = Impl.restriction
+  type command_name = string
+  type rejection = Impl_provider.rejection
+  type dependency = Role.t * Impl.dependency
+  type dep_info = {
+    dep_role : Role.t;
+    dep_importance : [ `essential | `recommended | `restricts ];
+    dep_required_commands : command_name list;
+  }
+  type role_information = {
+    replacement : Role.t option;
+    impls : impl list;
+  }
+  type requirements = {
+    role : Role.t;
+    command : command_name option;
+  }
 
-module Cache(CacheEntry : CACHE_ENTRY) :
-  sig
-    (** The cache is used in [build_problem], while the clauses are still being added. *)
-    type t
+  let impl_to_string impl = (Versions.format_version impl.Impl.parsed_version) ^ " - " ^ Qdom.show_with_loc impl.Impl.qdom
+  let id_of_impl impl = Impl.get_attr_ex FeedAttr.id impl
+  let command_to_string command = Qdom.show_with_loc command.Impl.command_qdom
+  let version impl = impl.Impl.parsed_version
+  let describe_problem = Impl_provider.describe_problem
 
-    (** Once the problem is built, an immutable snapshot is taken. *)
-    type snapshot
+  let dummy_impl =
+    let open Impl in {
+      qdom = ZI.make "dummy";
+      os = None;
+      machine = None;
+      stability = Testing;
+      props = {
+        attrs = AttrMap.empty;
+        requires = [];
+        commands = StringMap.empty;   (* (not used; we can provide any command) *)
+        bindings = [];
+      };
+      parsed_version = Versions.dummy;
+      impl_type = `local_impl "/dummy";
+    }
 
-    val create : unit -> t
+  let dummy_command = { Impl.
+    command_qdom = ZI.make "dummy-command";
+    command_requires = [];
+    command_bindings = [];
+  }
 
-    (** [lookup cache make key] will look up [key] in [cache].
-     * If not found, create it with [value, process = make key], add [value] to the cache,
-     * and then call [process ()] on it.
-     * [make] must not be recursive (since the key hasn't been added yet),
-     * but [process] can be. In other words, [make] does whatever setup *must*
-     * be done before anyone can use this cache entry, while [process] does
-     * setup that can be done afterwards. *)
-    val lookup : t -> (CacheEntry.t -> (CacheEntry.value * (unit -> unit))) -> CacheEntry.t -> CacheEntry.value
+  let get_command impl name =
+    if impl == dummy_impl then Some dummy_command
+    else StringMap.find name impl.Impl.props.Impl.commands
 
-    val snapshot : t -> snapshot
-    val get : CacheEntry.t -> snapshot -> CacheEntry.value option
-    val get_exn : CacheEntry.t -> snapshot -> CacheEntry.value
-
-    (** The sorted bindings *)
-    val bindings : snapshot -> (CacheEntry.t * CacheEntry.value) list
-  end = struct
-    module M = Map.Make(CacheEntry)
-
-    type snapshot = CacheEntry.value M.t
-    type t = snapshot ref
-
-    let create () = ref M.empty
-
-    let lookup table make key =
-      try M.find key !table
-      with Not_found ->
-        let value, process = make key in
-        table := M.add key value !table;
-        process ();
-        value
-
-    let snapshot table = !table
-
-    let get key map =
-      try Some (M.find key map)
-      with Not_found -> None
-
-    let get_exn = M.find
-    let bindings = M.bindings
-  end
-
-module ImplCache = Cache(IfaceEntry)
-module CommandCache = Cache(CommandIfaceEntry)
-
-type requirements =
-  | ReqCommand of CommandIfaceEntry.t
-  | ReqIface of IfaceEntry.t
-
-class type result =
-  object
-    method get_selections : Selections.t
-    method get_selected : source:bool -> General.iface_uri -> Impl.generic_implementation option
-    method impl_provider : Impl_provider.impl_provider
-    method impl_provider : Impl_provider.impl_provider
-    method implementations : ((General.iface_uri * bool) * (S.lit * Impl.generic_implementation) option) list
-    method requirements : requirements
-  end
-
-type diagnostics = S.lit
-let explain = S.explain_reason
-
-(** Create a <selections> document from the result of a solve.
- * The use of Maps ensures that the inputs will be sorted, so we will have a stable output.
- *)
-let get_selections dep_in_use root_req impls commands =
-  (* For each implementation, remember which commands we need. *)
-  let commands_needed = Hashtbl.create 10 in
-  let check_command ((command_name, iface, _source), _) =
-    Hashtbl.add commands_needed iface command_name in
-  List.iter check_command commands;
-
-  let selections = impls |> U.filter_map (fun ((iface, _source), impls) ->
-    match impls#get_selected with
-    | None -> None      (* This interface wasn't used *)
-    | Some (_lit, impl) ->
-        let attrs = Impl.(impl.props.attrs)
-          |> AttrMap.remove ("", FeedAttr.stability)
-
-          (* Replaced by <command> *)
-          |> AttrMap.remove ("", FeedAttr.main)
-          |> AttrMap.remove ("", FeedAttr.self_test)
-
-          |> AttrMap.add_no_ns "interface" iface in
-
-        let attrs =
-          if Some iface = AttrMap.get_no_ns FeedAttr.from_feed attrs then (
-            (* Don't bother writing from-feed attr if it's the same as the interface *)
-            AttrMap.remove ("", FeedAttr.from_feed) attrs
-          ) else attrs in
-
-        let child_nodes = ref [] in
-        if impl != dummy_impl then (
-          let commands = Hashtbl.find_all commands_needed iface in
-          let commands = List.sort compare commands in
-
-          let copy_elem elem =
-            (* Copy elem into parent (and strip out <version> elements). *)
-            let open Qdom in
-            let imported = {elem with
-              child_nodes = List.filter (fun c -> ZI.tag c <> Some "version") elem.child_nodes;
-            } in
-            child_nodes := imported :: !child_nodes in
-
-          let add_command name =
-            let command = Impl.get_command_ex name impl in
-            let command_elem = command.Impl.command_qdom in
-            let want_command_child elem =
-              (* We'll add in just the dependencies we need later *)
-              match ZI.tag elem with
-              | Some "requires" | Some "restricts" | Some "runner" -> false
-              | _ -> true
-            in
-            let child_nodes = List.filter want_command_child command_elem.Qdom.child_nodes in
-            let add_command_dep child_nodes dep =
-              if dep.Impl.dep_importance <> Impl.Dep_restricts && dep_in_use dep then
-                dep.Impl.dep_qdom :: child_nodes
-              else
-                child_nodes in
-            let child_nodes = List.fold_left add_command_dep child_nodes command.Impl.command_requires in
-            let command_elem = {command_elem with Qdom.child_nodes = child_nodes} in
-            copy_elem command_elem in
-          List.iter add_command commands;
-
-          List.iter copy_elem impl.Impl.props.Impl.bindings;
-          ListLabels.iter impl.Impl.props.Impl.requires ~f:(fun dep ->
-            if dep_in_use dep && dep.Impl.dep_importance <> Impl.Dep_restricts then
-              copy_elem (dep.Impl.dep_qdom)
-          );
-
-          impl.Impl.qdom |> ZI.iter ~name:"manifest-digest" copy_elem;
-        );
-        let sel = ZI.make
-          ~attrs
-          ~child_nodes:(List.rev !child_nodes)
-          ~source_hint:impl.Impl.qdom "selection" in
-        Some sel
-  ) in
-
-  let root_attrs =
-    match root_req with
-    | ReqCommand (command, iface, _source) ->
-        AttrMap.singleton "interface" iface
-        |> AttrMap.add_no_ns "command" command
-    | ReqIface (iface, _source) ->
-        AttrMap.singleton "interface" iface in
-  ZI.make ~attrs:root_attrs ~child_nodes:(List.rev selections) "selections"
-
-(* Make each interface conflict with its replacement (if any).
- * We do this at the end because if we didn't use the replacement feed, there's no need to conflict
- * (avoids getting it added to feeds_used). *)
-let add_replaced_by_conflicts sat impl_clauses =
-  List.iter (fun (source, clause, replacement) ->
-    ImplCache.get (replacement, source) impl_clauses
-    |> if_some (fun replacement_candidates ->
-      (* Our replacement was also added to [sat], so conflict with it. *)
-      let our_vars = clause#get_real_vars in
-      let replacements = replacement_candidates#get_real_vars in
-      if (our_vars <> [] && replacements <> []) then (
-        (* Must select one implementation out of all candidates from both interfaces.
-           Dummy implementations don't conflict, though. *)
-        S.at_most_one sat (our_vars @ replacements) |> ignore
-      )
-    )
-  )
-
-(** On multi-arch systems, we can select 32-bit or 64-bit implementations, but not both in the same
- * set of selections. Returns a function that should be called for each implementation to add this
- * restriction. *)
-let require_machine_groups sat =
-  (* m64 is set if we select any 64-bit binary. mDef will be set if we select any binary that
-     needs any other CPU architecture. Don't allow both to be set together. *)
-  let machine_group_default = S.add_variable sat @@ SolverData.MachineGroup "mDef" in
-  let machine_group_64 = S.add_variable sat @@ SolverData.MachineGroup "m64" in
-  (* If we get to the end of the solve without deciding then nothing we selected cares about the
-     type of CPU. The solver will set them both to false at the end. *)
-  S.at_most_one sat [machine_group_default; machine_group_64] |> ignore;
-
-  (* If [impl] requires a particular machine group, add a constraint to the problem. *)
-  fun impl_var impl ->
-    impl.Impl.machine |> if_some (function
-      | "src" -> ()
-      | machine ->
-          let group_var =
-            let open Arch in
-            match get_machine_group machine with
-            | Machine_group_default -> machine_group_default
-            | Machine_group_64 -> machine_group_64 in
-          S.implies sat ~reason:"machine group" impl_var [group_var];
-    )
-
-(** If this binding depends on a command (<executable-in-*>), add that to the problem.
- * @param user_var indicates when this binding is used
- * @param dep_iface the required interface this binding targets *)
-let process_self_binding sat lookup_command user_var dep_iface binding =
-  Binding.parse_binding binding
-  |> pipe_some Binding.get_command
-  |> if_some (fun name ->
-    (* Note: we only call this for self-bindings, so we could be efficient by selecting the exact command here... *)
-    let candidates = lookup_command (name, dep_iface, false) in
-    S.implies sat ~reason:"binding on command" user_var candidates#get_vars
-  )
-
-(* Process a dependency of [user_var]:
-   - find the candidate implementations/commands to satisfy it
-   - take just those that satisfy any restrictions in the dependency
-   - ensure that we don't pick an incompatbile version if we select [user_var]
-   - ensure that we do pick a compatible version if we select [user_var] (for "essential" dependencies only) *)
-let process_dep sat lookup_impl lookup_command user_var dep =
-  (* Restrictions on the candidates *)
-  let meets_restriction impl r = impl.Impl.parsed_version = Versions.dummy || r#meets_restriction impl in
-  let meets_restrictions impl = List.for_all (meets_restriction impl) dep.Impl.dep_restrictions in
-  let candidates = lookup_impl (dep.Impl.dep_iface, false) in
-  let pass, fail = candidates#partition meets_restrictions in
-
-  (* Dependencies on commands *)
-  dep.Impl.dep_required_commands |> List.iter (fun name ->
-    let candidates = lookup_command (name, dep.Impl.dep_iface, false) in
-
-    if dep.Impl.dep_importance = Impl.Dep_essential then (
-      S.implies sat ~reason:"dep on command" user_var candidates#get_vars
-    ) else (
-      (* An optional dependency is selected when any implementation of the target interface
-       * is selected. Force [dep_iface_selected] to be true in that case. We only need to test
-       * [pass] here, because we always avoid [fail] anyway. *)
-      let dep_iface_selected = S.add_variable sat (SolverData.Interface dep.Impl.dep_iface) in
-      S.at_most_one sat (S.neg dep_iface_selected :: pass) |> ignore;
-
-      (* If user_var is selected, then either we don't select this interface, or we select
-       * a suitable command. *)
-      S.implies sat ~reason:"opt dep on command" user_var (S.neg dep_iface_selected :: candidates#get_vars)
-    );
-  );
-
-  if dep.Impl.dep_importance = Impl.Dep_essential then (
-    S.implies sat ~reason:"essential dep" user_var pass     (* Must choose a suitable candidate *)
-  ) else (
-    (* If [user_var] is selected, don't select an incompatible version of the optional dependency.
-       We don't need to do this explicitly in the [essential] case, because we must select a good
-       version and we can't select two. *)
-    S.at_most_one sat (user_var :: fail) |> ignore;
-  )
-
-(* Add the implementations of an interface to the ImplCache (called the first time we visit it). *)
-let make_impl_clause sat ~closest_match replacements impl_provider iface_uri ~source =
-  let {Impl_provider.replacement; impls; rejects = _} = impl_provider#get_implementations iface_uri ~source in
-
-  (* Insert dummy_impl (last) if we're trying to diagnose a problem. *)
-  let impls =
-    if closest_match then impls @ [dummy_impl]
-    else impls in
-
-  let impls = impls
-    |> List.map (fun impl ->
-        let var = S.add_variable sat (SolverData.ImplElem impl) in
-        (var, impl)
-    ) in
-  let impl_clause = if impls <> [] then Some (S.at_most_one sat (List.map fst impls)) else None in
-  let clause = new impl_candidates impl_clause impls in
-
-  (* If we have a <replaced-by>, remember to add a conflict with our replacement *)
-  replacement |> if_some (fun replacement ->
-    if replacement = iface_uri then log_warning "Interface %s replaced-by itself!" iface_uri
-    else replacements := (source, clause, replacement) :: !replacements;
-  );
-
-  clause, impls
-
-(* Create a new CommandCache entry (called the first time we request this key). *)
-let make_commands_clause sat lookup_impl process_self_bindings process_deps key =
-  let (command, iface, source) = key in
-  let impls = lookup_impl (iface, source) in
-  let commands = impls#get_commands command in
-  let make_provides_command (_impl, elem) =
-    (** [var] will be true iff this <command> is selected. *)
-    let var = S.add_variable sat (SolverData.CommandElem elem) in
-    (var, elem) in
-  let vars = List.map make_provides_command commands in
-  let command_clause = if vars <> [] then Some (S.at_most_one sat @@ List.map fst vars) else None in
-  let data = new command_candidates command_clause vars in
-
-  (data, fun () ->
-    let depend_on_impl (command_var, command) (impl_var, _command) =
-      (* For each command, require that we select the corresponding implementation. *)
-      S.implies sat ~reason:"impl for command" command_var [impl_var];
-      (* Commands can depend on other commands in the same implementation *)
-      process_self_bindings command_var iface command.Impl.command_bindings;
-      (* Process command-specific dependencies *)
-      process_deps command_var command.Impl.command_requires;
-    in
-    List.iter2 depend_on_impl vars commands
-  )
-
-(** Starting from [root_req], explore all the feeds, commands and implementations we might need, adding
- * all of them to [sat_problem]. *)
-let build_problem impl_provider root_req sat ~closest_match =
-  (* For each (iface, command, source) we have a list of implementations (or commands). *)
-  let impl_cache = ImplCache.create () in
-  let command_cache = CommandCache.create () in
-
-  let require_machine_group = require_machine_groups sat in
-
-  (* Handle <replaced-by> conflicts after building the problem. *)
-  let replacements = ref [] in
-
-  let rec add_impls_to_cache (iface_uri, source) =
-    let clause, impls = make_impl_clause sat ~closest_match replacements impl_provider iface_uri ~source in
-    (clause, fun () ->
-      impls |> List.iter (fun (impl_var, impl) ->
-        require_machine_group impl_var impl;
-        process_self_bindings impl_var iface_uri Impl.(impl.props.bindings);
-        process_deps impl_var Impl.(impl.props.requires);
-      )
-    )
-  and add_commands_to_cache key = make_commands_clause sat lookup_impl process_self_bindings process_deps key
-  and lookup_impl key = ImplCache.lookup impl_cache add_impls_to_cache key
-  and lookup_command key = CommandCache.lookup command_cache add_commands_to_cache key
-  and process_self_bindings user_var dep_iface = List.iter (process_self_binding sat lookup_command user_var dep_iface)
-  and process_deps user_var = List.iter (fun dep ->
-    if impl_provider#is_dep_needed dep then process_dep sat lookup_impl lookup_command user_var dep
-  ) in
-
-  (* This recursively builds the whole problem up. *)
-  begin match root_req with
-    | ReqIface r -> (lookup_impl r)#get_vars
-    | ReqCommand r -> (lookup_command r)#get_vars end
-  |> S.at_least_one sat ~reason:"need root";          (* Must get what we came for! *)
-
-  (* All impl_candidates and command_candidates have now been added, so snapshot the cache. *)
-  let impl_clauses, command_clauses = ImplCache.snapshot impl_cache, CommandCache.snapshot command_cache in
-  add_replaced_by_conflicts sat impl_clauses !replacements;
-  impl_clauses, command_clauses
-
-let do_solve (impl_provider:Impl_provider.impl_provider) root_req ~closest_match =
-  (* The basic plan is this:
-     1. Scan the root interface and all dependencies recursively, building up a SAT problem.
-     2. Solve the SAT problem. Whenever there are multiple options, try the most preferred one first.
-     3. Create the selections XML from the results.
-
-     All three involve recursively walking the tree in a similar way:
-     1) we follow every dependency of every implementation (order not important)
-     2) we follow every dependency of every selected implementation (better versions first)
-     3) we follow every dependency of every selected implementation
-
-     In all cases, a dependency may be on an <implementation> or on a specific <command>.
-   *)
-
-  let sat = S.create () in
-
-  let impl_clauses, command_clauses = build_problem impl_provider root_req sat ~closest_match in
-
-  let lookup = function
-    | ReqIface r -> (ImplCache.get_exn r impl_clauses :> candidates)
-    | ReqCommand r -> (CommandCache.get_exn r command_clauses) in
-
-  let dep_in_use dep = impl_provider#is_dep_needed dep in
-
-  (* Run the solve *)
-
-  let decider () =
-    (* Walk the current solution, depth-first, looking for the first undecided interface.
-       Then try the most preferred implementation of it that hasn't been ruled out. *)
-    let seen = Hashtbl.create 100 in
-    let rec find_undecided req =
-      if Hashtbl.mem seen req then None    (* Break cycles *)
-      else (
-        Hashtbl.add seen req true;
-        let candidates = lookup req in
-        match candidates#get_state with
-        | Unselected -> None
-        | Undecided lit -> Some lit
-        | Selected deps ->
-            (* We've already selected a candidate for this component. Now check its dependencies. *)
-
-            let check_dep dep =
-              if dep.Impl.dep_importance = Impl.Dep_restricts || not (dep_in_use dep) then (
-                (* Restrictions don't express that we do or don't want the
-                   dependency, so skip them here. If someone else needs this,
-                   we'll handle it when we get to them.
-                   If noone wants it, it will be set to unselected at the end. *)
-                None
-              ) else (
-                let dep_iface = dep.Impl.dep_iface in
-                match find_undecided @@ ReqIface (dep_iface, false) with
-                | Some lit -> Some lit
-                | None ->
-                    (* Command dependencies next *)
-                    let check_command_dep name = find_undecided @@ ReqCommand (name, dep_iface, false) in
-                    Support.Utils.first_match check_command_dep dep.Impl.dep_required_commands
-              )
-              in
-            match Support.Utils.first_match check_dep deps with
-            | Some lit -> Some lit
-            | None ->   (* All dependencies checked; now to the impl (if we're a <command>) *)
-                match req with
-                | ReqCommand (_command, iface, source) -> find_undecided @@ ReqIface (iface, source)
-                | ReqIface _ -> None     (* We're not a <command> *)
+  let make_deps role zi_deps self_bindings =
+    let impl_provider = role.scope in
+    let deps = zi_deps
+      |> U.filter_map (fun zi_dep ->
+        if impl_provider#is_dep_needed zi_dep then Some (role, zi_dep)
+        else None
       ) in
-    find_undecided root_req in
+    let self_commands = self_bindings
+      |> U.filter_map (fun binding ->
+        Element.classify_binding binding |> Binding.parse_binding |> Binding.get_command
+      ) in
+    (deps, self_commands)
 
-  match S.run_solver sat decider with
-  | None -> None
-  | Some _solution ->
-      (* Build the results object *)
-      Some (
-      object (_ : result)
-        method get_selections =
-          let was_selected (_, candidates) =
-            match candidates#get_clause with
-            | None -> false
-            | Some clause -> S.get_selected clause <> None in
+  let dep_info (role, dep) = {
+    (* note: currently, only dependencies on binaries are supported. *)
+    dep_role = {scope = role.scope; iface = dep.Impl.dep_iface; source = false};
+    dep_importance = dep.Impl.dep_importance;
+    dep_required_commands = dep.Impl.dep_required_commands;
+  }
 
-          let commands = command_clauses |> CommandCache.bindings |> List.filter was_selected in
-          let impls = impl_clauses |> ImplCache.bindings |> List.filter was_selected in
-          get_selections dep_in_use root_req impls commands |> Selections.create
+  let restrictions (_role, dep) = dep.Impl.dep_restrictions
 
-        method get_selected ~source iface =
-          ImplCache.get (iface, source) impl_clauses
-          |> pipe_some (fun candidates ->
-              match candidates#get_selected with
-              | Some (_lit, impl) when impl != dummy_impl -> Some impl
-              | _ -> None
-          )
+  let requires role impl = make_deps role Impl.(impl.props.requires) Impl.(impl.props.bindings)
+  let command_requires role command = make_deps role Impl.(command.command_requires) Impl.(command.command_bindings)
 
-        method impl_provider = impl_provider
+  let to_selection role commands impl =
+    let {scope = impl_provider; iface; source = _} = role in
+    let attrs = Impl.(impl.props.attrs)
+      |> AttrMap.remove ("", FeedAttr.stability)
 
-        method implementations =
-          impl_clauses |> ImplCache.bindings |> List.map (fun (key, impl_candidates) -> (key, impl_candidates#get_selected))
+      (* Replaced by <command> *)
+      |> AttrMap.remove ("", FeedAttr.main)
+      |> AttrMap.remove ("", FeedAttr.self_test)
 
-        method requirements = root_req
-      end
+      |> AttrMap.add_no_ns "interface" iface in
+
+    let attrs =
+      if Some iface = AttrMap.get_no_ns FeedAttr.from_feed attrs then (
+        (* Don't bother writing from-feed attr if it's the same as the interface *)
+        AttrMap.remove ("", FeedAttr.from_feed) attrs
+      ) else attrs in
+
+    let child_nodes = ref [] in
+    if impl != dummy_impl then (
+      let commands = List.sort compare commands in
+
+      let copy_qdom elem =
+        (* Copy elem into parent (and strip out <version> elements). *)
+        let open Qdom in
+        let imported = {elem with
+          child_nodes = List.filter (fun c -> ZI.tag c <> Some "version") elem.child_nodes;
+        } in
+        child_nodes := imported :: !child_nodes in
+
+      commands |> List.iter (fun name ->
+        let command = Impl.get_command_ex name impl in
+        let command_elem = command.Impl.command_qdom in
+        let want_command_child elem =
+          (* We'll add in just the dependencies we need later *)
+          match ZI.tag elem with
+          | Some "requires" | Some "restricts" | Some "runner" -> false
+          | _ -> true
+        in
+        let child_nodes = List.filter want_command_child command_elem.Qdom.child_nodes in
+        let add_command_dep child_nodes dep =
+          if dep.Impl.dep_importance <> `restricts && impl_provider#is_dep_needed dep then
+            Element.as_xml dep.Impl.dep_qdom :: child_nodes
+          else
+            child_nodes in
+        let child_nodes = List.fold_left add_command_dep child_nodes command.Impl.command_requires in
+        let command_elem = {command_elem with Qdom.child_nodes = child_nodes} in
+        copy_qdom command_elem
+      );
+
+      let copy_elem elem =
+        copy_qdom (Element.as_xml elem) in
+
+      Impl.(impl.props.bindings) |> List.iter copy_elem;
+      Impl.(impl.props.requires) |> List.iter (fun dep ->
+        if impl_provider#is_dep_needed dep && dep.Impl.dep_importance <> `restricts then
+          copy_elem (dep.Impl.dep_qdom)
+      );
+
+      impl.Impl.qdom |> ZI.iter ~name:"manifest-digest" copy_qdom;
+    );
+    ZI.make
+      ~attrs
+      ~child_nodes:(List.rev !child_nodes)
+      ~source_hint:impl.Impl.qdom "selection"
+
+  let machine_group impl =
+    match impl.Impl.machine with
+    | None | Some "src" -> None
+    | Some machine -> Some (Arch.get_machine_group machine)
+
+  let format_machine impl =
+    match impl.Impl.machine with
+    | None -> "any"
+    | Some machine -> machine
+
+  let meets_restriction impl r = impl == dummy_impl || r#meets_restriction impl
+  let string_of_restriction r = r#to_string
+
+  let implementations {scope = impl_provider; iface; source} =
+    let {Impl_provider.replacement; impls; rejects = _; compare = _} = impl_provider#get_implementations iface ~source in
+    let replacement = replacement |> pipe_some (fun replacement ->
+      if replacement = iface then (
+        log_warning "Interface %s replaced-by itself!" iface; None
+      ) else Some {scope = impl_provider; iface = replacement; source}
+    ) in
+    {replacement; impls}
+
+  let rejects {scope = impl_provider; iface; source} =
+    let candidates = impl_provider#get_implementations iface ~source in
+    candidates.Impl_provider.rejects
+
+  let user_restrictions role =
+    StringMap.find role.iface role.scope#extra_restrictions
+end
+
+module Core = Solver_core.Make(CoreModel)
+
+module Model =
+  struct
+    include CoreModel
+
+    type role = Role.t
+    module RoleMap = Core.RoleMap
+
+    type t = {
+      root_req : requirements;
+      selections : Core.selection RoleMap.t;
+    }
+
+    type version = Versions.parsed_version
+    let format_version = Versions.format_version
+
+    let get_selected role result =
+      RoleMap.find role result.selections |> pipe_some (fun selection ->
+        let impl = Core.(selection.impl) in
+        if impl == dummy_impl then None
+        else Some impl
+      )
+
+    let requirements result = result.root_req
+
+    let explain result role =
+      match RoleMap.find role result.selections with
+      | Some sel -> Core.explain sel.Core.diagnostics
+      | None -> "Role not used!"
+
+    let raw_selections result =
+      result.selections |> RoleMap.map (fun sel -> sel.Core.impl)
+
+    let selected_commands result role =
+      match RoleMap.find role result.selections with
+      | Some selection -> Core.(selection.commands)
+      | None -> []
+  end
+
+let impl_provider role = role.scope
+
+let do_solve root_req ~closest_match =
+  let dummy_impl = if closest_match then Some Model.dummy_impl else None in
+  Core.do_solve ?dummy_impl root_req |> pipe_some (fun selections ->
+    (* Build the results object *)
+    Some { Model.
+      root_req;
+      selections;
+    }
   )
 
-let get_root_requirements config requirements =
+let get_root_requirements config requirements make_impl_provider =
   let { Requirements.command; interface_uri; source; extra_restrictions; os; cpu; message = _ } = requirements in
 
   (* This is for old feeds that have use='testing' instead of the newer
@@ -649,21 +283,51 @@ let get_root_requirements config requirements =
     allowed_uses = use;
   }) in
 
-  let root_req = match command with
-  | Some command -> ReqCommand (command, interface_uri, source)
-  | None -> ReqIface (interface_uri, source) in
-
-  (scope_filter, root_req)
+  let impl_provider = make_impl_provider scope_filter in
+  let root_role = {scope = impl_provider; iface = interface_uri; source} in
+  {Model.command; role = root_role}
 
 let solve_for config feed_provider requirements =
   try
-    let scope_filter, root_req = get_root_requirements config requirements in
+    let make_impl_provider scope_filter = new Impl_provider.default_impl_provider config feed_provider scope_filter in
+    let root_req = get_root_requirements config requirements make_impl_provider in
 
-    let impl_provider = (new Impl_provider.default_impl_provider config feed_provider scope_filter :> Impl_provider.impl_provider) in
-    match do_solve impl_provider root_req ~closest_match:false with
+    match do_solve root_req ~closest_match:false with
     | Some result -> (true, result)
     | None ->
-        match do_solve impl_provider root_req ~closest_match:true with
+        match do_solve root_req ~closest_match:true with
         | Some result -> (false, result)
         | None -> failwith "No solution, even with closest_match!"
   with Safe_exception _ as ex -> reraise_with_context ex "... solving for interface %s" requirements.Requirements.interface_uri
+
+let selections result =
+  (** Create a <selections> document from the result of a solve.
+   * The use of Maps ensures that the inputs will be sorted, so we will have a stable output.
+   *)
+  Selections.create (
+    let open Model in
+    let root_attrs =
+      begin match result.root_req.command with
+      | Some command -> AttrMap.singleton "command" command
+      | None -> AttrMap.empty end
+      |> AttrMap.add_no_ns "interface" result.root_req.role.iface
+      |> AttrMap.add_no_ns "source" (string_of_bool result.root_req.role.source) in
+    let child_nodes = result.selections
+      |> Core.RoleMap.bindings
+      |> List.map (fun (role, selection) ->
+        (* TODO: update selections format to handle source here *)
+        Model.to_selection role selection.Core.commands selection.Core.impl
+      ) in
+    ZI.make ~attrs:root_attrs ~child_nodes "selections"
+  )
+
+module Diagnostics = Diagnostics.Make (Model)
+
+(** Return a message explaining why the solve failed. *)
+let get_failure_reason config result =
+  let msg = Diagnostics.get_failure_reason result in
+
+  if config.network_use = Offline then
+    msg ^ "\nNote: 0install is in off-line mode"
+  else
+    msg

@@ -9,8 +9,21 @@ open Support.Common
 
 (** {2 Types} *)
 
-type t
-type selection = Support.Qdom.element
+type selection = [`selection] Element.t
+type role = {
+  iface : General.iface_uri;
+  source : bool;
+}
+include Sigs.CORE_MODEL with
+  type impl = selection and
+  type command_name = string and
+  type Role.t = role
+
+include Sigs.SELECTIONS with
+  type role := role and
+  type command_name := command_name and
+  type requirements := requirements and
+  type impl := selection
 
 type impl_source =
   | CacheSelection of Manifest.digest list
@@ -26,31 +39,25 @@ val create : Support.Qdom.element -> t
 (** Create a [selections] value from a file (parse + create). *)
 val load_selections : system -> filepath -> t
 
-(** Create a map from interface URI to the corresponding selection. *)
-val make_selection_map : t -> selection StringMap.t
+(** The role of the root selection. *)
+val root_role : t -> role
 
-(** The interface attribute on the root (i.e. the interface of the program itself) *)
-val root_iface : t -> General.iface_uri
-
-(** The command on [root_iface] to run. *)
+(** The command on [root_role] to run. *)
 val root_command : t -> string option
 
-(** The selection for [root_iface]. *)
+(** The selection for [root_role]. *)
 val root_sel : t -> selection
 
 (** Iterate over the <selection> elements. *)
-val iter : (selection -> unit) -> t -> unit
+val iter : (role -> selection -> unit) -> t -> unit
 
 (** Check whether the XML of two sets of selections are the same, ignoring whitespace. *)
 val equal : t -> t -> bool
 
-(** Find the selection for a given interface.
- * This is slow; use [make_selection_map] for multiple lookups. *)
-val find : General.iface_uri -> t -> selection option
+(** Like [get_selected], but raise an exception if not found. *)
+val get_selected_ex : role -> t -> selection
 
-(** Convert a selections document to XML in the latest format.
- * Note: this may be the exact XML passed to [create] if it was
- * already in the right format. *)
+(** Convert a selections document to XML in the latest format. *)
 val as_xml : t -> Support.Qdom.element
 
 
@@ -68,10 +75,5 @@ val get_feed : selection -> General.feed_url
 (** Get the globally unique ID of this selection (feed + ID) *)
 val get_id : selection -> Feed_url.global_id
 
-(** Get the direct dependencies (excluding any inside commands) of this <selection> or <command>.
- * @param restricts include <restricts> elements too *)
-val get_dependencies : restricts:bool -> Support.Qdom.element -> Support.Qdom.element list
-
-(** Find the <runner> child of this element (selection or command), if any.
- * @raise Safe_exception if there are multiple runners. *)
-val get_runner : Support.Qdom.element -> Support.Qdom.element option
+(* Return all bindings in document order *)
+val collect_bindings : t -> (role * Element.binding) list

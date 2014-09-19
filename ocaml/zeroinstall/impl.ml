@@ -11,9 +11,9 @@ module FeedAttr = Constants.FeedAttr
 module AttrMap = Support.Qdom.AttrMap
 
 type importance =
-  | Dep_essential       (* Must select a version of the dependency *)
-  | Dep_recommended     (* Prefer to select a version, if possible *)
-  | Dep_restricts       (* Just adds restrictions without expressing any opinion *)
+  [ `essential       (* Must select a version of the dependency *)
+  | `recommended     (* Prefer to select a version, if possible *)
+  | `restricts ]     (* Just adds restrictions without expressing any opinion *)
 
 type distro_retrieval_method = {
   distro_size : Int64.t option;
@@ -41,10 +41,10 @@ type impl_type =
 
 type restriction = < to_string : string; meets_restriction : impl_type t -> bool >
 
-and binding = Q.element
+and binding = Element.binding_node Element.t
 
 and dependency = {
-  dep_qdom : Q.element;
+  dep_qdom : Element.dependency_node Element.t;
   dep_importance : importance;
   dep_iface: iface_uri;
   dep_restrictions: restriction list;
@@ -54,7 +54,7 @@ and dependency = {
 }
 
 and command = {
-  mutable command_qdom : Q.element;
+  mutable command_qdom : Support.Qdom.element;
   command_requires : dependency list;
   command_bindings : binding list;
 }
@@ -130,8 +130,8 @@ let get_attr_ex name impl =
   AttrMap.get_no_ns name impl.props.attrs |? lazy (Q.raise_elem "Missing '%s' attribute for " name impl.qdom)
 
 let parse_version_element elem =
-  let before = ZI.get_attribute_opt "before" elem in
-  let not_before = ZI.get_attribute_opt "not-before" elem in
+  let before = Element.before elem in
+  let not_before = Element.not_before elem in
   let test = Versions.make_range_restriction not_before before in
   object
     method meets_restriction impl = test impl.parsed_version
@@ -161,83 +161,74 @@ let make_version_restriction expr =
     log_warning ~ex:ex "%s" msg;
     make_impossible_restriction msg
 
-let parse_dep local_dir dep =
-  let iface, dep =
-    let raw_iface = ZI.get_attribute "interface" dep in
+let parse_dep local_dir node =
+  let dep = Element.classify_dep node in
+  let iface, node =
+    let raw_iface = Element.interface node in
     if U.starts_with raw_iface "." then (
       match local_dir with
       | Some dir ->
           let iface = U.normpath @@ dir +/ raw_iface in
-          (iface, {dep with Q.attrs = dep.Q.attrs |> Q.AttrMap.add_no_ns "interface" iface})
+          (iface, Element.with_interface iface node)
       | None ->
           raise_safe "Relative interface URI '%s' in non-local feed" raw_iface
     ) else (
-      (raw_iface, dep)
+      (raw_iface, node)
     ) in
 
   let commands = ref StringSet.empty in
-  let restrictions = dep |> ZI.filter_map (fun child ->
-    match ZI.tag child with
-    | Some "version" -> Some (parse_version_element child)
-    | Some _ -> (
-        match Binding.parse_binding child with
-        | Some binding -> (
-            match Binding.get_command binding with
-            | None -> ()
-            | Some name -> commands := StringSet.add name !commands
-        )
-        | None -> ()
-    ); None
-    | _ -> None
-  ) in
 
-  let restrictions = match ZI.get_attribute_opt "version" dep with
+  let restrictions = Element.restrictions node |> List.map (fun (`version child) -> parse_version_element child) in
+  Element.bindings node |> List.iter (fun child ->
+    let binding = Binding.parse_binding child in
+    match Binding.get_command binding with
+    | None -> ()
+    | Some name -> commands := StringSet.add name !commands
+  );
+
+  let restrictions = match Element.version_opt node with
     | None -> restrictions
     | Some expr -> make_version_restriction expr :: restrictions
   in
 
-  if ZI.tag dep = Some "runner" then (
-    commands := StringSet.add (default "run" @@ ZI.get_attribute_opt "command" dep) !commands
-  );
+  begin match dep with
+  | `runner r -> commands := StringSet.add (default "run" @@ Element.command r) !commands
+  | `requires _ | `restricts _ -> () end;
 
   let importance =
-    if ZI.tag dep = Some "restricts" then Dep_restricts
-    else (
-      match ZI.get_attribute_opt FeedAttr.importance dep with
-      | None | Some "essential" -> Dep_essential
-      | _ -> Dep_recommended
-    ) in
+    match dep with
+    | `restricts _ -> `restricts
+    | `requires r | `runner r -> Element.importance r in
 
   let restrictions =
-    match ZI.get_attribute_opt FeedAttr.distribution dep with
+    match Element.distribution node with
     | Some distros -> make_distribtion_restriction distros :: restrictions
     | None -> restrictions in
 
   {
-    dep_qdom = dep;
+    dep_qdom = (node :> Element.dependency_node Element.t);
     dep_iface = iface;
     dep_restrictions = restrictions;
     dep_required_commands = StringSet.elements !commands;
     dep_importance = importance;
-    dep_use = ZI.get_attribute_opt FeedAttr.use dep;
-    dep_if_os = ZI.get_attribute_opt FeedAttr.os dep;
+    dep_use = Element.use node;
+    dep_if_os = Element.os node;
   }
 
 let parse_command local_dir elem : command =
   let deps = ref [] in
   let bindings = ref [] in
 
-  elem |> ZI.iter (fun child ->
-    match ZI.tag child with
-    | Some "requires" | Some "restricts" | Some "runner" ->
-        deps := parse_dep local_dir child :: !deps
-    | Some b when Binding.is_binding b ->
-        bindings := child :: !bindings
+  Element.command_children elem |> List.iter (function
+    | #Element.dependency as d ->
+        deps := parse_dep local_dir (Element.element_of_dependency d) :: !deps
+    | #Element.binding as b ->
+        bindings := Element.element_of_binding b :: !bindings
     | _ -> ()
   );
 
   {
-    command_qdom = elem;
+    command_qdom = Element.as_xml elem;
     command_requires = !deps;
     command_bindings = !bindings;
   }

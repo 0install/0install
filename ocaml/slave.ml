@@ -127,7 +127,7 @@ let select options (ui:Zeroinstall.Ui.ui_handler) requirements refresh =
         log_info "Quick solve failed; can't select without updating feeds";
         select_with_refresh true
     | (true, results) ->
-        let sels = results#get_selections in
+        let sels = Zeroinstall.Solver.selections results in
         success ~sels ~stale:feed_provider#have_stale_feeds
   )
 

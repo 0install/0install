@@ -17,6 +17,19 @@ let get_sels config fake_system uri =
   let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
   `String (0, output) |> Xmlm.make_input |> Q.parse_input None |> Selections.create
 
+let get_bindings sels =
+  let result = ref [] in
+  sels |> Selections.iter (fun iface sel -> result := (iface, sel) :: !result);
+  List.rev !result
+
+let get_dependencies elem =
+  Element.deps_and_bindings elem |> List.filter (function
+    | #Element.dependency -> true
+    | _ -> false
+  )
+
+let binary iface = {Selections.iface; source = false}
+
 let suite = "selections">::: [
   "selections">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     let import name =
@@ -47,37 +60,37 @@ let suite = "selections">::: [
 
     assert_equal "http://foo/Source.xml" @@ ZI.get_attribute "interface" s;
 
-    let index = Selections.make_selection_map (Selections.create s) in
-    assert_equal 2 @@ StringMap.cardinal index;
+    let bindings = Selections.create s |> get_bindings in
+    assert_equal 2 @@ List.length bindings;
 
-    let ifaces = StringMap.bindings index |> List.map fst in
+    let ifaces = bindings |> List.map (fun (role, _impl) -> role.Selections.iface) in
     Fake_system.equal_str_lists ["http://foo/Compiler.xml"; "http://foo/Source.xml"] @@ ifaces;
 
-    match StringMap.bindings index |> List.map snd with
+    match List.map snd bindings with
     | [comp; src] -> (
-        assert_str_equal "sha1=345" @@ ZI.get_attribute "id" comp;
-        assert_str_equal "1.0" @@ ZI.get_attribute "version" comp;
+        assert_str_equal "sha1=345" @@ Element.id comp;
+        assert_str_equal "1.0" @@ Element.version comp;
 
-        assert_str_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" @@ ZI.get_attribute "id" src;
-        assert_str_equal "1.0" @@ ZI.get_attribute "version" src;
-        src.Q.attrs |> Q.AttrMap.get ("http://namespace", "foo") |> Fake_system.expect |> assert_str_equal "bar";
-        assert_str_equal "1.0" @@ ZI.get_attribute "version" src;
-        src.Q.attrs |> Q.AttrMap.get_no_ns "version-modifier" |> assert_equal None;
+        assert_str_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" @@ Element.id src;
+        assert_str_equal "1.0" @@ Element.version src;
+        (Element.as_xml src).Q.attrs |> Q.AttrMap.get ("http://namespace", "foo") |> Fake_system.expect |> assert_str_equal "bar";
+        assert_str_equal "1.0" @@ Element.version src;
+        (Element.as_xml src).Q.attrs |> Q.AttrMap.get_no_ns "version-modifier" |> assert_equal None;
 
-        let comp_bindings = comp |> ZI.filter_map Binding.parse_binding in
-        let comp_deps = Selections.get_dependencies ~restricts:true comp in
+        let comp_bindings = Element.bindings comp |> List.map Binding.parse_binding in
+        let comp_deps = get_dependencies comp in
         assert_equal [] @@ comp_bindings;
         assert_equal [] @@ comp_deps;
 
         let open Binding in
 
         let () =
-          match src |> ZI.filter_map Binding.parse_binding with
+          match Element.bindings src |> List.map Binding.parse_binding with
           | [EnvironmentBinding {mode = Replace; source = InsertPath "."; _};
              GenericBinding b;
              GenericBinding c] ->
-               assert_str_equal "/" @@ ZI.get_attribute "mount-point" b;
-               assert_str_equal "source" @@ ZI.get_attribute "foo" c;
+               assert_str_equal "/" @@ ZI.get_attribute "mount-point" (Element.as_xml b);
+               assert_str_equal "source" @@ ZI.get_attribute "foo" (Element.as_xml c);
           | _ -> assert false in
 
         let () =
@@ -85,15 +98,16 @@ let suite = "selections">::: [
           | Selections.CacheSelection [("sha256new", "RPUJPVVHEWJ673N736OCN7EMESYAEYM2UAY6OJ4MDFGUZ7QACLKA"); ("sha1", "345")] -> ()
           | _ -> assert false in
 
-        match Selections.get_dependencies ~restricts:true src with
-        | [dep] -> (
-            assert_str_equal "http://foo/Compiler.xml" @@ ZI.get_attribute "interface" dep;
-            match dep |> ZI.filter_map Binding.parse_binding with
+        match get_dependencies src with
+        | [`requires dep] -> (
+            assert_str_equal "http://foo/Compiler.xml" @@ Element.interface dep;
+            match Element.bindings dep |> List.map Binding.parse_binding with
             | [EnvironmentBinding {var_name = "PATH"; mode = Add {separator; _}; source = InsertPath "bin"};
                EnvironmentBinding {var_name = "NO_PATH"; mode = Add {separator = ","; _}; source = Value "bin"};
                EnvironmentBinding {var_name = "BINDIR"; mode = Replace; source = InsertPath "bin"};
                GenericBinding foo_binding] -> (
                  assert (separator = ";" || separator = ":");
+                 let foo_binding = Element.as_xml foo_binding in
 
                  assert_str_equal "compiler" @@ ZI.get_attribute "foo" foo_binding;
                  assert_equal (Some "child") @@ ZI.tag @@ List.hd foo_binding.Q.child_nodes;
@@ -109,8 +123,8 @@ let suite = "selections">::: [
   "local-path">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     let iface = Test_0install.feed_dir +/ "Local.xml" in
 
-    let index = Selections.make_selection_map (get_sels config fake_system iface) in
-    let sel = StringMap.find_safe iface index in
+    let index = get_sels config fake_system iface in
+    let sel = Selections.get_selected_ex (binary iface) index in
     let () =
       match Selections.get_source sel with
       | Selections.LocalSelection local_path ->
@@ -120,8 +134,7 @@ let suite = "selections">::: [
     let iface = Test_0install.feed_dir +/ "Local2.xml" in
     (* Add a newer implementation and try again *)
     let sels = get_sels config fake_system iface in
-    let index = Selections.make_selection_map sels in
-    let sel = StringMap.find_safe iface index in
+    let sel = Selections.get_selected_ex (binary iface) sels in
     let tools = Fake_system.make_tools config in
     assert (Driver.get_unavailable_selections ~distro:tools#distro config sels <> []);
 
@@ -136,21 +149,20 @@ let suite = "selections">::: [
   "commands">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     let iface = Test_0install.feed_dir +/ "Command.xml" in
     let sels = get_sels config fake_system iface in
-    let index = Selections.make_selection_map sels in
-    let sel = StringMap.find_safe iface index in
+    let sel = Selections.get_selected_ex (binary iface) sels in
 
-    assert_equal "c" @@ ZI.get_attribute "id" sel;
-    let run = Command.get_command_ex "run" sel in
-    assert_equal "test-gui" @@ ZI.get_attribute "path" run;
-    run.Q.attrs |> Q.AttrMap.get ("http://custom", "attr") |> assert_equal (Some "namespaced");
-    assert_equal 1 @@ List.length (run.Q.child_nodes |> List.filter (fun node -> snd node.Q.tag = "child"));
+    assert_equal "c" @@ Element.id sel;
+    let run = Element.get_command_ex "run" sel in
+    assert_equal (Some "test-gui") @@ Element.path run;
+    (Element.as_xml run).Q.attrs |> Q.AttrMap.get ("http://custom", "attr") |> assert_equal (Some "namespaced");
+    assert_equal 1 @@ List.length ((Element.as_xml run).Q.child_nodes |> List.filter (fun node -> snd node.Q.tag = "child"));
 
     let () =
-      match Selections.get_dependencies ~restricts:true run with
-      | dep :: _ ->
-          let dep_impl_uri = ZI.get_attribute "interface" dep in
-          let dep_impl = StringMap.find_safe dep_impl_uri index in
-          assert_equal "sha1=256" @@ ZI.get_attribute "id" dep_impl;
+      match Element.command_children run with
+      | `requires dep :: _ ->
+          let dep_impl_uri = Element.interface dep in
+          let dep_impl = Selections.get_selected_ex (binary dep_impl_uri) sels in
+          assert_equal "sha1=256" @@ Element.id dep_impl;
       | _ -> assert false in
 
     let runexec = Test_0install.feed_dir +/ "runnable" +/ "RunExec.xml" in
@@ -159,11 +171,11 @@ let suite = "selections">::: [
     fake_system#set_argv [| Test_0install.test_0install; "download"; "--offline"; "--xml"; runexec|];
     let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
     let s3 = `String (0, output) |> Xmlm.make_input |> Q.parse_input None |> Selections.create in
-    let index = Selections.make_selection_map s3 in
 
-    let runnable_impl = StringMap.find_safe runnable index in
-    runnable_impl |> ZI.filter_map (fun child ->
-      if ZI.tag child = Some "command" then Some (ZI.get_attribute "name" child) else None
+    let runnable_impl = Selections.get_selected_ex (binary runnable) s3 in
+    Element.deps_and_bindings runnable_impl |> U.filter_map (function
+      | `command child -> Some (Element.command_name child)
+      | _ -> None
     ) |> Fake_system.equal_str_lists ["foo"; "run"]
   );
 

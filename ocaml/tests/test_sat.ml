@@ -5,7 +5,6 @@
 open Support.Common
 open OUnit
 open Zeroinstall
-open Zeroinstall.General
 
 module I = Impl_provider
 module U = Support.Utils
@@ -59,10 +58,11 @@ class impl_provider =
       with Not_found -> failwith name
     method set_impls name impls = Hashtbl.replace interfaces name impls
 
-    method get_implementations iface ~source:_ = {
-      I.replacement = None;
-      I.rejects = [];
-      I.impls =
+    method get_implementations iface ~source:_ = { I.
+      replacement = None;
+      rejects = [];
+      compare = (fun _ _ -> failwith "compare");
+      impls =
         try Hashtbl.find interfaces iface
         with Not_found -> failwith iface;
     }
@@ -72,8 +72,6 @@ class impl_provider =
   end
 
 let re_dep = Str.regexp "\\([a-z]+\\)\\[\\([0-9]+\\)\\(,[0-9]+\\)?\\] => \\([a-z]+\\) \\([0-9]+\\) \\([0-9]+\\)"
-
-let dummy_dep = General.ZI.make "requires"
 
 let run_sat_test expected problem =
   let parse_id id =
@@ -111,8 +109,8 @@ let run_sat_test expected problem =
               impl.Impl.parsed_version >= min_v && impl.Impl.parsed_version <= max_v
           end in
         let dep = Impl.({
-          dep_qdom = dummy_dep;
-          dep_importance = Dep_essential;
+          dep_qdom = Element.dummy_restricts;
+          dep_importance = `essential;
           dep_iface = lib;
           dep_restrictions = [restriction];
           dep_required_commands = [];
@@ -132,22 +130,28 @@ let run_sat_test expected problem =
     )
   );
 
-  let root_req = Solver.ReqIface (fst @@ List.hd expected_items, false) in
-  let result = Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:false in
+  let root_req = { Solver.Model.
+    role = {
+      Solver.scope = (impl_provider :> Impl_provider.impl_provider);
+      iface = fst @@ List.hd expected_items;
+      source = false
+    };
+    command = None
+  } in
+  let result = Solver.do_solve root_req ~closest_match:false in
 
   match result, root_expected_version with
   | None, "FAIL" ->
-      let result = Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:true in
+      let result = Solver.do_solve root_req ~closest_match:true in
       Fake_system.expect result
   | None, _ -> assert_failure "Expected success, but failed"
   | Some _, "FAIL" -> assert_failure "Expected failure, but found solution!"
   | Some result, _ ->
-      let sels = result#get_selections in
+      let sels = Solver.selections result in
       let actual = ref [] in
-      sels |> Selections.iter (fun sel ->
-        let iface = ZI.get_attribute "interface" sel in
-        let version = ZI.get_attribute "version" sel in
-        actual := (iface, version) :: !actual
+      sels |> Selections.iter (fun role sel ->
+        let version = Element.version sel in
+        actual := (role.Selections.iface, version) :: !actual
       );
       let actual = List.sort compare !actual in
       let expected = List.sort compare expected_items in
@@ -284,9 +288,9 @@ let suite = "sat">::: [
       "libb[1,2] => libc 0 0";
     ] in
     let selected = ref StringMap.empty in
-    s#get_selections |> Selections.iter (fun sel ->
-      let iface = ZI.get_attribute "interface" sel in
-      selected := StringMap.add iface (ZI.get_attribute_opt "version" sel) !selected
+    Solver.selections s |> Selections.iter (fun role sel ->
+      let iface = role.Selections.iface in
+      selected := StringMap.add iface (Element.version_opt sel) !selected
     );
     assert_equal (Some "2") (StringMap.find_safe "prog" !selected);
     assert_equal (Some "2") (StringMap.find_safe "liba" !selected);

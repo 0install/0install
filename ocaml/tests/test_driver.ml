@@ -204,9 +204,9 @@ let suite = "driver">::: [
     let tools = fake_fetcher config handler distro in
     let (ready, result, _fp) = Driver.solve_with_downloads config tools#distro tools#fetcher ~watcher:tools#ui#watcher reqs ~force:true ~update_local:true |> Lwt_main.run in
     if not ready then
-      failwith @@ Diagnostics.get_failure_reason config result;
+      failwith @@ Solver.get_failure_reason config result;
 
-    match (result#get_selections |> Selections.as_xml).Q.child_nodes with
+    match (Solver.selections result |> Selections.as_xml).Q.child_nodes with
     | [ sel ] -> Fake_system.assert_str_equal "package:fallback:prog:1.0:*" (ZI.get_attribute "id" sel)
     | _ -> assert_failure "Bad selections"
       
@@ -249,7 +249,7 @@ let suite = "driver">::: [
     let (ready, result, _fp) = Driver.solve_with_downloads config distro fetcher ~watcher:Fake_system.null_ui#watcher reqs ~force:false ~update_local:false |> Lwt_main.run in
     assert (ready = true);
 
-    let get_ids result = Selections.as_xml result#get_selections
+    let get_ids result = Selections.as_xml (Solver.selections result)
       |> ZI.map ~name:"selection" (ZI.get_attribute "id") in
 
     Fake_system.equal_str_lists ["sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"] @@ get_ids result;

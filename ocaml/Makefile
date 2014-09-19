@@ -56,6 +56,7 @@ coverage:
 	ocaml-bisect-report -I "${OCAML_BUILDDIR}" -html html "bisect0001.out"
 
 clean:
+	mkdir -p ${OCAML_BUILDDIR}
 	$(OCAMLBUILD) -clean
 
 tags:

@@ -17,6 +17,7 @@ Distro_impls
 Downloader
 Driver
 Dry_run
+Element
 Env
 Escape
 Exec
@@ -31,6 +32,7 @@ Gui
 Impl
 Impl_provider
 Json_connection
+Justify
 Key_info_provider
 Launcher
 Manifest
@@ -41,7 +43,9 @@ Progress
 Recipe
 Requirements
 Selections
+Sigs
 Solver
+Solver_core
 Stores
 Tree
 Trust

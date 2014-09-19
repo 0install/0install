@@ -8,68 +8,6 @@ open Support.Common
 open General
 
 module U = Support.Utils
-module FeedAttr = Constants.FeedAttr
-
-(** Convert selections as a dependency tree (as displayed by "0install show",
- * etc). If multiple components share a dependency, only the first one is
- * included. *)
-let as_tree sels =
-  let seen = Hashtbl.create 10 in (* detect cycles *)
-  let index = Selections.make_selection_map sels in
-
-  let rec build_node (uri:string) commands ~essential =
-    if Hashtbl.mem seen uri then None
-    else (
-      let sel = StringMap.find uri index in
-
-      (* We ignore optional non-selected dependencies; if another component has an
-       * essential dependency on it, we'll include it then. *)
-      if sel = None && not essential then (
-        None
-      ) else (
-        Hashtbl.add seen uri true;
-
-        let details =
-          match sel with
-          | Some impl when ZI.get_attribute_opt FeedAttr.version impl = None -> `Problem
-          | Some impl ->
-              let deps = ref @@ Selections.get_dependencies ~restricts:false impl in
-
-              ListLabels.iter commands ~f:(fun c ->
-                match Command.get_command c impl with
-                | Some command -> deps := !deps @ Selections.get_dependencies ~restricts:false command
-                | None -> Support.Qdom.log_elem Support.Logging.Warning "Missing command '%s' in" c impl
-              );
-
-              let children =
-                !deps |> U.filter_map (fun dep ->
-                  let child_iface = ZI.get_attribute FeedAttr.interface dep in
-                  let essential =
-                    match ZI.get_attribute_opt FeedAttr.importance dep with
-                    | None | Some "essential" -> true
-                    | _ -> false in
-                  build_node child_iface (Command.get_required_commands dep) ~essential
-                ) in
-
-              `Selected (impl, children)
-          | None ->
-              (* Should only happen if we get a malformed selections file. *)
-              log_warning "Missing essential dependency on '%s' and no problem reported!" uri;
-              `Problem in
-        Some (uri, details)
-      )
-    )
-  in
-
-  let root_iface = Selections.root_iface sels in
-  let commands =
-    match Selections.root_command sels with
-    | None -> []
-    | Some command -> [command] in
-
-  match build_node root_iface commands ~essential:true with
-  | None -> assert false
-  | Some tree -> tree
 
 class indenter (printer : string -> unit) =
   object
@@ -85,6 +23,73 @@ class indenter (printer : string -> unit) =
       indentation <- old
   end
 
+module type MODEL = sig
+  include Sigs.CORE_MODEL
+  include Sigs.SELECTIONS with
+    type impl := impl and
+    type command_name := command_name and
+    type requirements := requirements and
+    type role := Role.t
+end
+
+module Make (Model : MODEL) = struct
+  (** Convert selections as a dependency tree (as displayed by "0install show",
+   * etc). If multiple components share a dependency, only the first one is
+   * included. *)
+  let as_tree result =
+    let seen = ref Model.RoleMap.empty in
+
+    let rec build_node role ~essential =
+      if Model.RoleMap.mem role !seen then None
+      else (
+        let sel = Model.get_selected role result in
+
+        (* We ignore optional non-selected dependencies; if another component has an
+         * essential dependency on it, we'll include it then. *)
+        if sel = None && not essential then (
+          None
+        ) else (
+          seen := Model.RoleMap.add role true !seen;
+
+          let details =
+            match sel with
+            | Some impl ->
+                let impl_deps, _self_commands = Model.requires role impl in
+                let deps = ref impl_deps in
+
+                Model.selected_commands result role |> List.iter (fun command_name ->
+                  let command = Model.get_command impl command_name
+                    |? lazy (raise_safe "BUG: Missing selected command '%s'!" (command_name : Model.command_name :> string)) in
+                  let command_deps, _self_commands = Model.command_requires role command in
+                  deps := command_deps @ !deps
+                );
+
+                let children =
+                  !deps |> U.filter_map (fun dep ->
+                    let {Model.dep_role; dep_importance; dep_required_commands = _} = Model.dep_info dep in
+                    if dep_importance <> `restricts then
+                      build_node dep_role ~essential:(dep_importance = `essential)
+                    else None
+                  ) in
+
+                `Selected (impl, children)
+            | None ->
+                (* Should only happen if we get a malformed selections file. *)
+                log_warning "Missing essential dependency on '%s' and no problem reported!" (Model.Role.to_string role);
+                `Problem in
+          Some (role, details)
+        )
+      )
+    in
+
+    let root_req = Model.requirements result in
+    match build_node root_req.Model.role ~essential:true with
+    | None -> assert false
+    | Some tree -> tree
+end
+
+module SelectionsTree = Make(Selections)
+
 let print config printer sels =
   let first = ref true in
   let indenter = new indenter printer in
@@ -92,23 +97,23 @@ let print config printer sels =
     let do_print msg = indenter#print (msg:string) in
     Printf.ksprintf do_print fmt in
 
-    let rec print_node (uri, details) =
+    let rec print_node (role, details) =
       if !first then
         first := false
       else
         printf "";
 
-      printf "- URI: %s" uri;
+      printf "- URI: %s" (Selections.Role.to_string role);
       indenter#with_indent "  " (fun () ->
         match details with
         | `Problem ->
             printf "No selected version";
         | `Selected (impl, children) ->
             (* printf "ID: %s" (ZI.get_attribute "id" impl); *)
-            printf "Version: %s" (ZI.get_attribute "version" impl);
+            printf "Version: %s" (Element.version impl);
             (* print indent + "  Command:", command *)
             let path = match Selections.get_source impl with
-              | Selections.PackageSelection -> Printf.sprintf "(%s)" @@ ZI.get_attribute "id" impl
+              | Selections.PackageSelection -> Printf.sprintf "(%s)" @@ Element.id impl
               | Selections.LocalSelection path -> path
               | Selections.CacheSelection digests ->
                   match Stores.lookup_maybe config.system digests config.stores with
@@ -121,4 +126,4 @@ let print config printer sels =
       )
     in
 
-    print_node @@ as_tree sels
+    print_node @@ SelectionsTree.as_tree sels

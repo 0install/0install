@@ -143,13 +143,13 @@ let suite = "feed">::: [
 
     begin match StringMap.bindings feed.F.implementations with
     | [("sha1=123", impl)] ->
-        begin match impl.Impl.props.Impl.bindings |> List.map B.parse_binding with
-        | [Some B.EnvironmentBinding {B.mode = B.Replace; _}] -> ()
+        begin match impl.Impl.props.Impl.bindings |> List.map Element.classify_binding |> List.map B.parse_binding with
+        | [B.EnvironmentBinding {B.mode = B.Replace; _}] -> ()
         | _ -> assert false end;
 
         begin match impl.Impl.props.Impl.requires with
         | [dep] ->
-            begin match dep.Impl.dep_qdom |> ZI.filter_map B.parse_binding with
+            begin match Element.bindings dep.Impl.dep_qdom |> List.map B.parse_binding with
             [
               B.EnvironmentBinding ({ B.mode = B.Add {B.pos = B.Prepend; _ }; _ } as b0);
               B.EnvironmentBinding ({ B.mode = B.Add {B.pos = B.Prepend; B.default = None; _ }; _ });
@@ -163,13 +163,12 @@ let suite = "feed">::: [
               );
 
               let env = Env.create [| |] in
-              let impls = StringMap.singleton "http://example.com/" ((), Some "/impl") in
 
               let check ?old binding =
                 begin match old with
                 | None -> Env.unset env "PATH"
                 | Some old -> Env.put env "PATH" old end;
-                B.do_env_binding env impls "http://example.com/" binding;
+                B.do_env_binding env (lazy ((), Some "/impl")) binding;
                 Env.get_exn env "PATH" in
 
               Fake_system.assert_str_equal "/impl/bin:/bin:/usr/bin" @@ check b0;
@@ -189,9 +188,8 @@ let suite = "feed">::: [
 
     let check ?impl ?old binding =
       let env = Env.create [| |] in
-      let impls = StringMap.singleton "http://example.com/" ((), impl) in
       old |> if_some (Env.put env binding.B.var_name);
-      B.do_env_binding env impls "http://example.com/" binding;
+      B.do_env_binding env (lazy ((), impl)) binding;
       Env.get_exn env binding.B.var_name in
 
     Fake_system.assert_str_equal "/impl/lib:/usr/lib" @@ check prepend ~impl:"/impl" ~old:"/usr/lib";
@@ -243,8 +241,8 @@ let suite = "feed">::: [
             | _ -> assert false end;
             assert_equal [] dep2.Impl.dep_restrictions;
 
-            dep.Impl.dep_qdom.Q.attrs |> Q.AttrMap.get ("http://my/namespace", "foo") |> assert_equal (Some "test");
-            dep.Impl.dep_qdom.Q.attrs |> Q.AttrMap.get ("http://my/namespace", "food") |> assert_equal None;
+            (Element.as_xml dep.Impl.dep_qdom).Q.attrs |> Q.AttrMap.get ("http://my/namespace", "foo") |> assert_equal (Some "test");
+            (Element.as_xml dep.Impl.dep_qdom).Q.attrs |> Q.AttrMap.get ("http://my/namespace", "food") |> assert_equal None;
         | _ -> assert false end;
     | _ -> assert false
   );

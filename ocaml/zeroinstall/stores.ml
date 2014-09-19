@@ -57,12 +57,12 @@ let check_available available_digests digests =
 let get_digests elem =
   let digests = ref [] in
 
-  let id = ZI.get_attribute "id" elem in
+  let id = Element.id elem in
   begin match Str.bounded_split_delim U.re_equals id 2 with
   | [key; value] when key = "sha1" || key = "sha1new" || key = "sha256" -> digests := [(key, value)]
   | _ -> () end;
 
-  elem |> ZI.iter ~name:"manifest-digest" (fun manifest_digest ->
+  Element.as_xml elem |> ZI.iter ~name:"manifest-digest" (fun manifest_digest ->
     manifest_digest.Q.attrs |> Q.AttrMap.iter_values (fun (ns, name) value ->
       if ns = "" then digests := (name, value) :: !digests
     )

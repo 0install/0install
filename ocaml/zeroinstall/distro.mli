@@ -6,7 +6,7 @@
 
 (** Passed to [distribution#get_package_impls]. It provides details of the query and a place to collect the results. *)
 type query = {
-  elem : Support.Qdom.element;      (* The <package-element> which generated this query *)
+  elem : [`package_impl] Element.t; (* The <package-element> which generated this query *)
   package_name : string;            (* The 'package' attribute on the <package-element> *)
   elem_props : Impl.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
   feed : Feed.feed;                 (* The feed containing the <package-element> *)
@@ -43,7 +43,7 @@ class virtual distribution : General.config ->
     (** Test whether this <selection> element is still valid. The default implementation tries to load the feed from the
      * feed cache, calls [distribution#get_impls_for_feed] on it and checks whether the required implementation ID is in the
      * returned map. Override this if you can provide a more efficient implementation. *)
-    method is_installed : Support.Qdom.element -> bool
+    method is_installed : Selections.selection -> bool
 
     (** Add the implementations for this feed to [query].
      * Called by [get_impls_for_feed] once for each <package-implementation> element.
@@ -87,11 +87,11 @@ class virtual distribution : General.config ->
 
 (** Check whether this <selection> is still valid. If the quick-test-* attributes are present, we use
     them to check. Otherwise, we call [distribution#is_installed]. *)
-val is_installed : General.config -> distribution -> Support.Qdom.element -> bool
+val is_installed : General.config -> distribution -> Selections.selection -> bool
 
 (** Install these packages using the distribution's package manager.
  * Sorts the implementations into groups by their type and then calls [distribution#install_distro_packages] once for each group. *)
 val install_distro_packages : distribution -> #Packagekit.ui -> Impl.distro_implementation list -> [ `ok | `cancel ] Lwt.t
 
 (** Return the <package-implementation> elements that best match this distribution. *)
-val get_matching_package_impls : distribution -> Feed.feed -> (Support.Qdom.element * Impl.properties) list
+val get_matching_package_impls : distribution -> Feed.feed -> ([`package_impl] Element.t * Impl.properties) list

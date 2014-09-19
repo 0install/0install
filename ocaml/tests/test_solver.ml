@@ -33,6 +33,8 @@ module ListString = OUnitDiff.ListSimpleMake(EString)
 
 let cache_path_for config url = Feed_cache.get_save_cache_path config (`remote_feed url)
 
+let binary iface = {Selections.iface; source = false}
+
 let set_of_attrs elem : string list =
   let attrs = ref [] in
   elem.Q.attrs |> Q.AttrMap.iter_values (fun (ns, name) value ->
@@ -213,16 +215,16 @@ let make_solver_test test_elem =
     let (ready, result) = Zeroinstall.Solver.solve_for config (feed_provider :> Feed_provider.feed_provider) !reqs in
     if ready && !fails then assert_failure "Expected solve to fail, but it didn't!";
     if not ready && not (!fails) then (
-      let reason = Zeroinstall.Diagnostics.get_failure_reason config result in
+      let reason = Zeroinstall.Solver.get_failure_reason config result in
       assert_failure ("Solve failed (not ready)\n" ^ reason)
     );
     assert (ready = (not !fails));
 
     if (!fails) then
-      let reason = Zeroinstall.Diagnostics.get_failure_reason config result in
+      let reason = Zeroinstall.Solver.get_failure_reason config result in
       Fake_system.assert_str_equal !expected_problem reason
     else (
-      let actual_sels = result#get_selections in
+      let actual_sels = Solver.selections result in
       assert (ZI.tag (Selections.as_xml actual_sels) = Some "selections");
       if ready then (
         let changed = Whatchanged.show_changes (fake_system :> system) (Some (Selections.create !expected_selections)) actual_sels in
@@ -237,7 +239,7 @@ let make_solver_test test_elem =
         feed = Feed_url.parse iface;
         id = ZI.get_attribute "id" elem;
       }) in
-      let reason = Zeroinstall.Diagnostics.justify_decision config (feed_provider :> Feed_provider.feed_provider) !reqs iface g_id in
+      let reason = Zeroinstall.Justify.justify_decision config (feed_provider :> Feed_provider.feed_provider) !reqs iface ~source:false g_id in
       Fake_system.assert_str_equal (trim elem.Support.Qdom.last_text_inside) reason
     );
   )
@@ -434,7 +436,7 @@ let suite = "solver">::: [
 
     let test_solve scope_filter =
       let impl_provider = new default_impl_provider config (feed_provider :> Feed_provider.feed_provider) scope_filter in
-      let {replacement; impls; rejects = _} = impl_provider#get_implementations iface ~source:false in
+      let {replacement; impls; _} = impl_provider#get_implementations iface ~source:false in
       (* List.iter (fun (impl, r) -> failwith @@ describe_problem impl r) rejects; *)
       assert_equal ~msg:"replacement" (Some "http://example.com/replacement.xml") replacement;
       let ids = List.map (fun i -> Impl.get_attr_ex "id" i) impls in
@@ -548,35 +550,35 @@ let suite = "solver">::: [
       source = true;
       command = Some "compile"}) in
 
-    let justify expected iface feed id =
+    let justify expected iface ~source feed id =
       let g_id = Feed_url.({feed; id}) in
-      let actual = Diagnostics.justify_decision config (feed_provider :> Feed_provider.feed_provider) reqs iface g_id in
+      let actual = Justify.justify_decision config (feed_provider :> Feed_provider.feed_provider) reqs iface ~source g_id in
       Fake_system.assert_str_equal expected actual in
 
     justify
       "http://foo/Binary.xml 1.0 cannot be used (regardless of other components): We want source and this is a binary"
-      iface (Feed_url.master_feed_of_iface iface) "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
+      iface ~source:true (Feed_url.master_feed_of_iface iface) "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
     justify
       "http://foo/Binary.xml 1.0 was selected as the preferred version."
-      iface (`remote_feed "http://foo/Source.xml") "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
+      iface ~source:true (`remote_feed "http://foo/Source.xml") "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
     justify
       "0.1 is ranked lower than 1.0: newer versions are preferred"
-      iface (`remote_feed "http://foo/Source.xml") "old";
+      iface ~source:true (`remote_feed "http://foo/Source.xml") "old";
     justify
       ("There is no possible selection using http://foo/Binary.xml 3.\n" ^
       "Can't find all required implementations:\n" ^
-      "- http://foo/Binary.xml -> 3 (impossible)\n" ^
+      "- http://foo/Binary.xml#source -> 3 (impossible)\n" ^
       "- http://foo/Compiler.xml -> (problem)\n" ^
-      "    http://foo/Binary.xml 3 requires version ..!1.0, version 1.0..\n" ^
+      "    http://foo/Binary.xml#source 3 requires version ..!1.0, version 1.0..\n" ^
       "    Rejected candidates:\n" ^
       "      sha1=999 (5): Incompatible with restriction: version ..!1.0\n" ^
       "      sha1=345 (1.0): Incompatible with restriction: version ..!1.0\n" ^
       "      sha1=678 (0.1): Incompatible with restriction: version 1.0..")
-      iface (`remote_feed "http://foo/Source.xml") "impossible";
+      iface ~source:true (`remote_feed "http://foo/Source.xml") "impossible";
     justify
       ("http://foo/Compiler.xml 5 is selectable, but using it would produce a less optimal solution overall.\n\n" ^
-      "The changes would be:\n\nhttp://foo/Binary.xml: 1.0 to 0.1")
-      "http://foo/Compiler.xml" (`remote_feed "http://foo/Compiler.xml") "sha1=999";
+      "The changes would be:\n\nhttp://foo/Binary.xml#source: 1.0 to 0.1")
+      "http://foo/Compiler.xml" ~source:false (`remote_feed "http://foo/Compiler.xml") "sha1=999";
 
     import "Recursive.xml";
     let rec_impls = impl_provider#get_implementations "http://foo/Recursive.xml" ~source:false in
@@ -593,15 +595,14 @@ let suite = "solver">::: [
     match Solver.solve_for config (feed_provider :> Feed_provider.feed_provider) r with
     | (false, _) -> assert false
     | (true, results) ->
-        let sels = results#get_selections in
-        let index = Selections.make_selection_map sels in
-        let sel = StringMap.find_safe (Selections.root_iface sels) index in
-        let command = Command.get_command_ex "run" sel in
-        match Selections.get_dependencies ~restricts:true command with
-        | [dep] ->
-            let dep_impl = StringMap.find_safe (ZI.get_attribute "interface" dep) index in
-            let command = Command.get_command_ex "run" dep_impl in
-            Fake_system.assert_str_equal "test-gui" (ZI.get_attribute "path" command)
+        let sels = Solver.selections results in
+        let sel = Zeroinstall.Selections.get_selected_ex (Selections.root_role sels) sels in
+        let command = Element.get_command_ex "run" sel in
+        match Element.command_children command with
+        | [`requires dep] ->
+            let dep_impl = Zeroinstall.Selections.get_selected_ex (binary (Element.interface dep)) sels in
+            let command = Element.get_command_ex "run" dep_impl in
+            Fake_system.assert_str_equal "test-gui" (Element.path command |> default "missing")
         | _ -> assert false
   );
 
@@ -622,15 +623,23 @@ let suite = "solver">::: [
         languages = Support.Locale.LangMap.empty;
         allowed_uses = StringSet.empty;
       }) in
-      let root_req = Solver.ReqIface ("http://foo/MultiArch.xml", false) in
       let impl_provider = make_impl_provider config scope_filter in
-      match Solver.do_solve impl_provider root_req ~closest_match:false with
+      let root_req = { Solver.Model.
+        role = {
+          Solver.scope = impl_provider;
+          iface = "http://foo/MultiArch.xml";
+          source = false
+        };
+        command = None;
+      } in
+      match Solver.do_solve root_req ~closest_match:false with
       | None -> assert false
       | Some results ->
-          let sels = results#get_selections in
-          let index = Selections.make_selection_map sels in
-          Fake_system.assert_str_equal expected @@ ZI.get_attribute "arch" (StringMap.find_safe "http://foo/MultiArch.xml" index);
-          Fake_system.assert_str_equal expected @@ ZI.get_attribute "arch" (StringMap.find_safe "http://foo/MultiArchLib.xml" index) in
+          let sels = Solver.selections results in
+          Zeroinstall.Selections.get_selected_ex (binary "http://foo/MultiArch.xml") sels
+          |> Element.arch |> default "missing" |> Fake_system.assert_str_equal expected;
+          Zeroinstall.Selections.get_selected_ex (binary "http://foo/MultiArchLib.xml") sels
+          |> Element.arch |> default "missing" |> Fake_system.assert_str_equal expected in
 
     (* On an i686 system we can only use the i486 implementation *)
     check_arch "Linux-i486" "i686";
@@ -654,18 +663,16 @@ let suite = "solver">::: [
     let do_solve r =
       match Solver.solve_for config feed_provider r with
       | (false, _) -> assert false
-      | (true, results) ->
-          let sels = results#get_selections in
-          Selections.make_selection_map sels in
+      | (true, results) -> Solver.selections results in
 
     let results = do_solve r in
-    Fake_system.assert_str_equal "0.2" @@ ZI.get_attribute "version" (StringMap.find_safe uri results);
-    Fake_system.assert_str_equal "3" @@ ZI.get_attribute "version" (StringMap.find_safe versions results);
+    Fake_system.assert_str_equal "0.2" @@ Element.version (Zeroinstall.Selections.get_selected_ex (binary uri) results);
+    Fake_system.assert_str_equal "3" @@ Element.version (Zeroinstall.Selections.get_selected_ex (binary versions) results);
 
     let extras = StringMap.singleton uri "0.1" in
     let results = do_solve {r with Requirements.extra_restrictions = extras} in
-    Fake_system.assert_str_equal "0.1" @@ ZI.get_attribute "version" (StringMap.find_safe uri results);
-    assert (not (StringMap.mem versions results));
+    Fake_system.assert_str_equal "0.1" @@ Element.version (Zeroinstall.Selections.get_selected_ex (binary uri) results);
+    assert (Zeroinstall.Selections.get_selected (binary versions) results = None);
 
     let extras = StringMap.singleton uri "0.3" in
     let r = {r with Requirements.extra_restrictions = extras} in
@@ -685,11 +692,18 @@ let suite = "solver">::: [
         allowed_uses = StringSet.empty;
       }) in
       let impl_provider = new Impl_provider.default_impl_provider config feed_provider scope_filter in
-      let root_req = Solver.ReqIface (Test_0install.feed_dir +/ "Langs.xml", false) in
-      match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:false with
+      let root_req = { Solver.Model.
+        role = {
+          Solver.scope = impl_provider;
+          iface = Test_0install.feed_dir +/ "Langs.xml";
+          source = false
+        };
+        command = None;
+      } in
+      match Solver.do_solve root_req ~closest_match:false with
       | None -> assert_failure expected
       | Some results ->
-          match (Selections.as_xml results#get_selections).Support.Qdom.child_nodes with
+          match (Selections.as_xml (Solver.selections results)).Support.Qdom.child_nodes with
           | [sel] -> Fake_system.assert_str_equal expected @@ ZI.get_attribute "id" sel
           | _ -> assert false in
 

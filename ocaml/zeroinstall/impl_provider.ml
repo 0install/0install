@@ -63,6 +63,7 @@ type candidates = {
   replacement : iface_uri option;
   impls : Impl.generic_implementation list;
   rejects : (Impl.generic_implementation * rejection) list;
+  compare : Impl.generic_implementation -> Impl.generic_implementation -> int * preferred_reason;
 }
 
 class type impl_provider =
@@ -79,12 +80,6 @@ class type impl_provider =
 
 class default_impl_provider config (feed_provider : Feed_provider.feed_provider) (scope_filter:scope_filter) =
   let {extra_restrictions; os_ranks; machine_ranks; languages = wanted_langs; allowed_uses} = scope_filter in
-
-  (* This shouldn't really be mutable, but ocaml4po causes trouble if we pass it in the constructor. *)
-  let watch_iface = ref None in
-
-  (* If [watch_iface] is set, we store the comparison function for use by Diagnostics. *)
-  let compare_for_watched_iface : (Impl.generic_implementation -> Impl.generic_implementation -> int * preferred_reason) option ref = ref None in
 
   let do_overrides overrides impls =
     let do_override id impl =
@@ -282,15 +277,12 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
 
           let impls = List.sort (compare_impls stability_policy) @@ List.concat (main_impls :: List.map get_impls extra_feeds) in
 
-          if Some iface = !watch_iface then
-            compare_for_watched_iface := Some (compare_impls_full stability_policy);
-
           let replacement =
             match master_feed with
             | None -> None
             | Some (feed, _overrides) -> feed.Feed.replacement in
 
-          let candidates = {replacement; impls; rejects = []} in
+          let candidates = {replacement; impls; rejects = []; compare = compare_impls_full stability_policy} in
           Hashtbl.add cache iface candidates;
           candidates in
 
@@ -343,7 +335,4 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
 
       let impls = List.filter do_filter candidates.impls in
       {candidates with impls; rejects = !rejects}
-
-    method set_watch_iface iface = watch_iface := Some iface
-    method get_watched_compare = !compare_for_watched_iface
   end

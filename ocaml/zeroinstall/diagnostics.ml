@@ -4,507 +4,321 @@
 
 (** Explaining why a solve failed or gave an unexpected answer. *)
 
-open General
 open Support.Common
-module Qdom = Support.Qdom
-module FeedAttr = Constants.FeedAttr
 
 module U = Support.Utils
 
-module SelMap = Map.Make (
-  struct
-    type t = (iface_uri * bool)
-    let compare = compare
-  end
-)
+module Make (Model : Sigs.SOLVER_RESULT) = struct
+  module RoleMap = Model.RoleMap
 
-let spf = Printf.sprintf
+  let format_role () = Model.Role.to_string
 
-(* Why a particular implementation was rejected. This could be because the impl_provider rejected it,
-   or because it conflicts with something else in the example (partial) solution. *)
-type rejection_reason = [
-  | Impl_provider.rejection
-  | `FailsRestriction of Impl.restriction
-  | `DepFailsRestriction of Impl.dependency * Impl.restriction
-  | `MachineGroupConflict of Impl.impl_type Impl.t
-  | `ConflictsInterface of iface_uri
-  | `MissingCommand of string
-  | `DiagnosticsFailure of string
-]
+  let spf = Printf.sprintf
 
-type note =
-  | UserRequested of Impl.restriction
-  | ReplacesConflict of iface_uri
-  | ReplacedByConflict of iface_uri
-  | Restricts of iface_uri * Impl.generic_implementation * Impl.restriction list
-  | RequiresCommand of iface_uri * Impl.generic_implementation * string
-  | NoCandidates
+  (* Why a particular implementation was rejected. This could be because the model rejected it,
+     or because it conflicts with something else in the example (partial) solution. *)
+  type rejection_reason = [
+    | `Model_rejection of Model.rejection
+    | `FailsRestriction of Model.restriction
+    | `DepFailsRestriction of Model.dependency * Model.restriction
+    | `MachineGroupConflict of Model.Role.t * Model.impl
+    | `ConflictsRole of Model.Role.t
+    | `MissingCommand of Model.command_name
+    | `DiagnosticsFailure of string
+  ]
 
-let format_restrictions r = String.concat ", " (List.map (fun r -> r#to_string) r)
-let format_version impl = Versions.format_version impl.Impl.parsed_version
+  type note =
+    | UserRequested of Model.restriction
+    | ReplacesConflict of Model.Role.t
+    | ReplacedByConflict of Model.Role.t
+    | Restricts of Model.Role.t * Model.impl * Model.restriction list
+    | RequiresCommand of Model.Role.t * Model.impl * Model.command_name
+    | NoCandidates
 
-let describe_problem impl = function
-  | #Impl_provider.rejection as p -> Impl_provider.describe_problem impl p
-  | `FailsRestriction r -> "Incompatible with restriction: " ^ r#to_string
-  | `DepFailsRestriction (dep, restriction) -> spf "Requires %s %s" dep.Impl.dep_iface (format_restrictions [restriction])
-  | `MachineGroupConflict other_impl ->
-      let this_arch = default "BUG" impl.Impl.machine in
-      let other_name = Impl.get_attr_ex FeedAttr.from_feed other_impl in
-      let other_arch = default "BUG" other_impl.Impl.machine in
-      spf "Can't use %s with selection of %s (%s)" this_arch other_name other_arch
-  | `ConflictsInterface other_iface -> spf "Conflicts with %s" other_iface
-  | `MissingCommand command -> spf "No %s command" command
-  | `DiagnosticsFailure msg -> spf "Reason for rejection unknown: %s" msg
+  let format_restrictions r = String.concat ", " (List.map Model.string_of_restriction r)
+  let format_version impl = Model.format_version (Model.version impl)
 
-(* Add a textual description of this component's report to [buf]. *)
-let format_report buf (iface_uri, _source) component =
-  let prefix = ref "- " in
+  let describe_problem impl = function
+    | `Model_rejection r -> Model.describe_problem impl r
+    | `FailsRestriction r -> "Incompatible with restriction: " ^ Model.string_of_restriction r
+    | `DepFailsRestriction (dep, restriction) ->
+        let dep_info = Model.dep_info dep in
+        spf "Requires %a %s" format_role dep_info.Model.dep_role (format_restrictions [restriction])
+    | `MachineGroupConflict (other_role, other_impl) ->
+        spf "Can't use %s with selection of %a (%s)"
+          (Model.format_machine impl)
+          format_role other_role
+          (Model.format_machine other_impl)
+    | `ConflictsRole other_role -> spf "Conflicts with %a" format_role other_role
+    | `MissingCommand command -> spf "No %s command" (command : Model.command_name :> string)
+    | `DiagnosticsFailure msg -> spf "Reason for rejection unknown: %s" msg
 
-  let add fmt =
-    let do_add msg = Buffer.add_string buf !prefix; Buffer.add_string buf msg in
-    Printf.ksprintf do_add fmt in
+  (* Add a textual description of this component's report to [buf]. *)
+  let format_report buf role component =
+    let prefix = ref "- " in
 
-  let name_impl impl = Impl.get_attr_ex FeedAttr.id impl in
+    let add fmt =
+      let do_add msg = Buffer.add_string buf !prefix; Buffer.add_string buf msg in
+      Printf.ksprintf do_add fmt in
 
-  let () = match component#impl with
-    | Some sel -> add "%s -> %s (%s)" iface_uri (format_version sel) (name_impl sel)
-    | None -> add "%s -> (problem)" iface_uri in
+    let name_impl impl = Model.id_of_impl impl in
 
-  prefix := "\n    ";
+    let () = match component#impl with
+      | Some sel -> add "%a -> %s (%s)" format_role role (format_version sel) (name_impl sel)
+      | None -> add "%a -> (problem)" format_role role in
 
-  let show_rejections rejected =
-    prefix := "\n      ";
-    let by_version (a, _) (b, _) = Impl.(compare b.parsed_version a.parsed_version) in
-    let rejected = List.sort by_version rejected in
-    let i = ref 0 in
-    let () =
-      try
-        ListLabels.iter rejected ~f:(fun (impl, problem) ->
-          if !i = 5 && not Support.Logging.(will_log Debug) then (add "..."; raise Exit);
-          add "%s (%s): %s" (name_impl impl) (format_version impl) (describe_problem impl problem);
-          i := !i + 1
-        );
-      with Exit -> () in
-    prefix := "\n    " in
+    prefix := "\n    ";
 
-  ListLabels.iter component#notes ~f:(function
-    | UserRequested r -> add "User requested %s" (format_restrictions [r])
-    | ReplacesConflict old -> add "Replaces (and therefore conflicts with) %s" old
-    | ReplacedByConflict replacement -> add "Replaced by (and therefore conflicts with) %s" replacement
-    | Restricts (other_iface, impl, r) ->
-        add "%s %s requires %s" other_iface (format_version impl) (format_restrictions r)
-    | RequiresCommand (other_iface, impl, command) ->
-        add "%s %s requires '%s' command" other_iface (format_version impl) command
-    | NoCandidates ->
-        if component#original_good = [] then (
-          if component#original_bad = [] then (
-            add "No known implementations at all"
+    let show_rejections rejected =
+      prefix := "\n      ";
+      let by_version (a, _) (b, _) = Model.(compare (version b) (version a)) in
+      let rejected = List.sort by_version rejected in
+      let i = ref 0 in
+      let () =
+        try
+          ListLabels.iter rejected ~f:(fun (impl, problem) ->
+            if !i = 5 && not Support.Logging.(will_log Debug) then (add "..."; raise Exit);
+            add "%s (%s): %s" (name_impl impl) (format_version impl) (describe_problem impl problem);
+            i := !i + 1
+          );
+        with Exit -> () in
+      prefix := "\n    " in
+
+    ListLabels.iter component#notes ~f:(function
+      | UserRequested r -> add "User requested %s" (format_restrictions [r])
+      | ReplacesConflict old -> add "Replaces (and therefore conflicts with) %a" format_role old
+      | ReplacedByConflict replacement -> add "Replaced by (and therefore conflicts with) %a" format_role replacement
+      | Restricts (other_role, impl, r) ->
+          add "%a %s requires %s" format_role other_role (format_version impl) (format_restrictions r)
+      | RequiresCommand (other_role, impl, command) ->
+          add "%a %s requires '%s' command" format_role other_role (format_version impl) (command :> string)
+      | NoCandidates ->
+          if component#original_good = [] then (
+            if component#original_bad = [] then (
+              add "No known implementations at all"
+            ) else (
+              add "No usable implementations:"
+            )
           ) else (
-            add "No usable implementations:"
+            add "Rejected candidates:"
+          );
+          show_rejections (component#bad)
+    );
+
+    Buffer.add_string buf "\n"
+
+  (** Represents a single interface in the example (failed) selections produced by the solver.
+      It partitions the implementations into good and bad based (initially) on the split from the
+      impl_provider. As we explore the example selections, we further filter the candidates.
+      [candidates] is the result from the impl_provider.
+      [impl] is the selected implementation, or [None] if we chose [dummy_impl].
+      [diagnostics] can be used to produce diagnostics as a last resort. *)
+  class component (candidates, orig_bad) (diagnostics:string Lazy.t) (selected_impl:Model.impl option) =
+    let {Model.impls = orig_good; Model.replacement} = candidates in
+    let orig_bad : (Model.impl * rejection_reason) list =
+      List.map (fun (impl, reason) -> (impl, `Model_rejection reason)) orig_bad in
+    (* orig_good is all the implementations passed to the SAT solver (these are the
+       ones with a compatible OS, CPU, etc). They are sorted most desirable first. *)
+    object (self)
+      val mutable notes = []
+      val mutable good = orig_good
+      val mutable bad = orig_bad
+
+      method note (note:note) = notes <- note :: notes
+
+      (* Call [get_problem impl] on each good impl. If a problem is returned, move [impl] to [bad_impls]. *)
+      method filter_impls get_problem =
+        let old_good = List.rev good in
+        good <- [];
+        old_good |> List.iter (fun impl ->
+          match get_problem impl with
+          | None -> good <- impl :: good
+          | Some problem -> bad <- (impl, problem) :: bad
+        )
+
+      (* Remove from [good_impls] anything that fails to meet these restrictions.
+         Add removed items to [bad_impls], along with the cause. *)
+      method apply_restrictions restrictions =
+        ListLabels.iter restrictions ~f:(fun r ->
+          self#filter_impls (fun impl ->
+            if Model.meets_restriction impl r then None
+            else Some (`FailsRestriction r)
           )
-        ) else (
-          add "Rejected candidates:"
-        );
-        show_rejections (component#bad)
-  );
-
-  Buffer.add_string buf "\n"
-
-(** Represents a single interface in the example (failed) selections produced by the solver.
-    It partitions the implementations into good and bad based (initially) on the split from the
-    impl_provider. As we explore the example selections, we further filter the candidates.
-    [candidates] is the result from the impl_provider.
-    [impl] is the selected implementation, or [None] if we chose [dummy_impl].
-    [diagnostics] can be used to produce diagnostics as a last resort. *)
-class component candidates (diagnostics:Solver.diagnostics) (selected_impl:Impl.generic_implementation option) =
-  let {Impl_provider.impls = orig_good; Impl_provider.rejects = orig_bad; Impl_provider.replacement} = candidates in
-  (* orig_good is all the implementations passed to the SAT solver (these are the
-     ones with a compatible OS, CPU, etc). They are sorted most desirable first. *)
-  object (self)
-    val mutable notes = []
-    val mutable good = orig_good
-    val mutable bad = (orig_bad :> (Impl.generic_implementation * rejection_reason) list)
-
-    method note (note:note) = notes <- note :: notes
-
-    (* Call [get_problem impl] on each good impl. If a problem is returned, move [impl] to [bad_impls]. *)
-    method filter_impls get_problem =
-      let old_good = List.rev good in
-      good <- [];
-      ListLabels.iter old_good ~f:(fun impl ->
-        match get_problem impl with
-        | None -> good <- impl :: good
-        | Some problem -> bad <- (impl, problem) :: bad
-      )
-
-    (* Remove from [good_impls] anything that fails to meet these restrictions.
-       Add removed items to [bad_impls], along with the cause. *)
-    method apply_restrictions restrictions =
-      ListLabels.iter restrictions ~f:(fun r ->
-        self#filter_impls (fun impl ->
-          if r#meets_restriction impl then None
-          else Some (`FailsRestriction r)
         )
-      )
 
-    method reject_all reason =
-      bad <- List.map (fun impl -> (impl, reason)) good @ bad;
-      good <- []
+      method reject_all reason =
+        bad <- List.map (fun impl -> (impl, reason)) good @ bad;
+        good <- []
 
-    method diagnostics = diagnostics
-    method replacement = replacement
-    method impl = selected_impl
-    method notes = List.rev notes
+      method diagnostics = diagnostics
+      method replacement = replacement
+      method impl = selected_impl
+      method notes = List.rev notes
 
-    method good = good
-    method bad = bad
+      method good = good
+      method bad = bad
 
-    method original_good = orig_good
-    method original_bad = orig_bad
-  end
+      method original_good = orig_good
+      method original_bad = orig_bad
+    end
 
-let get_machine_group impl =
-  match impl.Impl.machine with
-  | None -> None
-  | Some "src" -> None
-  | Some m -> Some (Arch.get_machine_group m)
+  let find_component_ex role report =
+    match RoleMap.find role report with
+    | Some c -> c
+    | None -> raise_safe "Can't find component %a!" format_role role
 
-let find_component key report =
-  try Some (SelMap.find key report)
-  with Not_found -> None
+  (* Did any dependency of [impl] prevent it being selected?
+     This can only happen if a component conflicts with something more important
+     than itself (otherwise, we'd select something in [impl]'s interface and
+     complain about the dependency instead).
 
-let find_component_ex key report =
-  match find_component key report with
-  | Some c -> c
-  | None -> raise_safe "Can't find component %s!" (fst key)
-
-(* Did any dependency of [impl] prevent it being selected?
-   This can only happen if a component conflicts with something more important
-   than itself (otherwise, we'd select something in [impl]'s interface and
-   complain about the dependency instead).
-
-   e.g. A depends on B and C. B and C both depend on D.
-   C1 conflicts with D1. The depth-first priority order means we give priority
-   to {A1, B1, D1}. Then we can't choose C1 because we prefer to keep D1. *)
-let get_dependency_problem report impl =
-  let check_dep dep =
-    match find_component (dep.Impl.dep_iface, false) report with
-    | None -> None      (* Not in the selections => can't be part of a conflict *)
-    | Some required_component ->
-        match required_component#impl with
-        | None -> None  (* Dummy selection can't cause a conflict *)
-        | Some dep_impl ->
-            let check_restriction r =
-              if r#meets_restriction dep_impl then None
-              else Some (`DepFailsRestriction (dep, r)) in
-            U.first_match check_restriction dep.Impl.dep_restrictions in
-  U.first_match check_dep impl.Impl.props.Impl.requires
-
-(** A selected component has [dep] as a dependency. Use this to explain why some implementations
-    of the required interface were rejected. *)
-let examine_dep requiring_iface requiring_impl report dep =
-  let other_iface = dep.Impl.dep_iface in
-  match find_component (other_iface, false) report with
-  | None -> ()
-  | Some required_component ->
-      if dep.Impl.dep_restrictions <> [] then (
-        (* Report the restriction *)
-        required_component#note (Restricts (requiring_iface, requiring_impl, dep.Impl.dep_restrictions));
-
-        (* Remove implementations incompatible with the other selections *)
-        required_component#apply_restrictions dep.Impl.dep_restrictions
-      );
-
-      ListLabels.iter dep.Impl.dep_required_commands ~f:(fun command ->
-        required_component#note (RequiresCommand (requiring_iface, requiring_impl, command));
-        required_component#filter_impls (fun impl ->
-          if StringMap.mem command Impl.(impl.props.commands) then None
-          else Some (`MissingCommand command)
-        )
-      )
-
-(* Find all restrictions that are in play and affect this interface *)
-let examine_selection report (iface_uri, source) component =
-  (* Note any conflicts caused by <replaced-by> elements *)
-  let () =
-    match component#replacement with
-    | Some replacement when SelMap.mem (replacement, source) report -> (
-        component#note (ReplacedByConflict replacement);
-        component#reject_all (`ConflictsInterface replacement);
-        match find_component (replacement, source) report with
-        | Some replacement_component ->
-            replacement_component#note (ReplacesConflict iface_uri);
-            replacement_component#reject_all (`ConflictsInterface iface_uri)
-        | None -> ()
+     e.g. A depends on B and C. B and C both depend on D.
+     C1 conflicts with D1. The depth-first priority order means we give priority
+     to {A1, B1, D1}. Then we can't choose C1 because we prefer to keep D1. *)
+  let get_dependency_problem role report impl =
+    let check_dep dep =
+      let dep_info = Model.dep_info dep in
+      match RoleMap.find dep_info.Model.dep_role report with
+      | None -> None      (* Not in the selections => can't be part of a conflict *)
+      | Some required_component ->
+          match required_component#impl with
+          | None -> None  (* Dummy selection can't cause a conflict *)
+          | Some dep_impl ->
+              let check_restriction r =
+                if Model.meets_restriction dep_impl r then None
+                else Some (`DepFailsRestriction (dep, r)) in
+              U.first_match check_restriction (Model.restrictions dep) in
+    let deps, commands_needed = Model.requires role impl in
+    commands_needed |> U.first_match (fun command ->
+      if Model.get_command impl command <> None then None
+      else Some (`MissingCommand command : rejection_reason)
     )
-    | _ -> () in
+    |> function
+    | Some _ as r -> r
+    | None -> U.first_match check_dep deps
 
-  match component#impl with
-  | Some our_impl ->
-      (* For each dependency of our selected impl, explain why it rejected impls in the dependency's interface. *)
-      List.iter (examine_dep iface_uri our_impl report) our_impl.Impl.props.Impl.requires
-  | None ->
-      (* For each of our remaining unrejected impls, check whether a dependency prevented its selection. *)
-      component#filter_impls (get_dependency_problem report)
-
-let reject_if_unselected _key component =
-  if component#impl = None then (
-    component#reject_all (`DiagnosticsFailure (Solver.explain component#diagnostics));
-    component#note NoCandidates;
-  )
-
-(* Check for user-supplied restrictions *)
-let examine_extra_restrictions report extra_restrictions =
-  let process ~source iface restriction =
-    try
-      match find_component (iface, source) report with
-      | None -> ()
-      | Some component ->
-          component#note (UserRequested restriction);
-          component#apply_restrictions [restriction]
-    with Not_found -> () in
-
-  StringMap.iter (process ~source:false) extra_restrictions;
-  StringMap.iter (process ~source:true) extra_restrictions
-
-(** If we wanted a command on the root, add that as a restriction. *)
-let process_root_req report = function
-  | Solver.ReqCommand (root_command, root_iface, source) ->
-      let component = find_component_ex (root_iface, source) report in
-      component#filter_impls (fun impl ->
-        if StringMap.mem root_command Impl.(impl.props.commands) then None
-        else Some (`MissingCommand root_command)
-      )
-  | Solver.ReqIface _ -> ()
-
-(** Find an implementation which requires a machine group. Use this to
-    explain the rejection of all implementations requiring other groups. *)
-exception Found of (Impl.generic_implementation * Arch.machine_group)
-let check_machine_groups report =
-  let check _key compoment =
-    match compoment#impl with
+  (** A selected component has [dep] as a dependency. Use this to explain why some implementations
+      of the required interface were rejected. *)
+  let examine_dep requiring_role requiring_impl report dep =
+    let {Model.dep_role = other_role; dep_importance = _; dep_required_commands} = Model.dep_info dep in
+    match RoleMap.find other_role report with
     | None -> ()
-    | Some impl ->
-        match get_machine_group impl with
-        | None -> ()
-        | Some group -> raise (Found (impl, group)) in
+    | Some required_component ->
+        let dep_restrictions = Model.restrictions dep in
+        if dep_restrictions <> [] then (
+          (* Report the restriction *)
+          required_component#note (Restricts (requiring_role, requiring_impl, dep_restrictions));
 
-  try SelMap.iter check report
-  with Found (example_impl, example_group) ->
-    let filter _key component = component#filter_impls (fun impl ->
-      match get_machine_group impl with
-      | Some group when group <> example_group -> Some (`MachineGroupConflict example_impl)
-      | _ -> None
-    ) in
-    SelMap.iter filter report
+          (* Remove implementations incompatible with the other selections *)
+          required_component#apply_restrictions dep_restrictions
+        );
 
-let get_failure_report (result:Solver.result) : component SelMap.t =
-  let impl_provider = result#impl_provider in
-  let impls = result#implementations in
-  let root_req = result#requirements in
-
-  let report =
-    let get_selected map ((iface, source) as key, selected_candidate) =
-      match selected_candidate with
-      | None -> map    (* Not part of the (dummy) solution *)
-      | Some (diagnostics, impl) ->
-          let impl = if impl.Impl.parsed_version = Versions.dummy then None else Some impl in
-          let impl_candidates = impl_provider#get_implementations iface ~source in
-          let component = new component impl_candidates diagnostics impl in
-          SelMap.add key component map in
-    List.fold_left get_selected SelMap.empty impls in
-
-  process_root_req report root_req;
-  examine_extra_restrictions report impl_provider#extra_restrictions;
-  check_machine_groups report;
-  SelMap.iter (examine_selection report) report;
-  SelMap.iter reject_if_unselected report;
-
-  report
-
-(** Return a message explaining why the solve failed. *)
-let get_failure_reason config result : string =
-  let reasons = get_failure_report result in
-
-  let buf = Buffer.create 1000 in
-  Buffer.add_string buf "Can't find all required implementations:\n";
-  SelMap.iter (format_report buf) reasons;
-  if config.network_use = Offline then
-    Buffer.add_string buf "Note: 0install is in off-line mode\n";
-  Buffer.sub buf 0 (Buffer.length buf - 1)
-
-exception Return of string
-
-let return fmt =
-  let do_return msg = raise (Return msg) in
-  Printf.ksprintf do_return fmt
-
-(** Is the wanted implementation simply ranked lower than the one we selected?
-    @raise Return if so. *)
-let maybe_justify_local_preference wanted_id actual_id candidates compare =
-  let wanted_impl = ref None in
-  let actual_impl = ref None in
-
-  ListLabels.iter candidates ~f:(fun impl ->
-    let id = Impl.get_id impl in
-    if id = wanted_id then
-      wanted_impl := Some impl;
-    if id = actual_id then
-      actual_impl := Some impl
-  );
-
-  match !wanted_impl, !actual_impl with
-  | _, None -> failwith "Didn't find actual impl!"
-  | None, _ -> failwith "Didn't find wanted impl!"
-  | Some wanted_impl, Some actual_impl ->
-      (* Was impl ranked below the selected version? *)
-      let (result, reason) = compare wanted_impl actual_impl in
-
-      if result > 0 then (
-        let reason_msg =
-          let open Impl_provider in
-          match reason with
-          | PreferAvailable -> "is locally available"
-          | PreferDistro    -> "native packages are preferred"
-          | PreferID        -> "better ID (tie-breaker)"
-          | PreferLang      ->  "natural languages we understand are preferred"
-          | PreferMachine   -> "better CPU match"
-          | PreferNonRoot   -> "packages that don't require admin access to install are preferred"
-          | PreferOS        -> "better OS match"
-          | PreferStability -> "more stable versions preferred"
-          | PreferVersion   -> "newer versions are preferred" in
-
-        (* If they both have the same version number, include the ID in the message too. *)
-        let wanted_version = Impl.get_attr_ex FeedAttr.version wanted_impl in
-        let actual_version = Impl.get_attr_ex FeedAttr.version actual_impl in
-
-        let truncate id =
-          if String.length id < 18 then id
-          else String.sub id 0 16 ^ "..." in
-
-        let (wanted, actual) =
-          if wanted_version = actual_version then
-            (spf "%s (%s)" wanted_version @@ truncate wanted_id.Feed_url.id,
-             spf "%s (%s)" actual_version @@ truncate actual_id.Feed_url.id)
-          else
-            (wanted_version, actual_version) in
-
-        return "%s is ranked lower than %s: %s" wanted actual reason_msg
-      )
-
-(* We are able to select the specimen, but we preferred not to. Explain why.
-   [test_sels] is the selections with the constraint.
-   [old_sels] are the selections we get with an unconstrained solve. *)
-let justify_preference test_sels wanted q_iface wanted_id ~old_sels ~compare candidates =
-  let index = Selections.make_selection_map test_sels in
-
-  let actual_selection = Selections.find q_iface old_sels in
-
-  let () =
-    match actual_selection, compare with
-    | Some actual_selection, Some compare ->
-        let actual_id = Selections.get_id actual_selection in
-
-        (* Was impl actually selected anyway? *)
-        if actual_id = wanted_id then
-          return "%s was selected as the preferred version." wanted;
-
-        (* Check whether the preference can be explained by the local ranking. *)
-        maybe_justify_local_preference wanted_id actual_id candidates compare
-    | _ -> () in
-
-  let used_impl = actual_selection <> None in
-
-  (* [wanted] is selectable and ranked higher than the selected version. Selecting it would cause
-      a problem elsewhere. Or, its interface just isn't needed. *)
-  let changes = ref [] in
-  let add fmt =
-    let do_add msg = changes := msg :: !changes in
-    Printf.ksprintf do_add fmt in
-
-  old_sels |> Selections.iter (fun old_sel ->
-    let old_iface = ZI.get_attribute FeedAttr.interface old_sel in
-    if old_iface <> q_iface || not used_impl then (
-      match StringMap.find old_iface index with
-      | Some new_sel ->
-          let old_version = ZI.get_attribute FeedAttr.version old_sel in
-          let new_version = ZI.get_attribute FeedAttr.version new_sel in
-          if old_version <> new_version then
-            add "%s: %s to %s" old_iface old_version new_version
-          else (
-            let old_id = ZI.get_attribute FeedAttr.id old_sel in
-            let new_id = ZI.get_attribute FeedAttr.id new_sel in
-            if old_id <> new_id then
-              add "%s: %s to %s" old_iface old_id new_id
+        dep_required_commands |> List.iter (fun command ->
+          required_component#note (RequiresCommand (requiring_role, requiring_impl, command));
+          required_component#filter_impls (fun impl ->
+            if Model.get_command impl command <> None then None
+            else Some (`MissingCommand command)
           )
-      | None ->
-          add "%s: no longer used" old_iface
-    )
-  );
-
-  let changes_text =
-    if !changes <> [] then
-      "\n\nThe changes would be:\n\n" ^ (String.concat "\n" (List.rev !changes))
-    else "" in
-
-  if used_impl then
-    return "%s is selectable, but using it would produce a less optimal solution overall.%s" wanted changes_text
-  else
-    return "If %s were the only option, the best available solution wouldn't use it.%s" wanted changes_text
-
-(** Run a solve with impl_id forced to be selected, and use that to explain why it wasn't (or was)
-    selected in the normal case. *)
-let justify_decision config feed_provider requirements q_iface q_impl =
-  let (scope_filter, root_req) = Solver.get_root_requirements config requirements in
-
-  (* Note: there's a slight mismatch between the diagnostics system (which assumes each interface is used either for
-     source or binaries, but not both, and the current implementation of the solver. *)
-
-  let wanted = ref @@ spf "%s %s" q_iface q_impl.Feed_url.id in
-
-  let candidates = ref [] in
-
-  (* Wrap default_impl_provider so that it only returns our impl for [q_iface]. If impl isn't usable,
-     we return early. *)
-  let impl_provider =
-    let open Impl_provider in
-    object
-      inherit default_impl_provider config feed_provider scope_filter as super
-      initializer super#set_watch_iface q_iface
-
-      method! get_implementations requested_iface ~source:want_source =
-        let c = super#get_implementations requested_iface ~source:want_source in
-        if requested_iface <> q_iface then c
-        else (
-          candidates := c.impls;
-          let is_ours candidate = Impl.get_id candidate = q_impl in
-          try
-            let our_impl = List.find is_ours c.impls in
-            wanted := spf "%s %s" q_iface @@ Impl.get_attr_ex FeedAttr.version our_impl;
-            {impls = [our_impl]; replacement = c.replacement; rejects = []}
-          with Not_found ->
-            try
-              let (our_impl, problem) = List.find (fun (cand, _) -> is_ours cand) c.rejects in
-              wanted := spf "%s %s" q_iface Impl.(get_attr_ex FeedAttr.version our_impl);
-              return "%s cannot be used (regardless of other components): %s" !wanted (Impl_provider.describe_problem our_impl problem)
-            with Not_found -> return "Implementation to consider (%s) does not exist!" !wanted
-
         )
-    end in
 
-  (* Could a selection involving impl even be valid? *)
-  try
-    match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:false with
-    | Some result ->
-        let test_sels = result#get_selections in
-        let (ready, actual_selections) = Solver.solve_for config feed_provider requirements in
-        assert ready;   (* If we can solve we a constraint, we can solve without. *)
-        justify_preference test_sels !wanted q_iface q_impl
-          ~old_sels:actual_selections#get_selections
-          ~compare:impl_provider#get_watched_compare !candidates
+  (* Find all restrictions that are in play and affect this interface *)
+  let examine_selection report role component =
+    (* Note any conflicts caused by <replaced-by> elements *)
+    let () =
+      match component#replacement with
+      | Some replacement when RoleMap.mem replacement report -> (
+          component#note (ReplacedByConflict replacement);
+          component#reject_all (`ConflictsRole replacement);
+          match RoleMap.find replacement report with
+          | Some replacement_component ->
+              replacement_component#note (ReplacesConflict role);
+              replacement_component#reject_all (`ConflictsRole role)
+          | None -> ()
+      )
+      | _ -> () in
+
+    match component#impl with
+    | Some our_impl ->
+        (* For each dependency of our selected impl, explain why it rejected impls in the dependency's interface. *)
+        let deps, _commands_needed = Model.requires role our_impl in
+        (* We can ignore [commands_needed] here because we obviously were selected. *)
+        List.iter (examine_dep role our_impl report) deps
     | None ->
-        match Solver.do_solve (impl_provider :> Impl_provider.impl_provider) root_req ~closest_match:true with
-        | None -> failwith "No solution, even with closest_match!"
-        | Some result ->
-            return "There is no possible selection using %s.\n%s" !wanted @@ get_failure_reason config result
-  with Return x -> x
+        (* For each of our remaining unrejected impls, check whether a dependency prevented its selection. *)
+        component#filter_impls (get_dependency_problem role report)
+
+  let reject_if_unselected _key component =
+    if component#impl = None then (
+      component#reject_all (`DiagnosticsFailure (Lazy.force component#diagnostics));
+      component#note NoCandidates;
+    )
+
+  (* Check for user-supplied restrictions *)
+  let examine_extra_restrictions report =
+    report |> RoleMap.iter (fun role component ->
+      Model.user_restrictions role |> if_some (fun restriction ->
+        component#note (UserRequested restriction);
+        component#apply_restrictions [restriction]
+      )
+    )
+
+  (** If we wanted a command on the root, add that as a restriction. *)
+  let process_root_req report = function
+    | {Model.command = Some root_command; role = root_role} ->
+        let component = find_component_ex root_role report in
+        component#filter_impls (fun impl ->
+          if Model.get_command impl root_command <> None then None
+          else Some (`MissingCommand root_command)
+        )
+    | _ -> ()
+
+  (** Find an implementation which requires a machine group. Use this to
+      explain the rejection of all implementations requiring other groups. *)
+  exception Found of (Model.Role.t * Model.impl * Arch.machine_group)
+  let check_machine_groups report =
+    let check role compoment =
+      match compoment#impl with
+      | None -> ()
+      | Some impl ->
+          match Model.machine_group impl with
+          | None -> ()
+          | Some group -> raise (Found (role, impl, group)) in
+
+    try RoleMap.iter check report
+    with Found (example_role, example_impl, example_group) ->
+      let filter _key component = component#filter_impls (fun impl ->
+        match Model.machine_group impl with
+        | Some group when group <> example_group -> Some (`MachineGroupConflict (example_role, example_impl))
+        | _ -> None
+      ) in
+      RoleMap.iter filter report
+
+  let get_failure_report result : component RoleMap.t =
+    let impls = Model.raw_selections result in
+    let root_req = Model.requirements result in
+
+    let report =
+      let get_selected role impl =
+        let diagnostics = lazy (Model.explain result role) in
+        let impl = if impl == Model.dummy_impl then None else Some impl in
+        let impl_candidates = Model.implementations role in
+        let rejects = Model.rejects role in
+        new component (impl_candidates, rejects) diagnostics impl in
+      RoleMap.mapi get_selected impls in
+
+    process_root_req report root_req;
+    examine_extra_restrictions report;
+    check_machine_groups report;
+    RoleMap.iter (examine_selection report) report;
+    RoleMap.iter reject_if_unselected report;
+
+    report
+
+  (** Return a message explaining why the solve failed. *)
+  let get_failure_reason result =
+    let reasons = get_failure_report result in
+    let buf = Buffer.create 1000 in
+    Buffer.add_string buf "Can't find all required implementations:\n";
+    RoleMap.iter (format_report buf) reasons;
+    Buffer.sub buf 0 (Buffer.length buf - 1)
+end

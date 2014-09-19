@@ -45,7 +45,7 @@ let iter_inputs config cb sels =
     | None -> ()
     | Some p -> cb p
   in
-  sels |> Selections.iter (fun sel_elem ->
+  sels |> Selections.iter (fun _iface sel_elem ->
     let feed = Selections.get_feed sel_elem in
 
     (* Check per-feed config *)

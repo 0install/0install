@@ -20,28 +20,6 @@ let gui_plugin = ref None
 let register_plugin fn =
   gui_plugin := Some fn
 
-let get_impl (feed_provider:Feed_provider.feed_provider) sel =
-  let {Feed_url.id; Feed_url.feed = from_feed} = Selections.get_id sel in
-
-  let get_override overrides =
-    StringMap.find id overrides.F.user_stability in
-
-  match from_feed with
-  | `distribution_feed master_feed_url -> (
-      match feed_provider#get_feed master_feed_url with
-      | None -> None
-      | Some (master_feed, _) ->
-          let (impls, overrides) = feed_provider#get_distro_impls master_feed in
-          match StringMap.find id impls with
-          | None -> None
-          | Some impl -> Some ((impl :> Impl.generic_implementation), get_override overrides)
-  )
-  | (`local_feed _ | `remote_feed _) as feed_url ->
-      match feed_provider#get_feed feed_url with
-      | None -> None
-      | Some (feed, overrides) ->
-          Some (StringMap.find_safe id feed.F.implementations, get_override overrides)
-
 let get_download_size info impl =
   match info.Impl.retrieval_methods with
   | [] -> log_info "Implementation %s has no retrieval methods!" (Impl.get_attr_ex FeedAttr.id impl); None
@@ -116,25 +94,20 @@ let have_source_for feed_provider iface =
     )
   )
 
-let list_impls (results:Solver.result) iface =
-  let make_list ~source selected_impl =
-    let candidates = results#impl_provider#get_implementations iface ~source in
+let list_impls results role =
+  let {Solver.iface; source; scope = _} = role in
+  let impl_provider = Solver.impl_provider role in
+  let selected_impl = Solver.Model.get_selected role results in
+  let candidates = impl_provider#get_implementations iface ~source in
 
-    let by_version (a,_) (b,_) = compare b.Impl.parsed_version a.Impl.parsed_version in
+  let by_version (a,_) (b,_) = compare b.Impl.parsed_version a.Impl.parsed_version in
 
-    let open Impl_provider in
-    let good_impls = List.map (fun i -> (i, None)) candidates.impls in
-    let bad_impls = List.map (fun (i, prob) -> (i, Some prob)) candidates.rejects in
-    let all_impls = List.sort by_version @@ good_impls @ bad_impls in
+  let open Impl_provider in
+  let good_impls = List.map (fun i -> (i, None)) candidates.impls in
+  let bad_impls = List.map (fun (i, prob) -> (i, Some prob)) candidates.rejects in
+  let all_impls = List.sort by_version @@ good_impls @ bad_impls in
 
-    Some (selected_impl, all_impls) in
-
-  match results#get_selected ~source:true iface with
-  | Some _ as source_impl -> make_list ~source:true source_impl
-  | None ->
-      match results#get_selected ~source:false iface with
-      | Some _ as bin_impl -> make_list ~source:false bin_impl
-      | None -> make_list ~source:false None
+  (selected_impl, all_impls)
 
 (** Download an icon for this feed and add it to the
     icon cache. If the feed has no icon do nothing. *)
@@ -149,14 +122,10 @@ let download_icon (fetcher:Fetch.fetcher) (feed_provider:Feed_provider.feed_prov
     | None -> None
     | Some (feed, _) ->
         (* Find a suitable icon to download *)
-        feed.F.root.Q.child_nodes |> U.first_match (fun child ->
-          match ZI.tag child with
-          | Some "icon" -> (
-              match ZI.get_attribute_opt "type" child with
-              | Some "image/png" -> ZI.get_attribute_opt "href" child
-              | _ -> log_debug "Skipping non-PNG icon"; None
-          )
-          | _ -> None
+        F.icons feed |> U.first_match (fun child ->
+          match Element.icon_type child with
+          | Some "image/png" -> Some (Element.href child)
+          | _ -> log_debug "Skipping non-PNG icon"; None
         ) in
 
   match icon_url with
@@ -265,10 +234,10 @@ let compile config feed_provider iface ~autocompile =
       |] in
       let root = `String (0, stdout) |> Xmlm.make_input |> Q.parse_input None in
       let sels = Selections.create root in
-      let sel = Selections.find iface sels in
+      let sel = Selections.get_selected {Selections.iface; source = true} sels in
       let sel = sel |? lazy (raise_safe "No implementation of root (%s)!" iface) in
       let min_version =
-        match sel.Q.attrs |> Q.AttrMap.get (COMPILE_NS.ns, "min-version") with
+        match Element.compile_min_version sel with
         | None -> our_min_version
         | Some min_version -> max our_min_version (Versions.parse_version min_version) in
       build_and_register config iface min_version
@@ -279,11 +248,10 @@ let compile config feed_provider iface ~autocompile =
   feed_provider#forget_user_feeds iface;
   Lwt.return ()      (* The plugin should now recalculate *)
 
-let get_bug_report_details config ~iface (ready, results) =
+let get_bug_report_details config ~role (ready, results) =
   let system = config.system in
-  let sels = results#get_selections in
-  let root_iface = Selections.root_iface sels in
-
+  let sels = Solver.selections results in
+  let root_role = Solver.Model.((requirements results).role) in
   let issue_file = "/etc/issue" in
   let issue =
     if system#file_exists issue_file then
@@ -296,9 +264,9 @@ let get_bug_report_details config ~iface (ready, results) =
     let do_add msg = Buffer.add_string b msg in
     Printf.ksprintf do_add fmt in
 
-  add "Problem with %s\n" iface;
-  if iface <> root_iface then
-    add "  (while attempting to run %s)\n" root_iface;
+  add "Problem with %s\n" (Solver.Model.Role.to_string role);
+  if role <> root_role then
+    add "  (while attempting to run %s)\n" (Solver.Model.Role.to_string root_role);
   add "\n";
 
   add "0install version %s\n" About.version;
@@ -306,7 +274,7 @@ let get_bug_report_details config ~iface (ready, results) =
   if ready then (
     Tree.print config (Buffer.add_string b) sels
   ) else (
-    Buffer.add_string b @@ Diagnostics.get_failure_reason config results
+    Buffer.add_string b @@ Solver.get_failure_reason config results
   );
 
   let platform = system#platform in
@@ -323,16 +291,16 @@ let get_bug_report_details config ~iface (ready, results) =
 let run_test config distro test_callback (ready, results) =
   try_lwt
     if ready then (
-      let sels = results#get_selections in
+      let sels = Solver.selections results in
       match Driver.get_unavailable_selections config ~distro sels with
       | [] -> test_callback sels
       | missing ->
           let details =
             missing |> List.map (fun sel ->
               Printf.sprintf "%s version %s\n  (%s)"
-                (ZI.get_attribute FeedAttr.interface sel)
-                (ZI.get_attribute FeedAttr.version sel)
-                (ZI.get_attribute FeedAttr.id sel)
+                (Element.interface sel)
+                (Element.version sel)
+                (Element.id sel)
             ) |> String.concat "\n\n- " in
           raise_safe "Can't run: the chosen versions have not been downloaded yet. I need:\n\n- %s" details
     ) else raise_safe "Can't do a test run - solve failed"

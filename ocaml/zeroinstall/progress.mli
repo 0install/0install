@@ -14,7 +14,7 @@ class type watcher =
 
     (* Updates the latest solution. If the first argument is [true] then the solve is
      * usable (although it may improve if you wait). *)
-    method update : (bool * Solver.result) * Feed_provider.feed_provider -> unit
+    method update : (bool * Solver.Model.t) * Feed_provider.feed_provider -> unit
 
     (** A new download has been added (may still be queued). *)
     method monitor : Downloader.download -> unit

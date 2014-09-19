@@ -4,7 +4,6 @@
 
 (** Binding elements: <environment>, <executable-in-*>, <binding> *)
 
-open General
 open Support.Common
 module Qdom = Support.Qdom
 
@@ -26,68 +25,37 @@ type exec_binding = {exec_type: exec_type; name: string; command: string}
 type binding =
 | EnvironmentBinding of env_binding
 | ExecutableBinding of exec_binding
-| GenericBinding of Qdom.element
+| GenericBinding of [`binding] Element.t
 
 let get_source b =
-  let get name = ZI.get_attribute_opt name b in
-  match (get "insert", get "value") with
-  | (None, None) -> Qdom.raise_elem "Missing 'insert' or 'value' on " b
+  match (Element.insert b, Element.value b) with
+  | (None, None) -> Element.raise_elem "Missing 'insert' or 'value' on " b
   | (Some i, None) -> InsertPath i
   | (None, Some v) -> Value v
-  | (Some _, Some _) -> Qdom.raise_elem "Can't use 'insert' and 'value' together on " b
+  | (Some _, Some _) -> Element.raise_elem "Can't use 'insert' and 'value' together on " b
 
 let get_mode b =
-  let get name = ZI.get_attribute_opt name b in
-  match default "prepend" (get "mode") with
-  | "prepend" -> Add {pos = Prepend; default = get "default"; separator = default path_sep (get "separator")}
-  | "append" -> Add {pos = Append; default = get "default"; separator = default path_sep (get "separator")}
+  match default "prepend" (Element.mode b) with
+  | "prepend" -> Add {pos = Prepend; default = Element.default b; separator = default path_sep (Element.separator b)}
+  | "append" -> Add {pos = Append; default = Element.default b; separator = default path_sep (Element.separator b)}
   | "replace" -> Replace
-  | x -> Qdom.raise_elem "Unknown mode '%s' on" x b
+  | x -> Element.raise_elem "Unknown mode '%s' on" x b
 
 let is_binding = function
   | "environment" | "executable-in-path" | "executable-in-var" | "overlay" | "binding" -> true
   | _ -> false
 
-let parse_binding elem =
-  let get_opt name = ZI.get_attribute_opt name elem in
-  let get name = ZI.get_attribute name elem in
-  match ZI.tag elem with
-  | Some "environment" -> Some (EnvironmentBinding {var_name = get "name"; mode = get_mode elem; source = get_source elem})
-  | Some "executable-in-path" -> Some (ExecutableBinding {exec_type = InPath; name = get "name"; command = default "run" (get_opt "command")})
-  | Some "executable-in-var" -> Some (ExecutableBinding {exec_type = InVar; name = get "name"; command = default "run" (get_opt "command")})
-  | Some "overlay" -> Some (GenericBinding elem)
-  | Some "binding" -> Some (GenericBinding elem)
-  | _ -> None
+let parse_binding = function
+  | `environment b -> EnvironmentBinding {var_name = Element.binding_name b; mode = get_mode b; source = get_source b}
+  | `executable_in_path b -> ExecutableBinding {exec_type = InPath; name = Element.binding_name b; command = default "run" (Element.command b)}
+  | `executable_in_var b -> ExecutableBinding {exec_type = InVar; name = Element.binding_name b; command = default "run" (Element.command b)}
+  | `binding b -> GenericBinding b
 
 (** Return the name of the command needed by this binding, if any. *)
 let get_command = function
   | EnvironmentBinding _ -> None
   | ExecutableBinding {command; _} -> Some command
-  | GenericBinding elem -> ZI.get_attribute_opt "command" elem
-
-(* Return all bindings in document order *)
-let collect_bindings impls root =
-  let bindings = ref [] in
-
-  let rec process ~deps ~commands iface parent =
-    let process_child node =
-      match ZI.tag node with
-      | Some "requires" | Some "runner" when deps ->
-          let dep_iface = ZI.get_attribute "interface" node in
-          if StringMap.mem dep_iface impls then process ~deps:false ~commands:false dep_iface node
-          else ()
-      | Some "command" when commands -> process ~deps:true ~commands:false iface node
-      | _ -> match parse_binding node with
-             | None -> ()
-             | Some binding -> bindings := (iface, binding) :: !bindings in
-    ZI.iter process_child parent in
-
-  root |> Selections.iter (fun node ->
-    let iface = (ZI.get_attribute "interface" node) in
-    try process ~deps:true ~commands:true iface node
-    with Safe_exception _ as ex -> reraise_with_context ex "... getting bindings from selection %s" iface
-  );
-  List.rev !bindings
+  | GenericBinding elem -> Element.command elem
 
 let get_default name = match name with
   | "PATH" -> Some "/bin:/usr/bin"
@@ -118,11 +86,11 @@ let calc_new_value name mode value env =
               log_info "%s=%s" name value;  (* no old value; use new value directly *)
               value
 
-let do_env_binding env impls iface {var_name; mode; source} =
+let do_env_binding env sel {var_name; mode; source} =
   let add value = Env.put env var_name (calc_new_value var_name mode value env) in
   match source with
   | Value v -> add v
-  | InsertPath i -> match StringMap.find_safe iface impls with
+  | InsertPath i -> match Lazy.force sel with
     | (_, None) -> ()  (* a PackageSelection; skip binding *)
     | (_, Some p) -> add (p +/ i)
 

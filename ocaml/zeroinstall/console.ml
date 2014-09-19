@@ -112,9 +112,9 @@ class console_ui =
         let fetcher = tools#make_fetcher (self :> Progress.watcher) in
         lwt result = Driver.solve_with_downloads config tools#distro fetcher reqs ~watcher:self ~force:refresh ~update_local:refresh in
         match result with
-        | (false, result, _) -> raise_safe "%s" (Diagnostics.get_failure_reason config result)
+        | (false, result, _) -> raise_safe "%s" (Solver.get_failure_reason config result)
         | (true, result, feed_provider) ->
-            let sels = result#get_selections in
+            let sels = Solver.selections result in
             match mode with
             | `Select_only -> Lwt.return (`Success sels)
             | `Download_only | `Select_for_run ->

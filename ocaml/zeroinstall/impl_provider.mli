@@ -47,6 +47,7 @@ type candidates = {
   replacement : General.iface_uri option;
   impls : Impl.generic_implementation list;
   rejects : (Impl.generic_implementation * rejection) list;
+  compare : Impl.generic_implementation -> Impl.generic_implementation -> int * preferred_reason;
 }
 
 class type impl_provider =
@@ -61,10 +62,4 @@ class type impl_provider =
     method extra_restrictions : Impl.restriction Support.Common.StringMap.t
   end
 
-class default_impl_provider : General.config -> Feed_provider.feed_provider -> scope_filter ->
-  object
-    inherit impl_provider
-
-    method set_watch_iface : General.iface_uri -> unit
-    method get_watched_compare : (Impl.generic_implementation -> Impl.generic_implementation -> int * preferred_reason) option
-  end
+class default_impl_provider : General.config -> Feed_provider.feed_provider -> scope_filter -> impl_provider

@@ -39,9 +39,9 @@ val compile : General.config -> Feed_provider.feed_provider -> General.iface_uri
 val have_source_for : Feed_provider.feed_provider -> General.iface_uri -> bool
 
 (** List the implementations of this interface in the order they should be shown in the GUI.
- * @return (selected_version, implementations), or None if this interface wasn't used in the solve. *)
-val list_impls : Solver.result -> General.iface_uri ->
-  (Impl.generic_implementation option * (Impl.generic_implementation * Impl_provider.rejection option) list) option
+ * @return (selected_version, implementations). *)
+val list_impls : Solver.Model.t -> Solver.role ->
+  (Impl.generic_implementation option * (Impl.generic_implementation * Impl_provider.rejection option) list)
 
 (* Returns (fetch-size, fetch-tooltip) *)
 val get_fetch_info : General.config -> Impl.generic_implementation -> (string * string)
@@ -50,14 +50,11 @@ val get_fetch_info : General.config -> Impl.generic_implementation -> (string * 
 val set_impl_stability : General.config -> Feed_url.global_id -> General.stability_level option -> unit
 
 (** Get the initial text for the bug report dialog box. *)
-val get_bug_report_details : General.config -> iface:General.iface_uri -> (bool * Solver.result) -> string
+val get_bug_report_details : General.config -> role:Solver.role -> (bool * Solver.Model.t) -> string
 
 (** Submit a bug report for this interface.
  * @return the response from the server (on success).
  * @raise Safe_exception on failure. *)
 val send_bug_report : General.iface_uri -> string -> string Lwt.t
 
-(** Find the [Impl.implementation] which produced this selection. If there is an override on the stability, return that too. *)
-val get_impl : Feed_provider.feed_provider -> Support.Qdom.element -> (Impl.generic_implementation * General.stability_level option) option
-
-val run_test : General.config -> Distro.distribution -> (Selections.t -> string Lwt.t) -> (bool * Solver.result) -> string Lwt.t
+val run_test : General.config -> Distro.distribution -> (Selections.t -> string Lwt.t) -> (bool * Solver.Model.t) -> string Lwt.t
