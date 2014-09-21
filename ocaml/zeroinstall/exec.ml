@@ -88,7 +88,9 @@ let do_exec_binding dry_run builder env impls (role, {Binding.exec_type; Binding
 
   let () = match exec_type with
   | Binding.InPath -> Binding.prepend "PATH" exec_dir path_sep env
-  | Binding.InVar -> Env.put env name exec_path in
+  | Binding.InVar ->
+      log_info "%s=%s" name exec_path;
+      Env.put env name exec_path in
 
   builder#setenv name command_argv env
 
