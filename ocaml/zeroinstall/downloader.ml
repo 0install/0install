@@ -79,6 +79,7 @@ let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.
         Curl.set_timevalue connection (Int32.zero) end;
 
     Curl.set_url connection url;
+    Curl.set_useragent connection ("0install/" ^ About.version);
     Curl.set_headerfunction connection check_header;
     Curl.set_progressfunction connection (fun dltotal dlnow _ultotal _ulnow ->
       Curl_threading.run_in_main (fun () ->
