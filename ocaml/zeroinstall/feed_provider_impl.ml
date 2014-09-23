@@ -5,7 +5,6 @@
 (** Caching feeds in memory *)
 
 open Support.Common
-module Q = Support.Qdom
 module U = Support.Utils
 module Basedir = Support.Basedir
 module FeedMap = Feed_url.FeedMap

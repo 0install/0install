@@ -8,7 +8,6 @@ open General
 open Support.Common
 module FeedAttr = Constants.FeedAttr
 module U = Support.Utils
-module Q = Support.Qdom
 
 open Distro
 

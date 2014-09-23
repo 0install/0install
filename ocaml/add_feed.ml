@@ -9,7 +9,6 @@ open Zeroinstall
 open Zeroinstall.General
 open Support.Common
 
-module Q = Support.Qdom
 module F = Zeroinstall.Feed
 module G = Generic_select
 module FC = Zeroinstall.Feed_cache

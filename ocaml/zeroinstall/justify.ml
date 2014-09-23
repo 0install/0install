@@ -3,7 +3,6 @@
  *)
 
 open Support.Common
-module Qdom = Support.Qdom
 module FeedAttr = Constants.FeedAttr
 
 module U = Support.Utils

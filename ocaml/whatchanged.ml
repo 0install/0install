@@ -7,7 +7,6 @@
 open Options
 open Zeroinstall.General
 open Support.Common
-module Qdom = Support.Qdom
 module U = Support.Utils
 module Selections = Zeroinstall.Selections
 

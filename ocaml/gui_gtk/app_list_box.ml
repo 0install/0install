@@ -10,7 +10,6 @@ open Support.Common
 open Gtk_common
 
 module F = Zeroinstall.Feed
-module Q = Support.Qdom
 module U = Support.Utils
 module FC = Zeroinstall.Feed_cache
 module Feed_url = Zeroinstall.Feed_url

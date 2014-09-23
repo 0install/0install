@@ -8,7 +8,6 @@ open Options
 open Zeroinstall.General
 open Support.Common
 
-module Q = Support.Qdom
 module J = Yojson.Basic
 module JC = Zeroinstall.Json_connection
 module Ui = Zeroinstall.Ui

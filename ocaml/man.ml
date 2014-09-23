@@ -8,7 +8,6 @@ open Options
 open Support.Common
 open Zeroinstall.General
 module U = Support.Utils
-module Qdom = Support.Qdom
 module Env = Zeroinstall.Env
 
 (** Exec the man command. Never returns. *)
