@@ -657,7 +657,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
         let (fetch_str, fetch_tip) = Gui.get_fetch_info config impl in
 
         let row = model#append () in
-        model#set ~row ~column:version @@ Versions.format_version impl.Impl.parsed_version;
+        model#set ~row ~column:version @@ Version.to_string impl.Impl.parsed_version;
         model#set ~row ~column:released @@ default "-" @@ Q.AttrMap.get_no_ns FeedAttr.released impl.Impl.props.Impl.attrs;
         model#set ~row ~column:stability @@ stability_value;
         model#set ~row ~column:langs @@ default "-" @@ Q.AttrMap.get_no_ns FeedAttr.langs impl.Impl.props.Impl.attrs;

@@ -289,7 +289,7 @@ let complete_version completer ~range ~maybe_app target pre =
               "" in
 
           let check pv =
-            let v = Zeroinstall.Versions.format_version pv in
+            let v = Zeroinstall.Version.to_string pv in
             let vexpr = v_prefix ^ v in
             if starts_with vexpr pre then Some vexpr else None in
           let all_versions = List.map (fun impl -> impl.Impl.parsed_version) @@ Feed.get_implementations feed in

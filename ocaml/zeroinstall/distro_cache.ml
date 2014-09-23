@@ -13,7 +13,7 @@ module Basedir = Support.Basedir
 
 type package_name = string
 type machine = string option
-type entry = Versions.parsed_version * machine
+type entry = Version.t * machine
 
 type cache_data = {
   mutable mtime : float;
@@ -33,7 +33,7 @@ class cache (config:General.config) ~(cache_leaf:string) (source:filepath) =
 
   let add_entry ch package_name (version, machine) =
     validate_key package_name;
-    Printf.fprintf ch "%s\t%s\t%s\n" package_name (Versions.format_version version) (default "*" machine) in
+    Printf.fprintf ch "%s\t%s\t%s\n" package_name (Version.to_string version) (default "*" machine) in
 
   object (self)
     (* The status of the cache when we loaded it. *)
@@ -71,7 +71,7 @@ class cache (config:General.config) ~(cache_leaf:string) (source:filepath) =
                   Hashtbl.replace data.contents key prev    (* Ensure empty list is in the table *)
                 ) else (
                   let version, machine = U.split_pair U.re_tab value in
-                  Hashtbl.replace data.contents key @@ (Versions.parse_version version, Arch.none_if_star machine) :: prev
+                  Hashtbl.replace data.contents key @@ (Version.parse version, Arch.none_if_star machine) :: prev
                 )
               done
             with End_of_file -> ()

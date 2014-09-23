@@ -57,7 +57,7 @@ module CoreModel = struct
     command : command_name option;
   }
 
-  let impl_to_string impl = (Versions.format_version impl.Impl.parsed_version) ^ " - " ^ Qdom.show_with_loc impl.Impl.qdom
+  let impl_to_string impl = Printf.sprintf "%a-%a" Version.fmt impl.Impl.parsed_version Impl.fmt impl
   let id_of_impl impl = Impl.get_attr_ex FeedAttr.id impl
   let command_to_string command = Qdom.show_with_loc command.Impl.command_qdom
   let version impl = impl.Impl.parsed_version
@@ -75,7 +75,7 @@ module CoreModel = struct
         commands = StringMap.empty;   (* (not used; we can provide any command) *)
         bindings = [];
       };
-      parsed_version = Versions.dummy;
+      parsed_version = Version.parse "0";
       impl_type = `local_impl "/dummy";
     }
 
@@ -223,8 +223,8 @@ module Model =
       selections : Core.selection RoleMap.t;
     }
 
-    type version = Versions.parsed_version
-    let format_version = Versions.format_version
+    type version = Version.t
+    let format_version = Version.to_string
 
     let get_selected role result =
       RoleMap.find role result.selections |> pipe_some (fun selection ->

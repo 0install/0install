@@ -6,12 +6,12 @@ open OUnit
 open Zeroinstall.General
 open Support.Common
 open Fake_system
-module Versions = Zeroinstall.Versions
+module Version = Zeroinstall.Version
 module Impl = Zeroinstall.Impl
 
 let pv v =
-  let parsed = Versions.parse_version v in
-  assert_str_equal v @@ Versions.format_version parsed;
+  let parsed = Version.parse v in
+  assert_str_equal v @@ Version.to_string parsed;
   parsed
 
 let invalid v =
@@ -29,7 +29,7 @@ let dummy_impl = Impl.({
     commands = StringMap.empty;   (* (not used; we can provide any command) *)
     bindings = [];
   };
-  parsed_version = Versions.dummy;
+  parsed_version = Version.parse "0";
   impl_type = `local_impl "/dummy";
 })
 
@@ -51,7 +51,7 @@ let suite = "versions">::: [
     invalid "";
 
     begin
-      let open Versions in
+      let open Version in
       assert_equal [([1L], Dash)] @@ pv "1";
       assert_equal [([1L; 0L], Dash)] @@ pv("1.0");
       assert_equal [([1L; 0L], Pre); ([5L], Dash)] @@ pv("1.0-pre5");
@@ -78,14 +78,11 @@ let suite = "versions">::: [
   );
 
   "ranges">:: (fun () ->
-    let v1 = Versions.parse_version "1" in
-    let v1_1 = Versions.parse_version "1.1" in
-    let v2 = Versions.parse_version "2" in
+    let v1 = Version.parse "1" in
+    let v1_1 = Version.parse "1.1" in
+    let v2 = Version.parse "2" in
 
-    let parse expr =
-      let test = Versions.parse_expr expr in
-      assert (test Versions.dummy);
-      test in
+    let parse expr = Version.parse_expr expr in
 
     let t = parse "..!" in
     assert (t v1);
@@ -123,7 +120,7 @@ let suite = "versions">::: [
     assert (t v2);
 
     try
-      ignore @@ Versions.parse_expr "1.1..2";
+      ignore @@ Version.parse_expr "1.1..2";
       assert false
     with Safe_exception _ -> ()
   );
@@ -132,7 +129,7 @@ let suite = "versions">::: [
     let r = ref (Impl.make_version_restriction "2.6..!3 | 3.2.2.. | 1 | ..!0.2") in
 
     let test v result =
-      let impl = {dummy_impl with Impl.parsed_version = Versions.parse_version v} in
+      let impl = {dummy_impl with Impl.parsed_version = Version.parse v} in
       assert_equal result @@ (!r)#meets_restriction impl in
 
     test "0.1"  true;
@@ -156,7 +153,7 @@ let suite = "versions">::: [
 
     let fail expr msg =
       Fake_system.assert_raises_safe msg (lazy (
-        ignore @@ Versions.parse_expr expr
+        ignore @@ Version.parse_expr expr
       )) in
 
     fail "1..2" "End of range must be exclusive (use '..!2', not '..2')";
@@ -166,9 +163,9 @@ let suite = "versions">::: [
 
   "cleanup_distro_version">:: (fun () ->
     let check expected messy =
-      match Versions.try_cleanup_distro_version messy with
+      match Version.try_cleanup_distro_version messy with
       | None -> failwith messy
-      | Some clean -> assert_str_equal expected (Versions.format_version clean) in
+      | Some clean -> assert_str_equal expected (Version.to_string clean) in
 
     check "0.3.1-1" "1:0.3.1-1";
     check "0.3.1-1-0" "0.3.1-1ubuntu0";
@@ -182,16 +179,16 @@ let suite = "versions">::: [
     check "7-pre3-2.1.1-pre1-1-2" "7~u3-2.1.1~pre1-1ubuntu2";
     check "0.6.0.9999999999999999" "0.6.0.1206569328141510525648634803928199668821045408958";
 
-    assert_equal None (Versions.try_cleanup_distro_version "cvs");
+    assert_equal None (Version.try_cleanup_distro_version "cvs");
   );
 
   "restrictions">:: (fun () ->
     let v6 = {dummy_impl with
-      Impl.parsed_version = (Versions.parse_version "6");
+      Impl.parsed_version = (Version.parse "6");
       Impl.impl_type = `package_impl {Impl.package_distro = "RPM"; Impl.package_state = `installed};
     } in
     let v7 = {dummy_impl with
-      Impl.parsed_version = (Versions.parse_version "7");
+      Impl.parsed_version = (Version.parse "7");
       Impl.impl_type = `package_impl {Impl.package_distro = "Gentoo"; Impl.package_state = `installed};
     } in
 

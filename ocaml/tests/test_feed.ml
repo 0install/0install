@@ -263,8 +263,8 @@ let suite = "feed">::: [
 
     match feed.F.implementations |> StringMap.bindings with
     | [("sha1=123", impl); ("used", used)] ->
-        Fake_system.assert_str_equal "1.0-rc3-pre" @@ Zeroinstall.Versions.format_version impl.Impl.parsed_version;
-        Fake_system.assert_str_equal "2" @@ Zeroinstall.Versions.format_version used.Impl.parsed_version;
+        Fake_system.assert_str_equal "1.0-rc3-pre" @@ Zeroinstall.Version.to_string impl.Impl.parsed_version;
+        Fake_system.assert_str_equal "2" @@ Zeroinstall.Version.to_string used.Impl.parsed_version;
     | _ -> assert false
   );
 

@@ -36,7 +36,7 @@ class impl_provider =
       };
       stability = General.Stable;
       os; machine;
-      parsed_version = Versions.parse_version v;
+      parsed_version = Version.parse v;
       impl_type = `local_impl "/"
     }) in
 
@@ -96,11 +96,11 @@ let run_sat_test expected problem =
         let min_v = Str.matched_group 5 line in
         let max_v = Str.matched_group 6 line in
 
-        let min_p = Versions.parse_version min_p in
-        let max_p = Versions.parse_version max_p in
+        let min_p = Version.parse min_p in
+        let max_p = Version.parse max_p in
 
-        let min_v = Versions.parse_version min_v in
-        let max_v = Versions.parse_version max_v in
+        let min_v = Version.parse min_v in
+        let max_v = Version.parse max_v in
 
         let restriction =
           object

@@ -72,7 +72,7 @@ and +'a t = {
   stability : stability_level;
   os : string option;           (* Required OS; the first part of the 'arch' attribute. None for '*' *)
   machine : string option;      (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
-  parsed_version : Versions.parsed_version;
+  parsed_version : Version.t;
   impl_type : [< impl_type] as 'a;
 }
 
@@ -132,7 +132,7 @@ let get_attr_ex name impl =
 let parse_version_element elem =
   let before = Element.before elem in
   let not_before = Element.not_before elem in
-  let test = Versions.make_range_restriction not_before before in
+  let test = Version.make_range_restriction not_before before in
   object
     method meets_restriction impl = test impl.parsed_version
     method to_string =
@@ -151,7 +151,7 @@ let make_impossible_restriction msg =
 
 let make_version_restriction expr =
   try
-    let test = Versions.parse_expr expr in
+    let test = Version.parse_expr expr in
     object
       method meets_restriction impl = test impl.parsed_version
       method to_string = "version " ^ expr
@@ -268,3 +268,5 @@ let is_retrievable_without_network cache_impl =
 let get_id impl =
   let feed_url = get_attr_ex FeedAttr.from_feed impl in
   Feed_url.({feed = Feed_url.parse feed_url; id = get_attr_ex FeedAttr.id impl})
+
+let fmt () impl = Q.show_with_loc impl.qdom

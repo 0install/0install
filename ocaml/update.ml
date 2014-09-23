@@ -82,9 +82,11 @@ let check_for_updates options reqs old_sels =
         match get_newest options feed_provider reqs with
         | None -> log_warning "Can't find any implementations! (BUG)"
         | Some best ->
-            if best.Impl.parsed_version > Zeroinstall.Versions.parse_version root_version then (
-              print "A later version (%s %s) exists but was not selected. Using %s instead."
-                reqs.R.interface_uri (Zeroinstall.Versions.format_version best.Impl.parsed_version) root_version;
+            if best.Impl.parsed_version > Zeroinstall.Version.parse root_version then (
+              print "A later version (%s %a) exists but was not selected. Using %s instead."
+                reqs.R.interface_uri
+                Zeroinstall.Version.fmt best.Impl.parsed_version
+                root_version;
               if not config.help_with_testing && best.Impl.stability < Stable then
                 print "To select \"testing\" versions, use:\n0install config help_with_testing True"
             ) else if not changes then (

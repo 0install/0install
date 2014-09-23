@@ -190,7 +190,7 @@ let suite = "driver">::: [
     let get_distro_candidates = function
       | "prog" ->
           Zeroinstall.Packagekit.([{
-            version = Versions.parse_version "1.0";
+            version = Version.parse "1.0";
             machine = None;
             installed = false;
             retrieval_method = {

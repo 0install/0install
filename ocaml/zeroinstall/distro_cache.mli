@@ -9,7 +9,7 @@ open Support.Common
 
 type package_name = string
 type machine = string option
-type entry = Versions.parsed_version * machine
+type entry = Version.t * machine
 
 (* [new cache config ~cache_leaf source] creates a new cache backed by [cache_leaf].
  * Whenever [source] changes, everything in the cache is assumed to be invalid. *)

@@ -153,9 +153,9 @@ let handle options flags args =
 
   match args with
   | [requested_api_version] ->
-      let module V = Zeroinstall.Versions in
-      let requested_api_version = V.parse_version requested_api_version in
-      if requested_api_version < V.parse_version "2.6" then
+      let module V = Zeroinstall.Version in
+      let requested_api_version = V.parse requested_api_version in
+      if requested_api_version < V.parse "2.6" then
         raise_safe "Minimum supported API version is 2.6";
       let api_version = min requested_api_version Zeroinstall.About.parsed_version in
 
@@ -165,12 +165,12 @@ let handle options flags args =
 
       let handle_request = handle_request options ui in
       let handle_request =
-        if api_version <= V.parse_version "2.6" then wrap_for_2_6 handle_request
+        if api_version <= V.parse "2.6" then wrap_for_2_6 handle_request
         else handle_request in
 
       Lwt.wakeup set_handler handle_request;
 
-      connection#notify "set-api-version" [`String (V.format_version api_version)] |> Lwt_main.run;
+      connection#notify "set-api-version" [`String (V.to_string api_version)] |> Lwt_main.run;
 
       Lwt_main.run connection#run;
       log_info "OCaml slave exiting"

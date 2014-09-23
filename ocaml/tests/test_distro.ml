@@ -77,7 +77,7 @@ let suite = "distro">::: [
     let open Impl in
     match impls with
     | [impl] ->
-        assert_str_equal "2.7.2-4" (Zeroinstall.Versions.format_version impl.parsed_version);
+        assert_str_equal "2.7.2-4" (Zeroinstall.Version.to_string impl.parsed_version);
         let run = StringMap.find_safe "run" impl.props.commands in
         assert_str_equal "/bin/python2" (ZI.get_attribute "path" run.command_qdom)
     | impls -> assert_failure @@ Printf.sprintf "want 1 Python, got %d" (List.length impls)

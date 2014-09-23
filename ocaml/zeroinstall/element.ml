@@ -81,7 +81,7 @@ let selections = ZI.map (fun x -> x) ~name:"selection"
 
 let rec filter_if_0install_version node =
   match node.Q.attrs |> AttrMap.get_no_ns FeedAttr.if_0install_version with
-  | Some expr when not (Versions.parse_expr expr About.parsed_version) -> None
+  | Some expr when not (Version.parse_expr expr About.parsed_version) -> None
   | Some _expr -> Some {
     node with Q.child_nodes = Support.Utils.filter_map filter_if_0install_version node.Q.child_nodes;
     attrs = node.Q.attrs |> AttrMap.remove ("", FeedAttr.if_0install_version) 
@@ -105,7 +105,7 @@ let parse_feed root =
 
   ZI.get_attribute_opt "min-injector-version" root
   |> if_some (fun min_version ->
-      if Versions.parse_version min_version > About.parsed_version then
+      if Version.parse min_version > About.parsed_version then
         Q.raise_elem "Feed requires 0install version %s or later (we are %s):" min_version About.version root
   );
   root

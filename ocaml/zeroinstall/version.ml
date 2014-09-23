@@ -18,14 +18,14 @@ let re_dot = Str.regexp_string "."
 
 type dotted_int = Int64.t list
 
-type parsed_version =
+type t =
   (dotted_int * modifier) list
 
-let strip_modifier (version:parsed_version) : parsed_version =
+let strip_modifier (version:t) : t =
   let dotted = fst (List.hd version) in
   [(dotted, Dash)]
 
-type version_expr = parsed_version -> bool
+type version_expr = t -> bool
 
 let parse_mod = function
   | "-pre" -> Pre
@@ -40,9 +40,7 @@ let string_of_mod = function
   | Dash -> "-"
   | Post -> "-post"
 
-let dummy : parsed_version = [([Int64.of_int (-1)], Dash)]
-
-let parse_version version_string =
+let parse version_string =
   let int64_of_string s =
     try Int64.of_string s
     with Failure _ -> raise_safe "Cannot parse '%s' as a 64-bit integer (in '%s')" s version_string in
@@ -68,7 +66,7 @@ let parse_version version_string =
 
   parsed
 
-let format_version parsed =
+let to_string parsed =
   let n_remaining = ref (List.length parsed) in
   let format_seg (d, m) =
     n_remaining := !n_remaining - 1;
@@ -77,18 +75,20 @@ let format_version parsed =
 
   String.concat "" (List.map format_seg parsed)
 
+let fmt () = to_string
+
 let re_pipe = Str.regexp_string "|"
 let re_range = Str.regexp "^\\(.*\\)\\(\\.\\.!?\\)\\(.*\\)$"
 
-let make_range_restriction low high : (parsed_version -> bool) =
+let make_range_restriction low high : (t -> bool) =
   let parse_if_present = function
     | None -> None
-    | Some v -> Some (parse_version v) in
+    | Some v -> Some (parse v) in
   match parse_if_present low, parse_if_present high with
   | None, None -> fun _ -> true
-  | Some low, None -> fun v -> v == dummy || low <= v
-  | None, Some high -> fun v -> v == dummy || v < high
-  | Some low, Some high -> fun v -> v == dummy || (low <= v && v < high)
+  | Some low, None -> fun v -> low <= v
+  | None, Some high -> fun v -> v < high
+  | Some low, Some high -> fun v -> (low <= v && v < high)
 
 let parse_range s =
   let s = trim s in
@@ -107,16 +107,16 @@ let parse_range s =
     )
   ) else (
     if s <> "" && s.[0] = '!' then (
-      (<>) (parse_version (Support.Utils.string_tail s 1))
+      (<>) (parse (Support.Utils.string_tail s 1))
     ) else (
-      (=) (parse_version s)
+      (=) (parse s)
     )
   )
 
 let parse_expr s =
   try
     let tests = List.map parse_range (Str.split_delim re_pipe s) in
-    fun v -> v == dummy || List.exists (fun t -> t v) tests
+    fun v -> List.exists (fun t -> t v) tests
   with Safe_exception _ as ex -> reraise_with_context ex "... parsing version expression '%s'" s
 
 (** Any distribution-provided version number is capped to this.

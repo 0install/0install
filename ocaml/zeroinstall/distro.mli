@@ -77,7 +77,7 @@ class virtual distribution : General.config ->
       ?id:string ->
       ?main:string ->
       query ->
-      version:Versions.parsed_version ->
+      version:Version.t ->
       machine:(string option) ->
       quick_test:(quick_test option) ->  (* The result is valid while this condition holds *)
       package_state:Impl.package_state ->

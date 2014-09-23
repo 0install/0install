@@ -8,7 +8,7 @@ type packagekit_id = string
 type size = Int64.t
 
 type package_info = {
-  version : Versions.parsed_version;
+  version : Version.t;
   machine : string option;
   installed : bool;
   retrieval_method : Impl.distro_retrieval_method;

@@ -20,7 +20,7 @@ let generic_distribution config =
   end
 
 let try_cleanup_distro_version_warn version package_name =
-  match Versions.try_cleanup_distro_version version with
+  match Version.try_cleanup_distro_version version with
   | None -> log_warning "Can't parse distribution version '%s' for package '%s'" version package_name; None
   | Some zi_version -> Some zi_version
 
@@ -37,7 +37,7 @@ let check_cache id_prefix elem (cache:Distro_cache.cache) =
   let package = Element.package elem in
   let sel_id = Element.id elem in
   let matches (installed_version, machine) =
-    let installed_id = Printf.sprintf "%s:%s:%s:%s" id_prefix package (Versions.format_version installed_version) (default "*" machine) in
+    let installed_id = Printf.sprintf "%s:%s:%a:%s" id_prefix package Version.fmt installed_version (default "*" machine) in
     (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
     sel_id = installed_id in
   List.exists matches (fst (cache#get package))
@@ -52,7 +52,7 @@ module Debian = struct
     | status -> Support.System.check_exit_status status
 
   type apt_cache_entry = {
-    version : string;
+    version : Version.t;
     machine : string;
     size : Int64.t option;
   }
@@ -86,7 +86,7 @@ module Debian = struct
               done
             with Stream.Failure -> () end;
             match !version, !machine with
-            | Some version, Some machine -> Lwt.return (Some {version = Versions.format_version version; machine; size = !size})
+            | Some version, Some machine -> Lwt.return (Some {version; machine; size = !size})
             | _ -> Lwt.return None
           with ex ->
             log_warning ~ex "'apt-cache show %s' failed" package;
@@ -169,7 +169,6 @@ module Debian = struct
         if use_apt_cache_results then (
           let entry = try Hashtbl.find apt_cache package_name with Not_found -> None in
           entry |> if_some (fun {version; machine; size = _} ->
-            let version = Versions.parse_version version in
             let machine = Arch.none_if_star machine in
             let package_state = `uninstalled Impl.({distro_size = None; distro_install_info = ("apt-get install", package_name)}) in
             self#add_package_implementation ~package_state ~version ~machine ~quick_test:None ~distro_name query
@@ -208,7 +207,7 @@ module Debian = struct
       method! private add_package_implementation ?id ?main query ~version ~machine ~quick_test ~package_state ~distro_name =
         let version =
           match query.package_name, version with
-          | ("openjdk-6-jre" | "openjdk-7-jre"), (([major], Versions.Pre) :: (minor, mmod) :: rest) ->
+          | ("openjdk-6-jre" | "openjdk-7-jre"), (([major], Version.Pre) :: (minor, mmod) :: rest) ->
             (* Debian marks all Java versions as pre-releases
                See: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=685276 *)
             (major :: minor, mmod) :: rest
@@ -456,7 +455,7 @@ module Mac = struct
               self#add_package_implementation
                 ~main
                 ~package_state:`installed
-                ~version:(Versions.parse_version zero_version)
+                ~version:(Version.parse zero_version)
                 ~machine:(Some machine)
                 ~quick_test:(Some (main, UnchangedSince info.Unix.st_mtime))
                 ~distro_name
@@ -592,7 +591,7 @@ module Win = struct
         [(netfx32_install, "i486"); (netfx64_install, "x86_64")] |> List.iter (function
           | None, _ -> ()
           | Some install, machine ->
-              let version = Versions.parse_version zero_version in
+              let version = Version.parse zero_version in
               let package_state =
                 if install = 1 then `installed
                 else `uninstalled Impl.({distro_size = None; distro_install_info = ("Windows installer", "NetFX")}) in
@@ -613,7 +612,7 @@ module Win = struct
 
         [(netfx32_install, netfx32_release, "i486"); (netfx64_install, netfx64_release, "x86_64")] |> List.iter (function
           | Some install, Some release, machine ->
-              let version = Versions.parse_version zero_version in
+              let version = Version.parse zero_version in
               let package_state =
                 if install = 1 && release >= release_version then `installed
                 else `uninstalled Impl.({distro_size = None; distro_install_info = ("Windows installer", "NetFX")}) in
@@ -639,7 +638,7 @@ module Win = struct
               match config.system#stat java_bin with
               | None -> ()
               | Some info ->
-                  let version = Versions.parse_version zero_version in
+                  let version = Version.parse zero_version in
                   let quick_test = Some (java_bin, UnchangedSince info.Unix.st_mtime) in
                   self#add_package_implementation
                     ~main:java_bin

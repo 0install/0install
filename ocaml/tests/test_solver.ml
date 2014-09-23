@@ -377,7 +377,7 @@ let suite = "solver">::: [
             ~package_state:`installed
             ~id:"package:is_distro_v1-1"
             ~machine
-            ~version:(Versions.parse_version "1-1")
+            ~version:(Version.parse "1-1")
             ~quick_test:None
             ~distro_name
             query;
@@ -385,7 +385,7 @@ let suite = "solver">::: [
             ~package_state:(`uninstalled Impl.({distro_size = None; distro_install_info = ("dummy", "root_install_needed_2")}))
             ~id:"package:root_install_needed_2"
             ~machine
-            ~version:(Versions.parse_version "1-1")
+            ~version:(Version.parse "1-1")
             ~quick_test:None
             ~distro_name
             query;
@@ -393,7 +393,7 @@ let suite = "solver">::: [
             ~package_state:(`uninstalled Impl.({distro_size = None; distro_install_info = ("dummy", "root_install_needed_1")}))
             ~id:"package:root_install_needed_1"
             ~machine
-            ~version:(Versions.parse_version "1-1")
+            ~version:(Version.parse "1-1")
             ~quick_test:None
             ~distro_name
             query;
@@ -401,7 +401,7 @@ let suite = "solver">::: [
             ~package_state:`installed
             ~id:"package:buggy"
             ~machine
-            ~version:(Versions.parse_version "1-1")
+            ~version:(Version.parse "1-1")
             ~quick_test:None
             ~distro_name
             query;

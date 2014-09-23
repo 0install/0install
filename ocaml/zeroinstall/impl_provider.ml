@@ -140,7 +140,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
           | `local_impl path -> config.system#file_exists path
           | `cache_impl {digests;_} -> Stores.check_available cached_digests digests
         with Safe_exception _ as ex ->
-          log_warning ~ex "Can't test whether impl is available: %s" (Support.Qdom.show_with_loc impl.Impl.qdom);
+          log_warning ~ex "Can't test whether impl is available: %a" Impl.fmt impl;
           false in
 
       (* Printf.eprintf "Looking for %s\n" (String.concat "," @@ List.map Locale.format_lang wanted_langs); *)
@@ -216,8 +216,8 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
           test_fn PreferStability score_stability ||
 
           (* Newer versions come before older ones (ignoring modifiers) *)
-          test PreferVersion @@ compare (Versions.strip_modifier a.parsed_version)
-                                        (Versions.strip_modifier b.parsed_version) ||
+          test PreferVersion @@ compare (Version.strip_modifier a.parsed_version)
+                                        (Version.strip_modifier b.parsed_version) ||
 
           (* Prefer native packages if the main part of the versions are the same *)
           test_fn PreferDistro score_is_package ||
@@ -330,7 +330,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
         match check_acceptability impl with
         | `Acceptable -> true
         | #rejection as x -> rejects := (impl, x) :: !rejects; false
-      (*| problem -> log_warning "rejecting %s %s: %s" iface (Versions.format_version impl.Impl.parsed_version) (describe_problem impl problem); false *)
+      (*| problem -> log_warning "rejecting %s %s: %s" iface (Version.format_version impl.Impl.parsed_version) (describe_problem impl problem); false *)
       in
 
       let impls = List.filter do_filter candidates.impls in

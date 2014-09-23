@@ -257,7 +257,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
           let overrides = Feed.load_feed_overrides config from_feed in
           let user_stability = StringMap.find id overrides.Feed.user_stability in
 
-          let version = impl.Impl.parsed_version |> Versions.format_version in
+          let version = impl.Impl.parsed_version |> Version.to_string in
           let stability_str =
             match user_stability with
             | Some s -> String.uppercase (Impl.format_stability s)

@@ -6,4 +6,4 @@
 
 let version = "2.7-post"
 
-let parsed_version = Versions.parse_version version
+let parsed_version = Version.parse version

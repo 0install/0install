@@ -201,7 +201,7 @@ let build_and_register config iface min_0compile_version =
     run_subprocess [|
       config.abspath_0install; "run";
       "--message"; "Download the 0compile tool, to compile the source code";
-      "--not-before=" ^ (Versions.format_version min_0compile_version);
+      "--not-before=" ^ (Version.to_string min_0compile_version);
       "http://0install.net/2006/interfaces/0compile.xml";
       "gui";
       iface
@@ -210,7 +210,7 @@ let build_and_register config iface min_0compile_version =
 
 (* Running subprocesses is a bit messy; this is just a direct translation of the (old) Python code. *)
 let compile config feed_provider iface ~autocompile =
-  let our_min_version = Versions.parse_version "1.0" in     (* The oldest version of 0compile we support *)
+  let our_min_version = Version.parse "1.0" in     (* The oldest version of 0compile we support *)
 
   lwt () =
     if autocompile then (
@@ -218,7 +218,7 @@ let compile config feed_provider iface ~autocompile =
         run_subprocess [|
           config.abspath_0install; "run";
           "--message"; "Download the 0compile tool to compile the source code";
-          "--not-before=" ^ (Versions.format_version our_min_version);
+          "--not-before=" ^ (Version.to_string our_min_version);
           "http://0install.net/2006/interfaces/0compile.xml";
           "autocompile";
           "--gui";
@@ -239,7 +239,7 @@ let compile config feed_provider iface ~autocompile =
       let min_version =
         match Element.compile_min_version sel with
         | None -> our_min_version
-        | Some min_version -> max our_min_version (Versions.parse_version min_version) in
+        | Some min_version -> max our_min_version (Version.parse min_version) in
       build_and_register config iface min_version
     ) in
 

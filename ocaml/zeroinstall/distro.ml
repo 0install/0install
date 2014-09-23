@@ -134,7 +134,7 @@ class virtual distribution config =
       stability = Packaged;
       os = None;
       machine = Some host_machine.Platform.machine;       (* (hopefully) *)
-      parsed_version = Versions.parse_version version;
+      parsed_version = Version.parse version;
       impl_type = `package_impl { Impl.
         package_distro = "host";
         package_state = `installed;
@@ -202,7 +202,7 @@ class virtual distribution config =
 
     (** Convenience wrapper for [add_result] that builds a new implementation from the given attributes. *)
     method private add_package_implementation ?id ?main (query:query) ~version ~machine ~quick_test ~package_state ~distro_name =
-      let version_str = Versions.format_version version in
+      let version_str = Version.to_string version in
       let id = id |? lazy (Printf.sprintf "%s:%s:%s:%s" id_prefix query.package_name version_str (default "*" machine)) in
       let props = query.elem_props in
       let elem = query.elem in

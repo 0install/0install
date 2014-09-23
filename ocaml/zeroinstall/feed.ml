@@ -117,7 +117,7 @@ let parse_implementations (system:system) url root local_dir =
       os;
       machine;
       stability;
-      parsed_version = Versions.parse_version (get_prop FeedAttr.version);
+      parsed_version = Version.parse (get_prop FeedAttr.version);
       impl_type;
     } in
     implementations := StringMap.add id impl !implementations

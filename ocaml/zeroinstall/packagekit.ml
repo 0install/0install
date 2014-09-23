@@ -9,7 +9,7 @@ module IPackageKit = Packagekit_interfaces.Org_freedesktop_PackageKit
 module ITrans = Packagekit_interfaces.Org_freedesktop_PackageKit_Transaction
 
 type package_info = {
-  version : Versions.parsed_version;
+  version : Version.t;
   machine : string option;
   installed : bool;
   retrieval_method : Impl.distro_retrieval_method;
@@ -70,7 +70,7 @@ let resolve pk package_names =
     log_info "packagekit: resolved %s: %s" package_id summary;
     match Str.bounded_split_delim U.re_semicolon package_id 4 with
     | [package_name; version; machine; repo] ->
-        begin match Versions.try_cleanup_distro_version version with
+        begin match Version.try_cleanup_distro_version version with
         | None -> log_warning "packagekit: failed to parse version string '%s' for '%s'" version package_name
         | Some version ->
             let machine = Support.System.canonical_machine machine in

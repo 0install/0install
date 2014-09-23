@@ -64,7 +64,7 @@ and +'a t = {
   stability : General.stability_level;
   os : string option;           (* Required OS; the first part of the 'arch' attribute. None for '*' *)
   machine : string option;      (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
-  parsed_version : Versions.parsed_version;
+  parsed_version : Version.t;
   impl_type : [< impl_type] as 'a;
 }
 
@@ -102,3 +102,6 @@ val get_langs : _ t -> Support.Locale.lang_spec list
 val is_available_locally : General.config -> _ t -> bool
 val is_retrievable_without_network : cache_impl -> bool
 val get_id : _ t -> Feed_url.global_id
+
+(** Formats the XML element and location, for debug logging with [%a]. *)
+val fmt : unit -> _ t -> string
