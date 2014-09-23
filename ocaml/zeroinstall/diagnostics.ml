@@ -36,7 +36,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
     | NoCandidates
 
   let format_restrictions r = String.concat ", " (List.map Model.string_of_restriction r)
-  let format_version impl = Model.format_version (Model.version impl)
+  let format_version () = Model.format_version
 
   let describe_problem impl = function
     | `Model_rejection r -> Model.describe_problem impl r
@@ -64,21 +64,21 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
     let name_impl impl = Model.id_of_impl impl in
 
     let () = match component#impl with
-      | Some sel -> add "%a -> %s (%s)" format_role role (format_version sel) (name_impl sel)
+      | Some sel -> add "%a -> %a (%s)" format_role role format_version sel (name_impl sel)
       | None -> add "%a -> (problem)" format_role role in
 
     prefix := "\n    ";
 
     let show_rejections rejected =
       prefix := "\n      ";
-      let by_version (a, _) (b, _) = Model.(compare (version b) (version a)) in
+      let by_version (a, _) (b, _) = Model.compare_version b a in
       let rejected = List.sort by_version rejected in
       let i = ref 0 in
       let () =
         try
           ListLabels.iter rejected ~f:(fun (impl, problem) ->
             if !i = 5 && not Support.Logging.(will_log Debug) then (add "..."; raise Exit);
-            add "%s (%s): %s" (name_impl impl) (format_version impl) (describe_problem impl problem);
+            add "%s (%a): %s" (name_impl impl) format_version impl (describe_problem impl problem);
             i := !i + 1
           );
         with Exit -> () in
@@ -89,9 +89,9 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
       | ReplacesConflict old -> add "Replaces (and therefore conflicts with) %a" format_role old
       | ReplacedByConflict replacement -> add "Replaced by (and therefore conflicts with) %a" format_role replacement
       | Restricts (other_role, impl, r) ->
-          add "%a %s requires %s" format_role other_role (format_version impl) (format_restrictions r)
+          add "%a %a requires %s" format_role other_role format_version impl (format_restrictions r)
       | RequiresCommand (other_role, impl, command) ->
-          add "%a %s requires '%s' command" format_role other_role (format_version impl) (command :> string)
+          add "%a %a requires '%s' command" format_role other_role format_version impl (command :> string)
       | NoCandidates ->
           if component#original_good = [] then (
             if component#original_bad = [] then (

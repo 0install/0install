@@ -60,8 +60,9 @@ module CoreModel = struct
   let impl_to_string impl = Printf.sprintf "%a-%a" Version.fmt impl.Impl.parsed_version Impl.fmt impl
   let id_of_impl impl = Impl.get_attr_ex FeedAttr.id impl
   let command_to_string command = Qdom.show_with_loc command.Impl.command_qdom
-  let version impl = impl.Impl.parsed_version
   let describe_problem = Impl_provider.describe_problem
+
+  let compare_version a b = compare a.Impl.parsed_version b.Impl.parsed_version
 
   let dummy_impl =
     let open Impl in {
@@ -223,8 +224,7 @@ module Model =
       selections : Core.selection RoleMap.t;
     }
 
-    type version = Version.t
-    let format_version = Version.to_string
+    let format_version impl = Version.to_string impl.Impl.parsed_version
 
     let get_selected role result =
       RoleMap.find role result.selections |> pipe_some (fun selection ->
