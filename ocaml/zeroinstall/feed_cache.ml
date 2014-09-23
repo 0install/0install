@@ -176,7 +176,7 @@ let save_iface_config config uri iface_config =
 let get_cached_feed config = function
   | `local_feed path -> (
       try
-        let root = Q.parse_file config.system path in
+        let root = Q.parse_file config.system path |> Element.parse_feed in
         Some (Feed.parse config.system root (Some path))
       with Safe_exception _ as ex ->
         log_warning ~ex "Can't read local file '%s'" path;
@@ -186,7 +186,7 @@ let get_cached_feed config = function
       match get_cached_feed_path config remote_feed with
       | None -> None
       | Some path ->
-          let root = Q.parse_file config.system path in
+          let root = Q.parse_file config.system path |> Element.parse_feed in
           let feed = Feed.parse config.system root None in
           if feed.Feed.url = remote_feed then Some feed
           else raise_safe "Incorrect URL in cached feed - expected '%s' but found '%s'" url (Feed_url.format_url feed.Feed.url)

@@ -10,10 +10,10 @@ module Q = Support.Qdom
 module G = Support.Gpg
 module FeedAttr = Constants.FeedAttr
 
-type non_mirror_case = [ `ok of Q.element | `no_trusted_keys | `replay_attack of (feed_url * float * float) | `aborted_by_user ]
+type non_mirror_case = [ `ok of [`feed] Element.t | `no_trusted_keys | `replay_attack of (feed_url * float * float) | `aborted_by_user ]
 
 type fetch_feed_response =
-  [ `update of (Q.element * fetch_feed_response Lwt.t option)  (* Use this version (but a better version may come soon) *)
+  [ `update of ([`feed] Element.t * fetch_feed_response Lwt.t option)  (* Use this version (but a better version may come soon) *)
   | `aborted_by_user        (* Abort silently (no need to notify the user) *)
   | `problem of (string * fetch_feed_response Lwt.t option)    (* Report a problem (but may still succeed later) *)
   | `no_update ]            (* Use the previous version *)
@@ -141,12 +141,12 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
     log_debug "Updating '%s' from network; modified at %s" feed_url pretty_time;
 
     (* Check the new XML is valid before adding it *)
-    let new_root = `String (0, new_xml) |> Xmlm.make_input |> Q.parse_input (Some feed_url) in
+    let new_root = `String (0, new_xml) |> Xmlm.make_input |> Q.parse_input (Some feed_url) |> Element.parse_feed in
     ignore (Feed.parse system new_root None).Feed.root;
 
-    let url_in_feed = ZI.get_attribute FeedAttr.uri new_root in
+    let url_in_feed = Element.uri_exn new_root in
     if url_in_feed <> feed_url then
-      Q.raise_elem "URL mismatch in feed:\n%s expected\n%s given in 'uri' attribute on" feed_url url_in_feed new_root;
+      raise_safe "URL mismatch in feed:\n%s expected\n%s given in 'uri' attribute on %a" feed_url url_in_feed Element.fmt new_root;
 
     (* Load the old XML *)
     let cache_path = Feed_cache.get_save_cache_path config feed in

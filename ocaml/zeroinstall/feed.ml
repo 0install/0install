@@ -199,8 +199,6 @@ let parse_implementations (system:system) url root local_dir =
   (!implementations, !package_implementations)
 
 let parse system root feed_local_path =
-  let root = Element.parse_feed root in
-
   let url =
     match feed_local_path with
     | None -> Element.uri root |? lazy (Element.raise_elem "Missing 'uri' attribute on non-local feed:" root)

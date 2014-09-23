@@ -43,7 +43,7 @@ type feed = {
 }
 
 (** {2 Parsing} *)
-val parse : system -> Support.Qdom.element -> filepath option -> feed
+val parse : system -> [`feed] Element.t -> filepath option -> feed
 
 val get_implementations : feed -> Impl.generic_implementation list
 

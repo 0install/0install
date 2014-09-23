@@ -42,7 +42,7 @@ let test_gobject_feed = "<?xml version='1.0'?>\n\
 </interface>"
 
 let load_feed system xml =
-    let root = Q.parse_input None @@ Xmlm.make_input (`String (0, xml)) in
+    let root = Q.parse_input None @@ Xmlm.make_input (`String (0, xml)) |> Element.parse_feed in
     F.parse system root None
 
 let to_impl_list map : _ Impl.t list =
@@ -197,7 +197,7 @@ let suite = "distro">::: [
       try impls |> StringMap.bindings |> List.find is_host |> snd
       with Not_found -> assert_failure "No host package found!" in
 
-    let root = Q.parse_input None @@ Xmlm.make_input (`String (0, test_feed)) in
+    let root = Q.parse_input None @@ Xmlm.make_input (`String (0, test_feed)) |> Element.parse_feed in
     let feed = F.parse system root None in
     let () =
       let impls = distro#get_impls_for_feed feed in
@@ -208,7 +208,7 @@ let suite = "distro">::: [
       assert (Fake_system.real_system#file_exists (ZI.get_attribute "path" python_run.command_qdom)) in
 
     (* python-gobject *)
-    let root = Q.parse_input None @@ Xmlm.make_input (`String (0, test_gobject_feed)) in
+    let root = Q.parse_input None @@ Xmlm.make_input (`String (0, test_gobject_feed)) |> Element.parse_feed in
     let feed = F.parse system root None in
 
     let impls = distro#get_impls_for_feed feed in
@@ -295,9 +295,8 @@ let suite = "distro">::: [
       <package-implementation package='gimp'/>\n\
       <package-implementation package='python-bittorrent' foo='bar' main='/usr/bin/pbt'/>\n\
       </interface>" in
-    let root = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None in
+    let root = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None |> Element.parse_feed in
 
-    let _url = "http://foo" in
     let feed = F.parse config.system root (Some "/local.xml") in
 
     assert_equal 0 (StringMap.cardinal feed.F.implementations);

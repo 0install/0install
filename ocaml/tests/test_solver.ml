@@ -138,11 +138,11 @@ class fake_feed_provider system (distro:Distro.distribution option) =
       let open Feed in
       let (feed, uri) =
         match ZI.get_attribute_opt "uri" elem with
-        | Some url -> (parse system elem None, url)
+        | Some url -> (parse system (Element.parse_feed elem) None, url)
         | None ->
             let name = ZI.get_attribute "local-path" elem in
             let path = U.abspath system name in
-            (parse system elem (Some path), path) in
+            (parse system (Element.parse_feed elem) (Some path), path) in
       Hashtbl.add ifaces (Zeroinstall.Feed_url.master_feed_of_iface uri) feed
 
     method forget_distro _ = failwith "forget_distro"

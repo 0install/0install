@@ -13,7 +13,7 @@ module F = Zeroinstall.Feed
 module B = Zeroinstall.Binding
 
 let feed_of_xml system xml =
-  let root = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None in
+  let root = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None |> Element.parse_feed in
   F.parse system root None
 
 let suite = "feed">::: [
@@ -21,7 +21,7 @@ let suite = "feed">::: [
     let (_config, fake_system) = Fake_system.get_fake_config None in
     let system = (fake_system :> system) in
     let local_path = Test_0install.feed_dir +/ "Local.xml" in
-    let root = Q.parse_file system local_path in
+    let root = Q.parse_file system local_path |> Element.parse_feed in
     let feed = F.parse system root (Some local_path) in
 
     let () =
@@ -70,7 +70,7 @@ let suite = "feed">::: [
 
   "command">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     let path = Test_0install.feed_dir +/ "Command.xml" in
-    let root = Q.parse_file config.system path in
+    let root = Q.parse_file config.system path |> Element.parse_feed in
     let feed = F.parse config.system root (Some path) in
 
     let path name impl =
@@ -105,7 +105,7 @@ let suite = "feed">::: [
           <implementation id='sha1=345' version='2'/>\n\
         </group>\n\
       </interface>" in
-    let root = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None in
+    let root = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None |> Element.parse_feed in
     let feed = F.parse config.system root (Some "/local.xml") in
     begin match StringMap.bindings feed.F.implementations with
     | [("sha1=124", s124); ("sha1=234", s234); ("sha1=345", s345)] ->
@@ -138,7 +138,7 @@ let suite = "feed">::: [
          </implementation>\n\
         </group>\n\
       </interface>" in
-    let root = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None in
+    let root = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None |> Element.parse_feed in
     let feed = F.parse config.system root (Some "/local.xml") in
 
     begin match StringMap.bindings feed.F.implementations with
@@ -341,7 +341,7 @@ let suite = "feed">::: [
   "replaced">:: (fun () ->
     let system = (new Fake_system.fake_system None :> system) in
     let iface = Test_0install.feed_dir +/ "Replaced.xml" in
-    let root = Q.parse_file system iface in
+    let root = Q.parse_file system iface |> Element.parse_feed in
     let feed = F.parse system root (Some iface) in
     Fake_system.assert_str_equal "http://localhost:8000/Hello" (Fake_system.expect feed.F.replacement)
   );

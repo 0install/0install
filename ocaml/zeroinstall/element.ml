@@ -163,6 +163,7 @@ let source elem =
   | None -> None
 
 let uri = ZI.get_attribute_opt "uri"
+let uri_exn = ZI.get_attribute "uri"
 let src = ZI.get_attribute "src"
 let langs = ZI.get_attribute_opt "langs"
 let main = ZI.get_attribute_opt "main"
@@ -264,6 +265,7 @@ let raise_elem = Q.raise_elem
 let log_elem = Q.log_elem
 let show_with_loc = Q.show_with_loc
 let as_xml x = x
+let fmt () = Q.show_with_loc
 
 let deps_and_bindings sel =
   sel |> ZI.filter_map (fun child ->

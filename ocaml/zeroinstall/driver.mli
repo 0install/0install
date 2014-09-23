@@ -39,8 +39,7 @@ val solve_with_downloads :
 val download_and_import_feed :
   Fetch.fetcher ->
   Feed_url.remote_feed ->
-  [ `aborted_by_user | `no_update | `success of Support.Qdom.element ]
-  Lwt.t
+  [ `aborted_by_user | `no_update | `success of [`feed] Element.t ] Lwt.t
 
 (** Download any missing implementations needed for a set of selections.
  * @param include_packages whether to include distribution packages

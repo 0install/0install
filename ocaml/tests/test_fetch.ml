@@ -170,7 +170,7 @@ let suite = "fetch">::: [
     let fetcher = tools#make_fetcher tools#ui#watcher in
 
     let local_iface = Test_0install.feed_dir +/ "LocalArchive.xml" in
-    let root = Q.parse_file config.system local_iface in
+    let root = Q.parse_file config.system local_iface |> Zeroinstall.Element.parse_feed in
     let feed = F.parse config.system root (Some local_iface) in
 
     let check ?error ?testfile id =

@@ -40,7 +40,7 @@ let fake_fetcher config handler (distro:Zeroinstall.Distro.distribution) =
         match handler#get_feed url with
         | `file path ->
             let xml = U.read_file config.system path in
-            let root = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None in
+            let root = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None |> Element.parse_feed in
             `update (root, None) |> Lwt.return
         | `xml root -> `update (root, None) |> Lwt.return
         | `problem msg -> `problem (msg, None) |> Lwt.return
@@ -83,8 +83,9 @@ let make_driver_test test_elem =
     let downloadable_feeds = ref StringMap.empty in
     let process child = match ZI.tag child with
     | Some "interface" -> (
-        match ZI.get_attribute_opt "uri" child with
-        | Some url -> downloadable_feeds := StringMap.add url child !downloadable_feeds
+        let child_elem = Element.parse_feed child in
+        match Element.uri child_elem with
+        | Some url -> downloadable_feeds := StringMap.add url child_elem !downloadable_feeds
         | None ->
             let local_path = tmpdir +/ (ZI.get_attribute "local-path" child) in
             local_path |> fake_system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->

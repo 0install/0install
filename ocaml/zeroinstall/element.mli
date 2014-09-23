@@ -62,6 +62,7 @@ val source : [`selections] t -> bool option
 (** {2 Feeds} *)
 val parse_feed : Support.Qdom.element -> [`feed] t
 val uri : [`feed] t -> string option
+val uri_exn : [`feed] t -> string
 val feed_metadata : [`feed] t ->
   [ `name of [`name] t
   | `replaced_by of [`replaced_by] t
@@ -154,6 +155,9 @@ val log_elem : Support.Logging.level -> ('a, unit, string, _ t -> unit) format4 
 
 (** Generate a string identifying this element for use in error messages. Includes the source location, if known. *)
 val show_with_loc : _ t -> string
+
+(** [sprintf "%a"] formatter that uses [show_with_loc]. *)
+val fmt : unit -> _ t -> string
 
 val as_xml : _ t -> Support.Qdom.element
 

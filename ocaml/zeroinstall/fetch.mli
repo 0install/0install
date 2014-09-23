@@ -3,7 +3,7 @@
  *)
 
 type fetch_feed_response =
-  [ `update of (Support.Qdom.element * fetch_feed_response Lwt.t option)  (* Use this version (but a better version may come soon) *)
+  [ `update of ([`feed] Element.t * fetch_feed_response Lwt.t option)  (* Use this version (but a better version may come soon) *)
   | `aborted_by_user        (* Abort silently (no need to notify the user) *)
   | `problem of (string * fetch_feed_response Lwt.t option)    (* Report a problem (but may still succeed later) *)
   | `no_update ]            (* Use the previous version *)
