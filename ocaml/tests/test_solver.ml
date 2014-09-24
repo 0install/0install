@@ -76,7 +76,7 @@ let xml_diff exp actual =
     assert (compare_nodes ~ignore_whitespace:true exp actual <> 0);
     assert_equal ~printer:(fun s -> s)
       (to_utf8 exp)
-      (to_utf8 actual)
+      (to_utf8 (Q.reindent actual))
   ) else assert (compare_nodes ~ignore_whitespace:true exp actual = 0)
 
 let make_impl_provider config scope_filter =
@@ -190,10 +190,11 @@ let make_solver_test test_elem =
         let iface =
           if U.starts_with iface "./" then U.abspath (fake_system :> system) iface
           else iface in
-        reqs := {!reqs with
-          Requirements.interface_uri = iface;
-          Requirements.command = ZI.get_attribute_opt "command" child;
-          Requirements.os = ZI.get_attribute_opt "os" child;
+        reqs := {!reqs with Requirements.
+          interface_uri = iface;
+          command = ZI.get_attribute_opt "command" child;
+          source = ZI.get_attribute_opt "source" child = Some "true";
+          os = ZI.get_attribute_opt "os" child;
         };
         child |> ZI.iter ~name:"restricts" (fun restricts ->
           let iface = ZI.get_attribute "interface" restricts in
@@ -225,6 +226,7 @@ let make_solver_test test_elem =
       Fake_system.assert_str_equal !expected_problem reason
     else (
       let actual_sels = Solver.selections result in
+      (* Selections.as_xml actual_sels |> Q.reindent |> Q.to_utf8 |> print_endline; *)
       assert (ZI.tag (Selections.as_xml actual_sels) = Some "selections");
       if ready then (
         let changed = Whatchanged.show_changes (fake_system :> system) (Some (Selections.create !expected_selections)) actual_sels in

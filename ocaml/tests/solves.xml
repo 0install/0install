@@ -953,4 +953,26 @@ Can't find all required implementations:
     </problem>
   </test>
 
+  <test name='self-compile'>
+    <interface local-path="Compiler.xml">
+      <name>Compiler</name>
+      <summary>A compiler than can compile itself</summary>
+      <implementation id="bin" version="1.0" local-path='.'/>
+      <implementation id="src" version="2.0" arch='*-src' local-path='.'>
+	<requires interface='./Compiler.xml'/>
+	<command name='compile' path='build.sh'/>
+      </implementation>
+    </interface>
+
+    <requirements interface='./Compiler.xml' command='compile' source='true'/>
+
+    <selections interface='/root/Compiler.xml' command='compile' source='true'>
+      <selection id="bin" interface='/root/Compiler.xml' version='1.0' local-path='/root'/>
+      <selection id="src" interface='/root/Compiler.xml' version='2.0' local-path='/root' arch='*-src'>
+        <command name="compile" path="build.sh"/>
+	<requires interface="/root/Compiler.xml"/>
+      </selection>
+    </selections>
+  </test>
+
 </test-cases>
