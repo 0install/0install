@@ -243,7 +243,7 @@ let check_manifest_and_rename config required_digest tmpdir =
       try
         add_to_store config system_store required_digest tmpdir;
         Lwt.return ()
-      with Unix.Unix_error (Unix.EACCES, _, _) ->
+      with Unix.Unix_error (Unix.EACCES, _, _) | Unix.Unix_error (Unix.EROFS, _, _) ->
         Lwt.bind (add_with_helper config required_digest tmpdir) (function
           | `success -> U.rmtree config.system ~even_if_locked:true tmpdir; Lwt.return ()
           | `no_helper -> add_to_store config user_store required_digest tmpdir; Lwt.return ()
