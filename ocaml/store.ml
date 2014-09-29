@@ -16,11 +16,11 @@ module Stores = Zeroinstall.Stores
 module Manifest = Zeroinstall.Manifest
 
 let add_dir config ~digest dir =
-  let digest = Manifest.parse_digest digest in
+  let digest = Manifest.parse_digest_loose digest in
   Lwt_main.run @@ Zeroinstall.Stores.add_dir_to_cache config digest dir
 
 let add_archive options ~digest ?extract archive =
-  let digest = Manifest.parse_digest digest in
+  let digest = Manifest.parse_digest_loose digest in
   let config = options.config in
   let mime_type = A.type_from_url archive in
   A.check_type_ok config.system mime_type;
@@ -37,7 +37,7 @@ let handle_find options flags args =
   Support.Argparse.iter_options flags (Common_options.process_common_option options);
   match args with
   | [digest] ->
-      let digest = Manifest.parse_digest digest in
+      let digest = Manifest.parse_digest_loose digest in
       let config = options.config in
       begin try
         let path = Stores.lookup_any config.system [digest] config.stores in
@@ -57,13 +57,13 @@ let handle_verify options flags args =
     print "OK" in
   match args with
   | [dir; digest] ->
-     let digest = Manifest.parse_digest digest in
+     let digest = Manifest.parse_digest_loose digest in
       verify dir digest
   | [dir] when U.is_dir system dir ->
      let digest = Manifest.parse_digest (Filename.basename dir) in
       verify dir digest
   | [digest] ->
-      let digest = Manifest.parse_digest digest in
+      let digest = Manifest.parse_digest_loose digest in
       let dir = Stores.lookup_any system [digest] config.stores in
       verify dir digest
   | _ -> raise (Support.Argparse.Usage_error 1)

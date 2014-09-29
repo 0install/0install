@@ -8,6 +8,12 @@ type alg = string
 type digest = string * string
 
 val parse_digest : string -> digest
+
+(* Less strict version of parse_digest that also accepts the alg=* form for all digests.
+ * Use this to process input from the user (but use [parse_digest] to get the digest
+ * from a directory name). *)
+val parse_digest_loose : string -> digest
+
 val format_digest : digest -> string
 
 val algorithm_names : string list

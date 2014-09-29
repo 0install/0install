@@ -17,14 +17,20 @@ let format_digest (alg, value) =
   (* validate *)
   s
 
-let parse_digest digest =
-  [ "sha1="; "sha1new="; "sha256="; "sha256new_"] |> U.first_match (fun prefix ->
+let strict_digest_prefixes = ["sha1="; "sha1new="; "sha256="; "sha256new_"]
+let lenient_digest_prefixes = "sha256new=" :: strict_digest_prefixes
+
+let parse_digest_from prefixes digest =
+  prefixes |> U.first_match (fun prefix ->
     if U.starts_with digest prefix then (
       let alg = String.sub prefix 0 (String.length prefix - 1) in
       let value = U.string_tail digest (String.length prefix) in
       Some (alg, value)
     ) else None
   ) |? lazy (raise_safe "Unknown digest type '%s'" digest)
+
+let parse_digest = parse_digest_from strict_digest_prefixes
+let parse_digest_loose = parse_digest_from lenient_digest_prefixes
 
 let generate_manifest (system:system) alg root =
   let old = (alg = "sha1") in
