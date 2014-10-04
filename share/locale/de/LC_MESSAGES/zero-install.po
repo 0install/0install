@@ -6,10 +6,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: zeroinstall-injector 1.2-1\n"
+"Project-Id-Version: zeroinstall-injector 2.7-1\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2012-05-20 15:38+0100\n"
-"PO-Revision-Date: 2011-09-05 18:21+0200\n"
+"PO-Revision-Date: 2014-09-18 18:21+0200\n"
 "Last-Translator: Chris Leick <c.leick@vollbio.de>\n"
 "Language-Team: German <debian-l10n-german@lists.debian.org>\n"
 "Language: de\n"
@@ -147,7 +147,7 @@ msgstr "Diese Version ist bereits auf Ihrem Rechner gespeichert."
 #: zeroinstall/0launch-gui/iface_browser.py:61
 #: zeroinstall/0launch-gui/impl_list.py:72
 msgid "No downloads available!"
-msgstr "Keine Downloads verfügbar!"
+msgstr "Nichts zum Herunterladen verfügbar!"
 
 #: zeroinstall/0launch-gui/iface_browser.py:62
 #, python-format
@@ -231,7 +231,7 @@ msgid_plural ""
 "(downloading %(downloaded)s/%(expected)s [%(percentage).2f%%] in %(number)d "
 "downloads)"
 msgstr[0] ""
-"(es werden %(downloaded)s/%(expected)s [%(percentage).2f%%] heruntergeladen)"
+"(es wird %(downloaded)s/%(expected)s [%(percentage).2f%%] heruntergeladen)"
 msgstr[1] ""
 "(es werden %(downloaded)s/%(expected)s [%(percentage).2f%%] von %(number)d "
 "Downloads heruntergeladen)"
@@ -299,7 +299,7 @@ msgstr "Zwischengespeicherte Kopie öffnen"
 
 #: zeroinstall/0launch-gui/impl_list.py:145
 msgid "Explain this decision"
-msgstr ""
+msgstr "Diese Entscheidung erklären"
 
 #: zeroinstall/0launch-gui/impl_list.py:172
 msgid "INSECURE"
@@ -453,7 +453,8 @@ msgid ""
 "\n"
 "Failed to get:"
 msgstr ""
-"Nicht alle Downloads gelungen; das Programm kann nicht ausgeführt werden.\n"
+"Nicht jedes Herunterladen gelungen; das Programm kann nicht ausgeführt "
+"werden.\n"
 "\n"
 "Abruf fehlgeschlagen von:"
 
@@ -538,8 +539,8 @@ msgstr ""
 "»(zwischengespeichert)«, falls sie bereits auf diesem Rechner liegen.\n"
 "\n"
 "Falls Sie mit der angezeigten Auswahl zufrieden sind, klicken Sie auf die "
-"Schaltfläche Download (oder Ausführen), um das Programm herunterzuladen (und "
-"auszuführen)."
+"Schaltfläche Herunterladen (oder Ausführen), um das Programm herunterzuladen "
+"(und auszuführen)."
 
 #: zeroinstall/0launch-gui/mainwindow.py:237
 msgid "Choosing different versions"
@@ -947,7 +948,6 @@ msgid "The Versions tab"
 msgstr "Der Reiter »Versionen«"
 
 #: zeroinstall/0launch-gui/properties.py:491
-#, fuzzy
 msgid ""
 "This tab shows a list of all known implementations of the interface, from "
 "all the feeds. The columns have the following meanings:\n"
@@ -985,9 +985,9 @@ msgstr ""
 "als besser angesehen, als die mit niedrigen Nummern.\n"
 "\n"
 "»Veröffentlicht« gibt das Datum an, an dem dieser Eintrag zum Feed "
-"hinzugefügt wurde,\n"
+"hinzugefügt wurde.\n"
 "\n"
-"»Stabilität« ist »stabil« falls von der Implementierung angenommen wird, sie "
+"»Stabilität« ist »stabil«, falls von der Implementierung angenommen wird, sie "
 "sei stabil, »fehlerhaft«, wenn bekannt ist, dass sie ernste Fehler enthält "
 "und »im Test«, wenn ihre Stabilität noch nicht bekannt ist. Diese "
 "Information wird normalerweise vom Autor der Software bereitgestellt und "
@@ -999,8 +999,8 @@ msgstr ""
 "Version zu erhalten, falls Sie sie nicht haben. Falls die Implementierung "
 "bereits auf Ihren Rechner heruntergeladen wurde, steht dort "
 "»(zwischengespeichert)«. »(lokal)« bedeutet, dass Sie diese Version manuell "
-"installiert haben und informiert Zero Install darüber ,indem ein Feed "
-"hinzugefügt wird. »(Paket)« bedeutet, dass diese Version vom Paketmanager "
+"installiert haben und Zero Install darüber informierten, indem ein Feed "
+"hinzugefügten. »(Paket)« bedeutet, dass diese Version vom Paketmanager "
 "Ihrer Distribution und nicht von Zero Install bereitgestellt wird. Im "
 "Offline-Modus werden nur zwischengespeicherte Implementierungen für die "
 "Benutzung herangezogen.\n"
@@ -1008,6 +1008,10 @@ msgstr ""
 "»Architektur« zeigt an, für welche Art von Rechnersystemen die "
 "Implementierung ist oder »jede«, falls sie auf allen Systemtypen "
 "funktioniert."
+"\n"
+"Falls Sie wissen wollen, warum eine bestimmte Version nicht ausgewählt wurde, "
+"rechtsklicken Sie darauf und wählen Sie im Ausklappmenü »Diese Entscheidung "
+"erklären«.\n"
 
 #: zeroinstall/0launch-gui/properties.py:518
 msgid "Sort order"
@@ -1308,9 +1312,9 @@ msgid "try to avoid using the network"
 msgstr "versuchen, die Netzwerknutzung zu vermeiden"
 
 #: zeroinstall/cmd/add_feed.py:33
-#, fuzzy, python-format
+#, python-format
 msgid "Interface %(interface)s already has a feed %(feed)s"
-msgstr "Schnittstelle %(interface)s hat keinen Feed %(feed)s"
+msgstr "Schnittstelle %(interface)s hat bereits einen Feed %(feed)s"
 
 #: zeroinstall/cmd/add_feed.py:42
 #, python-format
@@ -1463,9 +1467,8 @@ msgstr ""
 "console)"
 
 #: zeroinstall/cmd/select.py:172
-#, fuzzy
 msgid "(not cached)"
-msgstr "(zwischengespeichert)"
+msgstr "(nicht zwischengespeichert)"
 
 #: zeroinstall/cmd/update.py:62
 #, python-format
@@ -1487,20 +1490,25 @@ msgid ""
 "A later version ({name} {latest}) exists but was not selected. Using "
 "{version} instead."
 msgstr ""
+"Es existiert eine neuere Version ({name} {latest}), diese wurde jedoch nicht "
+"ausgewählt. Stattdessen wird {version} benutzt."
 
 #: zeroinstall/cmd/update.py:82
 msgid ""
 "To select \"testing\" versions, use:\n"
 "0install config help_with_testing True"
 msgstr ""
+"Um Versionen »im Test« zu wählen, benutzen Sie:\n"
+"0install config help_with_testing True"
 
 #: zeroinstall/cmd/update.py:85
 msgid "No updates found. Continuing with version {version}."
 msgstr ""
+"Keine Aktualisierungen gefunden. Es wird mit Version {version} fortgefahren."
 
 #: zeroinstall/cmd/update.py:91
 msgid "Warning: interface {old} has been replaced by {new}"
-msgstr ""
+msgstr "Warnung: Schnittstelle {old} wurde durch {new} ersetzt"
 
 #: zeroinstall/gtkui/addbox.py:24
 msgid "AudioVideo"
@@ -1777,7 +1785,7 @@ msgstr ""
 "Zwischenspeicher. Einige könnten jedoch ungültig sein; diese werden im "
 "Abschnitt »Ungültige Feeds« angezeigt. Es könnte vorteilhaft sein, diese zu "
 "löschen. Ein ungültiger Feed könnte durch einen lokalen Feed, der nicht "
-"länger existiert oder durch einen fehlgeschlagenen Download eines Feeds "
+"länger existiert oder durch ein fehlgeschlagenes Herunterladen eines Feeds "
 "verursacht worden sein (der Name endet mit ».new«)."
 
 #: zeroinstall/gtkui/cache.py:701
@@ -2104,9 +2112,8 @@ msgid "Unsupported URL protocol in: %s"
 msgstr "Nicht unterstütztes URL-Protokoll in: %s"
 
 #: zeroinstall/injector/_download_child.py:101
-#, fuzzy
 msgid "Error downloading {url}: {ex}"
-msgstr "Download vom Spiegel fehlgeschlagen: %s"
+msgstr "Fehler beim Herunterladen von {url}: {ex}"
 
 # Arch ist ein XML-Tag des Feeds
 #: zeroinstall/injector/arch.py:156
@@ -2178,7 +2185,7 @@ msgstr "Keine Aktualisierungen herunterzuladen"
 #: zeroinstall/injector/background.py:218
 #, python-format
 msgid "Updates ready to download for '%s'."
-msgstr "Aktualisierungen für »%s« bereit zum Download"
+msgstr "Aktualisierungen für »%s« bereit zum Herunterladen"
 
 #: zeroinstall/injector/cli.py:39
 msgid ""
@@ -2240,7 +2247,7 @@ msgstr "Attribut »package« fehlt auf %s"
 #: zeroinstall/injector/distro.py:185
 #, python-format
 msgid "Duplicate ID '%s' for DistributionImplementation"
-msgstr "Doppelte ID »%s« für DistributionImplementation"
+msgstr "Doppelte Kennung »%s« für DistributionImplementation"
 
 #: zeroinstall/injector/distro.py:198
 #, python-format
@@ -2250,6 +2257,7 @@ msgstr "Attribut »main« muss absolut sein, aber »%s« beginnt nicht mit »/«
 #: zeroinstall/injector/distro.py:247
 msgid "WindowsDistribution may only be used on the Windows platform"
 msgstr ""
+"WindowsDistribution kann nur auf der Windows-Plattform benutzt werden."
 
 #: zeroinstall/injector/distro.py:329
 #, python-format
@@ -2293,7 +2301,7 @@ msgstr ""
 "ausgewertet werden"
 
 #: zeroinstall/injector/distro.py:471
-#, fuzzy, python-format
+#, python-format
 msgid ""
 "This program depends on '%s', which is a package that is available through "
 "your distribution. Please install it manually using your distribution's "
@@ -2301,8 +2309,10 @@ msgid ""
 "it."
 msgstr ""
 "Dieses Programm hängt von »%s« ab. Das ist ein Paket, das über Ihre "
-"Distribution verfügbar ist. Bitte installieren Sie es manuell oder benutzen "
-"Sie die Werkzeuge Ihrer Distribution und versuchen Sie es erneut."
+"Distribution verfügbar ist. Bitte installieren Sie es manuell mittels der "
+"Werkzeuge Ihrer Distribution und versuchen Sie es erneut. Oder installieren "
+"Sie »packagekit«, so dass dies von diesem Programm zur Installation benutzt "
+"werden kann."
 
 #: zeroinstall/injector/distro.py:648
 #, python-format
@@ -2317,7 +2327,7 @@ msgstr "Version des Port-Pakets »%(pkgname)s« kann nicht ausgewertet werden"
 
 #: zeroinstall/injector/download.py:36
 msgid "Download aborted at user's request"
-msgstr "Download auf Ersuchen des Anwenders abgebrochen"
+msgstr "Herunterladen auf Ersuchen des Anwenders abgebrochen"
 
 #: zeroinstall/injector/download.py:108
 #, python-format
@@ -2333,14 +2343,14 @@ msgstr ""
 "Emfangen: %(size)d Byte"
 
 #: zeroinstall/injector/download.py:124
-#, fuzzy, python-format
+#, python-format
 msgid "Aborting download of %s"
-msgstr "Download-Prozess %s wird abgebrochen"
+msgstr "Das Herunterladen von %s wird abgebrochen."
 
 #: zeroinstall/injector/download.py:156
 #, python-format
 msgid "<Download from %s>"
-msgstr "<Download von %s>"
+msgstr "<Herunterladen von %s>"
 
 #: zeroinstall/injector/driver.py:57
 #, python-format
@@ -2381,9 +2391,9 @@ msgstr "Fehler beim Abholen der Schlüsselinformation: %s"
 # @param force: whether to abort and restart an existing download
 # download_and_import_feed ist der Name der Funktion
 #: zeroinstall/injector/fetch.py:189
-#, fuzzy, python-format
+#, python-format
 msgid "download_and_import_feed %(url)s"
-msgstr "download_and_import_feed %(url)s (Erzwingen = %(force)d)"
+msgstr "download_and_import_feed %(url)s"
 
 #: zeroinstall/injector/fetch.py:222
 #, python-format
@@ -2394,15 +2404,15 @@ msgstr "Feed-Download von %(url)s fehlgeschlagen: %(exception)s"
 #, python-format
 msgid "Primary feed download succeeded; aborting mirror download for %s"
 msgstr ""
-"Primärer Feed-Download erfolgreich; Download vom Spiegel wird für %s "
-"abgebrochen."
+"Primäres Feed-Herunterladen erfolgreich; Herunterladen vom Spiegel wird für "
+"%s abgebrochen."
 
 #: zeroinstall/injector/fetch.py:246
 #, python-format
 msgid "Feed download from %(url)s failed; still trying mirror: %(exception)s"
 msgstr ""
-"Feed-Download von %(url)s fehlgeschlagen; Spiegel wird weiterhin probiert: "
-"%(exception)s"
+"Herunterladen des Feeds von %(url)s fehlgeschlagen; Spiegel wird weiterhin "
+"probiert: %(exception)s"
 
 #: zeroinstall/injector/fetch.py:258
 #, python-format
@@ -2414,7 +2424,7 @@ msgstr ""
 #: zeroinstall/injector/fetch.py:262
 #, python-format
 msgid "Mirror download failed: %s"
-msgstr "Download vom Spiegel fehlgeschlagen: %s"
+msgstr "Herunterladen vom Spiegel fehlgeschlagen: %s"
 
 #: zeroinstall/injector/fetch.py:276
 #, python-format
@@ -2446,12 +2456,12 @@ msgstr ""
 #: zeroinstall/injector/fetch.py:366
 #, python-format
 msgid "Unknown download type for '%s'"
-msgstr "Unbekannter Download-Typ für »%s«"
+msgstr "Unbekannter Herunterladetyp für »%s«"
 
 #: zeroinstall/injector/fetch.py:384
 #, python-format
 msgid "Unknown scheme in download URL '%s'"
-msgstr "Unbekanntes Schema in Download-URL »%s«"
+msgstr "Unbekanntes Schema in Herunterlade-URL »%s«"
 
 #: zeroinstall/injector/fetch.py:390
 #, python-format
@@ -2488,7 +2498,7 @@ msgid ""
 "downloaded (no download locations given in interface!)"
 msgstr ""
 "Implementierung %(implementation_id)s der Schnittstelle %(interface)s kann "
-"nicht heruntergeladen werden (keine Download-Orte in der Schnittstelle "
+"nicht heruntergeladen werden (keine Herunterladeorte in der Schnittstelle "
 "angegeben!)"
 
 #: zeroinstall/injector/fetch.py:471
@@ -2972,7 +2982,7 @@ msgstr "Attribut »id« fehlt bei %s"
 #: zeroinstall/injector/model.py:1032
 #, python-format
 msgid "Duplicate ID '%(id)s' in feed '%(feed)s'"
-msgstr "Doppelte ID »%(id)s« in Feed »%(feed)s«"
+msgstr "Doppelte Kennung »%(id)s« in Feed »%(feed)s«"
 
 #: zeroinstall/injector/model.py:1043
 msgid "Missing version attribute"
@@ -3019,7 +3029,7 @@ msgstr "»/« fehlt nach dem Rechnernamen in URI »%s«"
 
 #: zeroinstall/injector/model.py:1247
 msgid "Use file:///path for absolute paths, not {uri}"
-msgstr ""
+msgstr "Benutzt als absoluten Pfad file:///Pfad, nicht {uri}"
 
 #: zeroinstall/injector/model.py:1264
 #, python-format
@@ -3251,9 +3261,8 @@ msgid "Source code"
 msgstr "Quellkode"
 
 #: zeroinstall/injector/solver.py:357
-#, fuzzy
 msgid "Not source code"
-msgstr "Quellkode auswählen"
+msgstr "Kein Quellkode"
 
 #: zeroinstall/injector/solver.py:358
 msgid "Unsupported machine type"
@@ -3318,94 +3327,104 @@ msgstr "Nicht alle benötigten Implementierungen konnten gefunden werden:"
 #: zeroinstall/injector/solver.py:744
 msgid "{wanted} cannot be used (regardless of other components): {reason}"
 msgstr ""
+"{wanted} kann nicht benutzt werden (unabhängig von anderen Komponenten): "
+"{reason}"
 
 #: zeroinstall/injector/solver.py:749
 msgid ""
 "There is no possible selection using {wanted}.\n"
 "{reason}"
 msgstr ""
+"Es gibt keine mögliche Auswahl, die {wanted} verwendet.\n"
+"{reason}"
 
 #: zeroinstall/injector/solver.py:757
 msgid "{wanted} was selected as the preferred version."
-msgstr ""
+msgstr "{wanted} wurde als bevorzugte Version ausgewählt."
 
 #: zeroinstall/injector/solver.py:768
 msgid "natural languages we understand are preferred"
-msgstr ""
+msgstr "Natürliche Sprachen, die wir verstehen, werden bevorzugt."
 
 #: zeroinstall/injector/solver.py:769
 msgid "preferred versions come first"
-msgstr ""
+msgstr "bevorzugte Versionen kommen zuerst"
 
 #: zeroinstall/injector/solver.py:770
 msgid "locally-available versions are preferred when network use is limited"
 msgstr ""
+"Wenn die Netzwerknutzung beschränkt ist, werden lokal verfügbare Versionen "
+"bevorzugt."
 
 #: zeroinstall/injector/solver.py:771
 msgid "packages that don't require admin access to install are preferred"
 msgstr ""
+"Pakete, die zur Installation keinen Administratorzugriff erfordern, werden "
+"bevorzugt."
 
 #: zeroinstall/injector/solver.py:772
 msgid "more stable versions preferred"
-msgstr ""
+msgstr "Stabilere Versionen werden bevorzugt."
 
 #: zeroinstall/injector/solver.py:773 zeroinstall/injector/solver.py:775
 msgid "newer versions are preferred"
-msgstr ""
+msgstr "Neuere Versionen werden bevorzugt."
 
 #: zeroinstall/injector/solver.py:774
-#, fuzzy
 msgid "native packages are preferred"
-msgstr "Natives Packer-Feed »%s« wird hinzugefügt"
+msgstr "Native Pakete werden bevorzugt."
 
 #: zeroinstall/injector/solver.py:776
 msgid "better OS match"
-msgstr ""
+msgstr "besser passendes Betriebssystem"
 
 #: zeroinstall/injector/solver.py:777
 msgid "better CPU match"
-msgstr ""
+msgstr "besser passende CPU"
 
 #: zeroinstall/injector/solver.py:778
 msgid "better locale match"
-msgstr ""
+msgstr "besser passende Locale"
 
 #: zeroinstall/injector/solver.py:779
-#, fuzzy
 msgid "is locally available"
-msgstr "Keine Downloads verfügbar!"
+msgstr "ist lokal verfügbar"
 
 #: zeroinstall/injector/solver.py:780
 msgid "better ID (tie-breaker)"
-msgstr ""
+msgstr "bessere Kennung (Stichfrage)"
 
 #: zeroinstall/injector/solver.py:796
 msgid "{wanted} is ranked lower than {actual}: {why}"
-msgstr ""
+msgstr "{wanted} rangiert unter {actual}: {why}"
 
 #: zeroinstall/injector/solver.py:810
 msgid "{interface}: no longer used"
-msgstr ""
+msgstr "{interface}: nicht mehr benutzt"
 
 #: zeroinstall/injector/solver.py:812 zeroinstall/injector/solver.py:814
 msgid "{interface}: {old} to {new}"
-msgstr ""
+msgstr "{interface}: {old} nach {new}"
 
 #: zeroinstall/injector/solver.py:817
 msgid "The changes would be:"
-msgstr ""
+msgstr "Die Änderungen wären:"
 
 #: zeroinstall/injector/solver.py:822
 msgid ""
 "{wanted} is selectable, but using it would produce a less optimal solution "
 "overall."
 msgstr ""
+"{wanted} ist auswählbar, aber seine Benutzung würde eine insgesamt weniger "
+"optimale Lösung bringen."
 
 #: zeroinstall/injector/solver.py:824
 msgid ""
 "If {wanted} were the only option, the best available solution wouldn't use "
 "it."
 msgstr ""
+"Falls {wanted} die einzige Option wäre, würde die beste verfügbare Lösung es "
+"nicht benutzen."
 
 #: zeroinstall/injector/trust.py:161
 #, python-format
@@ -3444,9 +3463,9 @@ msgstr ""
 "%(bytes)d Byte "
 
 #: zeroinstall/support/__init__.py:50
-#, fuzzy, python-format
+#, python-format
 msgid "Message received: %r"
-msgstr "Nachricht empfangen: %s"
+msgstr "Nachricht empfangen: %r"
 
 #: zeroinstall/support/__init__.py:63
 #, python-format
@@ -4040,9 +4059,9 @@ msgid "Can't generate unused tempfile name!"
 msgstr "Nicht benutzte temporäre Datei kann nicht erstellt werden!"
 
 #: zeroinstall/zerostore/optimise.py:73
-#, fuzzy, python-format
+#, python-format
 msgid "[%(done)d / %(total)d] Reading manifests..."
-msgstr "[%(done)d / %(total)d] – %(digest)s wird überprüft"
+msgstr "[%(done)d / %(total)d] Manifeste werden gelesen …"
 
 #: zeroinstall/zerostore/optimise.py:78
 #, python-format
@@ -4247,12 +4266,3 @@ msgstr ""
 "Extrahieren des Archivs fehlgeschlagen (%(command)s wurde benutzt; "
 "Rückgabewert %(status)d:\n"
 "%(err)s"
-
-#~ msgid "Errors during download: "
-#~ msgstr "Fehler während des Downloads: "
-
-#~ msgid "No updates found."
-#~ msgstr "Keine Aktualisierungen gefunden"
-
-#~ msgid "Download process exited with error status code %s"
-#~ msgstr "Download-Prozess beendet mit Fehlerstatuskode %s"
