@@ -501,6 +501,8 @@ let show_explanation_box ~parent iface version reason =
     box#show ()
   )
 
+let re_lt = Str.regexp_string "<"
+
 let make_versions_tab config reqs ~recalculate ~watcher window role =
   let vbox = GPack.vbox () in
   let iface = role.Solver.iface in
@@ -666,7 +668,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
         model#set ~row ~column:weight (if Some impl = selected then 700 else 400);
         model#set ~row ~column:unusable (problem <> None);
         model#set ~row ~column:fetch fetch_str;
-        model#set ~row ~column:tooltip fetch_tip;
+        model#set ~row ~column:tooltip (Str.global_replace re_lt "&lt;" fetch_tip);
         model#set ~row ~column:item impl;
       )
   end
