@@ -74,8 +74,8 @@ module Make (Model : MODEL) = struct
 
                 `Selected (impl, children)
             | None ->
-                (* Should only happen if we get a malformed selections file. *)
-                log_warning "Missing essential dependency on '%s' and no problem reported!" (Model.Role.to_string role);
+                (* Should only happen if we get a malformed selections file or a failed solve. *)
+                (* log_warning "Missing essential dependency on '%s' and no problem reported!" (Model.Role.to_string role); *)
                 `Problem in
           Some (role, details)
         )
