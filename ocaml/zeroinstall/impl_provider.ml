@@ -88,8 +88,13 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
       | None -> impl in
     StringMap.map_bindings do_override impls in
 
+  let get_distro_impls feed =
+    let impls, overrides = feed_provider#get_distro_impls feed in
+    do_overrides overrides impls in
+
   let get_impls (feed, overrides) =
-    do_overrides overrides @@ feed.Feed.implementations in
+    let distro_impls = (get_distro_impls feed :> Impl.generic_implementation list) in
+    distro_impls @ do_overrides overrides feed.Feed.implementations in
 
   let cached_digests = Stores.get_available_digests config.system config.stores in
 
@@ -249,10 +254,6 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
 
       let compare_impls stability_policy a b = fst (compare_impls_full stability_policy a b) in
 
-      let get_distro_impls feed =
-        let impls, overrides = feed_provider#get_distro_impls feed in
-        do_overrides overrides impls in
-
       let candidates : candidates =
         try Hashtbl.find cache iface
         with Not_found ->
@@ -266,8 +267,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
             | None -> ([], None)
             | Some ((feed, _overrides) as pair) ->
                 let sub_feeds = U.filter_map get_feed_if_useful feed.Feed.imported_feeds in
-                let distro_impls = (get_distro_impls feed :> Impl.generic_implementation list) in
-                let impls = List.concat (distro_impls :: List.map get_impls (pair :: sub_feeds)) in
+                let impls = List.concat (List.map get_impls (pair :: sub_feeds)) in
                 (impls, iface_config.Feed_cache.stability_policy) in
 
           let stability_policy =

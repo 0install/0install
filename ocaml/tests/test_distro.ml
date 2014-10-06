@@ -403,4 +403,49 @@ let suite = "distro">::: [
 
     Unix.putenv "PATH" old_path;
   );
+
+  "import_packages">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    let master_uri = "http://example.com/iface" in
+    let master_feed = Test_fetch.parse_xml
+      "<interface uri='http://example.com/iface'><name>master</name><summary>master</summary>\
+         <feed src='http://example.com/imported'/>\
+      </interface>" in
+    let imported_feed = Test_fetch.parse_xml
+      "<interface uri='http://example.com/imported'><name>imported</name><summary>imported</summary>\
+         <package-implementation package='foo'/>\
+      </interface>" in
+    let distro =
+      object (self)
+        inherit Distro.distribution config
+        val check_host_python = false
+        val distro_name = "test"
+        val id_prefix = "package:test"
+
+        method! private get_package_impls query =
+          match query.Distro.package_name with
+          | "foo" ->
+              self#add_package_implementation
+                ~main:"foo"
+                ~package_state:`installed
+                ~version:(Version.parse "1")
+                ~machine:None
+                ~quick_test:None
+                ~distro_name
+                query
+          | _ -> ()
+      end in
+    let feed_provider = new Test_solver.fake_feed_provider config.system (Some distro) in
+    feed_provider#add_iface master_feed;
+    feed_provider#add_iface imported_feed;
+    let scope_filter = { Impl_provider.
+      extra_restrictions = StringMap.empty;
+      os_ranks = StringMap.empty;
+      machine_ranks = StringMap.empty;
+      languages = Support.Locale.LangMap.empty;
+      allowed_uses = StringSet.empty;
+    } in
+    let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_provider.feed_provider) scope_filter in
+    let impls = impl_provider#get_implementations master_uri ~source:false in
+    assert (List.length impls.Impl_provider.impls = 1)
+  )
 ]
