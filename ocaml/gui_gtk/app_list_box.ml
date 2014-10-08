@@ -342,7 +342,7 @@ let create config ~gui ~tools ~add_app =
 
   dialog#set_default_size
     ~width:(Gdk.Screen.width () / 3)
-    ~height:(Gdk.Screen.width () / 3);
+    ~height:(Gdk.Screen.height () / 3);
 
   dialog#show ();
 
