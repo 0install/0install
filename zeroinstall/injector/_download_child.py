@@ -38,7 +38,14 @@ for ca_bundle in [
 				if hasattr(self, '_tunnel_host') and self._tunnel_host:
 					self.sock = sock
 					self._tunnel()
-				sock = ssl.wrap_socket(sock, cert_reqs = ssl.CERT_REQUIRED, ca_certs = ca_bundle)
+				if getattr(ssl, 'HAS_SNI', False): # attribute added in python 3.2
+					ctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+					ctx.load_verify_locations(cafile=ca_bundle)
+					ctx.verify_mode = ssl.CERT_REQUIRED
+					sock = ctx.wrap_socket(sock, server_hostname=self.host)
+				else:
+					sock = ssl.wrap_socket(sock, ca_certs=ca_bundle, cert_reqs=ssl.CERT_REQUIRED)
+
 				ssl_match_hostname.match_hostname(sock.getpeercert(), self.host)
 				self.sock = sock
 
