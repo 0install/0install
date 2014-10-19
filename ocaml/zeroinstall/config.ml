@@ -84,7 +84,7 @@ let get_default_config system path_to_prog =
 
   let config = {
     basedirs;
-    stores = Stores.get_default_stores basedirs;
+    stores = Stores.get_default_stores system basedirs;
     extra_stores = [];
     abspath_0install;
     freshness = Some (30. *. days);
