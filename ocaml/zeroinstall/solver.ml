@@ -104,8 +104,7 @@ module CoreModel = struct
     (deps, self_commands)
 
   let dep_info (role, dep) = {
-    (* note: currently, only dependencies on binaries are supported. *)
-    dep_role = {scope = role.scope; iface = dep.Impl.dep_iface; source = false};
+    dep_role = {scope = role.scope; iface = dep.Impl.dep_iface; source = dep.Impl.dep_src};
     dep_importance = dep.Impl.dep_importance;
     dep_required_commands = dep.Impl.dep_required_commands;
   }

@@ -47,6 +47,7 @@ and dependency = {
   dep_qdom : Element.dependency_node Element.t;
   dep_importance : importance;
   dep_iface: iface_uri;
+  dep_src: bool;
   dep_restrictions: restriction list;
   dep_required_commands: string list;
   dep_if_os : string option;                (* The badly-named 'os' attribute *)
@@ -186,6 +187,8 @@ let parse_dep local_dir node =
     | Some name -> commands := StringSet.add name !commands
   );
 
+  let needs_src = Element.source node |> default false in
+
   let restrictions = match Element.version_opt node with
     | None -> restrictions
     | Some expr -> make_version_restriction expr :: restrictions
@@ -208,6 +211,7 @@ let parse_dep local_dir node =
   {
     dep_qdom = (node :> Element.dependency_node Element.t);
     dep_iface = iface;
+    dep_src = needs_src;
     dep_restrictions = restrictions;
     dep_required_commands = StringSet.elements !commands;
     dep_importance = importance;

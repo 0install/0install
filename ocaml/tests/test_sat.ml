@@ -112,6 +112,7 @@ let run_sat_test expected problem =
           dep_qdom = Element.dummy_restricts;
           dep_importance = `essential;
           dep_iface = lib;
+          dep_src = false;
           dep_restrictions = [restriction];
           dep_required_commands = [];
           dep_if_os = None;

@@ -846,6 +846,34 @@ Can't find all required implementations:
     </selections>
   </test>
 
+  <test name='src-dependency'>
+    <interface local-path="program.xml">
+      <name>Compiler</name>
+      <summary>A compiler than can compile itself</summary>
+      <implementation id="src" version="2.0" arch='*-src' local-path='.'>
+	<requires interface='./lib.xml' source='true' />
+	<command name='compile' path='build.sh'/>
+      </implementation>
+    </interface>
+
+    <interface local-path="lib.xml">
+      <name>lib</name>
+      <summary>A lib provided as both src and binary</summary>
+      <implementation id="lib-bin" version="1.0" local-path='.'/>
+      <implementation id="lib-src" version="1.0" arch='*-src' local-path='.'/>
+    </interface>
+
+    <requirements interface='./program.xml' command='compile' source='true'/>
+
+    <selections interface='/root/program.xml' command='compile' source='true'>
+      <selection id="lib-src" interface='/root/lib.xml' version='1.0' local-path='/root' arch='*-src'/>
+      <selection id="src" interface='/root/program.xml' version='2.0' local-path='/root' arch='*-src'>
+        <command name="compile" path="build.sh"/>
+	<requires interface="/root/lib.xml" source='true'/>
+      </selection>
+    </selections>
+  </test>
+
   <test name='test-and-run'>
     <interface local-path="prog.xml">
       <name>prog</name>

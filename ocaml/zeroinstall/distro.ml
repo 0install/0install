@@ -88,6 +88,7 @@ let make_restricts_distro iface_uri distros = { Impl.
     dep_qdom = Element.dummy_restricts;
     dep_importance = `restricts;
     dep_iface = iface_uri;
+    dep_src = false;
     dep_restrictions = [Impl.make_distribtion_restriction distros];
     dep_required_commands = [];
     dep_if_os = None;

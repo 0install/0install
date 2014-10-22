@@ -57,7 +57,7 @@ val version : [`selection] t -> string
 val version_opt : [< `selection | dependency_node] t -> string option   (* Messy: `selection only for failed solves *)
 val compile_min_version : [`selection] t -> string option
 val doc_dir : [`selection] t -> filepath option
-val source : [`selections] t -> bool option
+val source : [< `selections | dependency_node] t -> bool option
 
 (** {2 Feeds} *)
 val parse_feed : Support.Qdom.element -> [`feed] t
