@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<selections command="run" interface="/test/BuildDepSource.xml" source="false" xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <selection id="1" local-path='/test' interface="/test/BuildDepSource.xml" version="1">
+    <command name="run" path="idontexist"/>
+    <requires interface="/test/S2.xml" source="true">
+      <environment name="S2" insert="."/>
+    </requires>
+  </selection>
+  <selection arch="*-src" id="s2" interface="/test/S2.xml" local-path="/test" version="1.0">
+    <environment name="key" value="value"/>
+  </selection>
+</selections>

@@ -196,4 +196,26 @@ let suite = "selections">::: [
     | [_; "eu.serscis.Eval"] -> ()
     | _ -> assert false
   );
+
+  "source-sel">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    let feed = Test_0install.feed_dir +/ "source-sel.xml" in
+    let sels = Q.parse_file config.system feed |> Selections.create in
+    let b = Buffer.create 100 in
+    Tree.print config (Buffer.add_string b) sels;
+    Buffer.contents b |> assert_str_equal
+       "- URI: /test/BuildDepSource.xml\
+      \n  Version: 1\
+      \n  Path: /test\
+      \n  \
+      \n  - URI: /test/S2.xml#source\
+      \n    Version: 1.0\
+      \n    Path: /test\
+      \n";
+
+    match Selections.collect_bindings sels with
+    | [(_, `environment s2_self); (_, `environment s2_dep)] ->
+        Element.binding_name s2_dep |> assert_str_equal "key";
+        Element.binding_name s2_self |> assert_str_equal "S2";
+    | _ -> assert false
+  );
 ]

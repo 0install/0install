@@ -75,5 +75,5 @@ val get_feed : selection -> General.feed_url
 (** Get the globally unique ID of this selection (feed + ID) *)
 val get_id : selection -> Feed_url.global_id
 
-(* Return all bindings in document order *)
+(* Return all bindings *)
 val collect_bindings : t -> (role * Element.binding) list

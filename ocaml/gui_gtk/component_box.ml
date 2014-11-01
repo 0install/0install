@@ -611,7 +611,6 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
 
             let explain = GMenu.menu_item ~packing:menu#add ~label:"Explain this decision" () in
             explain#connect#activate ==> (fun () ->
-              (* TODO: support source roles too *)
               let {Solver.iface; source; _} = role in
               let reason = Justify.justify_decision config watcher#feed_provider reqs iface ~source (Impl.get_id impl) in
               show_explanation_box ~parent:window iface version_str reason

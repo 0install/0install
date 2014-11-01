@@ -155,8 +155,7 @@ let collect_bindings t =
   let bindings = ref [] in
 
   let process_dep dep =
-    (* TODO: dependencies are always binary for now *)
-    let dep_role = {iface = Element.interface dep; source = false} in
+    let dep_role = {iface = Element.interface dep; source = Element.source dep |> default false} in
     if RoleMap.mem dep_role t.index then (
       let add_role b = (dep_role, b) in
       bindings := List.map add_role (Element.bindings dep) @ !bindings
@@ -207,8 +206,7 @@ let make_deps children =
   (deps, !self_commands)
 
 let dep_info elem = {
-    (* note: currently, only dependencies on binaries are supported. *)
-    dep_role = {iface = Element.interface elem; source = false};
+    dep_role = {iface = Element.interface elem; source = Element.source elem |> default false};
     dep_importance = Element.importance elem;
     dep_required_commands = get_required_commands elem;
   }
