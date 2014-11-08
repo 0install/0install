@@ -299,10 +299,10 @@ let solve_for config feed_provider requirements =
         | None -> failwith "No solution, even with closest_match!"
   with Safe_exception _ as ex -> reraise_with_context ex "... solving for interface %s" requirements.Requirements.interface_uri
 
+(** Create a <selections> document from the result of a solve.
+ * The use of Maps ensures that the inputs will be sorted, so we will have a stable output.
+ *)
 let selections result =
-  (** Create a <selections> document from the result of a solve.
-   * The use of Maps ensures that the inputs will be sorted, so we will have a stable output.
-   *)
   Selections.create (
     let open Model in
     let root_attrs =
@@ -314,7 +314,6 @@ let selections result =
     let child_nodes = result.selections
       |> Core.RoleMap.bindings
       |> List.map (fun (role, selection) ->
-        (* TODO: update selections format to handle source here *)
         Model.to_selection role selection.Core.commands selection.Core.impl
       ) in
     ZI.make ~attrs:root_attrs ~child_nodes "selections"
