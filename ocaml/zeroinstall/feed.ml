@@ -113,6 +113,7 @@ let create_impl system ~local_dir state node =
     stability;
     parsed_version = Version.parse (get_prop FeedAttr.version);
     impl_type;
+    impl_mode = `immediate;
   } in
   (id, impl)
 

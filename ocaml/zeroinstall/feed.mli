@@ -28,6 +28,7 @@ type feed_import = {
   feed_type : feed_type;
 }
 
+
 type feed = {
   url : Feed_url.non_distro_feed;
   root : [`feed] Element.t;
@@ -46,7 +47,8 @@ type feed = {
 val parse : system -> [`feed] Element.t -> filepath option -> feed
 
 val get_implementations : feed -> Impl.generic_implementation list
-
+val process_group_properties : local_dir:filepath option -> Impl.properties -> [<`group | `implementation | `package_impl] Element.t -> Impl.properties
+val create_impl : system -> local_dir:filepath option -> Impl.properties -> [`implementation] Element.t -> string * Impl.generic_implementation
 val load_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides
 val save_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides -> unit
 val update_last_checked_time : General.config -> [< Feed_url.remote_feed] -> unit

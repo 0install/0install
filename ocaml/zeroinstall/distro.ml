@@ -36,12 +36,15 @@ let get_matching_package_impls distro feed =
   );
   !best_impls
 
+(* distro packages only deal with immediate (not source) implementations *)
+let package_impl_mode = `immediate
+
 type query = {
   elem : [`package_impl] Element.t; (* The <package-element> which generated this query *)
   package_name : string;            (* The 'package' attribute on the <package-element> *)
   elem_props : Impl.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
   feed : Feed.feed;                 (* The feed containing the <package-element> *)
-  results : Impl.distro_implementation Support.Common.StringMap.t ref;
+  results : Impl.distro_implementation StringMap.t ref;
 }
 
 let make_query feed elem elem_props results = {
@@ -139,7 +142,8 @@ class virtual distribution config =
       impl_type = `package_impl { Impl.
         package_distro = "host";
         package_state = `installed;
-      }
+      };
+      impl_mode = package_impl_mode;
     } in
 
   let get_host_impls = function
@@ -251,6 +255,7 @@ class virtual distribution config =
         props = {props with attrs = !new_attrs};
         parsed_version = version;
         impl_type = `package_impl { package_state; package_distro = distro_name };
+        impl_mode = package_impl_mode;
       } in
 
       if package_state = `installed then fixup_main self#get_correct_main impl;

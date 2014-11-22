@@ -114,6 +114,9 @@ val from_feed : [`selection] t -> string option
 (** Copy element with a new interface. Used to make relative paths absolute. *)
 val with_interface : General.iface_uri -> ([< dependency_node] t as 'a) -> 'a
 
+(** {2 Implementations} *)
+val make_impl : ?source_hint:Support.Qdom.element -> ?child_nodes:Support.Qdom.element list -> attrs:Support.Qdom.AttrMap.t -> [`implementation] t
+
 (** {2 Dependencies} *)
 val importance : [< `requires | `runner] t -> [> `essential | `recommended]
 val classify_dep : [< `requires | `restricts | `runner] t ->
@@ -137,7 +140,7 @@ val element_of_binding : binding -> binding_node t
 val classify_binding : [< binding_node] t -> binding
 val insert : [`environment] t -> string option
 val value : [`environment] t -> string option
-val mode : [`environment] t -> string option
+val mode : [< `environment | `selection] t -> string option
 val default : [`environment] t -> string option
 
 (** {2 Distribution packages} *)

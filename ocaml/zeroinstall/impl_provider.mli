@@ -41,6 +41,7 @@ type scope_filter = {
   machine_ranks : int Support.Common.StringMap.t;
   languages : int Support.Locale.LangMap.t;
   allowed_uses : Support.Common.StringSet.t;
+  autocompile : bool;
 }
 
 type candidates = {

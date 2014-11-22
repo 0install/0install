@@ -40,6 +40,32 @@ let run_test options run_opts run_args sels =
 
   result
 
+let autocompile options sels reason =
+  (** if sels has any source impls, passes the entire selections document through `0compile autocompile`,
+   * which will compile all source impls. After that's done, we reselect and run the result *)
+
+  (*TODO: allow override with $ZI_0COMPILE_FEED or something? *)
+  log_debug "Getting 0compile selections...";
+  let compile_sels = Generic_select.handle options [`Autocompile false; `NotBefore "1.3-post"] "http://0install.net/2006/interfaces/0compile.xml" `Select_for_run in
+
+  let exec args ~env =
+    let tmp_filename, tmp_file = Filename.open_temp_file "0compile-sels-" ".xml" in
+    U.finally_do Unix.unlink tmp_filename (fun tmp_filename ->
+      U.finally_do close_out tmp_file (fun tmp_file ->
+        let xml_selections = Zeroinstall.Selections.as_xml sels in
+        Support.Qdom.output (Xmlm.make_output @@ `Channel tmp_file) xml_selections;
+      );
+      log_debug "Executing: %s" (String.concat " " args);
+      let child = options.config.system#create_process ~env (args@[tmp_filename]) Unix.stdin Unix.stdout Unix.stderr in
+      options.config.system#reap_child child
+    ) in
+
+  begin
+    try Zeroinstall.Exec.execute_selections ~exec options.config compile_sels ["autocompile"; "--selections"]
+    with Safe_exception _ as ex -> reraise_with_context ex "... compiling sources for %s" reason
+  end;
+  ()
+
 let handle options flags args =
   let run_opts = {
     wrapper = None;
@@ -56,7 +82,17 @@ let handle options flags args =
 
   match args with
   | arg :: run_args -> (
-    let sels = Generic_select.handle options ~test_callback:(run_test options run_opts run_args) !select_opts arg `Select_for_run in
+    let do_select extra_opts =
+      Generic_select.handle options
+        ~test_callback:(run_test options run_opts run_args) (!select_opts@extra_opts) arg `Select_for_run in
+    let sels = do_select [] in
+
+    let sels = if Zeroinstall.Selections.requires_compilation sels
+      then begin
+        autocompile options sels arg;
+        (* TODO: pin exact implementation IDs here, for efficiency? *)
+        do_select [`Autocompile false]
+      end else sels in
 
     let exec args ~env =
       options.config.system#exec args ~env in

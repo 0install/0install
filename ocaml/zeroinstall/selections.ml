@@ -6,6 +6,7 @@ open Support.Common
 
 module U = Support.Utils
 module Q = Support.Qdom
+module IfaceConfigAttr = Constants.IfaceConfigAttr
 
 type selection = [`selection] Element.t
 
@@ -111,6 +112,13 @@ let root_role sels =
 let root_sel sels =
   let role = root_role sels in
   get_selected role sels |? lazy (raise_safe "Can't find a selection for the root (%s)!" (Role.to_string role))
+
+let requires_compilation sels =
+  sels.index |> RoleMap.exists (fun _ sel ->
+    match Element.mode sel |> Option.map Impl_mode.parse with
+      | Some `requires_compilation -> true
+      | _ -> false
+  )
 
 let requirements sels = {role = root_role sels; command = root_command sels}
 

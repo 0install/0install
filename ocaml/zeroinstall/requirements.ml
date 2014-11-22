@@ -15,6 +15,7 @@ type t = {
   os : string option;
   cpu : string option;
   message : string option;
+  autocompile: bool option;
 }
 
 let default_requirements interface_uri = {
@@ -24,6 +25,7 @@ let default_requirements interface_uri = {
   os = None;
   cpu = None;
   message = None;
+  autocompile = None;
   extra_restrictions = StringMap.empty;
 }
 
@@ -55,6 +57,7 @@ let parse_requirements json =
       | "os" -> r := {!r with os = to_string_option value}
       | "cpu" ->  r := {!r with cpu = to_string_option value}
       | "message" -> r := {!r with message = to_string_option value}
+      | "compile" -> r := {!r with autocompile = Some (to_bool value)}
       | _ -> raise_safe "Unknown requirements field '%s'" key
     );
 
@@ -80,10 +83,13 @@ let to_json reqs =
   let maybe name = function
     | None -> []
     | Some x -> [(name, `String x)] in
+  let maybe_bool name = function
+    | None -> []
+    | Some x -> [(name, `Bool x)] in
   let {
     interface_uri; command; source;
     extra_restrictions; os; cpu;
-    message;
+    message; autocompile;
   } = reqs in
   `Assoc ([
     ("interface_uri", `String interface_uri);
@@ -94,6 +100,7 @@ let to_json reqs =
     maybe "os" os;
     maybe "cpu" cpu;
     maybe "message" message;
+    maybe_bool "compile" autocompile;
   ])
 
 let load (system:system) path =

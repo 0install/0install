@@ -67,6 +67,7 @@ let parse_update_options ?(update=true) options requirements =
     | `Cpu v            -> r := {!r with cpu = empty_to_opt v}
     | `Os v             -> r := {!r with os = empty_to_opt v}
     | `SelectCommand v  -> r := {!r with command = empty_to_opt v}
+    | `Autocompile v    -> r := {!r with autocompile = Some v}
     | `Source when not update -> r := {!r with source = true}
     | `Source when !r.source -> ()
     | `Source ->

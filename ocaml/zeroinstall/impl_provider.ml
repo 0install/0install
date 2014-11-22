@@ -5,6 +5,9 @@
 open General
 open Support.Common
 module U = Support.Utils
+module Q = Support.Qdom
+module Compile = Support.Qdom.NsQuery(COMPILE_NS)
+module AttrMap = Support.Qdom.AttrMap
 
 (** We filter the implementations before handing them to the solver, excluding any
     we know are unsuitable even on their own. *)
@@ -57,6 +60,7 @@ type scope_filter = {
   machine_ranks : int StringMap.t;
   languages : int Support.Locale.LangMap.t;
   allowed_uses : StringSet.t;                         (* deprecated *)
+  autocompile : bool;
 }
 
 type candidates = {
@@ -79,7 +83,7 @@ class type impl_provider =
   end
 
 class default_impl_provider config (feed_provider : Feed_provider.feed_provider) (scope_filter:scope_filter) =
-  let {extra_restrictions; os_ranks; machine_ranks; languages = wanted_langs; allowed_uses} = scope_filter in
+  let {extra_restrictions; os_ranks; machine_ranks; languages = wanted_langs; allowed_uses; autocompile} = scope_filter in
 
   let do_overrides overrides impls =
     let do_override id impl =
@@ -91,6 +95,53 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
   let get_distro_impls feed =
     let impls, overrides = feed_provider#get_distro_impls feed in
     do_overrides overrides impls in
+  
+  let post_compilation_impls impls =
+    let rv = ref [] in
+    let add_impl impl = rv := impl :: !rv in
+    impls |> List.iter (fun (impl:Impl.generic_implementation) ->
+      let open Impl in
+      if Impl.is_source impl then (
+        let props = impl.props in
+
+        begin match StringMap.find "compile" props.commands with
+          | Some command ->
+            assert (impl.impl_mode = `immediate);
+            command.command_qdom |> Compile.iter ~name:"implementation" (fun child ->
+              (* synthesize a post-compiled implementation *)
+              let compiled_state = {
+                attrs = props.attrs;
+                requires = props.requires @ command.command_requires;
+                bindings = props.bindings @ command.command_bindings;
+                commands = StringMap.empty;
+              } in
+
+              let local_dir = Impl.local_dir_of_impl_type impl.impl_type in
+
+              let node = Element.make_impl
+                ~source_hint:child
+                ~attrs:(compiled_state.attrs |> AttrMap.add_all child.Q.attrs)
+                ~child_nodes:child.Q.child_nodes
+                in
+
+              let compiled_state = Feed.process_group_properties ~local_dir compiled_state node in
+              let _, synthetic_impl = Feed.create_impl config.system ~local_dir compiled_state node in
+              add_impl { synthetic_impl with
+                machine = None;
+                impl_mode = `requires_compilation (match impl with
+                  (* we know `source_impl` will be of source_impl_type, this
+                  * match is just to convince the compiler *)
+                  | {impl_type = #source_impl_type; _} as impl -> impl
+                  | _ -> assert false
+                );
+                impl_type = impl.impl_type;
+              }
+            )
+          | None -> ()
+        end;
+      )
+    );
+    !rv in
 
   let get_impls (feed, overrides) =
     let distro_impls = (get_distro_impls feed :> Impl.generic_implementation list) in
@@ -123,7 +174,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
             | Some os -> StringMap.mem os os_ranks) &&
             (match feed_machine with
             | None -> true
-            | Some machine when want_source -> machine = "src"
+            | Some "src" -> want_source || autocompile
             | Some machine -> StringMap.mem machine machine_ranks) in
           if is_useful then feed_provider#get_feed feed_src
           else None
@@ -275,7 +326,13 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
             | None -> if config.help_with_testing then Testing else Stable
             | Some s -> s in
 
-          let impls = List.sort (compare_impls stability_policy) @@ List.concat (main_impls :: List.map get_impls extra_feeds) in
+          let impls = List.concat (main_impls :: List.map get_impls extra_feeds) in
+
+          let impls = if autocompile
+            then impls @ (post_compilation_impls impls)
+            else impls in
+
+          let impls = List.sort (compare_impls stability_policy) impls in
 
           let replacement =
             match master_feed with
@@ -313,14 +370,18 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
             (* It's not cached, but might still be OK... *)
             else (
               let open Impl in
-              match impl.impl_type with
-              | `local_impl path -> `Missing_local_impl path
-              | `package_impl _ -> if config.network_use = Offline then `Not_cached_and_offline else `Acceptable
-              | `cache_impl {retrieval_methods = [];_} -> `No_retrieval_methods
-              | `cache_impl cache_impl ->
-                  if config.network_use <> Offline then `Acceptable   (* Can download it *)
-                  else if is_retrievable_without_network cache_impl then `Acceptable
-                  else `Not_cached_and_offline
+              match impl.Impl.impl_mode with
+              | `requires_compilation _ when autocompile = false -> `Not_binary
+              | _ -> begin
+                match impl.impl_type with
+                | `local_impl path -> `Missing_local_impl path
+                | `package_impl _ -> if config.network_use = Offline then `Not_cached_and_offline else `Acceptable
+                | `cache_impl {retrieval_methods = [];_} -> `No_retrieval_methods
+                | `cache_impl cache_impl ->
+                    if config.network_use <> Offline then `Acceptable   (* Can download it *)
+                    else if is_retrievable_without_network cache_impl then `Acceptable
+                    else `Not_cached_and_offline
+              end
             ) in
 
       let rejects = ref [] in

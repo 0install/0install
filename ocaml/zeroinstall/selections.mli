@@ -60,6 +60,9 @@ val get_selected_ex : role -> t -> selection
 (** Convert a selections document to XML in the latest format. *)
 val as_xml : t -> Support.Qdom.element
 
+(** Return whether any implementation has mode="requires_compilation" *)
+val requires_compilation : t -> bool
+
 
 (** {2 Selection elements} *)
 

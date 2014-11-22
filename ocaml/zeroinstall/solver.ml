@@ -10,6 +10,7 @@ open Support.Common
 module U = Support.Utils
 module Qdom = Support.Qdom
 module FeedAttr = Constants.FeedAttr
+module IfaceConfigAttr = Constants.IfaceConfigAttr
 module AttrMap = Qdom.AttrMap
 
 type scope = Impl_provider.impl_provider
@@ -71,13 +72,14 @@ module CoreModel = struct
       machine = None;
       stability = Testing;
       props = {
-        attrs = AttrMap.empty;
+        attrs = AttrMap.singleton "id" "[dummy]";
         requires = [];
         commands = StringMap.empty;   (* (not used; we can provide any command) *)
         bindings = [];
       };
       parsed_version = Version.parse "0";
       impl_type = `local_impl "/dummy";
+      impl_mode = `immediate;
     }
 
   let dummy_command = { Impl.
@@ -123,6 +125,7 @@ module CoreModel = struct
       |> AttrMap.remove ("", FeedAttr.main)
       |> AttrMap.remove ("", FeedAttr.self_test)
 
+      |> AttrMap.add_no_ns IfaceConfigAttr.mode (Impl.impl_mode_type impl |> Impl_mode.to_string)
       |> AttrMap.add_no_ns "interface" iface in
 
     let attrs =
@@ -223,7 +226,12 @@ module Model =
       selections : Core.selection RoleMap.t;
     }
 
-    let format_version impl = Version.to_string impl.Impl.parsed_version
+    let format_version impl =
+      (Version.to_string impl.Impl.parsed_version) ^
+      (match impl.Impl.impl_mode with
+        | `immediate -> ""
+        | `requires_compilation _ -> " source"
+      )
 
     let get_selected role result =
       RoleMap.find role result.selections |> pipe_some (fun selection ->
@@ -261,7 +269,7 @@ let do_solve root_req ~closest_match =
   )
 
 let get_root_requirements config requirements make_impl_provider =
-  let { Requirements.command; interface_uri; source; extra_restrictions; os; cpu; message = _ } = requirements in
+  let { Requirements.command; interface_uri; source; extra_restrictions; os; cpu; message = _ ; autocompile} = requirements in
 
   (* This is for old feeds that have use='testing' instead of the newer
     'test' command for giving test-only dependencies. *)
@@ -278,6 +286,7 @@ let get_root_requirements config requirements make_impl_provider =
     extra_restrictions = StringMap.map Impl.make_version_restriction extra_restrictions;
     os_ranks = Arch.get_os_ranks os;
     machine_ranks = Arch.get_machine_ranks ~multiarch machine;
+    autocompile = Option.default true autocompile;
     languages = config.langs;
     allowed_uses = use;
   }) in
