@@ -6,6 +6,8 @@
 
 open Common
 
+let _ = on_windows
+
 class type digest_context =
   object
     method update : string -> unit
@@ -63,12 +65,12 @@ let create alg =
     method to_bin = evp_digest_final_ex ctx
     method to_hex =
       let raw_digest = evp_digest_final_ex ctx in
-      let str_digest = String.create (String.length raw_digest * 2) in
+      let str_digest = Bytes.create (String.length raw_digest * 2) in
       for i = 0 to String.length raw_digest - 1 do
-        str_digest.[i * 2] <- hex_chars.[(Char.code raw_digest.[i] land 0xf0) lsr 4];
-        str_digest.[i * 2 + 1] <- hex_chars.[Char.code raw_digest.[i] land 0xf];
+        Bytes.set str_digest (i * 2) hex_chars.[(Char.code raw_digest.[i] land 0xf0) lsr 4];
+        Bytes.set str_digest (i * 2 + 1) hex_chars.[Char.code raw_digest.[i] land 0xf];
       done;
-      str_digest
+      Bytes.to_string str_digest
   end
 
 ENDIF
