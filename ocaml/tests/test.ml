@@ -300,7 +300,12 @@ let () =
   )
 ENDIF
 
+let is_error = function
+  | RFailure _ | RError _ -> true
+  | _ -> false
+
 let () =
   Printexc.record_backtrace true;
-  ignore @@ run_test_tt_main @@ test_decorate show_log_on_failure suite;
-  Format.print_newline ()
+  let results = run_test_tt_main @@ test_decorate show_log_on_failure suite in
+  Format.print_newline ();
+  if List.exists is_error results then exit 1
