@@ -86,6 +86,15 @@ exception Did_exec
 exception Would_exec of (bool * string array option * string list)
 exception Would_spawn of (bool * string array option * string list)
 
+let () =
+  Printexc.register_printer (function
+    | Would_exec (_search, _env, argv) ->
+        Some (Printf.sprintf "Test tried to exec process %s" (Support.Logging.format_argv_for_logging argv))
+    | Would_spawn (_search, _env, argv) ->
+        Some (Printf.sprintf "Test tried to spawn process %s" (Support.Logging.format_argv_for_logging argv))
+    | _ -> None
+  )
+
 let ocaml_dir = Sys.getcwd ()
 let src_dir = Filename.dirname ocaml_dir
 let tests_dir = ocaml_dir +/ "tests"
