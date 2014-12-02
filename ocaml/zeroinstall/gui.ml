@@ -352,7 +352,7 @@ let try_get_gui config ~use_gui =
             else raise_safe "Can't use GUI - plugin cannot be loaded"
         | Some gui_plugin ->
             try
-              gui_plugin config use_gui
+              gui_plugin config
             with ex ->
               log_warning ~ex "Failed to create GTK GUI";
               None

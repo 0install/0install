@@ -5,7 +5,7 @@
 (** Manage the GUI sub-process. *)
 
 (** The GUI plugin registers itself here. *)
-val register_plugin : (General.config -> Support.Common.yes_no_maybe -> Ui.ui_handler option) -> unit
+val register_plugin : (General.config -> Ui.ui_handler option) -> unit
 
 val download_icon : Fetch.fetcher -> Feed_provider.feed_provider -> Feed_url.non_distro_feed -> unit Lwt.t
 

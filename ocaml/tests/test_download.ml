@@ -53,8 +53,7 @@ let fake_gui =
   end
 
 let install_interceptor system checked_for_gui =
-  Zeroinstall.Gui.register_plugin (fun _config use_gui ->
-    assert (use_gui = Maybe);
+  Zeroinstall.Gui.register_plugin (fun _config ->
     let have_gui = system#getenv "DISPLAY" <> Some "" in
     checked_for_gui := true;
     if have_gui then (

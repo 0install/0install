@@ -69,7 +69,7 @@ let make_gtk_ui config =
   end
 
 (* If this raises an exception, gui.ml will log it and continue without the GUI. *)
-let try_get_gtk_gui config _use_gui =
+let try_get_gtk_gui config =
   log_info "Switching to GLib mainloop...";
 
   (* Install Lwt<->Glib integration.
