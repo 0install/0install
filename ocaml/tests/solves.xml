@@ -7,7 +7,7 @@
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
     <selections source="false" command="run" interface="http://example.com/prog.xml">
-      <selection id='v1' interface='http://example.com/prog.xml' version='1'>
+      <selection id='v1' interface='http://example.com/prog.xml' mode='immediate' version='1'>
         <command name="run" path="main"/>
       </selection>
     </selections>
@@ -35,9 +35,9 @@
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
     <selections source="false" command="run" interface="http://example.com/prog.xml">
-      <selection id='l1' interface='http://example.com/lib1.xml' version='1'/>
-      <selection id='l2' interface='http://example.com/lib2.xml' version='1'/>
-      <selection id='v1' interface='http://example.com/prog.xml' version='1'>
+      <selection id='l1' interface='http://example.com/lib1.xml' mode='immediate' version='1'/>
+      <selection id='l2' interface='http://example.com/lib2.xml' mode='immediate' version='1'/>
+      <selection id='v1' interface='http://example.com/prog.xml' mode='immediate' version='1'>
         <command name="run" path="main">
           <requires interface='http://example.com/lib1.xml'/>
           <requires interface='http://example.com/lib2.xml'/>
@@ -57,7 +57,7 @@
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
     <selections source="false" command="run" interface="http://example.com/prog.xml">
-      <selection id='m3' interface='http://example.com/prog.xml' version='3'>
+      <selection id='m3' interface='http://example.com/prog.xml' mode='immediate' version='3'>
         <command name="run" path="main"/>
       </selection>
     </selections>
@@ -105,14 +105,14 @@
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
     <selections source="false" command="run" interface="http://example.com/prog.xml">
-      <selection id='z2' interface='http://example.com/lib.xml' version='2'>
+      <selection id='z2' interface='http://example.com/lib.xml' mode='immediate' version='2'>
 	<command name='run' path='prog'/>
 	<command name='test' path='test-prog'>
 	  <runner interface='http://example.com/tester.xml'/>
 	  <requires interface='http://example.com/missing.xml' importance='recommended'/>
 	</command>
       </selection>
-      <selection id='m3' interface='http://example.com/prog.xml' version='3'>
+      <selection id='m3' interface='http://example.com/prog.xml' mode='immediate' version='3'>
         <command name="run" path="main"/>
 	<binding name='foo'/>
         <requires interface='http://example.com/lib.xml'>
@@ -120,7 +120,7 @@
 	  <executable-in-path name='test-lib' command='test'/>
 	</requires>
       </selection>
-      <selection id='t1' interface='http://example.com/tester.xml' version='1'>
+      <selection id='t1' interface='http://example.com/tester.xml' mode='immediate' version='1'>
 	<command name='run' path='tester'/>
       </selection>
     </selections>
@@ -142,7 +142,7 @@
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
     <selections source="false" command='run' interface="http://example.com/prog.xml">
-      <selection id='v1' interface='http://example.com/prog.xml' version='1'>
+      <selection id='v1' interface='http://example.com/prog.xml' mode='immediate' version='1'>
         <command name='run'/>
       </selection>
     </selections>
@@ -178,8 +178,8 @@
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
     <selections source="false" command="run" interface="http://example.com/prog.xml">
-      <selection id='l2' interface='http://example.com/lib.xml' version='2'/>
-      <selection id='p2' interface='http://example.com/prog.xml' version='2'>
+      <selection id='l2' interface='http://example.com/lib.xml' mode='immediate' version='2'/>
+      <selection id='p2' interface='http://example.com/prog.xml' mode='immediate' version='2'>
         <command name="run" path="main"/>
 	<requires interface='http://example.com/lib.xml' version='2..!3'/>
       </selection>
@@ -261,7 +261,7 @@ Can't find all required implementations:
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
     <selections source="false" command="run" interface="http://example.com/prog.xml">
-      <selection id='v1' interface='http://example.com/prog.xml' version='1'>
+      <selection id='v1' interface='http://example.com/prog.xml' mode='immediate' version='1'>
         <command name="run" path="new-path"/>
       </selection>
     </selections>
@@ -287,8 +287,8 @@ Can't find all required implementations:
     </interface>
     <requirements command='run' interface='http://example.com/prog.xml'/>
     <selections source="false" command="run" interface="http://example.com/prog.xml">
-      <selection id='l2' interface='http://example.com/lib2.xml' version='1'/>
-      <selection id='v1' interface='http://example.com/prog.xml' version='1'>
+      <selection id='l2' interface='http://example.com/lib2.xml' mode='immediate' version='1'/>
+      <selection id='v1' interface='http://example.com/prog.xml' mode='immediate' version='1'>
         <command name="run" path="main"/>
 	<requires interface='http://example.com/lib1.xml' distribution='foo' importance='recommended'/>
 	<requires interface='http://example.com/lib2.xml' distribution='foo 0install' importance='recommended'/>
@@ -329,9 +329,9 @@ Can't find all required implementations:
     <requirements command='run' interface='http://example.com/prog.xml'/>
 
     <selections source="false" command="run" interface="http://example.com/prog.xml">
-      <selection id='l12' interface='http://example.com/lib1.xml' version='2'/>
-      <selection id='l21' interface='http://example.com/lib2.xml' version='1'/>
-      <selection id='p1' interface='http://example.com/prog.xml' version='1'>
+      <selection id='l12' interface='http://example.com/lib1.xml' mode='immediate' version='2'/>
+      <selection id='l21' interface='http://example.com/lib2.xml' mode='immediate' version='1'/>
+      <selection id='p1' interface='http://example.com/prog.xml' mode='immediate' version='1'>
         <command name="run" path="main"/>
 	<requires interface='http://example.com/lib1.xml'/>
 	<requires interface='http://example.com/lib2.xml'/>
@@ -729,11 +729,11 @@ Can't find all required implementations:
 
     <selections source="false" interface="http://gfxmonk.net/dist/0install/watchdog.xml" command="test">
       <selection id="sha1new=9e367bae00e50616d6b612e94713616a7fb5af4d"
-                 interface="http://gfxmonk.net/dist/0install/nose.xml" released="2010-07-19" version="0.11.2">
+                 interface="http://gfxmonk.net/dist/0install/nose.xml" released="2010-07-19" mode='immediate' version="0.11.2">
         <command name="run" path="bin/nosetests"/>
       </selection>
       <selection id="sha1new=b6d40c5d38b58c1be359d879dadc90d212f9294c"
-                 interface="http://gfxmonk.net/dist/0install/watchdog.xml" released="2011-02-09" version="0.5.3">
+                 interface="http://gfxmonk.net/dist/0install/watchdog.xml" released="2011-02-09" mode='immediate' version="0.5.3">
         <command name="test">
           <runner interface="http://gfxmonk.net/dist/0install/nose.xml"/>
         </command>
@@ -761,11 +761,11 @@ Can't find all required implementations:
     <requirements interface='./OptionalMissing.xml'/>
 
     <selections source="false" interface="/root/OptionalMissing.xml">
-      <selection id="a" interface="/root/OptionalMissing.xml" local-path="/root" version="0.1">
+      <selection id="a" interface="/root/OptionalMissing.xml" local-path="/root" mode='immediate' version="0.1">
         <requires interface="http://localhost/Missing.xml" importance="recommended"/>
         <requires interface="http://foo/Binary.xml"/>
       </selection>
-      <selection id="sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" interface="http://foo/Binary.xml" version="1.0"/>
+      <selection id="sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" interface="http://foo/Binary.xml" mode='immediate' version="1.0"/>
     </selections>
 
   </test>
@@ -786,7 +786,7 @@ Can't find all required implementations:
     <requirements interface='./OptionalMissing.xml'/>
 
     <selections source="false" interface="/root/OptionalMissing.xml">
-      <selection id="a" interface="/root/OptionalMissing.xml" local-path="/root" version="0.1">
+      <selection id="a" interface="/root/OptionalMissing.xml" local-path="/root" mode='immediate' version="0.1">
         <requires interface="http://localhost/Missing.xml" importance="recommended">
 	  <executable-in-path name='missing'/>
 	</requires>
@@ -803,12 +803,12 @@ Can't find all required implementations:
     <requirements interface='http://foo/Build.xml' command='run'/>
 
     <selections source="false" interface='http://foo/Build.xml' command='run'>
-      <selection id="2" interface='http://foo/Build.xml' version='2'>
+      <selection id="2" interface='http://foo/Build.xml' mode='immediate' version='2'>
         <command name="run" path="idontexist"/>
         <requires interface="http://foo/Compiler-new.xml"/>
         <manifest-digest sha256new="def"/>
       </selection>
-      <selection from-feed="http://foo/Compiler.xml" id="sha1=999" interface="http://foo/Compiler-new.xml" version="5"/>
+      <selection from-feed="http://foo/Compiler.xml" id="sha1=999" interface="http://foo/Compiler-new.xml" mode='immediate' version="5"/>
     </selections>
   </test>
 
@@ -820,11 +820,11 @@ Can't find all required implementations:
     <requirements interface='./ReplacedConflicts.xml' command='run'/>
 
     <selections source="false" interface="/root/ReplacedConflicts.xml" command="run">
-      <selection id="b" interface="/root/ReplacedConflicts.xml" local-path="/root" version="2">
+      <selection id="b" interface="/root/ReplacedConflicts.xml" local-path="/root" mode='immediate' version="2">
         <command name="run" path="missing"/>
         <requires interface="http://localhost:8000/Hello"/>
       </selection>
-      <selection id="sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" interface="http://localhost:8000/Hello" version="1"/>
+      <selection id="sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" interface="http://localhost:8000/Hello" mode='immediate' version="1"/>
     </selections>
   </test>
 
@@ -838,8 +838,8 @@ Can't find all required implementations:
     </requirements>
 
     <selections source="false" interface="/root/ReplacedConflicts.xml" command="run">
-      <selection id="." interface="/root/Replaced.xml" version="0" local-path='/root'/>
-      <selection id="a" interface="/root/ReplacedConflicts.xml" local-path="/root" version="1">
+      <selection id="." interface="/root/Replaced.xml" mode='immediate' version="0" local-path='/root'/>
+      <selection id="a" interface="/root/ReplacedConflicts.xml" local-path="/root" mode='immediate' version="1">
         <command name="run" path="missing"/>
         <requires interface="/root/Replaced.xml"/>
       </selection>
@@ -866,8 +866,8 @@ Can't find all required implementations:
     <requirements interface='./program.xml' command='compile' source='true'/>
 
     <selections interface='/root/program.xml' command='compile' source='true'>
-      <selection id="lib-src" interface='/root/lib.xml' version='1.0' local-path='/root' arch='*-src'/>
-      <selection id="src" interface='/root/program.xml' version='2.0' local-path='/root' arch='*-src'>
+      <selection id="lib-src" interface='/root/lib.xml' mode='immediate' version='1.0' local-path='/root' arch='*-src'/>
+      <selection id="src" interface='/root/program.xml' mode='immediate' version='2.0' local-path='/root' arch='*-src'>
         <command name="compile" path="build.sh"/>
 	<requires interface="/root/lib.xml" source='true'/>
       </selection>
@@ -892,7 +892,7 @@ Can't find all required implementations:
     <requirements interface='./prog.xml' command='test'/>
 
     <selections source="false" interface="/root/prog.xml" command="test">
-      <selection interface="/root/prog.xml" version='1' id='.' local-path='/root'>
+      <selection interface="/root/prog.xml" mode='immediate' version='1' id='.' local-path='/root'>
 	<command name='foo' path='foo.py'/>
 	<command name='run' path='prog.py'/>
 	<command name="test">
@@ -941,9 +941,9 @@ Can't find all required implementations:
     <requirements interface='./prog.xml' command='test'/>
 
     <selections source="false" interface="/root/prog.xml" command="test">
-      <selection interface="/root/lib1.xml" version='2.0' id='new' local-path='/root'/>
-      <selection interface="/root/lib2.xml" version='2.0' id='new' local-path='/root'/>
-      <selection interface="/root/prog.xml" version='1' id='.' local-path='/root'>
+      <selection interface="/root/lib1.xml" mode='immediate' version='2.0' id='new' local-path='/root'/>
+      <selection interface="/root/lib2.xml" mode='immediate' version='2.0' id='new' local-path='/root'/>
+      <selection interface="/root/prog.xml" mode='immediate' version='1' id='.' local-path='/root'>
 	<command name='foo' path='foo.py'>
           <requires interface="/root/lib2.xml" importance='recommended'/>
 	</command>
@@ -995,8 +995,8 @@ Can't find all required implementations:
     <requirements interface='./Compiler.xml' command='compile' source='true'/>
 
     <selections interface='/root/Compiler.xml' command='compile' source='true'>
-      <selection id="bin" interface='/root/Compiler.xml' version='1.0' local-path='/root'/>
-      <selection id="src" interface='/root/Compiler.xml' version='2.0' local-path='/root' arch='*-src'>
+      <selection id="bin" interface='/root/Compiler.xml' mode='immediate' version='1.0' local-path='/root'/>
+      <selection id="src" interface='/root/Compiler.xml' mode='immediate' version='2.0' local-path='/root' arch='*-src'>
         <command name="compile" path="build.sh"/>
 	<requires interface="/root/Compiler.xml"/>
       </selection>

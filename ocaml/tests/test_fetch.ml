@@ -38,6 +38,7 @@ let impl_template = Impl.({
     digests = [("sha1", "123")];
     retrieval_methods = [];
   };
+  impl_mode = `immediate;
 })
 
 let parse_xml s =

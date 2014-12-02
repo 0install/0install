@@ -443,6 +443,7 @@ let suite = "distro">::: [
       machine_ranks = StringMap.empty;
       languages = Support.Locale.LangMap.empty;
       allowed_uses = StringSet.empty;
+      autocompile = false;
     } in
     let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_provider.feed_provider) scope_filter in
     let impls = impl_provider#get_implementations master_uri ~source:false in

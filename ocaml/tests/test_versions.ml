@@ -31,6 +31,7 @@ let dummy_impl = Impl.({
   };
   parsed_version = Version.parse "0";
   impl_type = `local_impl "/dummy";
+  impl_mode = `immediate;
 })
 
 let assert_order a b =

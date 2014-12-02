@@ -37,7 +37,8 @@ class impl_provider =
       stability = General.Stable;
       os; machine;
       parsed_version = Version.parse v;
-      impl_type = `local_impl "/"
+      impl_type = `local_impl "/";
+      impl_mode = `immediate;
     }) in
 
   object (_ : #I.impl_provider)
