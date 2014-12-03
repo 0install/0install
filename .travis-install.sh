@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -eux
 # Install OCaml and OPAM PPAs
 case "$OCAML_VERSION" in
   4.01.0) ppa=avsm/ocaml41+opam12 ;;
