@@ -23,16 +23,7 @@ class indenter (printer : string -> unit) =
       indentation <- old
   end
 
-module type MODEL = sig
-  include Sigs.CORE_MODEL
-  include Sigs.SELECTIONS with
-    type impl := impl and
-    type command_name := command_name and
-    type requirements := requirements and
-    type role := Role.t
-end
-
-module Make (Model : MODEL) = struct
+module Make (Model : Sigs.SELECTIONS) = struct
   (** Convert selections as a dependency tree (as displayed by "0install show",
    * etc). If multiple components share a dependency, only the first one is
    * included. *)

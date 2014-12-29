@@ -215,7 +215,6 @@ module Model =
   struct
     include CoreModel
 
-    type role = Role.t
     module RoleMap = Core.RoleMap
 
     type t = {

@@ -100,21 +100,17 @@ module type SOLVER_INPUT = sig
 end
 
 module type SELECTIONS = sig
-  (** Some selections previously produced by a solver.
-   * Note: logically, this should include CORE_MODEL, but that causes problems
-   * with duplicating RoleMap. *)
+  (** Some selections previously produced by a solver. *)
+
+  include CORE_MODEL
+
   type t
 
-  type role
-  type impl
-  type command_name
-  type requirements
-
-  val get_selected : role -> t -> impl option
-  val selected_commands : t -> role -> command_name list
+  val get_selected : Role.t -> t -> impl option
+  val selected_commands : t -> Role.t -> command_name list
   val requirements : t -> requirements
 
-  module RoleMap : MAP with type key = role
+  module RoleMap : MAP with type key = Role.t
 end
 
 module type SOLVER_RESULT = sig
@@ -124,10 +120,13 @@ module type SOLVER_RESULT = sig
 
   include SOLVER_INPUT
   include SELECTIONS with
+    module Role := Role and
     type impl := impl and
+    type command := command and
+    type dependency := dependency and
     type command_name := command_name and
-    type requirements := requirements and
-    type role = Role.t
+    type dep_info := dep_info and
+    type requirements := requirements
 
   (** The reason why the model rejected an implementation before it got to the solver. *)
   type rejection

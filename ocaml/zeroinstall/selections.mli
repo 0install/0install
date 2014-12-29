@@ -14,16 +14,11 @@ type role = {
   iface : General.iface_uri;
   source : bool;
 }
-include Sigs.CORE_MODEL with
+
+include Sigs.SELECTIONS with
   type impl = selection and
   type command_name = string and
   type Role.t = role
-
-include Sigs.SELECTIONS with
-  type role := role and
-  type command_name := command_name and
-  type requirements := requirements and
-  type impl := selection
 
 type impl_source =
   | CacheSelection of Manifest.digest list
