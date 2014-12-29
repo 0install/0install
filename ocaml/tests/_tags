@@ -1,2 +1,2 @@
-<test_driver.ml> or <pk_service.ml> or <test_fetch.ml> or <server.ml>: syntax(camlp4o), package(lwt.syntax)
+<test_0install.ml> or <test_feed_cache.ml> or <fake_system.ml> or <fake_gpg_agent.ml> or <test_gpg.ml> or <test_driver.ml> or <pk_service.ml> or <test_fetch.ml> or <server.ml>: syntax(camlp4o), package(lwt.syntax)
 <test.ml>: mypp

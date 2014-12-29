@@ -182,9 +182,14 @@ let with_server (fn:_ -> _ -> unit) =
 
     let config = {config with Zeroinstall.General.key_info_server = Some "http://localhost:3333/key-info"} in
     Zeroinstall.Config.save_config config;
+    let agent = Fake_gpg_agent.run f#tmpdir in
 
     U.finally_do
-      (fun s -> Lwt_main.run s#terminate; Unix.putenv "http_proxy" "localhost:8000")
+      (fun s ->
+        Lwt.cancel agent;
+        Lwt_main.run s#terminate;
+        Unix.putenv "http_proxy" "localhost:8000"
+      )
       (start_server config.Zeroinstall.General.system)
       (fun server ->
         Unix.putenv "http_proxy" ("localhost:" ^ (string_of_int server#port));

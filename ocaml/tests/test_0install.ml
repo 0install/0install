@@ -165,7 +165,7 @@ let suite = "0install">::: [
     ()
   );
 
-  "update">:: Fake_system.with_tmpdir (fun tmpdir ->
+  "update">:: Fake_gpg_agent.with_gpg (fun tmpdir ->
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let system = (fake_system :> system) in
     fake_system#add_file "/lib/ld-linux.so.2" "/";    (* Enable multi-arch *)
@@ -241,6 +241,8 @@ let suite = "0install">::: [
     fake_slave#allow_download "http://foo/Source.xml" new_source_feed;
     let out = run ["update"; "http://foo/Binary.xml"; "--source"] in
     assert_contains "No longer used: http://foo/Compiler.xml" out;
+
+    Lwt.return ()
   );
 
   "download">:: Fake_system.with_tmpdir (fun tmpdir ->
@@ -279,7 +281,7 @@ let suite = "0install">::: [
     assert_contains "Version: 1\n" out;
   );
 
-  "download_selections">:: Fake_system.with_tmpdir (fun tmpdir ->
+  "download_selections">:: Fake_gpg_agent.with_gpg (fun tmpdir ->
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let system = (fake_system :> system) in
     let run = run_0install fake_system in
@@ -296,6 +298,7 @@ let suite = "0install">::: [
     let out = run ["download"; (feed_dir +/ "selections.xml"); "--show"] in
     assert_contains digest out;
     assert_contains "Version: 1\n" out;
+    Lwt.return ()
   );
 
   "display">:: Fake_system.with_tmpdir (fun tmpdir ->
@@ -723,7 +726,8 @@ let suite = "0install">::: [
     )
   );
 
-  "import">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+  "import">:: Fake_gpg_agent.with_gpg (fun tmpdir ->
+    let config, fake_system = Fake_system.get_fake_config (Some tmpdir) in
     config.auto_approve_keys <- false;
     config.key_info_server <- None;
     Zeroinstall.Config.save_config config;
@@ -732,13 +736,15 @@ let suite = "0install">::: [
     assert_contains "Usage:" out;
     assert_contains "FEED" out;
 
-    Lwt_main.run @@ Support.Gpg.import_key config.system (U.read_file config.system (feed_dir +/ "6FCF121BE2390E0B.gpg"));
+    lwt () = Support.Gpg.import_key config.system (U.read_file config.system (feed_dir +/ "6FCF121BE2390E0B.gpg")) in
     let out = run_0install fake_system ~include_stderr:true ["import"; feed_dir +/ "Hello.xml"] ~stdin:"Y\n" in
     assert_contains "Do you want to trust this key to sign feeds from 'example.com:8000'?" out;
-    Fake_system.fake_log#assert_contains "Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000"
+    Fake_system.fake_log#assert_contains "Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000";
+    Lwt.return ()
   );
 
-  "list">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+  "list">:: Fake_gpg_agent.with_gpg (fun tmpdir ->
+    let config, fake_system = Fake_system.get_fake_config (Some tmpdir) in
     config.auto_approve_keys <- false;
     config.key_info_server <- None;
     Zeroinstall.Config.save_config config;
@@ -750,7 +756,7 @@ let suite = "0install">::: [
     let out = run_0install fake_system ["list"] in
     assert_str_equal "" out;
 
-    Lwt_main.run @@ Support.Gpg.import_key config.system (U.read_file config.system (feed_dir +/ "6FCF121BE2390E0B.gpg"));
+    lwt () = Support.Gpg.import_key config.system (U.read_file config.system (feed_dir +/ "6FCF121BE2390E0B.gpg")) in
     ignore @@ run_0install fake_system ~include_stderr:true ["import"; feed_dir +/ "Hello.xml"] ~stdin:"Y\n";
 
     let out = run_0install fake_system ["list"] in
@@ -760,7 +766,9 @@ let suite = "0install">::: [
     assert_str_equal "" out;
 
     let out = run_0install fake_system ["list"; "hello"] in
-    assert_str_equal "http://example.com:8000/Hello.xml\n" out
+    assert_str_equal "http://example.com:8000/Hello.xml\n" out;
+
+    Lwt.return ()
   );
 
   "help">:: Fake_system.with_fake_config (fun (_config, fake_system) ->

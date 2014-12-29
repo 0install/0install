@@ -82,6 +82,29 @@ let capture_stdout ?(include_stderr=false) fn =
         )
     )
 
+let capture_stdout_lwt ?(include_stderr=false) fn =
+  let open Unix in
+  let old_stdout = dup Unix.stdout in
+  let old_stderr = dup Unix.stderr in
+  try_lwt
+    let tmp = Filename.temp_file "0install-" "-test-output" in
+    let tmpfd = openfile tmp [O_RDWR] 0o600 in
+    try_lwt
+      dup2 tmpfd Unix.stdout;
+      if include_stderr then dup2 tmpfd Unix.stderr;
+      lwt () = fn () in
+      flush_all ();
+      U.read_file real_system tmp |> Lwt.return
+    finally
+      flush_all ();
+      close tmpfd;
+      unlink tmp;
+      Lwt.return ()
+  finally
+    dup2 old_stdout Unix.stdout; close old_stdout;
+    dup2 old_stderr Unix.stderr; close old_stderr;
+    Lwt.return ()
+
 exception Did_exec
 exception Would_exec of (bool * string array option * string list)
 exception Would_spawn of (bool * string array option * string list)
@@ -445,6 +468,14 @@ let collect_logging fn =
   forward_to_real_log := false;
   U.finally_do (fun () -> forward_to_real_log := true) () fn
 
+let collect_logging_lwt fn =
+  forward_to_real_log := false;
+  try_lwt
+    fn ()
+  finally
+    forward_to_real_log := true;
+    Lwt.return ()
+
 let format_list l = "[" ^ (String.concat "; " l) ^ "]"
 let equal_str_lists = assert_equal ~printer:format_list
 let assert_str_equal = assert_equal ~printer:(fun x -> x)
@@ -453,6 +484,16 @@ let assert_raises_safe expected_msg (fn:unit Lazy.t) =
   try Lazy.force fn; assert_failure ("Expected Safe_exception " ^ expected_msg)
   with Safe_exception (msg, _) ->
     if not (Str.string_match (Str.regexp expected_msg) msg 0) then
+      raise_safe "Error '%s' does not match regexp '%s'" msg expected_msg
+
+let assert_raises_safe_lwt expected_msg fn =
+  try_lwt
+    lwt () = fn () in
+    assert_failure ("Expected Safe_exception " ^ expected_msg)
+  with Safe_exception (msg, _) ->
+    if Str.string_match (Str.regexp expected_msg) msg 0 then
+      Lwt.return ()
+    else
       raise_safe "Error '%s' does not match regexp '%s'" msg expected_msg
 
 let temp_dir_name =
