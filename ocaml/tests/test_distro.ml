@@ -447,7 +447,7 @@ let suite = "distro">::: [
     let feed_provider = new Test_solver.fake_feed_provider config.system (Some distro) in
     feed_provider#add_iface master_feed;
     feed_provider#add_iface imported_feed;
-    let scope_filter = { Impl_provider.
+    let scope_filter = { Scope_filter.
       extra_restrictions = StringMap.empty;
       os_ranks = StringMap.empty;
       machine_ranks = StringMap.empty;

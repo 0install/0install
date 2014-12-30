@@ -42,6 +42,7 @@ Packagekit_interfaces
 Progress
 Recipe
 Requirements
+Scope_filter
 Selections
 Sigs
 Solver

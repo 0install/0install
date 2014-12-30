@@ -273,13 +273,13 @@ let get_root_requirements config requirements make_impl_provider =
   (* Disable multi-arch on Linux if the 32-bit linker is missing. *)
   let multiarch = os <> "Linux" || config.system#file_exists "/lib/ld-linux.so.2" in
 
-  let scope_filter = Impl_provider.({
+  let scope_filter = { Scope_filter.
     extra_restrictions = StringMap.map Impl.make_version_restriction extra_restrictions;
     os_ranks = Arch.get_os_ranks os;
     machine_ranks = Arch.get_machine_ranks ~multiarch machine;
     languages = config.langs;
     allowed_uses = use;
-  }) in
+  } in
 
   let impl_provider = make_impl_provider scope_filter in
   let root_role = {scope = impl_provider; iface = interface_uri; source} in

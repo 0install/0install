@@ -15,14 +15,6 @@ type preference_reason
 val describe_problem : _ Impl.t -> rejection_reason -> string
 val describe_preference : preference_reason -> string
 
-type scope_filter = {
-  extra_restrictions : Impl.restriction StringMap.t;
-  os_ranks : int StringMap.t;
-  machine_ranks : int StringMap.t;
-  languages : int Support.Locale.LangMap.t;
-  allowed_uses : StringSet.t;
-}
-
 type candidates = {
   replacement : General.iface_uri option;
   impls : Impl.generic_implementation list;
@@ -42,4 +34,4 @@ class type impl_provider =
     method extra_restrictions : Impl.restriction StringMap.t
   end
 
-class default_impl_provider : General.config -> Feed_provider.feed_provider -> scope_filter -> impl_provider
+class default_impl_provider : General.config -> Feed_provider.feed_provider -> Scope_filter.t -> impl_provider

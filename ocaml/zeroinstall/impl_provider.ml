@@ -57,14 +57,6 @@ let describe_preference = function
   | PreferStability -> "more stable versions preferred"
   | PreferVersion   -> "newer versions are preferred"
 
-type scope_filter = {
-  extra_restrictions : Impl.restriction StringMap.t;  (* iface -> test *)
-  os_ranks : int StringMap.t;
-  machine_ranks : int StringMap.t;
-  languages : int Support.Locale.LangMap.t;
-  allowed_uses : StringSet.t;                         (* deprecated *)
-}
-
 type candidates = {
   replacement : iface_uri option;
   impls : Impl.generic_implementation list;
@@ -92,9 +84,7 @@ let do_overrides overrides =
     | None -> impl
   )
 
-class default_impl_provider config (feed_provider : Feed_provider.feed_provider) (scope_filter:scope_filter) =
-  let {extra_restrictions; os_ranks; machine_ranks; languages = wanted_langs; allowed_uses} = scope_filter in
-
+class default_impl_provider config (feed_provider : Feed_provider.feed_provider) (scope_filter:Scope_filter.t) =
   let get_distro_impls feed =
     let impls, overrides = feed_provider#get_distro_impls feed in
     do_overrides overrides impls in
@@ -109,30 +99,20 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
     val cache = Hashtbl.create 10
 
     method is_dep_needed dep =
-      match dep.Impl.dep_use with
-      | Some use when not (StringSet.mem use allowed_uses) -> false
-      | None | Some _ ->
-          (* Ignore dependency if 'os' attribute is present and doesn't match *)
-          match dep.Impl.dep_if_os with
-          | Some required_os -> StringMap.mem required_os os_ranks
-          | None -> true
+      Scope_filter.use_ok scope_filter dep.Impl.dep_use &&
+      Scope_filter.os_ok scope_filter dep.Impl.dep_if_os
 
-    method extra_restrictions = scope_filter.extra_restrictions
+    method extra_restrictions = scope_filter.Scope_filter.extra_restrictions
 
     method get_implementations iface ~source:want_source =
       let get_feed_if_useful {Feed.feed_src; Feed.feed_os; Feed.feed_machine; Feed.feed_langs; Feed.feed_type = _} =
         try
           ignore feed_langs; (* Maybe later... *)
+          let machine_ok =
+            if want_source then feed_machine = Some "src"
+            else Scope_filter.machine_ok scope_filter feed_machine in
           (* Don't look at a feed if it only provides things we can't use. *)
-          let is_useful =
-            (match feed_os with
-            | None -> true
-            | Some os -> StringMap.mem os os_ranks) &&
-            (match feed_machine with
-            | None -> true
-            | Some machine when want_source -> machine = "src"
-            | Some machine -> StringMap.mem machine machine_ranks) in
-          if is_useful then feed_provider#get_feed feed_src
+          if Scope_filter.os_ok scope_filter feed_os && machine_ok then feed_provider#get_feed feed_src
           else None
         with Safe_exception _ as ex ->
           log_warning ~ex "Failed to get implementations";
@@ -142,7 +122,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
       let get_extra_feeds iface_config =
         Support.Utils.filter_map get_feed_if_useful iface_config.Feed_cache.extra_feeds in
 
-      let user_restrictions = StringMap.find iface extra_restrictions in
+      let user_restrictions = Scope_filter.user_restriction_for scope_filter iface in
 
       let is_available impl =
         try
@@ -171,15 +151,11 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
 
         (* 1 if we understand this language, else 0 *)
         let score_langs langs =
-          let is_acceptable (lang, _country) = Support.Locale.LangMap.mem (lang, None) wanted_langs in
-          score_true @@ List.exists is_acceptable langs in
+          score_true @@ List.exists (Scope_filter.lang_ok scope_filter) langs in
 
         let score_country langs =
           ListLabels.fold_left ~init:0 langs ~f:(fun best lang ->
-            let score =
-              try Support.Locale.LangMap.find lang wanted_langs
-              with Not_found -> 0 in
-            max best score
+            max best (Scope_filter.lang_rank scope_filter lang)
           ) in
 
         let open Impl in
@@ -187,12 +163,12 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
         let score_os i =
           match i.os with
           | None -> (-100)
-          | Some os -> -(default 200 @@ StringMap.find os os_ranks) in
+          | Some os -> -(default 200 @@ Scope_filter.os_rank scope_filter os) in
 
         let score_machine i =
           match i.machine with
           | None -> (-100)
-          | Some machine -> -(default 200 @@ StringMap.find machine machine_ranks) in
+          | Some machine -> -(default 200 @@ Scope_filter.machine_rank scope_filter machine) in
 
         let score_stability i =
           let s = i.stability in
@@ -294,16 +270,6 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
           Hashtbl.add cache iface candidates;
           candidates in
 
-      let os_ok impl =
-        match impl.Impl.os with
-        | None -> true
-        | Some required_os -> StringMap.mem required_os os_ranks in
-
-      let machine_ok impl =
-        match impl.Impl.machine with
-        | None -> true
-        | Some required_machine -> StringMap.mem required_machine machine_ranks in
-
       let check_acceptability impl =
         let stability = impl.Impl.stability in
         let is_source = impl.Impl.machine = Some "src" in
@@ -312,10 +278,10 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
         | Some r when not (r#meets_restriction impl) -> `User_restriction_rejects r
         | _ ->
             if stability <= Buggy then `Poor_stability
-            else if not (os_ok impl) then `Incompatible_OS
+            else if not (Scope_filter.os_ok scope_filter impl.Impl.os) then `Incompatible_OS
             else if want_source && not is_source then `Not_source
             else if not (want_source) && is_source then `Not_binary
-            else if not want_source && not (machine_ok impl) then `Incompatible_machine
+            else if not want_source && not (Scope_filter.machine_ok scope_filter impl.Impl.machine) then `Incompatible_machine
             (* Acceptable if we've got it already or we can get it *)
             else if is_available impl then `Acceptable
             (* It's not cached, but might still be OK... *)
