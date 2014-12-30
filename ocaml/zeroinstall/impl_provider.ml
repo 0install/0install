@@ -109,7 +109,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
         try
           ignore feed_langs; (* Maybe later... *)
           let machine_ok =
-            if want_source then feed_machine = Some "src"
+            if want_source then Arch.is_src feed_machine
             else Scope_filter.machine_ok scope_filter feed_machine in
           (* Don't look at a feed if it only provides things we can't use. *)
           if Scope_filter.os_ok scope_filter feed_os && machine_ok then feed_provider#get_feed feed_src
@@ -272,7 +272,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
 
       let check_acceptability impl =
         let stability = impl.Impl.stability in
-        let is_source = impl.Impl.machine = Some "src" in
+        let is_source = Arch.is_src impl.Impl.machine in
 
         match user_restrictions with
         | Some r when not (r#meets_restriction impl) -> `User_restriction_rejects r

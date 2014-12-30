@@ -119,7 +119,7 @@ let suite = "distro">::: [
     | [impl] ->
         assert_str_equal "package:slack:infozip:5.52-2:i486" @@ Impl.get_attr_ex "id" impl;
         assert_str_equal "5.52-2" @@ Impl.get_attr_ex "version" impl;
-        assert_str_equal "i486" @@ (expect impl.Impl.machine);
+        assert_str_equal "i486" @@ Arch.format_machine_or_star impl.Impl.machine;
     | impls -> assert_failure @@ Printf.sprintf "want 1, got %d" (List.length impls) end;
   );
 
@@ -134,25 +134,25 @@ let suite = "distro">::: [
     | [impl] ->
         assert_str_equal "package:gentoo:sys-apps/portage:2.1.7.16:x86_64" @@ Impl.get_attr_ex "id" impl;
         assert_str_equal "2.1.7.16" @@ Impl.get_attr_ex "version" impl;
-        assert_str_equal "x86_64" @@ (expect impl.Impl.machine);
+        assert_str_equal "x86_64" @@ Arch.format_machine_or_star impl.Impl.machine;
     | impls -> assert_failure @@ Printf.sprintf "want 1, got %d" (List.length impls) end;
 
     begin match distro#get_impls_for_feed (make_test_feed "sys-kernel/gentoo-sources") |> to_impl_list with
     | [b; a] ->
         assert_str_equal "package:gentoo:sys-kernel/gentoo-sources:2.6.30-4:i686" @@ Impl.get_attr_ex "id" a;
         assert_str_equal "2.6.30-4" @@ Impl.get_attr_ex "version" a;
-        assert_str_equal "i686" @@ (expect a.Impl.machine);
+        assert_str_equal "i686" @@ Arch.format_machine_or_star a.Impl.machine;
 
         assert_str_equal "package:gentoo:sys-kernel/gentoo-sources:2.6.32:x86_64" @@ Impl.get_attr_ex "id" b;
         assert_str_equal "2.6.32" @@ Impl.get_attr_ex "version" b;
-        assert_str_equal "x86_64" @@ (expect b.Impl.machine);
+        assert_str_equal "x86_64" @@ Arch.format_machine_or_star b.Impl.machine;
     | impls -> assert_failure @@ Printf.sprintf "want 2, got %d" (List.length impls) end;
 
     begin match distro#get_impls_for_feed (make_test_feed "app-emulation/emul-linux-x86-baselibs") |> to_impl_list with
     | [impl] ->
         assert_str_equal "package:gentoo:app-emulation/emul-linux-x86-baselibs:20100220:i386" @@ Impl.get_attr_ex "id" impl;
         assert_str_equal "20100220" @@ Impl.get_attr_ex "version" impl;
-        assert_str_equal "i386" @@ (expect impl.Impl.machine);
+        assert_str_equal "i386" @@ Arch.format_machine_or_star impl.Impl.machine;
     | impls -> assert_failure @@ Printf.sprintf "want 1, got %d" (List.length impls) end;
   );
 
@@ -264,7 +264,7 @@ let suite = "distro">::: [
     | [yast] ->
         assert_equal "package:rpm:yast2-update:2.15.23-21:i586" (Impl.get_attr_ex "id" yast);
         assert_equal "2.15.23-21" (Impl.get_attr_ex "version" yast);
-        assert_equal "*-i586" (Zeroinstall.Arch.format_arch yast.Impl.os yast.Impl.machine);
+        assert_equal "*-i586" (Zeroinstall.Arch.format_arch (yast.Impl.os, yast.Impl.machine));
     | _ -> assert false end;
 
     let feed = get_feed "<package-implementation distributions='RPM' package='yast2-mail'/>\n\
@@ -394,7 +394,7 @@ let suite = "distro">::: [
     begin match to_impl_list @@ deb#get_impls_for_feed feed with
     | [libxcomposite] ->
         Fake_system.assert_str_equal "0.3.1-1" @@ Impl.get_attr_ex "version" libxcomposite;
-        Fake_system.assert_str_equal "i386" @@ Fake_system.expect libxcomposite.Impl.machine
+        Fake_system.assert_str_equal "i386" @@ Arch.format_machine_or_star libxcomposite.Impl.machine
     | _ -> assert false
     end;
 
@@ -449,8 +449,8 @@ let suite = "distro">::: [
     feed_provider#add_iface imported_feed;
     let scope_filter = { Scope_filter.
       extra_restrictions = StringMap.empty;
-      os_ranks = StringMap.empty;
-      machine_ranks = StringMap.empty;
+      os_ranks = Arch.custom_os_ranking StringMap.empty;
+      machine_ranks = Arch.custom_machine_ranking StringMap.empty;
       languages = Support.Locale.LangMap.empty;
       allowed_uses = StringSet.empty;
     } in

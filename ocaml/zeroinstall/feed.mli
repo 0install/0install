@@ -22,9 +22,9 @@ type feed_type =
 type feed_import = {
   feed_src : Feed_url.non_distro_feed;
 
-  feed_os : string option;          (* All impls requires this OS *)
-  feed_machine : string option;     (* All impls requires this CPU *)
-  feed_langs : string list option;  (* No impls for languages not listed *)
+  feed_os : Arch.os option;           (* All impls requires this OS *)
+  feed_machine : Arch.machine option; (* All impls requires this CPU *)
+  feed_langs : string list option;    (* No impls for languages not listed *)
   feed_type : feed_type;
 }
 

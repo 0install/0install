@@ -7,6 +7,7 @@
 open Options
 open Zeroinstall.General
 open Support.Common
+open Zeroinstall
 
 module J = Yojson.Basic
 module JC = Zeroinstall.Json_connection
@@ -98,8 +99,8 @@ let parse_requirements json_assoc =
       command = pop "command" |> J.Util.to_string_option;
       source = pop "source" |> J.Util.to_bool_option |> default false;
       extra_restrictions = pop "extra_restrictions" |> parse_restrictions;
-      os = pop "os" |> J.Util.to_string_option;
-      cpu = pop "cpu" |> J.Util.to_string_option;
+      os = pop "os" |> J.Util.to_string_option |> pipe_some Arch.parse_os;
+      cpu = pop "cpu" |> J.Util.to_string_option |> pipe_some Arch.parse_machine;
       message = pop "message" |> J.Util.to_string_option;
   }) in
   table |> Hashtbl.iter (fun name _ -> log_warning "Unexpected requirements field '%s'!" name);

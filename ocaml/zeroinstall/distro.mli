@@ -78,7 +78,7 @@ class virtual distribution : General.config ->
       ?main:string ->
       query ->
       version:Version.t ->
-      machine:(string option) ->
+      machine:(Arch.machine option) ->
       quick_test:(quick_test option) ->  (* The result is valid while this condition holds *)
       package_state:Impl.package_state ->
       distro_name:string ->

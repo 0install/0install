@@ -124,7 +124,7 @@ val classify_dep : [< `requires | `restricts | `runner] t ->
 val restrictions : [< `requires | `restricts | `runner] t -> [`version of [`version] t] list
 val before : [`version] t -> string option
 val not_before : [`version] t -> string option
-val os : [< dependency_node] t -> string option
+val os : [< dependency_node] t -> Arch.os option
 val use : [< dependency_node] t -> string option
 val distribution : [< dependency_node] t -> string option
 val element_of_dependency : dependency -> dependency_node t

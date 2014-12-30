@@ -179,15 +179,12 @@ module CoreModel = struct
       ~child_nodes:(List.rev !child_nodes)
       ~source_hint:impl.Impl.qdom "selection"
 
-  let machine_group impl =
-    match impl.Impl.machine with
-    | None | Some "src" -> None
-    | Some machine -> Some (Arch.get_machine_group machine)
+  let machine_group impl = Arch.get_machine_group impl.Impl.machine
 
   let format_machine impl =
     match impl.Impl.machine with
     | None -> "any"
-    | Some machine -> machine
+    | Some machine -> Arch.format_machine machine
 
   let meets_restriction impl r = impl == dummy_impl || r#meets_restriction impl
   let string_of_restriction r = r#to_string
@@ -266,12 +263,12 @@ let get_root_requirements config requirements make_impl_provider =
     'test' command for giving test-only dependencies. *)
   let use = if command = Some "test" then StringSet.singleton "testing" else StringSet.empty in
 
-  let platform = config.system#platform in
-  let os = default platform.Platform.os os in
-  let machine = default platform.Platform.machine cpu in
+  let (host_os, host_machine) = Arch.platform config.system in
+  let os = default host_os os in
+  let machine = default host_machine cpu in
 
   (* Disable multi-arch on Linux if the 32-bit linker is missing. *)
-  let multiarch = os <> "Linux" || config.system#file_exists "/lib/ld-linux.so.2" in
+  let multiarch = os <> Arch.linux || config.system#file_exists "/lib/ld-linux.so.2" in
 
   let scope_filter = { Scope_filter.
     extra_restrictions = StringMap.map Impl.make_version_restriction extra_restrictions;

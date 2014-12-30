@@ -194,7 +194,7 @@ let make_solver_test test_elem =
           interface_uri = iface;
           command = ZI.get_attribute_opt "command" child;
           source = ZI.get_attribute_opt "source" child = Some "true";
-          os = ZI.get_attribute_opt "os" child;
+          os = ZI.get_attribute_opt "os" child |> pipe_some Arch.parse_os;
         };
         child |> ZI.iter ~name:"restricts" (fun restricts ->
           let iface = ZI.get_attribute "interface" restricts in
@@ -374,7 +374,7 @@ let suite = "solver">::: [
         method! check_for_candidates = raise_safe "Unexpected check_for_candidates"
         method! install_distro_packages = raise_safe "install_distro_packages"
         method! private get_package_impls query =
-          let machine = Some "x86_64" in
+          let machine = Some Arch.x86_64 in
           self#add_package_implementation
             ~package_state:`installed
             ~id:"package:is_distro_v1-1"
@@ -430,8 +430,8 @@ let suite = "solver">::: [
 
     let scope_filter = { Scope_filter.
       extra_restrictions = StringMap.empty;
-      os_ranks = Arch.get_os_ranks "Linux";
-      machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
+      os_ranks = Arch.get_os_ranks Arch.linux;
+      machine_ranks = Arch.get_machine_ranks Arch.x86_64 ~multiarch:true;
       languages = Support.Locale.score_langs @@ U.filter_map Support.Locale.parse_lang ["es_ES"; "fr_FR"];
       allowed_uses = StringSet.empty;
     } in
@@ -493,8 +493,8 @@ let suite = "solver">::: [
 
     let scope_filter = { Scope_filter.
       extra_restrictions = StringMap.empty;
-      os_ranks = Arch.get_os_ranks "Linux";
-      machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
+      os_ranks = Arch.get_os_ranks Arch.linux;
+      machine_ranks = Arch.get_machine_ranks Arch.x86_64 ~multiarch:true;
       languages = Support.Locale.LangMap.empty;
       allowed_uses = StringSet.empty;
     } in
@@ -529,8 +529,8 @@ let suite = "solver">::: [
 
     let scope_filter = { Scope_filter.
       extra_restrictions = StringMap.empty;
-      os_ranks = Arch.get_os_ranks "Linux";
-      machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
+      os_ranks = Arch.get_os_ranks Arch.linux;
+      machine_ranks = Arch.get_machine_ranks Arch.x86_64 ~multiarch:true;
       languages = Support.Locale.LangMap.empty;
       allowed_uses = StringSet.empty;
     } in
@@ -618,9 +618,10 @@ let suite = "solver">::: [
     import "MultiArchLib.xml";
 
     let check_arch expected machine =
+      let machine = Arch.parse_machine machine |> Fake_system.expect in
       let scope_filter = { Scope_filter.
         extra_restrictions = StringMap.empty;
-        os_ranks = Arch.get_os_ranks "Linux";
+        os_ranks = Arch.get_os_ranks Arch.linux;
         machine_ranks = Arch.get_machine_ranks machine ~multiarch:true;
         languages = Support.Locale.LangMap.empty;
         allowed_uses = StringSet.empty;
@@ -686,9 +687,10 @@ let suite = "solver">::: [
     let distro = Distro_impls.generic_distribution config in
     let feed_provider = new Feed_provider_impl.feed_provider config distro in
     let solve expected ?(lang="en_US.UTF-8") machine =
+      let machine = Arch.parse_machine machine |> Fake_system.expect in
       let scope_filter = { Scope_filter.
         extra_restrictions = StringMap.empty;
-        os_ranks = Arch.get_os_ranks "Linux";
+        os_ranks = Arch.get_os_ranks Arch.linux;
         machine_ranks = Arch.get_machine_ranks machine ~multiarch:true;
         languages = Support.Locale.score_langs [Fake_system.expect @@ Support.Locale.parse_lang lang];
         allowed_uses = StringSet.empty;
@@ -739,17 +741,26 @@ let suite = "solver">::: [
   );
 
   "arch">:: (fun () ->
-    assert (StringMap.mem "Darwin" @@ Arch.get_os_ranks "MacOSX");
-    assert (StringMap.mem "i386" @@ Arch.get_machine_ranks ~multiarch:true "i686");
-    assert (StringMap.mem "i386" @@ Arch.get_machine_ranks ~multiarch:true "x86_64");
-    assert (not (StringMap.mem "i386" @@ Arch.get_machine_ranks ~multiarch:false "x86_64"));
+    let os_ok supported by_host =
+      let supported = Arch.parse_os supported in
+      let by_host = Arch.parse_os by_host |> Fake_system.expect in
+      Arch.os_ok (Arch.get_os_ranks by_host) supported in
+    let machine_ok ~multiarch supported by_host =
+      let supported = Arch.parse_machine supported in
+      let by_host = Arch.parse_machine by_host |> Fake_system.expect in
+      Arch.machine_ok (Arch.get_machine_ranks ~multiarch by_host) supported in
 
-    assert (StringMap.mem "POSIX" @@ Arch.get_os_ranks "MacOSX");
-    assert (not (StringMap.mem "POSIX" @@ Arch.get_os_ranks "Windows"));
+    assert (os_ok "Darwin" "MacOSX");
+    assert (machine_ok "i386" ~multiarch:true "i686");
+    assert (machine_ok "i386" ~multiarch:true "x86_64");
+    assert (not (machine_ok "i386" ~multiarch:false "x86_64"));
 
-    assert (StringMap.mem "FooBar" @@ Arch.get_os_ranks "FooBar");
-    assert (StringMap.mem "i486" @@ Arch.get_machine_ranks ~multiarch:false "i486");
-    assert (not (StringMap.mem "ppc" @@ Arch.get_machine_ranks ~multiarch:false "i486"));
+    assert (os_ok "POSIX" "MacOSX");
+    assert (not (os_ok "POSIX" "Windows"));
+
+    assert (os_ok "FooBar" "FooBar");
+    assert (machine_ok "i486" ~multiarch:false "i486");
+    assert (not (machine_ok "ppc" ~multiarch:false "i486"));
   );
 
   "solver">:::

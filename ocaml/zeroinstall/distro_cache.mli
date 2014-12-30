@@ -8,8 +8,7 @@
 open Support.Common
 
 type package_name = string
-type machine = string option
-type entry = Version.t * machine
+type entry = Version.t * Arch.machine option
 
 (* [new cache config ~cache_leaf source] creates a new cache backed by [cache_leaf].
  * Whenever [source] changes, everything in the cache is assumed to be invalid. *)

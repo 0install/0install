@@ -49,7 +49,7 @@ and dependency = {
   dep_src : bool;
   dep_restrictions : restriction list;
   dep_required_commands : string list;
-  dep_if_os : string option;                (* The badly-named 'os' attribute *)
+  dep_if_os : Arch.os option;                (* The badly-named 'os' attribute *)
   dep_use : string option;                  (* Deprecated 'use' attribute *)
 }
 and command = {
@@ -67,8 +67,8 @@ and +'a t = {
   qdom : Support.Qdom.element;
   props : properties;
   stability : General.stability_level;
-  os : string option;           (* Required OS; the first part of the 'arch' attribute. None for '*' *)
-  machine : string option;      (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
+  os : Arch.os option;                (* Required OS; the first part of the 'arch' attribute. None for '*' *)
+  machine : Arch.machine option;      (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
   parsed_version : Version.t;
   impl_type : 'a;
 }

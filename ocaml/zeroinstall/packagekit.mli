@@ -9,7 +9,7 @@ type size = Int64.t
 
 type package_info = {
   version : Version.t;
-  machine : string option;
+  machine : Arch.machine option;
   installed : bool;
   retrieval_method : Impl.distro_retrieval_method;
 }

@@ -37,7 +37,7 @@ let check_cache id_prefix elem (cache:Distro_cache.cache) =
   let package = Element.package elem in
   let sel_id = Element.id elem in
   let matches (installed_version, machine) =
-    let installed_id = Printf.sprintf "%s:%s:%a:%s" id_prefix package Version.fmt installed_version (default "*" machine) in
+    let installed_id = Printf.sprintf "%s:%s:%a:%s" id_prefix package Version.fmt installed_version (Arch.format_machine_or_star machine) in
     (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
     sel_id = installed_id in
   List.exists matches (fst (cache#get package))
@@ -116,7 +116,7 @@ module Debian = struct
                         match try_cleanup_distro_version_warn version package_name with
                         | None -> ()
                         | Some clean_version ->
-                            let r = (clean_version, (Arch.none_if_star (Support.System.canonical_machine (trim debarch)))) in
+                            let r = (clean_version, (Arch.parse_machine (Support.System.canonical_machine (trim debarch)))) in
                             results := r :: !results
                       )
                   | _ -> log_warning "Can't parse dpkg output: '%s'" line
@@ -127,22 +127,25 @@ module Debian = struct
       !results in
 
     let fixup_java_main impl java_version =
-      let java_arch = if impl.Impl.machine = Some "x86_64" then Some "amd64" else impl.Impl.machine in
+      let java_arch =
+        match Arch.format_machine_or_star impl.Impl.machine with
+        | "x86_64" -> Some "amd64"
+        | "*" -> log_warning "BUG: Missing machine type on Java!"; None
+        | m -> Some m in
 
-      match java_arch with
-      | None -> log_warning "BUG: Missing machine type on Java!"; None
-      | Some java_arch ->
-          let java_bin = Printf.sprintf "/usr/lib/jvm/java-%s-%s/jre/bin/java" java_version java_arch in
+      java_arch |> pipe_some (fun java_arch ->
+        let java_bin = Printf.sprintf "/usr/lib/jvm/java-%s-%s/jre/bin/java" java_version java_arch in
+        if system#file_exists java_bin then Some java_bin
+        else (
+          (* Try without the arch... *)
+          let java_bin = Printf.sprintf "/usr/lib/jvm/java-%s/jre/bin/java" java_version in
           if system#file_exists java_bin then Some java_bin
           else (
-            (* Try without the arch... *)
-            let java_bin = Printf.sprintf "/usr/lib/jvm/java-%s/jre/bin/java" java_version in
-            if system#file_exists java_bin then Some java_bin
-            else (
-              log_info "Java binary not found (%s)" java_bin;
-              Some "/usr/bin/java"
-            )
-          ) in
+            log_info "Java binary not found (%s)" java_bin;
+            Some "/usr/bin/java"
+          )
+        )
+      ) in
 
     object (self : #Distro.distribution)
       inherit Distro.distribution config as super
@@ -169,7 +172,7 @@ module Debian = struct
         if use_apt_cache_results then (
           let entry = try Hashtbl.find apt_cache package_name with Not_found -> None in
           entry |> if_some (fun {version; machine; size = _} ->
-            let machine = Arch.none_if_star machine in
+            let machine = Arch.parse_machine machine in
             let package_state = `uninstalled Impl.({distro_size = None; distro_install_info = ("apt-get install", package_name)}) in
             self#add_package_implementation ~package_state ~version ~machine ~quick_test:None ~distro_name query
           )
@@ -236,7 +239,7 @@ module RPM = struct
       match impl.Impl.machine with
       | None -> log_warning "BUG: Missing machine type on Java!"; None
       | Some java_arch ->
-          let java_bin = Printf.sprintf "/usr/lib/jvm/jre-%s.%s/bin/java" java_version java_arch in
+          let java_bin = Printf.sprintf "/usr/lib/jvm/jre-%s.%s/bin/java" java_version (Arch.format_machine java_arch) in
           if config.system#file_exists java_bin then Some java_bin
           else (
             (* Try without the arch... *)
@@ -266,7 +269,7 @@ module RPM = struct
                     match Str.bounded_split_delim U.re_tab line 3 with
                     | ["gpg-pubkey"; _; _] -> ()
                     | [package; version; rpmarch] ->
-                        let zi_arch = Support.System.canonical_machine (trim rpmarch) |> Arch.none_if_star in
+                        let zi_arch = Support.System.canonical_machine (trim rpmarch) |> Arch.parse_machine in
                         try_cleanup_distro_version_warn version package |> if_some (fun clean_version ->
                           add_entry package (clean_version, zi_arch)
                         )
@@ -391,7 +394,7 @@ module ArchLinux = struct
                 match try_cleanup_distro_version_warn version package_name with
                 | None -> ()
                 | Some version ->
-                    let machine = Arch.none_if_star machine in
+                    let machine = Arch.parse_machine machine in
                     let quick_test = Some (desc_path, Exists) in
                     self#add_package_implementation ~package_state:`installed ~version ~machine ~quick_test ~distro_name query
     end
@@ -433,12 +436,13 @@ module Mac = struct
         config.system#stat main |> if_some (fun info ->
           let x_ok = try Unix.access main [Unix.X_OK]; true with Unix.Unix_error _ -> false in
           if x_ok then (
+            let (_host_os, host_machine) = Arch.platform config.system in
             try_cleanup_distro_version_warn (get_version main) query.package_name |> if_some (fun version ->
               self#add_package_implementation
                 ~main
                 ~package_state:`installed
                 ~version
-                ~machine:(Some config.system#platform.Platform.machine)
+                ~machine:(Some host_machine)
                 ~quick_test:(Some (main, UnchangedSince info.Unix.st_mtime))
                 ~distro_name
                 query
@@ -456,7 +460,7 @@ module Mac = struct
                 ~main
                 ~package_state:`installed
                 ~version:(Version.parse zero_version)
-                ~machine:(Some machine)
+                ~machine:(Arch.parse_machine machine)
                 ~quick_test:(Some (main, UnchangedSince info.Unix.st_mtime))
                 ~distro_name
                 query
@@ -500,7 +504,7 @@ module Mac = struct
                               let archs = Str.matched_group 3 extra in
                               Str.split U.re_space archs |> List.iter (fun arch ->
                                 let zi_arch = Support.System.canonical_machine arch in
-                                add_entry package (version, Arch.none_if_star zi_arch)
+                                add_entry package (version, Arch.parse_machine zi_arch)
                               )
                             ) else (
                               add_entry package (version, None)
@@ -599,7 +603,7 @@ module Win = struct
                 ~main:""      (* .NET executables do not need a runner on Windows but they need one elsewhere *)
                 ~package_state
                 ~version
-                ~machine:(Some machine)
+                ~machine:(Arch.parse_machine machine)
                 ~quick_test:None
                 ~distro_name
                 query
@@ -620,7 +624,7 @@ module Win = struct
                 ~main:""      (* .NET executables do not need a runner on Windows but they need one elsewhere *)
                 ~package_state
                 ~version
-                ~machine:(Some machine)
+                ~machine:(Arch.parse_machine machine)
                 ~quick_test:None
                 ~distro_name
                 query
@@ -644,7 +648,7 @@ module Win = struct
                     ~main:java_bin
                     ~package_state:`installed
                     ~version
-                    ~machine:(Some machine)
+                    ~machine:(Arch.parse_machine machine)
                     ~quick_test
                     ~distro_name
                     query
@@ -715,11 +719,11 @@ module Ports = struct
               let version = Str.matched_group 2 pkgname in
               if name = query.package_name then (
                 try_cleanup_distro_version_warn version query.package_name |> if_some (fun version ->
-                  let machine = Some config.system#platform.Platform.machine in
+                  let (_host_os, host_machine) = Arch.platform config.system in
                   self#add_package_implementation
                     ~package_state:`installed
                     ~version
-                    ~machine
+                    ~machine:(Some host_machine)
                     ~quick_test:None
                     ~distro_name
                     query
@@ -774,7 +778,7 @@ module Gentoo = struct
                           input_line ch |> U.split_pair U.re_dash |> fst
                         )
                       ) in
-                    let machine = Arch.none_if_star (Support.System.canonical_machine machine) in
+                    let machine = Arch.parse_machine (Support.System.canonical_machine machine) in
                     self#add_package_implementation
                       ~package_state:`installed
                       ~version
@@ -803,7 +807,7 @@ module Slackware = struct
         packages_dir |> iter_dir config.system (fun entry ->
           match Str.bounded_split_delim U.re_dash entry 4 with
           | [name; version; arch; build] when name = query.package_name ->
-              let machine = Arch.none_if_star (Support.System.canonical_machine arch) in
+              let machine = Arch.parse_machine (Support.System.canonical_machine arch) in
               try_cleanup_distro_version_warn (version ^ "-" ^ build) query.package_name |> if_some (fun version ->
               self#add_package_implementation
                 ~package_state:`installed

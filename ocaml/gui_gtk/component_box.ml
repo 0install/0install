@@ -435,7 +435,7 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
         let arch_value =
           match feed.F.feed_os, feed.F.feed_machine with
           | None, None -> ""
-          | os, machine -> Arch.format_arch os machine in
+          | arch -> Arch.format_arch arch in
         feeds_model#set ~row ~column:url (Feed_url.format_url feed.F.feed_src);
         feeds_model#set ~row ~column:arch arch_value;
         feeds_model#set ~row ~column:used (watcher#feed_provider#was_used feed.F.feed_src);
@@ -648,7 +648,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
         let arch_value =
           match impl.Impl.os, impl.Impl.machine with
           | None, None -> "any"
-          | os, machine -> Arch.format_arch os machine in
+          | arch -> Arch.format_arch arch in
 
         let notes_value =
           match problem with

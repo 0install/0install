@@ -121,7 +121,7 @@ let make_selection_map sels =
   Element.selections sels |> List.fold_left (fun m sel ->
     let iface = Element.interface sel in
     let machine = Element.arch sel |> pipe_some (fun arch -> snd (Arch.parse_arch arch)) in
-    let source = (machine = Some "src") in
+    let source = Arch.is_src machine in
     RoleMap.add {iface; source} sel m
   ) RoleMap.empty
 

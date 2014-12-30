@@ -118,7 +118,7 @@ class virtual distribution config =
   ) in
 
   let make_host_impl path version ~package ?(commands=StringMap.empty) ?(requires=[]) from_feed id =
-    let host_machine = system#platform in
+    let (_host_os, host_machine) = Arch.platform system in
     let props = { Impl.
       attrs = get_quick_test_attrs path
         |> Q.AttrMap.add_no_ns FeedAttr.from_feed (Feed_url.format_url (`distribution_feed from_feed))
@@ -134,7 +134,7 @@ class virtual distribution config =
       props;
       stability = Packaged;
       os = None;
-      machine = Some host_machine.Platform.machine;       (* (hopefully) *)
+      machine = Some host_machine;       (* (hopefully) *)
       parsed_version = Version.parse version;
       impl_type = `package_impl { Impl.
         package_distro = "host";
@@ -204,7 +204,7 @@ class virtual distribution config =
     (** Convenience wrapper for [add_result] that builds a new implementation from the given attributes. *)
     method private add_package_implementation ?id ?main (query:query) ~version ~machine ~quick_test ~package_state ~distro_name =
       let version_str = Version.to_string version in
-      let id = id |? lazy (Printf.sprintf "%s:%s:%s:%s" id_prefix query.package_name version_str (default "*" machine)) in
+      let id = id |? lazy (Printf.sprintf "%s:%s:%s:%s" id_prefix query.package_name version_str (Arch.format_machine_or_star machine)) in
       let props = query.elem_props in
       let elem = query.elem in
 

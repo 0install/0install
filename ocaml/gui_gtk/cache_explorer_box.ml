@@ -404,7 +404,7 @@ let open_cache_explorer config =
           begin try
             let feed, impl = Hashtbl.find impl_of_digest digest in
             let extra = [
-              "arch:" ^ Zeroinstall.Arch.format_arch impl.Impl.os impl.Impl.machine;
+              "arch:" ^ Zeroinstall.Arch.format_arch (impl.Impl.os, impl.Impl.machine);
               "langs:" ^ (Impl.get_langs impl |> List.map Support.Locale.format_lang |> String.concat ",");
             ] in
             (Feed_url.format_url feed.F.url, dir, extra, true, true)

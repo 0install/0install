@@ -12,8 +12,8 @@ type t = {
   command : string option;
   source : bool;
   extra_restrictions : string StringMap.t;  (* iface -> range *)
-  os : string option;
-  cpu : string option;
+  os : Arch.os option;
+  cpu : Arch.machine option;
   message : string option;
 }
 
@@ -33,12 +33,17 @@ let parse_extra json : string StringMap.t =
     StringMap.add key (to_string value) map in
   List.fold_left add StringMap.empty (to_assoc json)
 
+let to_string_option_or_empty x =
+  let open Yojson.Basic.Util in
+  match to_string_option x with
+  | Some "" -> None
+  | v -> v
+
+let parse_os x = to_string_option_or_empty x |> pipe_some Arch.parse_os
+let parse_machine x = to_string_option_or_empty x |> pipe_some Arch.parse_machine
+
 let parse_requirements json =
   let open Yojson.Basic.Util in
-  let to_string_option_or_empty x =
-    match to_string_option x with
-    | Some "" -> None
-    | v -> v in
   try
     let alist = to_assoc json in
     let r = ref (default_requirements "") in
@@ -52,8 +57,8 @@ let parse_requirements json =
       | "command" -> r := {!r with command = to_string_option value}
       | "source" -> r := {!r with source = to_bool value}
       | "extra_restrictions" -> r := {!r with extra_restrictions = (parse_extra value)}
-      | "os" -> r := {!r with os = to_string_option value}
-      | "cpu" ->  r := {!r with cpu = to_string_option value}
+      | "os" -> r := {!r with os = parse_os value}
+      | "cpu" ->  r := {!r with cpu = parse_machine value}
       | "message" -> r := {!r with message = to_string_option value}
       | _ -> raise_safe "Unknown requirements field '%s'" key
     );
@@ -91,8 +96,8 @@ let to_json reqs =
     ("extra_restrictions", `Assoc (StringMap.map_bindings (fun k v -> (k, `String v)) extra_restrictions));
   ] @ List.concat [
     maybe "command" command;
-    maybe "os" os;
-    maybe "cpu" cpu;
+    maybe "os" (os |> map_some Arch.format_os);
+    maybe "cpu" (cpu |> map_some Arch.format_machine);
     maybe "message" message;
   ])
 
