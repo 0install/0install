@@ -38,18 +38,7 @@ let maybe_justify_local_preference wanted_id actual_id (candidates, compare) =
       let (result, reason) = compare wanted_impl actual_impl in
 
       if result > 0 then (
-        let reason_msg =
-          let open Impl_provider in
-          match reason with
-          | PreferAvailable -> "is locally available"
-          | PreferDistro    -> "native packages are preferred"
-          | PreferID        -> "better ID (tie-breaker)"
-          | PreferLang      ->  "natural languages we understand are preferred"
-          | PreferMachine   -> "better CPU match"
-          | PreferNonRoot   -> "packages that don't require admin access to install are preferred"
-          | PreferOS        -> "better OS match"
-          | PreferStability -> "more stable versions preferred"
-          | PreferVersion   -> "newer versions are preferred" in
+        let reason_msg = Impl_provider.describe_preference reason in
 
         (* If they both have the same version number, include the ID in the message too. *)
         let wanted_version = Impl.get_attr_ex FeedAttr.version wanted_impl in

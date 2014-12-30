@@ -41,7 +41,7 @@ module CoreModel = struct
   type command = Impl.command
   type restriction = Impl.restriction
   type command_name = string
-  type rejection = Impl_provider.rejection
+  type rejection = Impl_provider.rejection_reason
   type dependency = Role.t * Impl.dependency
   type dep_info = {
     dep_role : Role.t;

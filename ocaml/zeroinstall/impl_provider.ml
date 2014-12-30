@@ -9,7 +9,7 @@ module U = Support.Utils
 (** We filter the implementations before handing them to the solver, excluding any
     we know are unsuitable even on their own. *)
 
-type rejection = [
+type rejection_reason = [
   | `User_restriction_rejects of Impl.restriction
   | `Poor_stability
   | `No_retrieval_methods
@@ -21,13 +21,8 @@ type rejection = [
   | `Incompatible_machine
 ]
 
-type acceptability = [
-  | `Acceptable
-  | rejection
-]
-
 (* Why did we pick one version over another? *)
-type preferred_reason =
+type preference_reason =
   | PreferAvailable
   | PreferDistro 
   | PreferID 
@@ -51,6 +46,17 @@ let describe_problem impl =
   | `Incompatible_machine     -> "Not compatible with the requested CPU type"
   | `Missing_local_impl path  -> spf "Local impl's directory (%s) is missing" path
 
+let describe_preference = function
+  | PreferAvailable -> "is locally available"
+  | PreferDistro    -> "native packages are preferred"
+  | PreferID        -> "better ID (tie-breaker)"
+  | PreferLang      -> "natural languages we understand are preferred"
+  | PreferMachine   -> "better CPU match"
+  | PreferNonRoot   -> "packages that don't require admin access to install are preferred"
+  | PreferOS        -> "better OS match"
+  | PreferStability -> "more stable versions preferred"
+  | PreferVersion   -> "newer versions are preferred"
+
 type scope_filter = {
   extra_restrictions : Impl.restriction StringMap.t;  (* iface -> test *)
   os_ranks : int StringMap.t;
@@ -62,8 +68,8 @@ type scope_filter = {
 type candidates = {
   replacement : iface_uri option;
   impls : Impl.generic_implementation list;
-  rejects : (Impl.generic_implementation * rejection) list;
-  compare : Impl.generic_implementation -> Impl.generic_implementation -> int * preferred_reason;
+  rejects : (Impl.generic_implementation * rejection_reason) list;
+  compare : Impl.generic_implementation -> Impl.generic_implementation -> int * preference_reason;
 }
 
 class type impl_provider =
@@ -78,15 +84,16 @@ class type impl_provider =
     method extra_restrictions : Impl.restriction StringMap.t
   end
 
+(** Convert a map of impls to a list, applying any overrides to the stability fields. *)
+let do_overrides overrides =
+  StringMap.map_bindings (fun id impl ->
+    match StringMap.find id overrides.Feed.user_stability with
+    | Some stability -> {impl with Impl.stability = stability}
+    | None -> impl
+  )
+
 class default_impl_provider config (feed_provider : Feed_provider.feed_provider) (scope_filter:scope_filter) =
   let {extra_restrictions; os_ranks; machine_ranks; languages = wanted_langs; allowed_uses} = scope_filter in
-
-  let do_overrides overrides impls =
-    let do_override id impl =
-      match StringMap.find id overrides.Feed.user_stability with
-      | Some stability -> {impl with Impl.stability = stability}
-      | None -> impl in
-    StringMap.map_bindings do_override impls in
 
   let get_distro_impls feed =
     let impls, overrides = feed_provider#get_distro_impls feed in
@@ -330,7 +337,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
         (* check_acceptability impl = Acceptable in *)
         match check_acceptability impl with
         | `Acceptable -> true
-        | #rejection as x -> rejects := (impl, x) :: !rejects; false
+        | #rejection_reason as x -> rejects := (impl, x) :: !rejects; false
       (*| problem -> log_warning "rejecting %s %s: %s" iface (Version.format_version impl.Impl.parsed_version) (describe_problem impl problem); false *)
       in
 
