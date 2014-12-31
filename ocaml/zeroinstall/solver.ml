@@ -131,6 +131,11 @@ module CoreModel = struct
         AttrMap.remove ("", FeedAttr.from_feed) attrs
       ) else attrs in
 
+    let attrs =
+      match impl.Impl.impl_type with
+      | `binary_of _ -> AttrMap.add_no_ns "requires-compilation" "true" attrs
+      | _ -> attrs in
+
     let child_nodes = ref [] in
     if impl != dummy_impl then (
       let commands = List.sort compare commands in
@@ -257,7 +262,7 @@ let do_solve root_req ~closest_match =
   )
 
 let get_root_requirements config requirements make_impl_provider =
-  let { Requirements.command; interface_uri; source; extra_restrictions; os; cpu; message = _ } = requirements in
+  let { Requirements.command; interface_uri; source; may_compile; extra_restrictions; os; cpu; message = _ } = requirements in
 
   (* This is for old feeds that have use='testing' instead of the newer
     'test' command for giving test-only dependencies. *)
@@ -276,6 +281,7 @@ let get_root_requirements config requirements make_impl_provider =
     machine_ranks = Arch.get_machine_ranks ~multiarch machine;
     languages = config.langs;
     allowed_uses = use;
+    may_compile;
   } in
 
   let impl_provider = make_impl_provider scope_filter in

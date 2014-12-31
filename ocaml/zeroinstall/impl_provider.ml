@@ -18,6 +18,7 @@ type rejection_reason = [
   | `Incompatible_OS
   | `Not_binary
   | `Not_source
+  | `No_compile_command
   | `Incompatible_machine
 ]
 
@@ -27,6 +28,7 @@ type preference_reason =
   | PreferDistro 
   | PreferID 
   | PreferLang 
+  | PreferExisting
   | PreferMachine 
   | PreferNonRoot 
   | PreferOS 
@@ -43,6 +45,7 @@ let describe_problem impl =
   | `Incompatible_OS          -> "Not compatible with the requested OS type"
   | `Not_binary               -> "We want a binary and this is source"
   | `Not_source               -> "We want source and this is a binary"
+  | `No_compile_command       -> "Missing <command name='compile'>"
   | `Incompatible_machine     -> "Not compatible with the requested CPU type"
   | `Missing_local_impl path  -> spf "Local impl's directory (%s) is missing" path
 
@@ -51,6 +54,7 @@ let describe_preference = function
   | PreferDistro    -> "native packages are preferred"
   | PreferID        -> "better ID (tie-breaker)"
   | PreferLang      -> "natural languages we understand are preferred"
+  | PreferExisting  -> "needs to be compiled"
   | PreferMachine   -> "better CPU match"
   | PreferNonRoot   -> "packages that don't require admin access to install are preferred"
   | PreferOS        -> "better OS match"
@@ -192,6 +196,9 @@ let compare_impls_full ~scope_filter ~network_use ~is_available ~stability_polic
     (* Get best OS *)
     test PreferOS @@ compare (score_os a) (score_os b) ||
 
+    (* Prefer an existing binary to one we have to compile. *)
+    test_fn PreferExisting (fun impl -> not (Impl.needs_compilation impl)) ||
+
     (* Get best machine *)
     test PreferMachine @@ compare (score_machine a) (score_machine b) ||
 
@@ -208,13 +215,24 @@ let compare_impls_full ~scope_filter ~network_use ~is_available ~stability_polic
   );
   !retval
 
+(** If [impl] is source, convert it to the binary it would produce if compiled, or
+ * a close approximation. *)
+let src_to_bin ~host_arch ~rejects impl =
+  let open Impl in
+  if not (is_source impl) then Some (impl :> Impl.generic_implementation)
+  else
+    match Compiled.of_source ~host_arch impl with
+    | `Ok binary -> Some binary
+    | `Reject reason -> rejects := ((impl :> Impl.generic_implementation), reason) :: !rejects; None
+    | `Filtered_out -> None
+
 class default_impl_provider config (feed_provider : Feed_provider.feed_provider) (scope_filter:Scope_filter.t) =
   let get_distro_impls feed =
     let impls, overrides = feed_provider#get_distro_impls feed in
     do_overrides overrides impls in
 
   let get_impls (feed, overrides) =
-    let distro_impls = (get_distro_impls feed :> Impl.generic_implementation list) in
+    let distro_impls = (get_distro_impls feed :> Impl.existing Impl.t list) in
     distro_impls @ do_overrides overrides feed.Feed.implementations in
 
   let cached_digests = Stores.get_available_digests config.system config.stores in
@@ -230,13 +248,11 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
       log_warning ~ex "Can't test whether impl is available: %a" Impl.fmt impl;
       false in
 
-  let get_feed_if_useful want_source {Feed.feed_src; Feed.feed_os; Feed.feed_machine; Feed.feed_langs; Feed.feed_type = _} =
+  let get_feed_if_useful want_source feed_import =
     try
-      ignore feed_langs; (* Maybe later... *)
       (* Don't look at a feed if it only provides things we can't use. *)
-      if Scope_filter.os_ok scope_filter feed_os &&
-         Scope_filter.machine_ok scope_filter ~want_source feed_machine
-      then feed_provider#get_feed feed_src
+      if Scope_filter.use_feed scope_filter ~want_source feed_import
+      then feed_provider#get_feed feed_import.Feed.feed_src
       else None
     with Safe_exception _ as ex ->
       log_warning ~ex "Failed to get implementations";
@@ -285,9 +301,21 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
     (*| problem -> log_warning "rejecting %s %s: %s" iface (Version.format_version impl.Impl.parsed_version) (describe_problem impl problem); false *)
     in
 
-    let impls = List.concat (main_impls :: List.map get_impls extra_feeds) in
-    let impls = List.sort compare_impls (impls :> Impl.generic_implementation list) in
-    let impls = List.filter do_filter impls in
+    let map_potential_binaries existing_impls =
+      if scope_filter.Scope_filter.may_compile && not want_source then (
+        let (host_os, host_machine) = Arch.platform config.system in
+        let host_arch = (Some host_os, Some host_machine) in
+        U.filter_map (src_to_bin ~host_arch ~rejects) existing_impls
+      ) else (
+        (existing_impls :> Impl.generic_implementation list)
+      ) in
+
+    let impls =
+      List.concat (main_impls :: List.map get_impls extra_feeds)
+      |> map_potential_binaries
+      |> List.sort compare_impls
+      |> List.filter do_filter in
+
     {replacement; impls; rejects = !rejects; compare = compare_impls_full}
   ) in
 

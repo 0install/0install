@@ -14,6 +14,8 @@ open Constants
 module Q = Support.Qdom
 module AttrMap = Q.AttrMap
 
+module Compile = Support.Qdom.NsQuery(COMPILE_NS)
+
 type 'a t = Q.element
 
 let simple_content elem =
@@ -38,6 +40,7 @@ type dependency =
 type attr_node =
   [ `group
   | `implementation
+  | `compile_impl
   | `package_impl ]
 
 (** Create a map from interface URI to <selection> elements. *)
@@ -148,6 +151,13 @@ let arg_children parent =
     | _ -> None
   )
 
+let bool_opt attr elem =
+  match Q.AttrMap.get attr elem.Q.attrs with
+  | Some "true" -> Some true
+  | Some "false" -> Some false
+  | Some x -> Q.raise_elem "Invalid '%s' value '%s' on" (snd attr) x elem
+  | None -> None
+
 let item_from = ZI.get_attribute "item-from"
 let separator = ZI.get_attribute_opt "separator"
 let command = ZI.get_attribute_opt "command"
@@ -157,13 +167,8 @@ let version = ZI.get_attribute "version"
 let version_opt = ZI.get_attribute_opt "version"
 let id = ZI.get_attribute "id"
 let doc_dir = ZI.get_attribute_opt "doc-dir"
-let arch = ZI.get_attribute_opt "arch"
-let source elem =
-  match ZI.get_attribute_opt "source" elem with
-  | Some "true" -> Some true
-  | Some "false" -> Some false
-  | Some x -> Q.raise_elem "Invalid 'source' value '%s' on" x elem
-  | None -> None
+let arch elem = Q.AttrMap.get_no_ns "arch" elem.Q.attrs
+let source = bool_opt ("", "source")
 
 let uri = ZI.get_attribute_opt "uri"
 let uri_exn = ZI.get_attribute "uri"
@@ -287,6 +292,13 @@ let command_children sel =
     | Some "runner" -> Some (`runner child)
     | _ -> classify_binding_opt child
   )
+
+let compile_template =
+  Q.find (fun child ->
+    Compile.tag child = Some "implementation"
+  )
+
+let compile_include_binary = bool_opt (COMPILE_NS.ns, "include-binary")
 
 let get_text tag langs feed =
   let best = ref None in

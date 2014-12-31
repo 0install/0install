@@ -101,6 +101,7 @@ val parse_command : Support.Common.filepath option -> [`command] Element.t -> co
 val get_attr_ex : string -> _ t -> string
 
 val is_source : _ t -> bool
+val needs_compilation : [< impl_type ] t -> bool
 
 (** [existing_source impl] returns impl if it already exists, or the source implementation
  * which can be used to build it if not. *)

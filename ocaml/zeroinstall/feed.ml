@@ -160,7 +160,12 @@ let process_group_properties ~local_dir state item =
     requires = !s.requires;
   }
 
-let parse_implementations (system:system) url root local_dir =
+let default_attrs ~url =
+  AttrMap.empty
+    |> AttrMap.add_no_ns FeedAttr.stability FeedAttr.value_testing
+    |> AttrMap.add_no_ns FeedAttr.from_feed url
+
+let parse_implementations (system:system) root_attrs root local_dir =
   let open Impl in
   let implementations = ref StringMap.empty in
   let package_implementations = ref [] in
@@ -180,10 +185,6 @@ let parse_implementations (system:system) url root local_dir =
           package_implementations := (item, (process_group_properties ~local_dir state item)) :: !package_implementations
     )
   in
-
-  let root_attrs = AttrMap.empty
-    |> AttrMap.add_no_ns FeedAttr.stability FeedAttr.value_testing
-    |> AttrMap.add_no_ns FeedAttr.from_feed url in
 
   (* 'main' on the <interface> (deprecated) *)
   let root_commands = match Element.main root with
@@ -257,7 +258,8 @@ let parse system root feed_local_path =
     | `feed_for _ | `category _ | `needs_terminal _ | `icon _ | `homepage _ -> ()
   );
 
-  let implementations, package_implementations = parse_implementations system url root local_dir in
+  let implementations, package_implementations =
+    parse_implementations system (default_attrs ~url) root local_dir in
 
   {
     url = Feed_url.parse_non_distro url;

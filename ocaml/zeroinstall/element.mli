@@ -38,6 +38,7 @@ type dependency =
 type attr_node =
   [ `group
   | `implementation
+  | `compile_impl
   | `package_impl ]
 
 (** {2 Selections} *)
@@ -51,7 +52,7 @@ val deps_and_bindings : [< `selection | attr_node] t ->
    | `restricts of [> `restricts] t
    | `command of [`command] t
    | binding ] list
-val arch : [< `selection | `feed_import] t -> string option
+val arch : [< `selection | `feed_import | `compile_impl] t -> string option
 val id : [< `selection | `implementation] t -> string
 val version : [`selection] t -> string
 val version_opt : [< `selection | dependency_node] t -> string option   (* Messy: `selection only for failed solves *)
@@ -61,6 +62,11 @@ val source : [< `selections | dependency_node] t -> bool option
 
 (** {2 Feeds} *)
 val parse_feed : Support.Qdom.element -> [`feed] t
+
+(** Remove any elements with non-matching if-install-version attributes.
+ * Note: parse_feed calls this automatically for you. *)
+val filter_if_0install_version : 'a t -> 'a t option
+
 val uri : [`feed] t -> string option
 val uri_exn : [`feed] t -> string
 val feed_metadata : [`feed] t ->
@@ -105,6 +111,10 @@ val command : [< `runner | `binding | `executable_in_path | `executable_in_var |
 val command_children : [`command] t -> [> dependency | binding ] list
 val command_name : [`command] t -> string
 val simple_content : [< `name | `arg | `category | `homepage] t -> string
+
+(** The first <compile:implementation> element. *)
+val compile_template : [`command] t -> [> `compile_impl] t option
+val compile_include_binary : [< dependency_node] t -> bool option
 
 (** {2 Feeds and interfaces} *)
 val interface :

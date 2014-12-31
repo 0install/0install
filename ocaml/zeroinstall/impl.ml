@@ -140,7 +140,7 @@ let parse_version_element elem =
     method meets_restriction impl = test impl.parsed_version
     method to_string =
       match not_before, before with
-      | None, None -> "no restriction!"
+      | None, None -> "(no restriction)"
       | Some low, None -> "version " ^ low ^ ".."
       | None, Some high -> "version ..!" ^ high
       | Some low, Some high -> "version " ^ low ^ "..!" ^ high
@@ -245,6 +245,10 @@ let parse_command local_dir elem : command =
   }
 
 let is_source impl = Arch.is_src impl.machine
+
+let needs_compilation = function
+  | {impl_type = `binary_of _; _} -> true
+  | {impl_type = #existing; _} -> false
 
 let existing_source = function
   | {impl_type = `binary_of source; _} -> source

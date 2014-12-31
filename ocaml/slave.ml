@@ -98,6 +98,7 @@ let parse_requirements json_assoc =
       interface_uri = pop "interface" |> J.Util.to_string;
       command = pop "command" |> J.Util.to_string_option;
       source = pop "source" |> J.Util.to_bool_option |> default false;
+      may_compile = pop "may_compile" |> J.Util.to_bool_option |> default false;
       extra_restrictions = pop "extra_restrictions" |> parse_restrictions;
       os = pop "os" |> J.Util.to_string_option |> pipe_some Arch.parse_os;
       cpu = pop "cpu" |> J.Util.to_string_option |> pipe_some Arch.parse_machine;

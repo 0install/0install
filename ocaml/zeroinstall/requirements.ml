@@ -15,6 +15,7 @@ type t = {
   os : Arch.os option;
   cpu : Arch.machine option;
   message : string option;
+  may_compile : bool;
 }
 
 let default_requirements interface_uri = {
@@ -25,6 +26,7 @@ let default_requirements interface_uri = {
   cpu = None;
   message = None;
   extra_restrictions = StringMap.empty;
+  may_compile = false;
 }
 
 let parse_extra json : string StringMap.t =
@@ -56,6 +58,7 @@ let parse_requirements json =
       | "interface_uri" -> r := {!r with interface_uri = to_string value}
       | "command" -> r := {!r with command = to_string_option value}
       | "source" -> r := {!r with source = to_bool value}
+      | "may_compile" -> r := {!r with may_compile = to_bool value}
       | "extra_restrictions" -> r := {!r with extra_restrictions = (parse_extra value)}
       | "os" -> r := {!r with os = parse_os value}
       | "cpu" ->  r := {!r with cpu = parse_machine value}
@@ -88,11 +91,12 @@ let to_json reqs =
   let {
     interface_uri; command; source;
     extra_restrictions; os; cpu;
-    message;
+    message; may_compile;
   } = reqs in
   `Assoc ([
     ("interface_uri", `String interface_uri);
     ("source", `Bool source);
+    ("may_compile", `Bool may_compile);
     ("extra_restrictions", `Assoc (StringMap.map_bindings (fun k v -> (k, `String v)) extra_restrictions));
   ] @ List.concat [
     maybe "command" command;

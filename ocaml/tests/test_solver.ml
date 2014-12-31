@@ -104,6 +104,7 @@ let linux_multi_scope_filter = { Scope_filter.
   machine_ranks = Arch.get_machine_ranks Arch.x86_64 ~multiarch:true;
   languages = Support.Locale.LangMap.empty;
   allowed_uses = StringSet.empty;
+  may_compile = false;
 }
 
 class fake_feed_provider system (distro:Distro.distribution option) =
@@ -202,6 +203,7 @@ let make_solver_test test_elem =
           interface_uri = iface;
           command = ZI.get_attribute_opt "command" child;
           source = ZI.get_attribute_opt "source" child = Some "true";
+          may_compile = ZI.get_attribute_opt "may-compile" child = Some "true";
           os = ZI.get_attribute_opt "os" child |> pipe_some Arch.parse_os;
         };
         child |> ZI.iter ~name:"restricts" (fun restricts ->
@@ -238,7 +240,9 @@ let make_solver_test test_elem =
       assert (ZI.tag (Selections.as_xml actual_sels) = Some "selections");
       if ready then (
         let changed = Whatchanged.show_changes (fake_system :> system) (Some (Selections.create !expected_selections)) actual_sels in
-        assert (not changed);
+        if changed then
+          let sels = Selections.as_xml actual_sels |> Q.reindent |> Q.to_utf8 in
+          assert_failure (Printf.sprintf "Ready, but not as expected. Got:\n" ^ sels)
       );
       xml_diff !expected_selections (Selections.as_xml actual_sels)
     );

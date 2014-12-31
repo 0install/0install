@@ -46,6 +46,7 @@ type feed = {
 val parse : system -> [`feed] Element.t -> filepath option -> feed
 
 val get_implementations : feed -> Impl.existing Impl.t list
+val default_attrs : url:string -> Support.Qdom.AttrMap.t
 val process_group_properties : local_dir:filepath option -> Impl.properties ->
   [<`group | `implementation | `package_impl] Element.t -> Impl.properties
 val load_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides

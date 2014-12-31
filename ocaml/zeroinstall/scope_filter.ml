@@ -10,6 +10,7 @@ type t = {
   machine_ranks : Arch.machine_ranking;
   languages : int Support.Locale.LangMap.t;
   allowed_uses : StringSet.t;                         (* deprecated *)
+  may_compile : bool;
 }
 
 let os_ok t v = Arch.os_ok t.os_ranks v
@@ -34,3 +35,12 @@ let lang_rank t lang =
   with Not_found -> 0
 
 let user_restriction_for t iface = StringMap.find iface t.extra_restrictions
+
+let use_feed t ~want_source feed =
+  let machine_ok =
+    match feed.Feed.feed_machine with
+    | None -> true    (* Feed doesn't say what it contains, so we can't safely skip it *)
+    | m when Arch.is_src m -> want_source || t.may_compile (* Feed contains only source *)
+    | Some _ when want_source -> false      (* Feed contains only binaries and we want source *)
+    | Some _ as m -> Arch.machine_ok t.machine_ranks m in
+  machine_ok && Arch.os_ok t.os_ranks feed.Feed.feed_os

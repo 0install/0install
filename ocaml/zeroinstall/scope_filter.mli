@@ -13,6 +13,7 @@ type t = {
   machine_ranks : Arch.machine_ranking;
   languages : int Support.Locale.LangMap.t;
   allowed_uses : StringSet.t;                         (* deprecated *)
+  may_compile : bool;       (* For each source impl, add the potential binary that could be made from it *)
 }
 
 (** Check whether some OS is acceptable.
@@ -40,3 +41,6 @@ val lang_rank : t -> Support.Locale.lang_spec -> int
 
 (* Get the user-provided restriction for an interface, if any. *)
 val user_restriction_for : t -> iface_uri -> Impl.restriction option
+
+(* Should we consider this feed import? *)
+val use_feed : t -> want_source:bool -> Feed.feed_import -> bool
