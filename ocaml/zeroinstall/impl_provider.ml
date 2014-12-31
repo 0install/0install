@@ -84,6 +84,103 @@ let do_overrides overrides =
     | None -> impl
   )
 
+let compare_impls_full ~scope_filter ~network_use ~is_available ~stability_policy a b =
+  let retval = ref (0, PreferID) in
+  let test reason = function
+    | 0 -> false
+    | x -> retval := (-x, reason); true in
+  let test_fn reason fn =
+    test reason @@ compare (fn a) (fn b) in
+
+  let langs_a = Impl.get_langs a in
+  let langs_b = Impl.get_langs b in
+
+  let score_true b = if b then 1 else 0 in
+
+  (* 1 if we understand this language, else 0 *)
+  let score_langs langs =
+    score_true @@ List.exists (Scope_filter.lang_ok scope_filter) langs in
+
+  let score_country langs =
+    ListLabels.fold_left ~init:0 langs ~f:(fun best lang ->
+      max best (Scope_filter.lang_rank scope_filter lang)
+    ) in
+
+  let open Impl in
+
+  let score_os i =
+    match i.os with
+    | None -> (-100)
+    | Some os -> -(default 200 @@ Scope_filter.os_rank scope_filter os) in
+
+  let score_machine i =
+    match i.machine with
+    | None -> (-100)
+    | Some machine -> -(default 200 @@ Scope_filter.machine_rank scope_filter machine) in
+
+  let score_stability i =
+    let s = i.stability in
+    if s >= stability_policy then Preferred
+    else s in
+
+  let score_is_package i =
+    let id = Impl.get_attr_ex "id" i in
+    U.starts_with id "package:" in
+
+  let score_requires_root_install i =
+    match i.impl_type with
+    | `package_impl {Impl.package_state = `uninstalled _;_} -> 0   (* Bad - needs root install *)
+    | _ -> 1 in
+
+  ignore (
+    (* Preferred versions come first *)
+    test PreferStability @@ compare (score_true (a.stability = Preferred))
+                                    (score_true (b.stability = Preferred)) ||
+
+    (* Languages we understand come first *)
+    test PreferLang @@ compare (score_langs langs_a) (score_langs langs_b) ||
+
+    (* Prefer available implementations next if we have limited network access *)
+    (if network_use = Full_network then false else test_fn PreferAvailable is_available) ||
+
+    (* Packages that require admin access to install come last *)
+    test_fn PreferNonRoot score_requires_root_install ||
+
+    (* Prefer more stable versions, but treat everything over stab_policy the same
+      (so we prefer stable over testing if the policy is to prefer "stable", otherwise
+      we don't care) *)
+    test_fn PreferStability score_stability ||
+
+    (* Newer versions come before older ones (ignoring modifiers) *)
+    test PreferVersion @@ compare (Version.strip_modifier a.parsed_version)
+                                  (Version.strip_modifier b.parsed_version) ||
+
+    (* Prefer native packages if the main part of the versions are the same *)
+    test_fn PreferDistro score_is_package ||
+
+    (* Full version compare (after package check, since comparing modifiers between native and non-native
+      packages doesn't make sense). *)
+    test PreferVersion @@ compare a.parsed_version b.parsed_version ||
+
+    (* Get best OS *)
+    test PreferOS @@ compare (score_os a) (score_os b) ||
+
+    (* Get best machine *)
+    test PreferMachine @@ compare (score_machine a) (score_machine b) ||
+
+    (* Slightly prefer languages specialised to our country
+      (we know a and b have the same base language at this point) *)
+    test PreferLang @@ compare (score_country langs_a) (score_country langs_b) ||
+
+    (* Slightly prefer cached versions *)
+    (if network_use <> Full_network then false else test_fn PreferAvailable is_available) ||
+
+    (* Order by ID so the order isn't random *)
+    test PreferID @@ compare (Impl.get_attr_ex "id" a) (Impl.get_attr_ex "id" b) ||
+    test PreferID @@ compare (Impl.get_attr_ex "from-feed" a) (Impl.get_attr_ex "from-feed" b)
+  );
+  !retval
+
 class default_impl_provider config (feed_provider : Feed_provider.feed_provider) (scope_filter:Scope_filter.t) =
   let get_distro_impls feed =
     let impls, overrides = feed_provider#get_distro_impls feed in
@@ -135,108 +232,6 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
           log_warning ~ex "Can't test whether impl is available: %a" Impl.fmt impl;
           false in
 
-      (* Printf.eprintf "Looking for %s\n" (String.concat "," @@ List.map Locale.format_lang wanted_langs); *)
-      let compare_impls_full stability_policy a b =
-        let retval = ref (0, PreferID) in
-        let test reason = function
-          | 0 -> false
-          | x -> retval := (-x, reason); true in
-        let test_fn reason fn =
-          test reason @@ compare (fn a) (fn b) in
-
-        let langs_a = Impl.get_langs a in
-        let langs_b = Impl.get_langs b in
-
-        let score_true b = if b then 1 else 0 in
-
-        (* 1 if we understand this language, else 0 *)
-        let score_langs langs =
-          score_true @@ List.exists (Scope_filter.lang_ok scope_filter) langs in
-
-        let score_country langs =
-          ListLabels.fold_left ~init:0 langs ~f:(fun best lang ->
-            max best (Scope_filter.lang_rank scope_filter lang)
-          ) in
-
-        let open Impl in
-
-        let score_os i =
-          match i.os with
-          | None -> (-100)
-          | Some os -> -(default 200 @@ Scope_filter.os_rank scope_filter os) in
-
-        let score_machine i =
-          match i.machine with
-          | None -> (-100)
-          | Some machine -> -(default 200 @@ Scope_filter.machine_rank scope_filter machine) in
-
-        let score_stability i =
-          let s = i.stability in
-          if s >= stability_policy then Preferred
-          else s in
-
-        let score_is_package i =
-          let id = Impl.get_attr_ex "id" i in
-          U.starts_with id "package:" in
-
-        let score_requires_root_install i =
-          match i.impl_type with
-          | `package_impl {Impl.package_state = `uninstalled _;_} -> 0   (* Bad - needs root install *)
-          | _ -> 1 in
-
-        ignore (
-          (* Preferred versions come first *)
-          test PreferStability @@ compare (score_true (a.stability = Preferred))
-                                          (score_true (b.stability = Preferred)) ||
-
-          (* Languages we understand come first *)
-          test PreferLang @@ compare (score_langs langs_a) (score_langs langs_b) ||
-
-          (* Prefer available implementations next if we have limited network access *)
-          (if config.network_use = Full_network then false else test_fn PreferAvailable is_available) ||
-
-          (* Packages that require admin access to install come last *)
-          test_fn PreferNonRoot score_requires_root_install ||
-
-          (* Prefer more stable versions, but treat everything over stab_policy the same
-            (so we prefer stable over testing if the policy is to prefer "stable", otherwise
-            we don't care) *)
-          test_fn PreferStability score_stability ||
-
-          (* Newer versions come before older ones (ignoring modifiers) *)
-          test PreferVersion @@ compare (Version.strip_modifier a.parsed_version)
-                                        (Version.strip_modifier b.parsed_version) ||
-
-          (* Prefer native packages if the main part of the versions are the same *)
-          test_fn PreferDistro score_is_package ||
-
-          (* Full version compare (after package check, since comparing modifiers between native and non-native
-            packages doesn't make sense). *)
-          test PreferVersion @@ compare a.parsed_version b.parsed_version ||
-
-          (* Get best OS *)
-          test PreferOS @@ compare (score_os a) (score_os b) ||
-
-          (* Get best machine *)
-          test PreferMachine @@ compare (score_machine a) (score_machine b) ||
-
-          (* Slightly prefer languages specialised to our country
-            (we know a and b have the same base language at this point) *)
-          test PreferLang @@ compare (score_country langs_a) (score_country langs_b) ||
-
-          (* Slightly prefer cached versions *)
-          (if config.network_use <> Full_network then false else test_fn PreferAvailable is_available) ||
-
-          (* Order by ID so the order isn't random *)
-          test PreferID @@ compare (Impl.get_attr_ex "id" a) (Impl.get_attr_ex "id" b) ||
-          test PreferID @@ compare (Impl.get_attr_ex "from-feed" a) (Impl.get_attr_ex "from-feed" b)
-        );
-
-        !retval
-        in
-
-      let compare_impls stability_policy a b = fst (compare_impls_full stability_policy a b) in
-
       let candidates : candidates =
         try Hashtbl.find cache iface
         with Not_found ->
@@ -258,15 +253,18 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
             | None -> if config.help_with_testing then Testing else Stable
             | Some s -> s in
 
+          let compare_impls_full = compare_impls_full ~scope_filter ~network_use:config.network_use ~is_available ~stability_policy in
+          let compare_impls a b = fst (compare_impls_full a b) in
+
           let impls = List.concat (main_impls :: List.map get_impls extra_feeds) in
-          let impls = List.sort (compare_impls stability_policy) (impls :> Impl.generic_implementation list) in
+          let impls = List.sort compare_impls (impls :> Impl.generic_implementation list) in
 
           let replacement =
             match master_feed with
             | None -> None
             | Some (feed, _overrides) -> feed.Feed.replacement in
 
-          let candidates = {replacement; impls; rejects = []; compare = compare_impls_full stability_policy} in
+          let candidates = {replacement; impls; rejects = []; compare = compare_impls_full} in
           Hashtbl.add cache iface candidates;
           candidates in
 
