@@ -84,6 +84,33 @@ let do_overrides overrides =
     | None -> impl
   )
 
+let check_acceptability ~scope_filter ~network_use ~is_available ~want_source ~user_restrictions impl =
+  let stability = impl.Impl.stability in
+  let is_source = Arch.is_src impl.Impl.machine in
+
+  match user_restrictions with
+  | Some r when not (r#meets_restriction impl) -> `User_restriction_rejects r
+  | _ ->
+      if stability <= Buggy then `Poor_stability
+      else if not (Scope_filter.os_ok scope_filter impl.Impl.os) then `Incompatible_OS
+      else if want_source && not is_source then `Not_source
+      else if not want_source && is_source then `Not_binary
+      else if not (Scope_filter.machine_ok scope_filter ~want_source impl.Impl.machine) then `Incompatible_machine
+      (* Acceptable if we've got it already or we can get it *)
+      else if is_available impl then `Acceptable
+      (* It's not cached, but might still be OK... *)
+      else (
+        let open Impl in
+        match (Impl.existing_source impl).impl_type with
+        | `local_impl path -> `Missing_local_impl path
+        | `package_impl _ -> if network_use = Offline then `Not_cached_and_offline else `Acceptable
+        | `cache_impl {retrieval_methods = [];_} -> `No_retrieval_methods
+        | `cache_impl cache_impl ->
+            if network_use <> Offline then `Acceptable   (* Can download it *)
+            else if is_retrievable_without_network cache_impl then `Acceptable
+            else `Not_cached_and_offline
+      )
+
 let compare_impls_full ~scope_filter ~network_use ~is_available ~stability_policy a b =
   let retval = ref (0, PreferID) in
   let test reason = function
@@ -238,7 +265,8 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
       | None -> if config.help_with_testing then Testing else Stable
       | Some s -> s in
 
-    let compare_impls_full = compare_impls_full ~scope_filter ~network_use:config.network_use ~is_available ~stability_policy in
+    let network_use = config.network_use in
+    let compare_impls_full = compare_impls_full ~scope_filter ~network_use ~is_available ~stability_policy in
     let compare_impls a b = fst (compare_impls_full a b) in
 
     let replacement =
@@ -248,38 +276,10 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
 
     let user_restrictions = Scope_filter.user_restriction_for scope_filter iface in
 
-    let check_acceptability impl =
-      let stability = impl.Impl.stability in
-      let is_source = Arch.is_src impl.Impl.machine in
-
-      match user_restrictions with
-      | Some r when not (r#meets_restriction impl) -> `User_restriction_rejects r
-      | _ ->
-          if stability <= Buggy then `Poor_stability
-          else if not (Scope_filter.os_ok scope_filter impl.Impl.os) then `Incompatible_OS
-          else if want_source && not is_source then `Not_source
-          else if not want_source && is_source then `Not_binary
-          else if not (Scope_filter.machine_ok scope_filter ~want_source impl.Impl.machine) then `Incompatible_machine
-          (* Acceptable if we've got it already or we can get it *)
-          else if is_available impl then `Acceptable
-          (* It's not cached, but might still be OK... *)
-          else (
-            let open Impl in
-            match (Impl.existing_source impl).impl_type with
-            | `local_impl path -> `Missing_local_impl path
-            | `package_impl _ -> if config.network_use = Offline then `Not_cached_and_offline else `Acceptable
-            | `cache_impl {retrieval_methods = [];_} -> `No_retrieval_methods
-            | `cache_impl cache_impl ->
-                if config.network_use <> Offline then `Acceptable   (* Can download it *)
-                else if is_retrievable_without_network cache_impl then `Acceptable
-                else `Not_cached_and_offline
-          ) in
-
     let rejects = ref [] in
 
     let do_filter impl =
-      (* check_acceptability impl = Acceptable in *)
-      match check_acceptability impl with
+      match check_acceptability ~scope_filter ~network_use ~is_available ~want_source ~user_restrictions impl with
       | `Acceptable -> true
       | #rejection_reason as x -> rejects := (impl, x) :: !rejects; false
     (*| problem -> log_warning "rejecting %s %s: %s" iface (Version.format_version impl.Impl.parsed_version) (describe_problem impl problem); false *)
