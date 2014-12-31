@@ -192,6 +192,17 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
 
   let cached_digests = Stores.get_available_digests config.system config.stores in
 
+  let is_available impl =
+    try
+      let open Impl in
+      match (Impl.existing_source impl).impl_type with
+      | `package_impl {package_state;_} -> package_state = `installed
+      | `local_impl path -> config.system#file_exists path
+      | `cache_impl {digests;_} -> Stores.check_available cached_digests digests
+    with Safe_exception _ as ex ->
+      log_warning ~ex "Can't test whether impl is available: %a" Impl.fmt impl;
+      false in
+
   object (_ : #impl_provider)
     val cache = Hashtbl.create 10
 
@@ -220,17 +231,6 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
         Support.Utils.filter_map get_feed_if_useful iface_config.Feed_cache.extra_feeds in
 
       let user_restrictions = Scope_filter.user_restriction_for scope_filter iface in
-
-      let is_available impl =
-        try
-          let open Impl in
-          match (Impl.existing_source impl).impl_type with
-          | `package_impl {package_state;_} -> package_state = `installed
-          | `local_impl path -> config.system#file_exists path
-          | `cache_impl {digests;_} -> Stores.check_available cached_digests digests
-        with Safe_exception _ as ex ->
-          log_warning ~ex "Can't test whether impl is available: %a" Impl.fmt impl;
-          false in
 
       let candidates : candidates =
         try Hashtbl.find cache iface
