@@ -21,7 +21,7 @@ val os_ok : t -> Arch.os option -> bool
 
 (** Check whether some machine is acceptable.
  * If no particular machine is specified, then any will do. *)
-val machine_ok : t -> Arch.machine option -> bool
+val machine_ok : t -> want_source:bool -> Arch.machine option -> bool
 
 (** Check whether the language part of a lang_spec is acceptable. *)
 val lang_ok : t -> Support.Locale.lang_spec -> bool

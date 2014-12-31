@@ -203,9 +203,95 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
       log_warning ~ex "Can't test whether impl is available: %a" Impl.fmt impl;
       false in
 
-  object (_ : #impl_provider)
-    val cache = Hashtbl.create 10
+  let get_feed_if_useful want_source {Feed.feed_src; Feed.feed_os; Feed.feed_machine; Feed.feed_langs; Feed.feed_type = _} =
+    try
+      ignore feed_langs; (* Maybe later... *)
+      (* Don't look at a feed if it only provides things we can't use. *)
+      if Scope_filter.os_ok scope_filter feed_os &&
+         Scope_filter.machine_ok scope_filter ~want_source feed_machine
+      then feed_provider#get_feed feed_src
+      else None
+    with Safe_exception _ as ex ->
+      log_warning ~ex "Failed to get implementations";
+      None
+  in
 
+  let get_extra_feeds want_source iface_config =
+    Support.Utils.filter_map (get_feed_if_useful want_source) iface_config.Feed_cache.extra_feeds in
+
+  let impls_for_iface = U.memoize ~initial_size:10 (fun (iface, want_source) ->
+    let master_feed = feed_provider#get_feed (Feed_url.master_feed_of_iface iface) in
+    let iface_config = feed_provider#get_iface_config iface in
+    let extra_feeds = get_extra_feeds want_source iface_config in
+
+    (* From master feed, distribution feed, and sub-feeds of master *)
+    let (main_impls, stability_policy) =
+      match master_feed with
+      | None -> ([], None)
+      | Some ((feed, _overrides) as pair) ->
+          let sub_feeds = U.filter_map (get_feed_if_useful want_source) feed.Feed.imported_feeds in
+          let impls = List.concat (List.map get_impls (pair :: sub_feeds)) in
+          (impls, iface_config.Feed_cache.stability_policy) in
+
+    let stability_policy =
+      match stability_policy with
+      | None -> if config.help_with_testing then Testing else Stable
+      | Some s -> s in
+
+    let compare_impls_full = compare_impls_full ~scope_filter ~network_use:config.network_use ~is_available ~stability_policy in
+    let compare_impls a b = fst (compare_impls_full a b) in
+
+    let replacement =
+      match master_feed with
+      | None -> None
+      | Some (feed, _overrides) -> feed.Feed.replacement in
+
+    let user_restrictions = Scope_filter.user_restriction_for scope_filter iface in
+
+    let check_acceptability impl =
+      let stability = impl.Impl.stability in
+      let is_source = Arch.is_src impl.Impl.machine in
+
+      match user_restrictions with
+      | Some r when not (r#meets_restriction impl) -> `User_restriction_rejects r
+      | _ ->
+          if stability <= Buggy then `Poor_stability
+          else if not (Scope_filter.os_ok scope_filter impl.Impl.os) then `Incompatible_OS
+          else if want_source && not is_source then `Not_source
+          else if not want_source && is_source then `Not_binary
+          else if not (Scope_filter.machine_ok scope_filter ~want_source impl.Impl.machine) then `Incompatible_machine
+          (* Acceptable if we've got it already or we can get it *)
+          else if is_available impl then `Acceptable
+          (* It's not cached, but might still be OK... *)
+          else (
+            let open Impl in
+            match (Impl.existing_source impl).impl_type with
+            | `local_impl path -> `Missing_local_impl path
+            | `package_impl _ -> if config.network_use = Offline then `Not_cached_and_offline else `Acceptable
+            | `cache_impl {retrieval_methods = [];_} -> `No_retrieval_methods
+            | `cache_impl cache_impl ->
+                if config.network_use <> Offline then `Acceptable   (* Can download it *)
+                else if is_retrievable_without_network cache_impl then `Acceptable
+                else `Not_cached_and_offline
+          ) in
+
+    let rejects = ref [] in
+
+    let do_filter impl =
+      (* check_acceptability impl = Acceptable in *)
+      match check_acceptability impl with
+      | `Acceptable -> true
+      | #rejection_reason as x -> rejects := (impl, x) :: !rejects; false
+    (*| problem -> log_warning "rejecting %s %s: %s" iface (Version.format_version impl.Impl.parsed_version) (describe_problem impl problem); false *)
+    in
+
+    let impls = List.concat (main_impls :: List.map get_impls extra_feeds) in
+    let impls = List.sort compare_impls (impls :> Impl.generic_implementation list) in
+    let impls = List.filter do_filter impls in
+    {replacement; impls; rejects = !rejects; compare = compare_impls_full}
+  ) in
+
+  object (_ : #impl_provider)
     method is_dep_needed dep =
       Scope_filter.use_ok scope_filter dep.Impl.dep_use &&
       Scope_filter.os_ok scope_filter dep.Impl.dep_if_os
@@ -213,98 +299,5 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
     method extra_restrictions = scope_filter.Scope_filter.extra_restrictions
 
     method get_implementations iface ~source:want_source =
-      let get_feed_if_useful {Feed.feed_src; Feed.feed_os; Feed.feed_machine; Feed.feed_langs; Feed.feed_type = _} =
-        try
-          ignore feed_langs; (* Maybe later... *)
-          let machine_ok =
-            if want_source then Arch.is_src feed_machine
-            else Scope_filter.machine_ok scope_filter feed_machine in
-          (* Don't look at a feed if it only provides things we can't use. *)
-          if Scope_filter.os_ok scope_filter feed_os && machine_ok then feed_provider#get_feed feed_src
-          else None
-        with Safe_exception _ as ex ->
-          log_warning ~ex "Failed to get implementations";
-          None
-      in
-
-      let get_extra_feeds iface_config =
-        Support.Utils.filter_map get_feed_if_useful iface_config.Feed_cache.extra_feeds in
-
-      let user_restrictions = Scope_filter.user_restriction_for scope_filter iface in
-
-      let candidates : candidates =
-        try Hashtbl.find cache iface
-        with Not_found ->
-          let master_feed = feed_provider#get_feed (Feed_url.master_feed_of_iface iface) in
-          let iface_config = feed_provider#get_iface_config iface in
-          let extra_feeds = get_extra_feeds iface_config in
-
-          (* From master feed, distribution feed, and sub-feeds of master *)
-          let (main_impls, stability_policy) =
-            match master_feed with
-            | None -> ([], None)
-            | Some ((feed, _overrides) as pair) ->
-                let sub_feeds = U.filter_map get_feed_if_useful feed.Feed.imported_feeds in
-                let impls = List.concat (List.map get_impls (pair :: sub_feeds)) in
-                (impls, iface_config.Feed_cache.stability_policy) in
-
-          let stability_policy =
-            match stability_policy with
-            | None -> if config.help_with_testing then Testing else Stable
-            | Some s -> s in
-
-          let compare_impls_full = compare_impls_full ~scope_filter ~network_use:config.network_use ~is_available ~stability_policy in
-          let compare_impls a b = fst (compare_impls_full a b) in
-
-          let impls = List.concat (main_impls :: List.map get_impls extra_feeds) in
-          let impls = List.sort compare_impls (impls :> Impl.generic_implementation list) in
-
-          let replacement =
-            match master_feed with
-            | None -> None
-            | Some (feed, _overrides) -> feed.Feed.replacement in
-
-          let candidates = {replacement; impls; rejects = []; compare = compare_impls_full} in
-          Hashtbl.add cache iface candidates;
-          candidates in
-
-      let check_acceptability impl =
-        let stability = impl.Impl.stability in
-        let is_source = Arch.is_src impl.Impl.machine in
-
-        match user_restrictions with
-        | Some r when not (r#meets_restriction impl) -> `User_restriction_rejects r
-        | _ ->
-            if stability <= Buggy then `Poor_stability
-            else if not (Scope_filter.os_ok scope_filter impl.Impl.os) then `Incompatible_OS
-            else if want_source && not is_source then `Not_source
-            else if not (want_source) && is_source then `Not_binary
-            else if not want_source && not (Scope_filter.machine_ok scope_filter impl.Impl.machine) then `Incompatible_machine
-            (* Acceptable if we've got it already or we can get it *)
-            else if is_available impl then `Acceptable
-            (* It's not cached, but might still be OK... *)
-            else (
-              let open Impl in
-              match (Impl.existing_source impl).impl_type with
-              | `local_impl path -> `Missing_local_impl path
-              | `package_impl _ -> if config.network_use = Offline then `Not_cached_and_offline else `Acceptable
-              | `cache_impl {retrieval_methods = [];_} -> `No_retrieval_methods
-              | `cache_impl cache_impl ->
-                  if config.network_use <> Offline then `Acceptable   (* Can download it *)
-                  else if is_retrievable_without_network cache_impl then `Acceptable
-                  else `Not_cached_and_offline
-            ) in
-
-      let rejects = ref [] in
-
-      let do_filter impl =
-        (* check_acceptability impl = Acceptable in *)
-        match check_acceptability impl with
-        | `Acceptable -> true
-        | #rejection_reason as x -> rejects := (impl, x) :: !rejects; false
-      (*| problem -> log_warning "rejecting %s %s: %s" iface (Version.format_version impl.Impl.parsed_version) (describe_problem impl problem); false *)
-      in
-
-      let impls = List.filter do_filter candidates.impls in
-      {candidates with impls; rejects = !rejects}
+      impls_for_iface (iface, want_source)
   end

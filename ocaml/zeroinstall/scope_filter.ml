@@ -13,7 +13,10 @@ type t = {
 }
 
 let os_ok t v = Arch.os_ok t.os_ranks v
-let machine_ok t v = Arch.machine_ok t.machine_ranks v
+let machine_ok t ~want_source v =
+  if Arch.is_src v then want_source
+  else if want_source then false
+  else Arch.machine_ok t.machine_ranks v
 
 let lang_ok t (lang, _country) =
   Support.Locale.LangMap.mem (lang, None) t.languages

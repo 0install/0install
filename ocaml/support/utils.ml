@@ -557,3 +557,12 @@ let with_switch fn =
   Lwt.finalize
     (fun () -> fn switch)
     (fun () -> Lwt_switch.turn_off switch)
+
+let memoize ~initial_size create =
+  let cache = Hashtbl.create initial_size in
+  fun key ->
+    try Hashtbl.find cache key
+    with Not_found ->
+      let value = create key in
+      Hashtbl.add cache key value;
+      value

@@ -129,3 +129,6 @@ val async : (unit -> unit Lwt.t) -> unit
 
 (** Create a switch, run [fn switch], then finally turn it off. *)
 val with_switch : (Lwt_switch.t -> 'a Lwt.t) -> 'a Lwt.t
+
+(** [memoize ~initial_size:n fn] returns a wrapped version of [fn] that caches each result returned. *)
+val memoize : initial_size:int -> ('a -> 'b) -> ('a -> 'b)
