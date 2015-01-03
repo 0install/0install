@@ -75,7 +75,7 @@ let suite = "feed">::: [
 
     let path name impl =
       let command = StringMap.find_safe name impl.Impl.props.Impl.commands in
-      ZI.get_attribute "path" command.Impl.command_qdom in
+      Element.path command.Impl.command_qdom |> Fake_system.expect in
 
     let a = StringMap.find_safe "a" feed.F.implementations in
     Fake_system.assert_str_equal "foo" @@ path "run" a;

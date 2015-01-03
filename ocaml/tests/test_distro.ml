@@ -89,7 +89,7 @@ let suite = "distro">::: [
     | [impl] ->
         assert_str_equal "2.7.2-4" (Zeroinstall.Version.to_string impl.parsed_version);
         let run = StringMap.find_safe "run" impl.props.commands in
-        assert_str_equal "/bin/python2" (ZI.get_attribute "path" run.command_qdom)
+        assert_str_equal "/bin/python2" (Element.path run.command_qdom |> Fake_system.expect)
     | impls -> assert_failure @@ Printf.sprintf "want 1 Python, got %d" (List.length impls)
   );
 
@@ -215,7 +215,7 @@ let suite = "distro">::: [
       let python_run =
         try StringMap.find_nf "run" host_python.props.commands
         with Not_found -> assert_failure "No run command for host Python" in
-      assert (Fake_system.real_system#file_exists (ZI.get_attribute "path" python_run.command_qdom)) in
+      assert (Fake_system.real_system#file_exists (Element.path python_run.command_qdom |> Fake_system.expect)) in
 
     (* python-gobject *)
     let root = Q.parse_input None @@ Xmlm.make_input (`String (0, test_gobject_feed)) |> Element.parse_feed in

@@ -110,6 +110,9 @@ let parse_feed root =
   );
   root
 
+let make_impl ?source_hint ?child_nodes ~attrs =
+  ZI.make ?source_hint ?child_nodes ~attrs "implementation"
+
 let make_command ?path ?shell_command ~source_hint name =
   let attrs = AttrMap.singleton "name" name in
   let attrs = match path with

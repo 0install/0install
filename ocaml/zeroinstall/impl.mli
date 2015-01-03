@@ -53,7 +53,7 @@ and dependency = {
   dep_use : string option;                  (* Deprecated 'use' attribute *)
 }
 and command = {
-  mutable command_qdom : Support.Qdom.element;  (* Mutable because of distro's [fixup_main] *)
+  mutable command_qdom : [`command] Element.t;  (* Mutable because of distro's [fixup_main] *)
   command_requires : dependency list;
   command_bindings : Element.binding_node Element.t list;
 }
@@ -81,11 +81,13 @@ val parse_stability : from_user:bool -> string -> General.stability_level
 val format_stability : General.stability_level -> string
 
 val make_command :
-  ?source_hint:Support.Qdom.element ->
-  string -> ?new_attr:string -> Support.Common.filepath -> command
+  ?source_hint:_ Element.t ->
+  string -> Support.Common.filepath -> command
 
 val make_distribtion_restriction : string -> restriction
 val make_version_restriction : string -> restriction
+
+val local_dir_of : [> `local_impl of Support.Common.filepath ] t -> Support.Common.filepath option
 
 (** [parse_dep local_dir elem] parses the <requires>/<restricts> element.
  * [local_dir] is used to resolve relative interface names in local feeds

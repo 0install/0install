@@ -98,6 +98,14 @@ let rec make_all_downloable node =
     {node with child_nodes = List.map make_all_downloable node.child_nodes}
   )
 
+let linux_multi_scope_filter = { Scope_filter.
+  extra_restrictions = StringMap.empty;
+  os_ranks = Arch.get_os_ranks Arch.linux;
+  machine_ranks = Arch.get_machine_ranks Arch.x86_64 ~multiarch:true;
+  languages = Support.Locale.LangMap.empty;
+  allowed_uses = StringSet.empty;
+}
+
 class fake_feed_provider system (distro:Distro.distribution option) =
   let ifaces = Hashtbl.create 10 in
 
@@ -428,12 +436,8 @@ let suite = "solver">::: [
     feed_provider#add_iface (Support.Qdom.parse_file Fake_system.real_system (Fake_system.tests_dir +/ "ranking.xml"));
     config.network_use <- Minimal_network;
 
-    let scope_filter = { Scope_filter.
-      extra_restrictions = StringMap.empty;
-      os_ranks = Arch.get_os_ranks Arch.linux;
-      machine_ranks = Arch.get_machine_ranks Arch.x86_64 ~multiarch:true;
+    let scope_filter = { linux_multi_scope_filter with Scope_filter.
       languages = Support.Locale.score_langs @@ U.filter_map Support.Locale.parse_lang ["es_ES"; "fr_FR"];
-      allowed_uses = StringSet.empty;
     } in
 
     let test_solve scope_filter =
@@ -491,15 +495,7 @@ let suite = "solver">::: [
   "ranking2">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
 
-    let scope_filter = { Scope_filter.
-      extra_restrictions = StringMap.empty;
-      os_ranks = Arch.get_os_ranks Arch.linux;
-      machine_ranks = Arch.get_machine_ranks Arch.x86_64 ~multiarch:true;
-      languages = Support.Locale.LangMap.empty;
-      allowed_uses = StringSet.empty;
-    } in
-
-    let impl_provider = make_impl_provider config scope_filter in
+    let impl_provider = make_impl_provider config linux_multi_scope_filter in
 
     let iface = Test_0install.feed_dir +/ "Ranking.xml" in
 
@@ -527,14 +523,7 @@ let suite = "solver">::: [
     let distro = Distro_impls.generic_distribution config in
     let feed_provider = new Feed_provider_impl.feed_provider config distro in
 
-    let scope_filter = { Scope_filter.
-      extra_restrictions = StringMap.empty;
-      os_ranks = Arch.get_os_ranks Arch.linux;
-      machine_ranks = Arch.get_machine_ranks Arch.x86_64 ~multiarch:true;
-      languages = Support.Locale.LangMap.empty;
-      allowed_uses = StringSet.empty;
-    } in
-    let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_provider.feed_provider) scope_filter in
+    let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_provider.feed_provider) linux_multi_scope_filter in
     let bin_impls = impl_provider#get_implementations iface ~source:true in
     let () =
       match bin_impls.Impl_provider.rejects with
@@ -619,12 +608,8 @@ let suite = "solver">::: [
 
     let check_arch expected machine =
       let machine = Arch.parse_machine machine |> Fake_system.expect in
-      let scope_filter = { Scope_filter.
-        extra_restrictions = StringMap.empty;
-        os_ranks = Arch.get_os_ranks Arch.linux;
-        machine_ranks = Arch.get_machine_ranks machine ~multiarch:true;
-        languages = Support.Locale.LangMap.empty;
-        allowed_uses = StringSet.empty;
+      let scope_filter = { linux_multi_scope_filter with
+        Scope_filter.machine_ranks = Arch.get_machine_ranks machine ~multiarch:true;
       } in
       let impl_provider = make_impl_provider config scope_filter in
       let root_req = { Solver.Model.
@@ -688,12 +673,9 @@ let suite = "solver">::: [
     let feed_provider = new Feed_provider_impl.feed_provider config distro in
     let solve expected ?(lang="en_US.UTF-8") machine =
       let machine = Arch.parse_machine machine |> Fake_system.expect in
-      let scope_filter = { Scope_filter.
-        extra_restrictions = StringMap.empty;
-        os_ranks = Arch.get_os_ranks Arch.linux;
+      let scope_filter = { linux_multi_scope_filter with Scope_filter.
         machine_ranks = Arch.get_machine_ranks machine ~multiarch:true;
         languages = Support.Locale.score_langs [Fake_system.expect @@ Support.Locale.parse_lang lang];
-        allowed_uses = StringSet.empty;
       } in
       let impl_provider = new Impl_provider.default_impl_provider config feed_provider scope_filter in
       let root_req = { Solver.Model.
@@ -764,7 +746,9 @@ let suite = "solver">::: [
   );
 
   "solver">:::
-    let root = Support.Qdom.parse_file Fake_system.real_system "tests/solves.xml" in
-    let root = if on_windows then fixup_for_windows root else root in
-    List.map make_solver_test root.Support.Qdom.child_nodes
+    U.handle_exceptions (fun () ->
+      let root = Support.Qdom.parse_file Fake_system.real_system "tests/solves.xml" in
+      let root = if on_windows then fixup_for_windows root else root in
+      List.map make_solver_test root.Support.Qdom.child_nodes
+    ) ()
 ]

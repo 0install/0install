@@ -59,7 +59,7 @@ and dependency = {
 }
 
 and command = {
-  mutable command_qdom : Support.Qdom.element;
+  mutable command_qdom : [`command] Element.t;
   command_requires : dependency list;
   command_bindings : binding list;
 }
@@ -106,10 +106,8 @@ let format_stability = function
   | Packaged -> "packaged"
   | Preferred -> "preferred"
 
-let make_command ?source_hint name ?(new_attr="path") path : command =
-  let attrs = AttrMap.singleton "name" name
-    |> AttrMap.add_no_ns new_attr path in
-  let elem = ZI.make ?source_hint ~attrs "command" in
+let make_command ?source_hint name path : command =
+  let elem = Element.make_command ~path ~source_hint name in
   {
     command_qdom = elem;
     command_requires = [];
@@ -165,6 +163,11 @@ let make_version_restriction expr =
     let msg = Printf.sprintf "Can't parse version restriction '%s': %s" expr ex_msg in
     log_warning ~ex:ex "%s" msg;
     make_impossible_restriction msg
+
+let local_dir_of impl =
+  match impl.impl_type with
+  | `local_impl path -> Some path
+  | _ -> None
 
 let parse_dep local_dir node =
   let dep = Element.classify_dep node in
@@ -236,7 +239,7 @@ let parse_command local_dir elem : command =
   );
 
   {
-    command_qdom = Element.as_xml elem;
+    command_qdom = elem;
     command_requires = !deps;
     command_bindings = !bindings;
   }

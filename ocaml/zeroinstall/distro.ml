@@ -5,7 +5,6 @@
 (** Interacting with distribution package managers. *)
 
 open General
-open Support
 open Support.Common
 module FeedAttr = Constants.FeedAttr
 module U = Support.Utils
@@ -149,12 +148,8 @@ class virtual distribution config =
            cache this information on disk. *)
         Lazy.force python_info |> List.map (fun ((path, version), _) ->
           let id = "package:host:python:" ^ version in
-          let run = ZI.make "command"
-            ~attrs:(
-              Q.AttrMap.singleton "name" "run"
-              |> Q.AttrMap.add_no_ns "path" path
-            ) in
-          let commands = StringMap.singleton "run" Impl.({command_qdom = run; command_requires = []; command_bindings = []}) in
+          let run = Impl.make_command "run" path in
+          let commands = StringMap.singleton "run" run in
           (id, make_host_impl ~package:"host-python" path version ~commands url id)
         )
     | `remote_feed "http://repo.roscidus.com/python/python-gobject" as url ->
@@ -174,10 +169,7 @@ class virtual distribution config =
     | Some run ->
         match distro_get_correct_main impl run with
         | None -> ()
-        | Some new_main ->
-            run.command_qdom <- {run.command_qdom with
-              Q.attrs = run.command_qdom.Q.attrs |> Q.AttrMap.add_no_ns "path" new_main
-            } in
+        | Some new_main -> run.command_qdom <- Element.make_command ~path:new_main ~source_hint:None "run" in
 
   object (self)
     val virtual distro_name : string
@@ -217,11 +209,7 @@ class virtual distribution config =
             let run_command =
               match StringMap.find "run" props.commands with
               | Some command ->
-                  {command with command_qdom = 
-                    {command.command_qdom with
-                      Qdom.attrs = command.command_qdom.Qdom.attrs |> Qdom.AttrMap.add_no_ns "path" path
-                    }
-                  };
+                  {command with command_qdom = Element.make_command ~path ~source_hint:None "run"}
               | None ->
                   make_command "run" path in
             {props with commands = StringMap.add "run" run_command props.commands} in
@@ -315,7 +303,7 @@ class virtual distribution config =
         it if not. *)
     method private get_correct_main _impl run_command =
       let open Impl in
-      ZI.get_attribute_opt "path" run_command.command_qdom |> pipe_some (fun path ->
+      Element.path run_command.command_qdom |> pipe_some (fun path ->
         if Filename.is_relative path || not (system#file_exists path) then (
           (* Need to search for the binary *)
           let basename = Filename.basename path in

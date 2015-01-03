@@ -59,7 +59,7 @@ module CoreModel = struct
 
   let impl_to_string impl = Printf.sprintf "%a-%a" Version.fmt impl.Impl.parsed_version Impl.fmt impl
   let id_of_impl impl = Impl.get_attr_ex FeedAttr.id impl
-  let command_to_string command = Qdom.show_with_loc command.Impl.command_qdom
+  let command_to_string command = Element.show_with_loc command.Impl.command_qdom
   let describe_problem = Impl_provider.describe_problem
 
   let compare_version a b = compare a.Impl.parsed_version b.Impl.parsed_version
@@ -81,7 +81,7 @@ module CoreModel = struct
     }
 
   let dummy_command = { Impl.
-    command_qdom = ZI.make "dummy-command";
+    command_qdom = Element.make_command ~source_hint:None "dummy-command";
     command_requires = [];
     command_bindings = [];
   }
@@ -152,14 +152,14 @@ module CoreModel = struct
           | Some "requires" | Some "restricts" | Some "runner" -> false
           | _ -> true
         in
-        let child_nodes = List.filter want_command_child command_elem.Qdom.child_nodes in
+        let child_nodes = List.filter want_command_child (Element.as_xml command_elem).Qdom.child_nodes in
         let add_command_dep child_nodes dep =
           if dep.Impl.dep_importance <> `restricts && impl_provider#is_dep_needed dep then
             Element.as_xml dep.Impl.dep_qdom :: child_nodes
           else
             child_nodes in
         let child_nodes = List.fold_left add_command_dep child_nodes command.Impl.command_requires in
-        let command_elem = {command_elem with Qdom.child_nodes = child_nodes} in
+        let command_elem = {(Element.as_xml command_elem) with Qdom.child_nodes = child_nodes} in
         copy_qdom command_elem
       );
 
