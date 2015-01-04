@@ -112,7 +112,7 @@ val interface :
 val from_feed : [`selection] t -> string option
 
 (** {2 Implementations} *)
-val make_impl : ?source_hint:Support.Qdom.element -> ?child_nodes:Support.Qdom.element list -> attrs:Support.Qdom.AttrMap.t -> [> `implementation] t
+val make_impl : ?source_hint:Support.Qdom.element -> ?child_nodes:Support.Qdom.element list -> Support.Qdom.AttrMap.t -> [> `implementation] t
 
 (** Copy element with a new interface. Used to make relative paths absolute. *)
 val with_interface : General.iface_uri -> ([< dependency_node] t as 'a) -> 'a

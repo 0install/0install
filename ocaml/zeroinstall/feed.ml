@@ -106,7 +106,7 @@ let create_impl system ~local_dir state node =
         `cache_impl { digests = Stores.get_digests node; retrieval_methods; } in
 
   let impl = {
-    qdom = Element.as_xml node;
+    qdom = (node :> [ `implementation | `package_impl ] Element.t);
     props = {!s with requires = List.rev !s.requires};
     os;
     machine;

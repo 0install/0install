@@ -72,7 +72,7 @@ and properties = {
 }
 
 and +'a t = {
-  qdom : Q.element;
+  qdom : [ `implementation | `package_impl ] Element.t;
   props : properties;
   stability : stability_level;
   os : Arch.os option;            (* Required OS; the first part of the 'arch' attribute. None for '*' *)
@@ -130,7 +130,7 @@ let make_distribtion_restriction distros =
   end
 
 let get_attr_ex name impl =
-  AttrMap.get_no_ns name impl.props.attrs |? lazy (Q.raise_elem "Missing '%s' attribute for " name impl.qdom)
+  AttrMap.get_no_ns name impl.props.attrs |? lazy (raise_safe "Missing '%s' attribute for %a" name Element.fmt impl.qdom)
 
 let parse_version_element elem =
   let before = Element.before elem in
@@ -253,7 +253,7 @@ let existing_source = function
 let get_command_opt command_name impl = StringMap.find command_name impl.props.commands
 
 let get_command_ex command_name impl : command =
-  StringMap.find command_name impl.props.commands |? lazy (Q.raise_elem "Command '%s' not found in" command_name impl.qdom)
+  StringMap.find command_name impl.props.commands |? lazy (raise_safe "Command '%s' not found in %a" command_name Element.fmt impl.qdom)
 
 (** The list of languages provided by this implementation. *)
 let get_langs impl =
@@ -274,4 +274,4 @@ let get_id impl =
   let feed_url = get_attr_ex FeedAttr.from_feed impl in
   Feed_url.({feed = Feed_url.parse feed_url; id = get_attr_ex FeedAttr.id impl})
 
-let fmt () impl = Q.show_with_loc impl.qdom
+let fmt () impl = Element.show_with_loc impl.qdom

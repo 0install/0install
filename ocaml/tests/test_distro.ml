@@ -322,8 +322,8 @@ let suite = "distro">::: [
         Fake_system.assert_str_equal "package:deb:python-bittorrent:3.4.2-10-2:*" (Impl.get_attr_ex "id" impl);
         assert_equal ~msg:"Stability" Packaged impl.Impl.stability;
         assert_equal ~msg:"Requires" [] impl.Impl.props.Impl.requires;
-        Fake_system.assert_str_equal "/usr/bin/pbt" (ZI.get_attribute_opt "main" impl.Impl.qdom |> Fake_system.expect);
-        impl.Impl.qdom.Q.attrs |> Q.AttrMap.get_no_ns "foo" |> assert_equal (Some "bar");
+        Fake_system.assert_str_equal "/usr/bin/pbt" (Element.main impl.Impl.qdom |> Fake_system.expect);
+        (Element.as_xml impl.Impl.qdom).Q.attrs |> Q.AttrMap.get_no_ns "foo" |> assert_equal (Some "bar");
         Fake_system.assert_str_equal "distribution:/local.xml" (Impl.get_attr_ex "from-feed" impl);
     | _ -> assert false end;
 

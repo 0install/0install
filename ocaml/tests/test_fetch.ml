@@ -3,12 +3,9 @@
  *)
 
 open Support.Common
+open Zeroinstall
 open Zeroinstall.General
 open OUnit
-module Stores = Zeroinstall.Stores
-module Fetch = Zeroinstall.Fetch
-module Recipe = Zeroinstall.Recipe
-module Impl = Zeroinstall.Impl
 module F = Zeroinstall.Feed
 module Q = Support.Qdom
 module D = Zeroinstall.Downloader
@@ -20,7 +17,7 @@ let download_impls fetcher impls =
   | `aborted_by_user -> assert false
 
 let impl_template = Impl.({
-  qdom = ZI.make "implementation";
+  qdom = Element.make_impl Q.AttrMap.empty;
   props = {
     attrs = Q.AttrMap.empty
       |> Q.AttrMap.add_no_ns "id" "test1"

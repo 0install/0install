@@ -3,11 +3,10 @@
  *)
 
 open OUnit
+open Zeroinstall
 open Zeroinstall.General
 open Support.Common
 open Fake_system
-module Version = Zeroinstall.Version
-module Impl = Zeroinstall.Impl
 
 let pv v =
   let parsed = Version.parse v in
@@ -19,7 +18,7 @@ let invalid v =
   with Safe_exception _ -> () 
 
 let dummy_impl = Impl.({
-  qdom = ZI.make "dummy";
+  qdom = Element.make_impl Support.Qdom.AttrMap.empty;
   os = None;
   machine = None;
   stability = Testing;

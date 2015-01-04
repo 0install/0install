@@ -66,7 +66,7 @@ module CoreModel = struct
 
   let dummy_impl =
     let open Impl in {
-      qdom = ZI.make "dummy";
+      qdom = Element.make_impl Qdom.AttrMap.empty;
       os = None;
       machine = None;
       stability = Testing;
@@ -172,12 +172,12 @@ module CoreModel = struct
           copy_elem (dep.Impl.dep_qdom)
       );
 
-      impl.Impl.qdom |> ZI.iter ~name:"manifest-digest" copy_qdom;
+      Element.as_xml impl.Impl.qdom |> ZI.iter ~name:"manifest-digest" copy_qdom;
     );
     ZI.make
       ~attrs
       ~child_nodes:(List.rev !child_nodes)
-      ~source_hint:impl.Impl.qdom "selection"
+      ~source_hint:(Element.as_xml impl.Impl.qdom) "selection"
 
   let machine_group impl = Arch.get_machine_group impl.Impl.machine
 

@@ -129,7 +129,7 @@ class virtual distribution config =
       bindings = [];
       commands;
     } in { Impl.
-      qdom = ZI.make "host-package-implementation";
+      qdom = Element.make_impl Q.AttrMap.empty;
       props;
       stability = Packaged;
       os = None;
@@ -232,7 +232,7 @@ class virtual distribution config =
 
       let open Impl in
       let impl = {
-        qdom = Element.as_xml elem;
+        qdom = (elem :> [ `implementation | `package_impl ] Element.t);
         os = None;
         machine;
         stability = Packaged;

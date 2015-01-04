@@ -64,7 +64,7 @@ and properties = {
   commands : command Support.Common.StringMap.t;
 }
 and +'a t = {
-  qdom : Support.Qdom.element;
+  qdom : [`implementation | `package_impl] Element.t;
   props : properties;
   stability : General.stability_level;
   os : Arch.os option;                (* Required OS; the first part of the 'arch' attribute. None for '*' *)
