@@ -29,7 +29,7 @@ let handle options flags args =
   let refresh = ref false in
   Support.Argparse.iter_options flags (function
     | #common_option as o -> Common_options.process_common_option options o
-    | #select_option as o -> select_opts := o :: !select_opts
+    | #binary_select_option as o -> select_opts := o :: !select_opts
     | `Refresh -> refresh := true
   );
   match args with

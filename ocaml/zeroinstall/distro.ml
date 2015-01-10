@@ -5,7 +5,6 @@
 (** Interacting with distribution package managers. *)
 
 open General
-open Support
 open Support.Common
 module FeedAttr = Constants.FeedAttr
 module U = Support.Utils
@@ -118,7 +117,7 @@ class virtual distribution config =
   ) in
 
   let make_host_impl path version ~package ?(commands=StringMap.empty) ?(requires=[]) from_feed id =
-    let host_machine = system#platform in
+    let (_host_os, host_machine) = Arch.platform system in
     let props = { Impl.
       attrs = get_quick_test_attrs path
         |> Q.AttrMap.add_no_ns FeedAttr.from_feed (Feed_url.format_url (`distribution_feed from_feed))
@@ -130,11 +129,11 @@ class virtual distribution config =
       bindings = [];
       commands;
     } in { Impl.
-      qdom = ZI.make "host-package-implementation";
+      qdom = Element.make_impl Q.AttrMap.empty;
       props;
       stability = Packaged;
       os = None;
-      machine = Some host_machine.Platform.machine;       (* (hopefully) *)
+      machine = Some host_machine;       (* (hopefully) *)
       parsed_version = Version.parse version;
       impl_type = `package_impl { Impl.
         package_distro = "host";
@@ -149,12 +148,8 @@ class virtual distribution config =
            cache this information on disk. *)
         Lazy.force python_info |> List.map (fun ((path, version), _) ->
           let id = "package:host:python:" ^ version in
-          let run = ZI.make "command"
-            ~attrs:(
-              Q.AttrMap.singleton "name" "run"
-              |> Q.AttrMap.add_no_ns "path" path
-            ) in
-          let commands = StringMap.singleton "run" Impl.({command_qdom = run; command_requires = []; command_bindings = []}) in
+          let run = Impl.make_command "run" path in
+          let commands = StringMap.singleton "run" run in
           (id, make_host_impl ~package:"host-python" path version ~commands url id)
         )
     | `remote_feed "http://repo.roscidus.com/python/python-gobject" as url ->
@@ -174,10 +169,7 @@ class virtual distribution config =
     | Some run ->
         match distro_get_correct_main impl run with
         | None -> ()
-        | Some new_main ->
-            run.command_qdom <- {run.command_qdom with
-              Q.attrs = run.command_qdom.Q.attrs |> Q.AttrMap.add_no_ns "path" new_main
-            } in
+        | Some new_main -> run.command_qdom <- Element.make_command ~path:new_main ~source_hint:None "run" in
 
   object (self)
     val virtual distro_name : string
@@ -204,7 +196,7 @@ class virtual distribution config =
     (** Convenience wrapper for [add_result] that builds a new implementation from the given attributes. *)
     method private add_package_implementation ?id ?main (query:query) ~version ~machine ~quick_test ~package_state ~distro_name =
       let version_str = Version.to_string version in
-      let id = id |? lazy (Printf.sprintf "%s:%s:%s:%s" id_prefix query.package_name version_str (default "*" machine)) in
+      let id = id |? lazy (Printf.sprintf "%s:%s:%s:%s" id_prefix query.package_name version_str (Arch.format_machine_or_star machine)) in
       let props = query.elem_props in
       let elem = query.elem in
 
@@ -217,11 +209,7 @@ class virtual distribution config =
             let run_command =
               match StringMap.find "run" props.commands with
               | Some command ->
-                  {command with command_qdom = 
-                    {command.command_qdom with
-                      Qdom.attrs = command.command_qdom.Qdom.attrs |> Qdom.AttrMap.add_no_ns "path" path
-                    }
-                  };
+                  {command with command_qdom = Element.make_command ~path ~source_hint:None "run"}
               | None ->
                   make_command "run" path in
             {props with commands = StringMap.add "run" run_command props.commands} in
@@ -244,7 +232,7 @@ class virtual distribution config =
 
       let open Impl in
       let impl = {
-        qdom = Element.as_xml elem;
+        qdom = (elem :> [ `implementation | `package_impl ] Element.t);
         os = None;
         machine;
         stability = Packaged;
@@ -315,7 +303,7 @@ class virtual distribution config =
         it if not. *)
     method private get_correct_main _impl run_command =
       let open Impl in
-      ZI.get_attribute_opt "path" run_command.command_qdom |> pipe_some (fun path ->
+      Element.path run_command.command_qdom |> pipe_some (fun path ->
         if Filename.is_relative path || not (system#file_exists path) then (
           (* Need to search for the binary *)
           let basename = Filename.basename path in

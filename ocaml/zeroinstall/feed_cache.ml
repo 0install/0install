@@ -153,8 +153,8 @@ let add_import_elem feed_import =
         attrs := !attrs |> Q.AttrMap.add_no_ns IfaceConfigAttr.is_site_package "True";
       begin match feed_import.Feed.feed_os, feed_import.Feed.feed_machine with
       | None, None -> ()
-      | os, machine ->
-          let arch = Arch.format_arch os machine in
+      | arch ->
+          let arch = Arch.format_arch arch in
           attrs := !attrs |> Q.AttrMap.add_no_ns IfaceConfigAttr.arch arch end;
       Some (ZI.make ~attrs:!attrs "feed")
 

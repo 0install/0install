@@ -129,7 +129,7 @@ let suite = "feed-cache">::: [
       Feed_cache.stability_policy = Some Developer;
       Feed_cache.extra_feeds = [
         { F.feed_src = `remote_feed "http://sys-feed"; F.feed_os = None; F.feed_machine = None; F.feed_langs = None; F.feed_type = F.Distro_packages };
-        { F.feed_src = `remote_feed "http://user-feed"; F.feed_os = Some "Linux"; F.feed_machine = None; F.feed_langs = None; F.feed_type = F.User_registered };
+        { F.feed_src = `remote_feed "http://user-feed"; F.feed_os = Some Arch.linux; F.feed_machine = None; F.feed_langs = None; F.feed_type = F.User_registered };
       ];
     };
 
@@ -137,7 +137,7 @@ let suite = "feed-cache">::: [
     let iface_config = Feed_cache.load_iface_config config iface in
     assert_equal (Some Developer) iface_config.Feed_cache.stability_policy;
     begin match iface_config.Feed_cache.extra_feeds with
-    | [ {F.feed_src = `remote_feed "http://user-feed"; F.feed_os = Some "Linux"; F.feed_machine = None; _ } ] -> ()
+    | [ {F.feed_src = `remote_feed "http://user-feed"; F.feed_os; F.feed_machine = None; _ } ] when feed_os = Some Arch.linux -> ()
     | _ -> assert false end;
   );
 

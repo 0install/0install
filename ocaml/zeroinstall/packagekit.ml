@@ -10,7 +10,7 @@ module ITrans = Packagekit_interfaces.Org_freedesktop_PackageKit_Transaction
 
 type package_info = {
   version : Version.t;
-  machine : string option;
+  machine : Arch.machine option;
   installed : bool;
   retrieval_method : Impl.distro_retrieval_method;
 }
@@ -76,7 +76,7 @@ let resolve pk package_names =
             let machine = Support.System.canonical_machine machine in
             let info = {
               version;
-              machine = (if machine = "*" then None else Some machine);
+              machine = Arch.parse_machine machine;
               installed = (repo = "installed");
               retrieval_method = { Impl.
                 distro_size = None;    (* Gets filled in later *)

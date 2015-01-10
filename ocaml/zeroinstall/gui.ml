@@ -33,6 +33,7 @@ let get_download_size info impl =
 let get_fetch_info config impl =
   try
     match impl.Impl.impl_type with
+    | `binary_of _ -> ("(compile)", "Need to compile from source")
     | `local_impl path -> ("(local)", path)
     | `cache_impl info -> (
         match Stores.lookup_maybe config.system info.Impl.digests config.stores with
@@ -72,7 +73,7 @@ let have_source_for feed_provider iface =
 
   (user_feeds @ imported) |> List.iter (fun feed_import ->
     match feed_import.Feed.feed_machine with
-    | Some "src" -> have_source := true   (* Source-only feed *)
+    | x when Arch.is_src x -> have_source := true   (* Source-only feed *)
     | Some _ -> ()    (* Binary-only feed; can't contain source *)
     | None -> to_check := feed_import.Feed.feed_src :: !to_check (* Mixed *)
   );

@@ -11,7 +11,7 @@ type fetch_feed_response =
 class type fetcher =
   object
     method download_and_import_feed : Feed_url.remote_feed -> fetch_feed_response Lwt.t
-    method download_impls : Impl.generic_implementation list -> [ `success | `aborted_by_user ] Lwt.t
+    method download_impls : Impl.existing Impl.t list -> [ `success | `aborted_by_user ] Lwt.t
 
     (** [import_feed url xml] checks the signature on [xml] and imports it into the cache if trusted.
      * If not trusted, it confirms with the user first, downloading any missing keys first. *)

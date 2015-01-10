@@ -38,6 +38,7 @@ type dependency =
 type attr_node =
   [ `group
   | `implementation
+  | `compile_impl
   | `package_impl ]
 
 (** {2 Selections} *)
@@ -51,16 +52,22 @@ val deps_and_bindings : [< `selection | attr_node] t ->
    | `restricts of [> `restricts] t
    | `command of [`command] t
    | binding ] list
-val arch : [< `selection | `feed_import] t -> string option
+val arch : [< `selection | `feed_import | `compile_impl] t -> string option
 val id : [< `selection | `implementation] t -> string
 val version : [`selection] t -> string
 val version_opt : [< `selection | dependency_node] t -> string option   (* Messy: `selection only for failed solves *)
 val compile_min_version : [`selection] t -> string option
 val doc_dir : [`selection] t -> filepath option
 val source : [< `selections | dependency_node] t -> bool option
+val requires_compilation : [`selection] t -> bool option
 
 (** {2 Feeds} *)
 val parse_feed : Support.Qdom.element -> [`feed] t
+
+(** Remove any elements with non-matching if-install-version attributes.
+ * Note: parse_feed calls this automatically for you. *)
+val filter_if_0install_version : 'a t -> 'a t option
+
 val uri : [`feed] t -> string option
 val uri_exn : [`feed] t -> string
 val feed_metadata : [`feed] t ->
@@ -106,10 +113,17 @@ val command_children : [`command] t -> [> dependency | binding ] list
 val command_name : [`command] t -> string
 val simple_content : [< `name | `arg | `category | `homepage] t -> string
 
+(** The first <compile:implementation> element. *)
+val compile_template : [`command] t -> [> `compile_impl] t option
+val compile_include_binary : [< dependency_node] t -> bool option
+
 (** {2 Feeds and interfaces} *)
 val interface :
   [< `selections | `selection | `requires | `restricts | `runner | `replaced_by | `feed_for] t -> General.iface_uri
 val from_feed : [`selection] t -> string option
+
+(** {2 Implementations} *)
+val make_impl : ?source_hint:Support.Qdom.element -> ?child_nodes:Support.Qdom.element list -> Support.Qdom.AttrMap.t -> [> `implementation] t
 
 (** Copy element with a new interface. Used to make relative paths absolute. *)
 val with_interface : General.iface_uri -> ([< dependency_node] t as 'a) -> 'a
@@ -124,7 +138,7 @@ val classify_dep : [< `requires | `restricts | `runner] t ->
 val restrictions : [< `requires | `restricts | `runner] t -> [`version of [`version] t] list
 val before : [`version] t -> string option
 val not_before : [`version] t -> string option
-val os : [< dependency_node] t -> string option
+val os : [< dependency_node] t -> Arch.os option
 val use : [< dependency_node] t -> string option
 val distribution : [< dependency_node] t -> string option
 val element_of_dependency : dependency -> dependency_node t

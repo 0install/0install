@@ -160,6 +160,10 @@ let pipe_some fn = function
   | None -> None
   | Some x -> fn x
 
+let map_some fn = function
+  | None -> None
+  | Some x -> Some (fn x)
+
 (** {2 Backported from OCaml 4} **)
 
 let trim s =

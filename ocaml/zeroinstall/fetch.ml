@@ -585,7 +585,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
                       `problem (msg, Some (wait_for_mirror mirror)) |> Lwt.return
               )
 
-    method download_impls (impls:Impl.generic_implementation list) : [ `success | `aborted_by_user ] Lwt.t =
+    method download_impls (impls:Impl.existing Impl.t list) : [ `success | `aborted_by_user ] Lwt.t =
       (* todo: external fetcher on Windows? *)
 
       let zi_impls = ref [] in
@@ -607,7 +607,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
         | {Impl.impl_type = `cache_impl info; _} ->
             (* Choose the best digest algorithm we support *)
             if info.Impl.digests = [] then (
-              Q.raise_elem "No digests at all! (so can't choose best) on " impl.Impl.qdom
+              raise_safe "No digests at all! (so can't choose best) on %a" Impl.fmt impl
             );
             let digest = Stores.best_digest info.Impl.digests in
 
@@ -691,6 +691,7 @@ class external_fetcher command underlying =
       try_lwt
         let child_nodes = impls |> List.map (function
           | { qdom; Impl.impl_type = `cache_impl { Impl.digests; _}; _} ->
+              let qdom = Element.as_xml qdom in
               let attrs = ref Q.AttrMap.empty in
               digests |> List.iter (fun (name, value) ->
                 attrs := !attrs |> Q.AttrMap.add_no_ns name value
@@ -700,7 +701,7 @@ class external_fetcher command underlying =
               { qdom with
                 Q.child_nodes = manifest_digest :: child_nodes
               }
-          | impl -> impl.Impl.qdom
+          | impl -> Element.as_xml impl.Impl.qdom
         ) in
         let root = ZI.make ~child_nodes "interface" in
 

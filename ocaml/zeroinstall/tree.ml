@@ -82,6 +82,10 @@ end
 module SelectionsTree = Make(Selections)
 
 let print config printer sels =
+  let requires_compilation impl =
+    if Element.requires_compilation impl = Some true then " (requires compilation)"
+    else "" in
+
   let first = ref true in
   let indenter = new indenter printer in
   let printf fmt =
@@ -101,7 +105,7 @@ let print config printer sels =
             printf "No selected version";
         | `Selected (impl, children) ->
             (* printf "ID: %s" (ZI.get_attribute "id" impl); *)
-            printf "Version: %s" (Element.version impl);
+            printf "Version: %s%s" (Element.version impl) (requires_compilation impl);
             (* print indent + "  Command:", command *)
             let path = match Selections.get_source impl with
               | Selections.PackageSelection -> Printf.sprintf "(%s)" @@ Element.id impl

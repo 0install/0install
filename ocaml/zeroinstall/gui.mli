@@ -41,7 +41,7 @@ val have_source_for : Feed_provider.feed_provider -> General.iface_uri -> bool
 (** List the implementations of this interface in the order they should be shown in the GUI.
  * @return (selected_version, implementations). *)
 val list_impls : Solver.Model.t -> Solver.role ->
-  (Impl.generic_implementation option * (Impl.generic_implementation * Impl_provider.rejection option) list)
+  (Impl.generic_implementation option * (Impl.generic_implementation * Impl_provider.rejection_reason option) list)
 
 (* Returns (fetch-size, fetch-tooltip) *)
 val get_fetch_info : General.config -> Impl.generic_implementation -> (string * string)

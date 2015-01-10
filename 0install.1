@@ -177,6 +177,12 @@ values are `run' (the default), `test' (used by 0test) and `compile' (used by
 command (for example, if the package contains data rather than a program).
 
 .TP
+\fB\-\-may-compile\fP
+Treat every source implementation as a potential binary.
+This can be used to find what needs to be compiled to run a program.
+Currently this is only available for "0install select".
+
+.TP
 \fB\-\-message=MESSAGE\fP
 If we show a dialog box for the download, display MESSAGE to the user to
 explain why the download is needed.

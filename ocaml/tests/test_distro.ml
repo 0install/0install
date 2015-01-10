@@ -14,6 +14,16 @@ module Impl = Zeroinstall.Impl
 module F = Zeroinstall.Feed
 module U = Support.Utils
 
+let is_available_locally config impl =
+  let open Impl in
+  match impl.impl_type with
+  | `package_impl {package_state;_} -> package_state = `installed
+  | `local_impl path -> config.system#file_exists path
+  | `cache_impl {digests;_} ->
+      match Zeroinstall.Stores.lookup_maybe config.system digests config.stores with
+      | None -> false
+      | Some _path -> true
+
 let test_feed = "<?xml version='1.0'?>\n\
 <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface' uri='http://repo.roscidus.com/python/python'>\n\
   <name>Test</name>\n\
@@ -79,7 +89,7 @@ let suite = "distro">::: [
     | [impl] ->
         assert_str_equal "2.7.2-4" (Zeroinstall.Version.to_string impl.parsed_version);
         let run = StringMap.find_safe "run" impl.props.commands in
-        assert_str_equal "/bin/python2" (ZI.get_attribute "path" run.command_qdom)
+        assert_str_equal "/bin/python2" (Element.path run.command_qdom |> Fake_system.expect)
     | impls -> assert_failure @@ Printf.sprintf "want 1 Python, got %d" (List.length impls)
   );
 
@@ -109,7 +119,7 @@ let suite = "distro">::: [
     | [impl] ->
         assert_str_equal "package:slack:infozip:5.52-2:i486" @@ Impl.get_attr_ex "id" impl;
         assert_str_equal "5.52-2" @@ Impl.get_attr_ex "version" impl;
-        assert_str_equal "i486" @@ (expect impl.Impl.machine);
+        assert_str_equal "i486" @@ Arch.format_machine_or_star impl.Impl.machine;
     | impls -> assert_failure @@ Printf.sprintf "want 1, got %d" (List.length impls) end;
   );
 
@@ -124,25 +134,25 @@ let suite = "distro">::: [
     | [impl] ->
         assert_str_equal "package:gentoo:sys-apps/portage:2.1.7.16:x86_64" @@ Impl.get_attr_ex "id" impl;
         assert_str_equal "2.1.7.16" @@ Impl.get_attr_ex "version" impl;
-        assert_str_equal "x86_64" @@ (expect impl.Impl.machine);
+        assert_str_equal "x86_64" @@ Arch.format_machine_or_star impl.Impl.machine;
     | impls -> assert_failure @@ Printf.sprintf "want 1, got %d" (List.length impls) end;
 
     begin match distro#get_impls_for_feed (make_test_feed "sys-kernel/gentoo-sources") |> to_impl_list with
     | [b; a] ->
         assert_str_equal "package:gentoo:sys-kernel/gentoo-sources:2.6.30-4:i686" @@ Impl.get_attr_ex "id" a;
         assert_str_equal "2.6.30-4" @@ Impl.get_attr_ex "version" a;
-        assert_str_equal "i686" @@ (expect a.Impl.machine);
+        assert_str_equal "i686" @@ Arch.format_machine_or_star a.Impl.machine;
 
         assert_str_equal "package:gentoo:sys-kernel/gentoo-sources:2.6.32:x86_64" @@ Impl.get_attr_ex "id" b;
         assert_str_equal "2.6.32" @@ Impl.get_attr_ex "version" b;
-        assert_str_equal "x86_64" @@ (expect b.Impl.machine);
+        assert_str_equal "x86_64" @@ Arch.format_machine_or_star b.Impl.machine;
     | impls -> assert_failure @@ Printf.sprintf "want 2, got %d" (List.length impls) end;
 
     begin match distro#get_impls_for_feed (make_test_feed "app-emulation/emul-linux-x86-baselibs") |> to_impl_list with
     | [impl] ->
         assert_str_equal "package:gentoo:app-emulation/emul-linux-x86-baselibs:20100220:i386" @@ Impl.get_attr_ex "id" impl;
         assert_str_equal "20100220" @@ Impl.get_attr_ex "version" impl;
-        assert_str_equal "i386" @@ (expect impl.Impl.machine);
+        assert_str_equal "i386" @@ Arch.format_machine_or_star impl.Impl.machine;
     | impls -> assert_failure @@ Printf.sprintf "want 1, got %d" (List.length impls) end;
   );
 
@@ -205,7 +215,7 @@ let suite = "distro">::: [
       let python_run =
         try StringMap.find_nf "run" host_python.props.commands
         with Not_found -> assert_failure "No run command for host Python" in
-      assert (Fake_system.real_system#file_exists (ZI.get_attribute "path" python_run.command_qdom)) in
+      assert (Fake_system.real_system#file_exists (Element.path python_run.command_qdom |> Fake_system.expect)) in
 
     (* python-gobject *)
     let root = Q.parse_input None @@ Xmlm.make_input (`String (0, test_gobject_feed)) |> Element.parse_feed in
@@ -254,7 +264,7 @@ let suite = "distro">::: [
     | [yast] ->
         assert_equal "package:rpm:yast2-update:2.15.23-21:i586" (Impl.get_attr_ex "id" yast);
         assert_equal "2.15.23-21" (Impl.get_attr_ex "version" yast);
-        assert_equal "*-i586" (Zeroinstall.Arch.format_arch yast.Impl.os yast.Impl.machine);
+        assert_equal "*-i586" (Zeroinstall.Arch.format_arch (yast.Impl.os, yast.Impl.machine));
     | _ -> assert false end;
 
     let feed = get_feed "<package-implementation distributions='RPM' package='yast2-mail'/>\n\
@@ -312,8 +322,8 @@ let suite = "distro">::: [
         Fake_system.assert_str_equal "package:deb:python-bittorrent:3.4.2-10-2:*" (Impl.get_attr_ex "id" impl);
         assert_equal ~msg:"Stability" Packaged impl.Impl.stability;
         assert_equal ~msg:"Requires" [] impl.Impl.props.Impl.requires;
-        Fake_system.assert_str_equal "/usr/bin/pbt" (ZI.get_attribute_opt "main" impl.Impl.qdom |> Fake_system.expect);
-        impl.Impl.qdom.Q.attrs |> Q.AttrMap.get_no_ns "foo" |> assert_equal (Some "bar");
+        Fake_system.assert_str_equal "/usr/bin/pbt" (Element.main impl.Impl.qdom |> Fake_system.expect);
+        (Element.as_xml impl.Impl.qdom).Q.attrs |> Q.AttrMap.get_no_ns "foo" |> assert_equal (Some "bar");
         Fake_system.assert_str_equal "distribution:/local.xml" (Impl.get_attr_ex "from-feed" impl);
     | _ -> assert false end;
 
@@ -374,8 +384,8 @@ let suite = "distro">::: [
           | _ -> assert false
         );
         Fake_system.assert_str_equal "3.4.2-10-2" (Impl.get_attr_ex "version" installed);
-        assert_equal true @@ Impl.is_available_locally config installed;
-        assert_equal false @@ Impl.is_available_locally config uninstalled;
+        assert_equal true @@ is_available_locally config installed;
+        assert_equal false @@ is_available_locally config uninstalled;
         assert_equal None installed.Impl.machine;
     | _ -> assert false
     end;
@@ -384,7 +394,7 @@ let suite = "distro">::: [
     begin match to_impl_list @@ deb#get_impls_for_feed feed with
     | [libxcomposite] ->
         Fake_system.assert_str_equal "0.3.1-1" @@ Impl.get_attr_ex "version" libxcomposite;
-        Fake_system.assert_str_equal "i386" @@ Fake_system.expect libxcomposite.Impl.machine
+        Fake_system.assert_str_equal "i386" @@ Arch.format_machine_or_star libxcomposite.Impl.machine
     | _ -> assert false
     end;
 
@@ -437,12 +447,13 @@ let suite = "distro">::: [
     let feed_provider = new Test_solver.fake_feed_provider config.system (Some distro) in
     feed_provider#add_iface master_feed;
     feed_provider#add_iface imported_feed;
-    let scope_filter = { Impl_provider.
+    let scope_filter = { Scope_filter.
       extra_restrictions = StringMap.empty;
-      os_ranks = StringMap.empty;
-      machine_ranks = StringMap.empty;
+      os_ranks = Arch.custom_os_ranking StringMap.empty;
+      machine_ranks = Arch.custom_machine_ranking StringMap.empty;
       languages = Support.Locale.LangMap.empty;
       allowed_uses = StringSet.empty;
+      may_compile = false;
     } in
     let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_provider.feed_provider) scope_filter in
     let impls = impl_provider#get_implementations master_uri ~source:false in

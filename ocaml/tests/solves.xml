@@ -1,5 +1,6 @@
 <?xml version='1.0' ?>
-<test-cases xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>
+<test-cases xmlns='http://zero-install.sourceforge.net/2004/injector/interface'
+            xmlns:compile='http://zero-install.sourceforge.net/2006/namespaces/0compile'>
   <test name='trivial' add-downloads='true'>
     <interface uri='http://example.com/prog.xml' min-injector-version='1'>
       <name>0install</name>
@@ -1000,6 +1001,76 @@ Can't find all required implementations:
         <command name="compile" path="build.sh"/>
 	<requires interface="/root/Compiler.xml"/>
       </selection>
+    </selections>
+  </test>
+
+  <test name='may-compile'>
+    <interface local-path="libfoo.xml">
+      <name>libfoo</name>
+      <summary>We need runtime and headers for libfoo</summary>
+      <implementation id="foo-src" version="1.0" arch='*-src' local-path='.'>
+	<command name='compile' path='build.sh'/>
+      </implementation>
+    </interface>
+    <interface local-path="ld.xml">
+      <name>ld</name>
+      <summary>Build with main attribute</summary>
+      <group compile:binary-main='ld' compile:binary-lib-mappings='foo:1'>
+	<implementation id="ld-src" version="1.0" arch='*-src' local-path='.'>
+	  <command name='compile' shell-command='$SRCDIR/build.sh'/>
+	</implementation>
+      </group>
+    </interface>
+    <interface local-path="jar.xml">
+      <name>jar</name>
+      <summary>Compiles to bytecode</summary>
+      <implementation id="jar-src" version="1.2.3-post1" arch='*-src' local-path='.' license='Public domain'>
+	<command name='compile' path='build.sh'>
+	  <compile:implementation arch='*-*'/>
+	</command>
+      </implementation>
+    </interface>
+    <interface local-path="Compiler.xml">
+      <name>Compiler</name>
+      <summary>A compiler than can compile itself</summary>
+      <implementation id="bin" version="1.0" local-path='/'/>
+      <implementation id="src" version="2.0" arch='*-src' local-path='.'>
+	<requires interface='./Compiler.xml'/>
+	<requires interface='./libfoo.xml' compile:include-binary='true'/>
+	<command name='compile' path='build.sh'>
+	  <compile:implementation main='cc'>
+	    <requires interface='./ld.xml'>
+	      <executable-in-path name='ld' compile:if-0install-version='2.0..'/>
+	      <ignore-me compile:if-0install-version='0.1'/>
+	    </requires>
+	    <requires interface='./libfoo.xml' source='true'/>
+	    <requires interface='./jar.xml'>
+	      <version compile:pin-components="2"/>
+	    </requires>
+	  </compile:implementation>
+	</command>
+      </implementation>
+    </interface>
+
+    <requirements interface='./Compiler.xml' command='run' may-compile='true'/>
+
+    <selections interface='/root/Compiler.xml' command='run' source='false'>
+      <selection id="src" interface='/root/Compiler.xml' version='2.0' arch='Linux-x86_64' requires-compilation='true'>
+	<command name="run" path="cc"/>
+	<requires interface="/root/jar.xml"/>
+	<requires interface='/root/libfoo.xml' source='true'/>
+	<requires interface='/root/ld.xml'>
+	  <executable-in-path name='ld'/>
+	</requires>
+	<requires interface='/root/libfoo.xml'/>
+      </selection>
+      <selection id="jar-src" interface="/root/jar.xml" requires-compilation="true" version="1.2.3-post1" license='Public domain'/>
+      <selection arch="Linux-x86_64" id="ld-src" interface="/root/ld.xml" requires-compilation="true" version="1.0" compile:lib-mappings="foo:1">
+	<command name="run" path="ld"/>
+      </selection>
+      <selection arch="Linux-x86_64" id="foo-src" interface="/root/libfoo.xml" requires-compilation="true" version="1.0"/>
+      <selection arch="*-src" id="foo-src" interface="/root/libfoo.xml" local-path="/root" version="1.0"/>
+
     </selections>
   </test>
 

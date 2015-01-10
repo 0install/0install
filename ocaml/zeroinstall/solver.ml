@@ -41,7 +41,7 @@ module CoreModel = struct
   type command = Impl.command
   type restriction = Impl.restriction
   type command_name = string
-  type rejection = Impl_provider.rejection
+  type rejection = Impl_provider.rejection_reason
   type dependency = Role.t * Impl.dependency
   type dep_info = {
     dep_role : Role.t;
@@ -59,14 +59,14 @@ module CoreModel = struct
 
   let impl_to_string impl = Printf.sprintf "%a-%a" Version.fmt impl.Impl.parsed_version Impl.fmt impl
   let id_of_impl impl = Impl.get_attr_ex FeedAttr.id impl
-  let command_to_string command = Qdom.show_with_loc command.Impl.command_qdom
+  let command_to_string command = Element.show_with_loc command.Impl.command_qdom
   let describe_problem = Impl_provider.describe_problem
 
   let compare_version a b = compare a.Impl.parsed_version b.Impl.parsed_version
 
   let dummy_impl =
     let open Impl in {
-      qdom = ZI.make "dummy";
+      qdom = Element.make_impl Qdom.AttrMap.empty;
       os = None;
       machine = None;
       stability = Testing;
@@ -81,7 +81,7 @@ module CoreModel = struct
     }
 
   let dummy_command = { Impl.
-    command_qdom = ZI.make "dummy-command";
+    command_qdom = Element.make_command ~source_hint:None "dummy-command";
     command_requires = [];
     command_bindings = [];
   }
@@ -131,6 +131,11 @@ module CoreModel = struct
         AttrMap.remove ("", FeedAttr.from_feed) attrs
       ) else attrs in
 
+    let attrs =
+      match impl.Impl.impl_type with
+      | `binary_of _ -> AttrMap.add_no_ns "requires-compilation" "true" attrs
+      | _ -> attrs in
+
     let child_nodes = ref [] in
     if impl != dummy_impl then (
       let commands = List.sort compare commands in
@@ -152,14 +157,14 @@ module CoreModel = struct
           | Some "requires" | Some "restricts" | Some "runner" -> false
           | _ -> true
         in
-        let child_nodes = List.filter want_command_child command_elem.Qdom.child_nodes in
+        let child_nodes = List.filter want_command_child (Element.as_xml command_elem).Qdom.child_nodes in
         let add_command_dep child_nodes dep =
           if dep.Impl.dep_importance <> `restricts && impl_provider#is_dep_needed dep then
             Element.as_xml dep.Impl.dep_qdom :: child_nodes
           else
             child_nodes in
         let child_nodes = List.fold_left add_command_dep child_nodes command.Impl.command_requires in
-        let command_elem = {command_elem with Qdom.child_nodes = child_nodes} in
+        let command_elem = {(Element.as_xml command_elem) with Qdom.child_nodes = child_nodes} in
         copy_qdom command_elem
       );
 
@@ -172,22 +177,19 @@ module CoreModel = struct
           copy_elem (dep.Impl.dep_qdom)
       );
 
-      impl.Impl.qdom |> ZI.iter ~name:"manifest-digest" copy_qdom;
+      Element.as_xml impl.Impl.qdom |> ZI.iter ~name:"manifest-digest" copy_qdom;
     );
     ZI.make
       ~attrs
       ~child_nodes:(List.rev !child_nodes)
-      ~source_hint:impl.Impl.qdom "selection"
+      ~source_hint:(Element.as_xml impl.Impl.qdom) "selection"
 
-  let machine_group impl =
-    match impl.Impl.machine with
-    | None | Some "src" -> None
-    | Some machine -> Some (Arch.get_machine_group machine)
+  let machine_group impl = Arch.get_machine_group impl.Impl.machine
 
   let format_machine impl =
     match impl.Impl.machine with
     | None -> "any"
-    | Some machine -> machine
+    | Some machine -> Arch.format_machine machine
 
   let meets_restriction impl r = impl == dummy_impl || r#meets_restriction impl
   let string_of_restriction r = r#to_string
@@ -260,26 +262,27 @@ let do_solve root_req ~closest_match =
   )
 
 let get_root_requirements config requirements make_impl_provider =
-  let { Requirements.command; interface_uri; source; extra_restrictions; os; cpu; message = _ } = requirements in
+  let { Requirements.command; interface_uri; source; may_compile; extra_restrictions; os; cpu; message = _ } = requirements in
 
   (* This is for old feeds that have use='testing' instead of the newer
     'test' command for giving test-only dependencies. *)
   let use = if command = Some "test" then StringSet.singleton "testing" else StringSet.empty in
 
-  let platform = config.system#platform in
-  let os = default platform.Platform.os os in
-  let machine = default platform.Platform.machine cpu in
+  let (host_os, host_machine) = Arch.platform config.system in
+  let os = default host_os os in
+  let machine = default host_machine cpu in
 
   (* Disable multi-arch on Linux if the 32-bit linker is missing. *)
-  let multiarch = os <> "Linux" || config.system#file_exists "/lib/ld-linux.so.2" in
+  let multiarch = os <> Arch.linux || config.system#file_exists "/lib/ld-linux.so.2" in
 
-  let scope_filter = Impl_provider.({
+  let scope_filter = { Scope_filter.
     extra_restrictions = StringMap.map Impl.make_version_restriction extra_restrictions;
     os_ranks = Arch.get_os_ranks os;
     machine_ranks = Arch.get_machine_ranks ~multiarch machine;
     languages = config.langs;
     allowed_uses = use;
-  }) in
+    may_compile;
+  } in
 
   let impl_provider = make_impl_provider scope_filter in
   let root_role = {scope = impl_provider; iface = interface_uri; source} in

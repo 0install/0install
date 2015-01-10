@@ -22,7 +22,7 @@ module S = Support.Sat.MakeSAT(StringData)
 let re_comma = Str.regexp_string ","
 
 class impl_provider =
-  let dummy_element = General.ZI.make "implementation" in
+  let dummy_element = Element.make_impl Q.AttrMap.empty in
 
   let make_impl arch v =
     let (os, machine) = Arch.parse_arch arch in

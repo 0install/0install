@@ -164,10 +164,14 @@ let show_version_options : (_, _) opt_spec list = [
   (["-V"; "--version"],    0, i_ "display version information",       new ambiguous_no_arg `ShowVersion read_version_option);
 ]
 
+let may_compile_options : (_, _) opt_spec list = [
+  (["--may-compile"],    0, i_ "consider potential binaries too",     new no_arg @@ `MayCompile);
+]
+
 let spec : (_, zi_arg_type) argparse_spec = {
   options_spec = generic_select_options @ offline_options @ digest_options @
                  xml_output @ diff_options @ download_options @ show_options @
-                 run_options @ show_version_options @ common_options;
+                 run_options @ show_version_options @ common_options @ may_compile_options;
   no_more_options = function
     | [_; "run"] | [_; "runenv"] -> true
     | _ -> false;
@@ -192,7 +196,7 @@ let store_commands : commands = [
 (** Which options are valid with which command *)
 let commands : commands = [
   "add",          make_command "PET-NAME INTERFACE"            Add.handle        @@ common_options @ offline_options @ generic_select_options;
-  "select",       make_command "URI"                           Select.handle     @@ common_options @ offline_options @ select_options;
+  "select",       make_command "URI"                           Select.handle     @@ common_options @ offline_options @ select_options @ may_compile_options;
   "show",         make_command "APP | SELECTIONS"              Show.handle       @@ common_options @ xml_output @ show_options;
   "download",     make_command "URI"                           Download.handle   @@ common_options @ offline_options @ download_options @ select_options;
   "run",          make_command "URI [ARGS]"                    Run.handle        @@ common_options @ offline_options @ run_options @ generic_select_options;

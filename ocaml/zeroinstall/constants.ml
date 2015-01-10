@@ -31,6 +31,7 @@ module FeedAttr =
     let package = "package"
     let quick_test_file = "quick-test-file"
     let quick_test_mtime = "quick-test-mtime"
+    let license = "license"
   end
 
 module FeedConfigAttr =

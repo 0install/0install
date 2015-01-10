@@ -6,9 +6,19 @@
 
 open Support.Common
 
+type os = string
+type machine = string
+type arch = os option * machine option
+
+type os_ranking = int StringMap.t
+type machine_ranking = int StringMap.t
+
 let none_if_star = function
   | "*" -> None
   | v -> Some v
+
+let parse_machine = none_if_star
+let parse_os = none_if_star
 
 (** Parse a (canonical) arch, as found in 0install feeds. *)
 let parse_arch arch =
@@ -16,7 +26,7 @@ let parse_arch arch =
   | [os; machine] -> (none_if_star os, none_if_star machine)
   | _ -> raise_safe "Invalid architecture '%s'" arch
 
-let format_arch os machine =
+let format_arch (os, machine) =
   let os_str = default "*" os in
   let machine_str = default "*" machine in
   os_str ^ "-" ^ machine_str
@@ -43,8 +53,9 @@ type machine_group =
 (* All chosen machine-specific implementations must come from the same group.
    Unlisted archs are in Machine_group_default. *)
 let get_machine_group = function
-  | "x86_64" | "ppc64" -> Machine_group_64
-  | _ -> Machine_group_default
+  | Some "x86_64" | Some "ppc64" -> Some Machine_group_64
+  | Some "src" | None -> None
+  | Some _ -> Some Machine_group_default
 
 let get_machine_ranks ~multiarch machine =
   let ranks = ref @@ StringMap.singleton machine 1 in
@@ -68,3 +79,31 @@ let get_machine_ranks ~multiarch machine =
   done;
 
   !ranks
+
+let os_ok ranking = function
+  | None -> true
+  | Some required -> StringMap.mem required ranking
+let machine_ok = os_ok
+
+let os_rank ranks v = StringMap.find v ranks
+let machine_rank = os_rank
+
+let custom_os_ranking x = x
+let custom_machine_ranking x = x
+
+let format_machine_or_star = default "*"
+let format_os_or_star = default "*"
+
+let format_machine x = x
+let format_os x = x
+
+let is_src = function
+  | Some "src" -> true
+  | _ -> false
+
+let platform system =
+  let p = system#platform in
+  (p.Platform.os, p.Platform.machine)
+
+let linux = "Linux"
+let x86_64 = "x86_64"

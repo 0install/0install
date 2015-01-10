@@ -32,12 +32,16 @@ type cache_impl = {
   retrieval_methods : Support.Qdom.element list;
 }
 
-type impl_type =
+type existing =
   [ `cache_impl of cache_impl
   | `local_impl of Support.Common.filepath
   | `package_impl of package_impl ]
 
-type restriction = < meets_restriction : impl_type t -> bool; to_string : string >
+type impl_type =
+  [ existing
+  | `binary_of of existing t ]
+
+and restriction = < meets_restriction : impl_type t -> bool; to_string : string >
 and dependency = {
   dep_qdom : Element.dependency_node Element.t;
   dep_importance : importance;
@@ -45,11 +49,11 @@ and dependency = {
   dep_src : bool;
   dep_restrictions : restriction list;
   dep_required_commands : string list;
-  dep_if_os : string option;                (* The badly-named 'os' attribute *)
+  dep_if_os : Arch.os option;                (* The badly-named 'os' attribute *)
   dep_use : string option;                  (* Deprecated 'use' attribute *)
 }
 and command = {
-  mutable command_qdom : Support.Qdom.element;  (* Mutable because of distro's [fixup_main] *)
+  mutable command_qdom : [`command] Element.t;  (* Mutable because of distro's [fixup_main] *)
   command_requires : dependency list;
   command_bindings : Element.binding_node Element.t list;
 }
@@ -60,13 +64,13 @@ and properties = {
   commands : command Support.Common.StringMap.t;
 }
 and +'a t = {
-  qdom : Support.Qdom.element;
+  qdom : [`implementation | `package_impl] Element.t;
   props : properties;
   stability : General.stability_level;
-  os : string option;           (* Required OS; the first part of the 'arch' attribute. None for '*' *)
-  machine : string option;      (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
+  os : Arch.os option;                (* Required OS; the first part of the 'arch' attribute. None for '*' *)
+  machine : Arch.machine option;      (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
   parsed_version : Version.t;
-  impl_type : [< impl_type] as 'a;
+  impl_type : 'a;
 }
 
 type generic_implementation = impl_type t
@@ -77,11 +81,13 @@ val parse_stability : from_user:bool -> string -> General.stability_level
 val format_stability : General.stability_level -> string
 
 val make_command :
-  ?source_hint:Support.Qdom.element ->
-  string -> ?new_attr:string -> Support.Common.filepath -> command
+  ?source_hint:_ Element.t ->
+  string -> Support.Common.filepath -> command
 
 val make_distribtion_restriction : string -> restriction
 val make_version_restriction : string -> restriction
+
+val local_dir_of : [> `local_impl of Support.Common.filepath ] t -> Support.Common.filepath option
 
 (** [parse_dep local_dir elem] parses the <requires>/<restricts> element.
  * [local_dir] is used to resolve relative interface names in local feeds
@@ -95,12 +101,16 @@ val parse_command : Support.Common.filepath option -> [`command] Element.t -> co
 val get_attr_ex : string -> _ t -> string
 
 val is_source : _ t -> bool
+val needs_compilation : [< impl_type ] t -> bool
+
+(** [existing_source impl] returns impl if it already exists, or the source implementation
+ * which can be used to build it if not. *)
+val existing_source : [< impl_type ] t -> existing t
 
 val get_command_opt : string -> _ t -> command option
 val get_command_ex : string -> _ t -> command
 
 val get_langs : _ t -> Support.Locale.lang_spec list
-val is_available_locally : General.config -> _ t -> bool
 val is_retrievable_without_network : cache_impl -> bool
 val get_id : _ t -> Feed_url.global_id
 

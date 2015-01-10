@@ -4,6 +4,7 @@ Arch
 Archive
 Binding
 Command
+Compiled
 Config
 Console
 Constants
@@ -42,6 +43,7 @@ Packagekit_interfaces
 Progress
 Recipe
 Requirements
+Scope_filter
 Selections
 Sigs
 Solver

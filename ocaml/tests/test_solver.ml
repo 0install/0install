@@ -98,6 +98,15 @@ let rec make_all_downloable node =
     {node with child_nodes = List.map make_all_downloable node.child_nodes}
   )
 
+let linux_multi_scope_filter = { Scope_filter.
+  extra_restrictions = StringMap.empty;
+  os_ranks = Arch.get_os_ranks Arch.linux;
+  machine_ranks = Arch.get_machine_ranks Arch.x86_64 ~multiarch:true;
+  languages = Support.Locale.LangMap.empty;
+  allowed_uses = StringSet.empty;
+  may_compile = false;
+}
+
 class fake_feed_provider system (distro:Distro.distribution option) =
   let ifaces = Hashtbl.create 10 in
 
@@ -194,7 +203,8 @@ let make_solver_test test_elem =
           interface_uri = iface;
           command = ZI.get_attribute_opt "command" child;
           source = ZI.get_attribute_opt "source" child = Some "true";
-          os = ZI.get_attribute_opt "os" child;
+          may_compile = ZI.get_attribute_opt "may-compile" child = Some "true";
+          os = ZI.get_attribute_opt "os" child |> pipe_some Arch.parse_os;
         };
         child |> ZI.iter ~name:"restricts" (fun restricts ->
           let iface = ZI.get_attribute "interface" restricts in
@@ -230,7 +240,9 @@ let make_solver_test test_elem =
       assert (ZI.tag (Selections.as_xml actual_sels) = Some "selections");
       if ready then (
         let changed = Whatchanged.show_changes (fake_system :> system) (Some (Selections.create !expected_selections)) actual_sels in
-        assert (not changed);
+        if changed then
+          let sels = Selections.as_xml actual_sels |> Q.reindent |> Q.to_utf8 in
+          assert_failure (Printf.sprintf "Ready, but not as expected. Got:\n" ^ sels)
       );
       xml_diff !expected_selections (Selections.as_xml actual_sels)
     );
@@ -374,7 +386,7 @@ let suite = "solver">::: [
         method! check_for_candidates = raise_safe "Unexpected check_for_candidates"
         method! install_distro_packages = raise_safe "install_distro_packages"
         method! private get_package_impls query =
-          let machine = Some "x86_64" in
+          let machine = Some Arch.x86_64 in
           self#add_package_implementation
             ~package_state:`installed
             ~id:"package:is_distro_v1-1"
@@ -428,12 +440,8 @@ let suite = "solver">::: [
     feed_provider#add_iface (Support.Qdom.parse_file Fake_system.real_system (Fake_system.tests_dir +/ "ranking.xml"));
     config.network_use <- Minimal_network;
 
-    let scope_filter = {
-      extra_restrictions = StringMap.empty;
-      os_ranks = Arch.get_os_ranks "Linux";
-      machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
+    let scope_filter = { linux_multi_scope_filter with Scope_filter.
       languages = Support.Locale.score_langs @@ U.filter_map Support.Locale.parse_lang ["es_ES"; "fr_FR"];
-      allowed_uses = StringSet.empty;
     } in
 
     let test_solve scope_filter =
@@ -491,15 +499,7 @@ let suite = "solver">::: [
   "ranking2">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
 
-    let scope_filter = Impl_provider.({
-      extra_restrictions = StringMap.empty;
-      os_ranks = Arch.get_os_ranks "Linux";
-      machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
-      languages = Support.Locale.LangMap.empty;
-      allowed_uses = StringSet.empty;
-    }) in
-
-    let impl_provider = make_impl_provider config scope_filter in
+    let impl_provider = make_impl_provider config linux_multi_scope_filter in
 
     let iface = Test_0install.feed_dir +/ "Ranking.xml" in
 
@@ -527,14 +527,7 @@ let suite = "solver">::: [
     let distro = Distro_impls.generic_distribution config in
     let feed_provider = new Feed_provider_impl.feed_provider config distro in
 
-    let scope_filter = Impl_provider.({
-      extra_restrictions = StringMap.empty;
-      os_ranks = Arch.get_os_ranks "Linux";
-      machine_ranks = Arch.get_machine_ranks "x86_64" ~multiarch:true;
-      languages = Support.Locale.LangMap.empty;
-      allowed_uses = StringSet.empty;
-    }) in
-    let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_provider.feed_provider) scope_filter in
+    let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_provider.feed_provider) linux_multi_scope_filter in
     let bin_impls = impl_provider#get_implementations iface ~source:true in
     let () =
       match bin_impls.Impl_provider.rejects with
@@ -618,13 +611,10 @@ let suite = "solver">::: [
     import "MultiArchLib.xml";
 
     let check_arch expected machine =
-      let scope_filter = Impl_provider.({
-        extra_restrictions = StringMap.empty;
-        os_ranks = Arch.get_os_ranks "Linux";
-        machine_ranks = Arch.get_machine_ranks machine ~multiarch:true;
-        languages = Support.Locale.LangMap.empty;
-        allowed_uses = StringSet.empty;
-      }) in
+      let machine = Arch.parse_machine machine |> Fake_system.expect in
+      let scope_filter = { linux_multi_scope_filter with
+        Scope_filter.machine_ranks = Arch.get_machine_ranks machine ~multiarch:true;
+      } in
       let impl_provider = make_impl_provider config scope_filter in
       let root_req = { Solver.Model.
         role = {
@@ -686,13 +676,11 @@ let suite = "solver">::: [
     let distro = Distro_impls.generic_distribution config in
     let feed_provider = new Feed_provider_impl.feed_provider config distro in
     let solve expected ?(lang="en_US.UTF-8") machine =
-      let scope_filter = Impl_provider.({
-        extra_restrictions = StringMap.empty;
-        os_ranks = Arch.get_os_ranks "Linux";
+      let machine = Arch.parse_machine machine |> Fake_system.expect in
+      let scope_filter = { linux_multi_scope_filter with Scope_filter.
         machine_ranks = Arch.get_machine_ranks machine ~multiarch:true;
         languages = Support.Locale.score_langs [Fake_system.expect @@ Support.Locale.parse_lang lang];
-        allowed_uses = StringSet.empty;
-      }) in
+      } in
       let impl_provider = new Impl_provider.default_impl_provider config feed_provider scope_filter in
       let root_req = { Solver.Model.
         role = {
@@ -739,21 +727,32 @@ let suite = "solver">::: [
   );
 
   "arch">:: (fun () ->
-    assert (StringMap.mem "Darwin" @@ Arch.get_os_ranks "MacOSX");
-    assert (StringMap.mem "i386" @@ Arch.get_machine_ranks ~multiarch:true "i686");
-    assert (StringMap.mem "i386" @@ Arch.get_machine_ranks ~multiarch:true "x86_64");
-    assert (not (StringMap.mem "i386" @@ Arch.get_machine_ranks ~multiarch:false "x86_64"));
+    let os_ok supported by_host =
+      let supported = Arch.parse_os supported in
+      let by_host = Arch.parse_os by_host |> Fake_system.expect in
+      Arch.os_ok (Arch.get_os_ranks by_host) supported in
+    let machine_ok ~multiarch supported by_host =
+      let supported = Arch.parse_machine supported in
+      let by_host = Arch.parse_machine by_host |> Fake_system.expect in
+      Arch.machine_ok (Arch.get_machine_ranks ~multiarch by_host) supported in
 
-    assert (StringMap.mem "POSIX" @@ Arch.get_os_ranks "MacOSX");
-    assert (not (StringMap.mem "POSIX" @@ Arch.get_os_ranks "Windows"));
+    assert (os_ok "Darwin" "MacOSX");
+    assert (machine_ok "i386" ~multiarch:true "i686");
+    assert (machine_ok "i386" ~multiarch:true "x86_64");
+    assert (not (machine_ok "i386" ~multiarch:false "x86_64"));
 
-    assert (StringMap.mem "FooBar" @@ Arch.get_os_ranks "FooBar");
-    assert (StringMap.mem "i486" @@ Arch.get_machine_ranks ~multiarch:false "i486");
-    assert (not (StringMap.mem "ppc" @@ Arch.get_machine_ranks ~multiarch:false "i486"));
+    assert (os_ok "POSIX" "MacOSX");
+    assert (not (os_ok "POSIX" "Windows"));
+
+    assert (os_ok "FooBar" "FooBar");
+    assert (machine_ok "i486" ~multiarch:false "i486");
+    assert (not (machine_ok "ppc" ~multiarch:false "i486"));
   );
 
   "solver">:::
-    let root = Support.Qdom.parse_file Fake_system.real_system "tests/solves.xml" in
-    let root = if on_windows then fixup_for_windows root else root in
-    List.map make_solver_test root.Support.Qdom.child_nodes
+    U.handle_exceptions (fun () ->
+      let root = Support.Qdom.parse_file Fake_system.real_system "tests/solves.xml" in
+      let root = if on_windows then fixup_for_windows root else root in
+      List.map make_solver_test root.Support.Qdom.child_nodes
+    ) ()
 ]

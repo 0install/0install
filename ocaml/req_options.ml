@@ -52,7 +52,7 @@ let parse_update_options ?(update=true) options requirements =
   let select_options = ref [] in
   ListLabels.iter options ~f:(function
     | #version_restriction_option as o -> restriction_options := o :: !restriction_options
-    | #other_req_option as o -> select_options := o :: !select_options
+    | #other_req_option | `MayCompile as o -> select_options := o :: !select_options
   );
   let new_restrictions = parse_restrictions !restriction_options requirements.interface_uri requirements.extra_restrictions in
 
@@ -64,9 +64,10 @@ let parse_update_options ?(update=true) options requirements =
 
   ListLabels.iter !select_options ~f:(function
     | `WithMessage v    -> r := {!r with message = empty_to_opt v}
-    | `Cpu v            -> r := {!r with cpu = empty_to_opt v}
-    | `Os v             -> r := {!r with os = empty_to_opt v}
+    | `Cpu v            -> r := {!r with cpu = empty_to_opt v |> pipe_some Zeroinstall.Arch.parse_machine}
+    | `Os v             -> r := {!r with os = empty_to_opt v |> pipe_some Zeroinstall.Arch.parse_os}
     | `SelectCommand v  -> r := {!r with command = empty_to_opt v}
+    | `MayCompile       -> r := {!r with may_compile = true}
     | `Source when not update -> r := {!r with source = true}
     | `Source when !r.source -> ()
     | `Source ->
@@ -91,7 +92,7 @@ let to_options requirements =
   List.concat @@ [
     if requirements.source then ["--source"] else [];
     opt_arg "--message" requirements.message;
-    opt_arg "--cpu" requirements.cpu;
-    opt_arg "--os" requirements.os;
+    opt_arg "--cpu" (requirements.cpu |> map_some Zeroinstall.Arch.format_machine);
+    opt_arg "--os" (requirements.os |> map_some Zeroinstall.Arch.format_os);
     ["--command"; default "" (requirements.command)];
   ] @ List.map version_for @@ StringMap.bindings requirements.extra_restrictions
