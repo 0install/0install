@@ -208,7 +208,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
         let box = Component_box.create tools ~trust_db reqs role ~recalculate ~select_versions_tab ~watcher in
         component_boxes := !component_boxes |> RoleMap.add role box;
         box#dialog#connect#destroy ==> (fun () -> component_boxes := !component_boxes |> RoleMap.remove role);
-        box#update;
+        box#update (Some role);
         box#dialog#show () in
 
   let component_tree = Component_tree.build_tree_view config ~parent:dialog ~packing:widgets.swin#add
@@ -347,11 +347,15 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
     method impl_added_to_store = component_tree#update
 
     method update =
-      let (ready, _) = watcher#results in
+      let (ready, results) = watcher#results in
       widgets.ok_button#misc#set_sensitive ready;
 
-      !component_boxes |> RoleMap.iter (fun _role box ->
-        box#update
+      let new_roles =
+        Zeroinstall.Solver.Model.raw_selections results
+        |> RoleMap.mapi (fun new_role _impl -> new_role) in
+
+      !component_boxes |> RoleMap.iter (fun old_role box ->
+        RoleMap.find old_role new_roles |> box#update
       );
 
       component_tree#update

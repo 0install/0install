@@ -505,7 +505,7 @@ let re_lt = Str.regexp_string "<"
 
 let make_versions_tab config reqs ~recalculate ~watcher window role =
   let vbox = GPack.vbox () in
-  let iface = role.Solver.iface in
+  let iface = !role.Solver.iface in
 
   (* Stability policy *)
   let table = GPack.table
@@ -611,7 +611,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
 
             let explain = GMenu.menu_item ~packing:menu#add ~label:"Explain this decision" () in
             explain#connect#activate ==> (fun () ->
-              let {Solver.iface; source; _} = role in
+              let {Solver.iface; source; _} = !role in
               let reason = Justify.justify_decision config watcher#feed_provider reqs iface ~source (Impl.get_id impl) in
               show_explanation_box ~parent:window iface version_str reason
             );
@@ -625,7 +625,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
     method update =
       model#clear ();
       let (_ready, result) = watcher#results in
-      let (selected, impls) = Gui.list_impls result role in
+      let (selected, impls) = Gui.list_impls result !role in
       let get_overrides =
         let cache = ref StringMap.empty in
         fun feed ->
@@ -684,6 +684,7 @@ let create tools ~trust_db reqs role ~recalculate ~select_versions_tab ~watcher 
   let notebook = GPack.notebook ~packing:(dialog#vbox#pack ~expand:true ~fill:true) () in
   let label text = (GMisc.label ~text () :> GObj.widget) in
   let feeds_tab = make_feeds_tab tools ~trust_db ~recalculate ~watcher dialog role.Solver.iface in
+  let role = ref role in
   let versions_tab = make_versions_tab config reqs ~recalculate ~watcher dialog role in
   append_page notebook ~tab_label:(label "Feeds") (feeds_tab#widget);
   append_page notebook ~tab_label:(label "Versions") (versions_tab#widget);
@@ -705,7 +706,7 @@ let create tools ~trust_db reqs role ~recalculate ~select_versions_tab ~watcher 
   dialog#connect#response ==> (function
     | `COMPILE ->
         Gtk_utils.async ~parent:dialog (fun () ->
-          lwt () = Gui.compile config watcher#feed_provider role.Solver.iface ~autocompile:true in
+          lwt () = Gui.compile config watcher#feed_provider !role.Solver.iface ~autocompile:true in
           recalculate ~force:false;
           Lwt.return ()
         )
@@ -715,8 +716,14 @@ let create tools ~trust_db reqs role ~recalculate ~select_versions_tab ~watcher 
 
   object
     method dialog = dialog
-    method update : unit =
-      dialog#set_response_sensitive `COMPILE (Gui.have_source_for watcher#feed_provider role.Solver.iface);
-      feeds_tab#update;
-      versions_tab#update
+    method update new_role : unit =
+      match new_role with
+      | None ->               (* no longer used *)
+          dialog#misc#set_sensitive false;
+      | Some new_role ->
+          role := new_role;   (* scope may have changed *)
+          dialog#misc#set_sensitive true;
+          dialog#set_response_sensitive `COMPILE (Gui.have_source_for watcher#feed_provider !role.Solver.iface);
+          feeds_tab#update;
+          versions_tab#update
   end
