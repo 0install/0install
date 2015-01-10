@@ -219,6 +219,7 @@ let quick_test_mtime elem = ZI.get_attribute_opt FeedAttr.quick_test_mtime elem 
 
 let compile_command group = group.Q.attrs |> AttrMap.get (COMPILE_NS.ns, "command")
 let compile_min_version sel = sel.Q.attrs |> AttrMap.get (COMPILE_NS.ns, "min-version")
+let requires_compilation = bool_opt ("", "requires-compilation")
 
 let retrieval_methods impl =
   List.filter Recipe.is_retrieval_method impl.Q.child_nodes

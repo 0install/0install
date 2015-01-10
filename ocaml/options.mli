@@ -33,9 +33,14 @@ type other_req_option = [
   | `Source
 ]
 
-type select_option = [
+type binary_select_option = [
   | version_restriction_option
   | other_req_option
+]
+
+type select_option = [
+  | binary_select_option
+  | `MayCompile
 ]
 
 type generic_select_option = [
