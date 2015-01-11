@@ -132,7 +132,14 @@ class console_ui =
 
     method monitor dl =
       (* log_debug "Start monitoring %s" dl.Downloader.url; *)
-      let progress = dl.Downloader.progress |> React.S.map (fun v -> last_updated := Some dl; v) in
+      let progress =
+        dl.Downloader.progress
+        |> React.S.map (fun v ->
+          last_updated := Some dl;
+          if (not (Downloader.is_in_progress dl) && List.length !downloads = 1) then (
+            clear ();     (* The last download has finished - clear the display immediately. *)
+          );
+          v) in
       let dl = {dl with Downloader.progress} in     (* (store updates to prevent GC) *)
       downloads := dl :: !downloads;
 
