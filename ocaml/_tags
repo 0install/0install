@@ -12,4 +12,4 @@ true: strict_sequence
 "gui_gtk": for-pack(Gui_gtk)
 <utils.c>: link_crypto
 <static_0install.*> or <**/*.native> or <**/*.byte>: linkdep_win(0install.exe.o), linkdep_win(windows.o), package(unix), link(utils.o)
-true: safe_string
+not <support/gpg.*> and not <zeroinstall/json_connection.*> and not <tests/fake_gpg_agent.*>: safe_string
