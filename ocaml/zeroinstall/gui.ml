@@ -328,6 +328,8 @@ let try_get_gui config ~use_gui =
           let plugin_path =
             let sys_lib = Filename.dirname bindir +/ "lib" in
             U.first_match check_plugin_dir [
+              (* Was 0install installed with opam? *)
+              sys_lib +/ "0install";
               (* Is 0install is installed as distro package? *)
               sys_lib +/ "0install.net";
               (* Are we running via 0install? *)
