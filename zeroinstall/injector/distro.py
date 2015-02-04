@@ -884,7 +884,9 @@ class ArchDistribution(Distribution):
 		# Add installed versions...
 		"""@type package: str"""
 		for entry in os.listdir(self._packages_dir):
-			name, version, build = entry.rsplit('-', 2)
+			parts = entry.rsplit('-', 2)
+			if len(parts) != 3: continue
+			name, version, build = parts
 			if name == package:
 				gotarch = False
 				# (read in binary mode to avoid unicode errors in C locale)
