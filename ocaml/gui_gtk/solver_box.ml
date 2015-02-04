@@ -248,34 +248,34 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
 
   let box_open_time = Unix.gettimeofday () in
 
-  (* Run a solve-with-downloads immediately, and every time the user clicks Refresh. *)
-  let refresh_loop =
-    while_lwt Lwt.state user_response = Lwt.Sleep do
-      need_recalculate := Lwt.wait ();
-      widgets.refresh_button#misc#set_sensitive false;
-      let force = !refresh in
-      refresh := false;
-      lwt (ready, _, _) = Driver.solve_with_downloads config tools#distro fetcher ~watcher reqs ~force ~update_local:true in
-      if Unix.gettimeofday () < box_open_time +. 1. then widgets.ok_button#grab_default ();
-      component_tree#highlight_problems;
+  let result = lazy (
+    (* Run a solve-with-downloads immediately, and every time the user clicks Refresh. *)
+    let refresh_loop =
+      while_lwt Lwt.state user_response = Lwt.Sleep do
+        need_recalculate := Lwt.wait ();
+        widgets.refresh_button#misc#set_sensitive false;
+        let force = !refresh in
+        refresh := false;
+        lwt (ready, _, _) = Driver.solve_with_downloads config tools#distro fetcher ~watcher reqs ~force ~update_local:true in
+        if Unix.gettimeofday () < box_open_time +. 1. then widgets.ok_button#grab_default ();
+        component_tree#highlight_problems;
 
-      if widgets.systray_icon#have_icon then (
-        if ready then (
-          widgets.systray_icon#set_tooltip (Printf.sprintf "Downloading updates for %s" reqs.Requirements.interface_uri);
-          widgets.ok_button#set_active true
-        ) else (
-          (* Should already be reporting an error, but blink it again just in case *)
-          widgets.systray_icon#set_blinking None
-        )
-      );
+        if widgets.systray_icon#have_icon then (
+          if ready then (
+            widgets.systray_icon#set_tooltip (Printf.sprintf "Downloading updates for %s" reqs.Requirements.interface_uri);
+            widgets.ok_button#set_active true
+          ) else (
+            (* Should already be reporting an error, but blink it again just in case *)
+            widgets.systray_icon#set_blinking None
+          )
+        );
 
-      (* Wait for user choice or refresh request *)
-      widgets.refresh_button#misc#set_sensitive true;
-      component_tree#set_update_icons true;
-      fst !need_recalculate
-    done in
+        (* Wait for user choice or refresh request *)
+        widgets.refresh_button#misc#set_sensitive true;
+        component_tree#set_update_icons true;
+        fst !need_recalculate
+      done in
 
-  let result =
     (* Wait for user to click Cancel or Run *)
     lwt response = user_response in
     watcher#abort_all_downloads;
@@ -288,11 +288,12 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
         let (ready, results) = watcher#results in
         assert ready;
         `Success (Zeroinstall.Solver.selections results) |> Lwt.return
-    | `aborted_by_user -> `Aborted_by_user |> Lwt.return in
+    | `aborted_by_user -> `Aborted_by_user |> Lwt.return
+  ) in
 
   object
     method recalculate = recalculate ~force:false
-    method result = result
+    method result = Lazy.force result
 
     (* Return the dialog window. If we're in systray mode, blink the icon and wait for the user
      * to click on it first. *)
