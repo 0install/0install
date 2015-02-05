@@ -159,7 +159,7 @@ module Debian = struct
        * so that we include them in the results. Otherwise, we just take the PackageKit results. *)
       val mutable use_apt_cache_results = false
 
-      method! is_installed elem =
+      method! private is_installed elem =
         check_cache id_prefix elem cache || super#is_installed elem
 
       method! private get_package_impls query =
@@ -289,7 +289,7 @@ module RPM = struct
           self#add_package_implementation ~package_state:`installed ~version ~machine ~quick_test ~distro_name query
         )
 
-      method! is_installed elem =
+      method! private is_installed elem =
         check_cache id_prefix elem cache || super#is_installed elem
 
       method! private get_correct_main impl run_command =
@@ -520,7 +520,7 @@ module Mac = struct
             )
         end
 
-      method! is_installed elem =
+      method! private is_installed elem =
         check_cache id_prefix elem cache || super#is_installed elem
 
       method! match_name name = super#match_name name || darwin#match_name name
@@ -687,7 +687,7 @@ module Win = struct
               )
         end
 
-      method! is_installed elem =
+      method! private is_installed elem =
         check_cache id_prefix elem cache || super#is_installed elem
 
       method! private get_package_impls query =

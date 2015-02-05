@@ -30,7 +30,7 @@ let get_unavailable_selections config ?distro sels =
     | Selections.PackageSelection ->
         match distro with
         | None -> false
-        | Some distro -> not @@ Distro.is_installed config distro elem
+        | Some (distro:#Distro.distribution) -> not @@ distro#is_installed_quick elem
   in
   sels |> Selections.iter (fun role sel ->
     if needs_download sel then (

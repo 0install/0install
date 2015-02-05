@@ -43,7 +43,11 @@ class virtual distribution : General.config ->
     (** Test whether this <selection> element is still valid. The default implementation tries to load the feed from the
      * feed cache, calls [distribution#get_impls_for_feed] on it and checks whether the required implementation ID is in the
      * returned map. Override this if you can provide a more efficient implementation. *)
-    method is_installed : Selections.selection -> bool
+    method private is_installed : Selections.selection -> bool
+
+    (** Check whether this <selection> is still valid. If the quick-test-* attributes are present, we use
+        them to check. Otherwise, we call [is_installed]. *)
+    method is_installed_quick : Selections.selection -> bool
 
     (** Add the implementations for this feed to [query].
      * Called by [get_impls_for_feed] once for each <package-implementation> element.
@@ -84,10 +88,6 @@ class virtual distribution : General.config ->
       distro_name:string ->
       unit
   end
-
-(** Check whether this <selection> is still valid. If the quick-test-* attributes are present, we use
-    them to check. Otherwise, we call [distribution#is_installed]. *)
-val is_installed : General.config -> distribution -> Selections.selection -> bool
 
 (** Install these packages using the distribution's package manager.
  * Sorts the implementations into groups by their type and then calls [distribution#install_distro_packages] once for each group. *)

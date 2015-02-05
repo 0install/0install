@@ -237,7 +237,7 @@ let suite = "distro">::: [
       ~attrs:(Q.AttrMap.singleton "interface" "http://repo.roscidus.com/python/python")
       ~child_nodes:[sel] |> Element.parse_selections in
     match Element.selections sels with
-    | [sel] -> assert (Distro.is_installed config distro sel)
+    | [sel] -> assert (distro#is_installed_quick sel)
     | _ -> assert false
   );
 

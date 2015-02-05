@@ -248,7 +248,7 @@ class virtual distribution config =
     (** Test whether this <selection> element is still valid. The default implementation tries to load the feed from the
      * feed cache, calls [distribution#get_impls_for_feed] on it and checks whether the required implementation ID is in the
      * returned map. Override this if you can provide a more efficient implementation. *)
-    method is_installed elem =
+    method private is_installed elem =
       let master_feed =
         match Element.from_feed elem with
         | None -> Element.interface elem |> Feed_url.parse_non_distro (* (for very old selections documents) *)
@@ -264,6 +264,19 @@ class virtual distribution config =
           match StringMap.find wanted_id impls with
           | None -> false
           | Some {Impl.impl_type = `package_impl {Impl.package_state; _}; _} -> package_state = `installed
+
+    method is_installed_quick elem =
+      match Element.quick_test_file elem with
+      | None ->
+          let package_name = Element.package elem in
+          self#is_valid_package_name package_name && self#is_installed elem
+      | Some file ->
+          match system#stat file with
+          | None -> false
+          | Some info ->
+              match Element.quick_test_mtime elem with
+              | None -> true      (* quick-test-file exists and we don't care about the time *)
+              | Some required_mtime -> (Int64.of_float info.Unix.st_mtime) = required_mtime
 
     (** Get the native implementations (installed or candidates for installation) for this feed.
      * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one. *)
@@ -351,20 +364,8 @@ class virtual distribution config =
               "This program depends on some packages that are available through your distribution. \
                Please install them manually using %s and try again. Or, install 'packagekit' and I can \
                use that to install things. The packages are:\n\n- %s" typ (String.concat "\n- " names))
-  end
 
-let is_installed config (distro:distribution) elem =
-  match Element.quick_test_file elem with
-  | None ->
-      let package_name = Element.package elem in
-      distro#is_valid_package_name package_name && distro#is_installed elem
-  | Some file ->
-      match config.system#stat file with
-      | None -> false
-      | Some info ->
-          match Element.quick_test_mtime elem with
-          | None -> true      (* quick-test-file exists and we don't care about the time *)
-          | Some required_mtime -> (Int64.of_float info.Unix.st_mtime) = required_mtime
+  end
 
 let install_distro_packages (distro:distribution) ui impls : [ `ok | `cancel ] Lwt.t =
   let groups = ref StringMap.empty in
