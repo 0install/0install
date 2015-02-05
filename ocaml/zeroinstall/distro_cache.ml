@@ -69,8 +69,11 @@ class cache (config:General.config) ~(cache_leaf:string) (source:filepath) =
                 if value = "-" then (
                   Hashtbl.replace data.contents key prev    (* Ensure empty list is in the table *)
                 ) else (
-                  let version, machine = U.split_pair U.re_tab value in
-                  Hashtbl.replace data.contents key @@ (Version.parse version, Arch.parse_machine machine) :: prev
+                  try
+                    let version, machine = U.split_pair U.re_tab value in
+                    Hashtbl.replace data.contents key @@ (Version.parse version, Arch.parse_machine machine) :: prev
+                  with ex ->
+                    log_warning ~ex "Failed to parse line '%s' in '%s'" value cache_path
                 )
               done
             with End_of_file -> ()
