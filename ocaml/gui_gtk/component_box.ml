@@ -16,33 +16,13 @@ module FC = Zeroinstall.Feed_cache
 module U = Support.Utils
 module Q = Support.Qdom
 
-let format_para para =
-  para |> Str.split (Str.regexp_string "\n") |> List.map trim |> String.concat " "
-
-let get_sigs config url =
-  match FC.get_cached_feed_path config url with
-  | None -> Lwt.return []
-  | Some cache_path ->
-      if config.system#file_exists cache_path then (
-        let xml = U.read_file config.system cache_path in
-        lwt sigs, warnings = Support.Gpg.verify config.system xml in
-        if warnings <> "" then log_info "get_last_modified: %s" warnings;
-        Lwt.return sigs
-      ) else Lwt.return []
-
-type feed_description = {
-  times : (string * float) list;
-  description : string list;
-  homepages : string list;
-  signatures : Support.Gpg.signature list;
-}
-
 let spf = Printf.sprintf
 
-let add_description_text config ~trust_db ~heading_style ~link_style (buffer:GText.buffer) feed description =
+let add_description_text ~heading_style ~link_style (buffer:GText.buffer) feed description =
+  let open Gui in
   let iter = buffer#start_iter in
   buffer#insert ~iter ~tags:[heading_style] feed.F.name;
-  buffer#insert ~iter (spf " (%s)" (default "-" @@ F.get_summary config.langs feed));
+  buffer#insert ~iter (spf " (%s)" (default "-" @@ description.summary));
   buffer#insert ~iter (spf "\n%s\n" (Feed_url.format_url feed.F.url));
 
   if description.times <> [] then (
@@ -72,72 +52,21 @@ let add_description_text config ~trust_db ~heading_style ~link_style (buffer:GTe
   );
 
   match feed.F.url, description.signatures with
-  | `local_feed _, _ -> Lwt.return ()
+  | `local_feed _, _ -> ()
   | `remote_feed _, [] ->
-      buffer#insert ~iter "No signature information (old style feed or out-of-date cache)\n";
-      Lwt.return ()
-  | `remote_feed _ as feed_url, sigs ->
-      let module G = Support.Gpg in
+      buffer#insert ~iter "No signature information (old style feed or out-of-date cache)\n"
+  | `remote_feed _, sigs ->
       buffer#insert ~iter ~tags:[heading_style] "\nSignatures\n";
-      let domain = Trust.domain_from_url feed_url in
-      sigs |> Lwt_list.iter_s (function
-        | G.ValidSig {G.fingerprint; G.timestamp} ->
-            lwt name = G.get_key_name config.system fingerprint in
+      sigs |> List.iter (function
+        | `Valid (fingerprint, timestamp, name, is_trusted) ->
             buffer#insert ~iter @@ spf "Valid signature by '%s'\n- Dated: %s\n- Fingerprint: %s\n"
                     (default "<unknown>" name) (U.format_time @@ Unix.localtime timestamp) fingerprint;
-            if not (trust_db#is_trusted ~domain fingerprint) then (
+            if is_trusted <> `Trusted then (
               buffer#insert ~iter
                 "WARNING: This key is not in the trusted list (either you removed it, or you trust one of the other signatures)\n"
             );
-            Lwt.return ()
-        | other_sig -> buffer#insert ~iter @@ spf "%s\n" (G.string_of_sig other_sig); Lwt.return ()
+        | `Invalid msg -> buffer#insert ~iter @@ spf "%s\n" msg
       )
-
-(** The formatted text for the details panel. *)
-let generate_feed_description config trust_db feed overrides =
-  let times = ref [] in
-  lwt signatures =
-    match feed.F.url with
-    | `local_feed _ -> Lwt.return []
-    | `remote_feed _ as feed_url ->
-        lwt sigs = get_sigs config feed_url in
-        if sigs <> [] then (
-          let domain = Trust.domain_from_url feed_url in
-          match trust_db#oldest_trusted_sig domain sigs with
-          | Some last_modified -> times := ("Last upstream change", last_modified) :: !times
-          | None -> ()
-        );
-
-        overrides.F.last_checked |> if_some (fun last_checked ->
-          times := ("Last checked", last_checked) :: !times
-        );
-
-        FC.get_last_check_attempt config feed_url |> if_some (fun last_check_attempt ->
-          match overrides.F.last_checked with
-          | Some last_checked when last_check_attempt <= last_checked ->
-              () (* Don't bother reporting successful attempts *)
-          | _ ->
-              times := ("Last check attempt (failed or in progress)", last_check_attempt) :: !times
-        );
-
-        Lwt.return sigs in
-
-  let description =
-    match F.get_description config.langs feed with
-    | Some description -> Str.split (Str.regexp_string "\n\n") description |> List.map format_para
-    | None -> ["-"] in
-
-  let homepages = Element.feed_metadata feed.F.root |> U.filter_map (function
-    | `homepage homepage -> Some (Element.simple_content homepage)
-    | _ -> None
-  ) in
-
-  Lwt.return {
-    times = List.rev !times;
-    description;
-    homepages;
-    signatures;
-  }
 
 let component_help = Help_box.create "Component Properties Help" [
 ("Component properties",
@@ -384,9 +313,10 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
           begin match watcher#feed_provider#get_feed feed_import.F.feed_src with
           | None -> buffer#insert ~iter:buffer#start_iter "Not yet downloaded."; Lwt.return ()
           | Some (feed, overrides) ->
-              lwt description = generate_feed_description config trust_db feed overrides in
+              lwt description = Gui.generate_feed_description config trust_db feed overrides in
               clear ();
-              add_description_text config ~trust_db ~heading_style ~link_style buffer feed description end
+              add_description_text ~heading_style ~link_style buffer feed description;
+              Lwt.return () end
       | _ -> log_warning "Multiple selection in browse mode!"; Lwt.return ()
     )
   );

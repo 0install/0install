@@ -4,6 +4,17 @@
 
 (** Manage the GUI sub-process. *)
 
+type feed_description = {
+  times : (string * float) list;
+  summary : string option;
+  description : string list;
+  homepages : string list;
+  signatures : [
+    | `Valid of Support.Gpg.fingerprint * Support.Gpg.timestamp * string option * [`Trusted | `Not_trusted]
+    | `Invalid of string
+  ] list;
+}
+
 (** The GUI plugin registers itself here. *)
 val register_plugin : (General.config -> Ui.ui_handler option) -> unit
 
@@ -58,3 +69,5 @@ val get_bug_report_details : General.config -> role:Solver.role -> (bool * Solve
 val send_bug_report : General.iface_uri -> string -> string Lwt.t
 
 val run_test : General.config -> Distro.distribution -> (Selections.t -> string Lwt.t) -> (bool * Solver.Model.t) -> string Lwt.t
+
+val generate_feed_description : General.config -> Trust.trust_db -> Feed.feed -> Feed.feed_overrides -> feed_description Lwt.t

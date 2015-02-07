@@ -15,6 +15,17 @@ module U = Support.Utils
 module Q = Support.Qdom
 module G = Support.Gpg
 
+type feed_description = {
+  times : (string * float) list;
+  summary : string option;
+  description : string list;
+  homepages : string list;
+  signatures : [
+    | `Valid of G.fingerprint * G.timestamp * string option * [`Trusted | `Not_trusted]
+    | `Invalid of string
+  ] list;
+}
+
 let gui_plugin = ref None
 
 let register_plugin fn =
@@ -392,3 +403,72 @@ let send_bug_report iface_uri message : string Lwt.t =
   with Curl.CurlException _ as ex ->
     log_info ~ex "Curl error: %s" !error_buffer;
     raise_safe "Failed to submit bug report: %s\n%s" (Printexc.to_string ex) !error_buffer
+
+let get_sigs config url =
+  match Feed_cache.get_cached_feed_path config url with
+  | None -> Lwt.return []
+  | Some cache_path ->
+      if config.system#file_exists cache_path then (
+        let xml = U.read_file config.system cache_path in
+        lwt sigs, warnings = Support.Gpg.verify config.system xml in
+        if warnings <> "" then log_info "get_last_modified: %s" warnings;
+        Lwt.return sigs
+      ) else Lwt.return []
+
+let format_para para =
+  para |> Str.split (Str.regexp_string "\n") |> List.map trim |> String.concat " "
+
+(** The formatted text for the details panel. *)
+let generate_feed_description config trust_db feed overrides =
+  let times = ref [] in
+  lwt signatures =
+    match feed.F.url with
+    | `local_feed _ -> Lwt.return []
+    | `remote_feed _ as feed_url ->
+        let domain = Trust.domain_from_url feed_url in
+        lwt sigs = get_sigs config feed_url in
+        if sigs <> [] then (
+          match trust_db#oldest_trusted_sig domain sigs with
+          | Some last_modified -> times := ("Last upstream change", last_modified) :: !times
+          | None -> ()
+        );
+
+        overrides.F.last_checked |> if_some (fun last_checked ->
+          times := ("Last checked", last_checked) :: !times
+        );
+
+        Feed_cache.get_last_check_attempt config feed_url |> if_some (fun last_check_attempt ->
+          match overrides.F.last_checked with
+          | Some last_checked when last_check_attempt <= last_checked ->
+              () (* Don't bother reporting successful attempts *)
+          | _ ->
+              times := ("Last check attempt (failed or in progress)", last_check_attempt) :: !times
+        );
+
+        sigs |> Lwt_list.map_s (function
+          | G.ValidSig {G.fingerprint; G.timestamp} ->
+              lwt name = G.get_key_name config.system fingerprint in
+              let is_trusted =
+                if trust_db#is_trusted ~domain fingerprint then `Trusted else `Not_trusted in
+              `Valid (fingerprint, timestamp, name, is_trusted) |> Lwt.return
+          | other_sig ->
+              `Invalid (G.string_of_sig other_sig) |> Lwt.return
+        ) in
+
+  let description =
+    match F.get_description config.langs feed with
+    | Some description -> Str.split (Str.regexp_string "\n\n") description |> List.map format_para
+    | None -> ["-"] in
+
+  let homepages = Element.feed_metadata feed.F.root |> U.filter_map (function
+    | `homepage homepage -> Some (Element.simple_content homepage)
+    | _ -> None
+  ) in
+
+  Lwt.return {
+    times = List.rev !times;
+    summary = F.get_summary config.langs feed;
+    description;
+    homepages;
+    signatures;
+  }
