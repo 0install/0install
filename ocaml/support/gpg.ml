@@ -235,7 +235,11 @@ let verify (system:system) xml =
             "--verify"; tmp; "-";
           ]
       )
-      (fun () -> Unix.unlink tmp |> Lwt.return) in
+      (fun () ->
+        begin try Unix.unlink tmp
+        with ex -> log_warning ~ex "Failed to clean up GnuPG temporary file '%s'" tmp end;
+        Lwt.return ()
+      ) in
 
     ignore exit_status;
     Lwt.return (sigs_from_gpg_status_output stdout, trim stderr)
