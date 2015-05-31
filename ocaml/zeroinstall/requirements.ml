@@ -97,14 +97,19 @@ let to_json reqs =
   } = reqs in
   `Assoc ([
     ("interface_uri", `String interface_uri);
-    ("source", `Bool source);
-    ("extra_restrictions", `Assoc (StringMap.map_bindings (fun k v -> (k, `String v)) extra_restrictions));
   ] @ List.concat [
     maybe "command" command;
     maybe "os" (os |> map_some Arch.format_os);
     maybe "cpu" (cpu |> map_some Arch.format_machine);
     maybe "message" message;
+    maybe_flag ~default:false "source" source;
     maybe_flag ~default:false "may_compile" may_compile;
+    (if StringMap.is_empty extra_restrictions
+      then []
+      else [(
+        "extra_restrictions",
+        `Assoc (StringMap.map_bindings (fun k v -> (k, `String v)) extra_restrictions)
+      )]);
   ])
 
 let load (system:system) path =
