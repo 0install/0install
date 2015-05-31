@@ -88,6 +88,8 @@ let to_json reqs =
   let maybe name = function
     | None -> []
     | Some x -> [(name, `String x)] in
+  let maybe_flag ~default name value =
+    if value = default then [] else [(name, `Bool value)] in
   let {
     interface_uri; command; source;
     extra_restrictions; os; cpu;
@@ -96,13 +98,13 @@ let to_json reqs =
   `Assoc ([
     ("interface_uri", `String interface_uri);
     ("source", `Bool source);
-    ("may_compile", `Bool may_compile);
     ("extra_restrictions", `Assoc (StringMap.map_bindings (fun k v -> (k, `String v)) extra_restrictions));
   ] @ List.concat [
     maybe "command" command;
     maybe "os" (os |> map_some Arch.format_os);
     maybe "cpu" (cpu |> map_some Arch.format_machine);
     maybe "message" message;
+    maybe_flag ~default:false "may_compile" may_compile;
   ])
 
 let load (system:system) path =
