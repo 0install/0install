@@ -15,7 +15,7 @@ type package_name = string
 type entry = Version.t * Arch.machine option
 
 type cache_data = {
-  mutable mtime : float;
+  mutable mtime : Int64.t;
   mutable size : int;
   contents : (package_name, entry list) Hashtbl.t;
 }
@@ -36,13 +36,13 @@ class cache (config:General.config) ~(cache_leaf:string) (source:filepath) =
 
   object (self)
     (* The status of the cache when we loaded it. *)
-    val data = { mtime = 0.0; size = -1; contents = Hashtbl.create 10 }
+    val data = { mtime = 0L; size = -1; contents = Hashtbl.create 10 }
 
     val cache_path = Basedir.save_path config.system (config_site +/ config_prog) config.basedirs.Basedir.cache +/ cache_leaf
 
     (** Reload the values from disk (even if they're out-of-date). *)
     method private load_cache =
-      data.mtime <- -1.0;
+      data.mtime <- -1L;
       data.size <- -1;
       Hashtbl.clear data.contents;
 
@@ -56,7 +56,7 @@ class cache (config:General.config) ~(cache_leaf:string) (source:filepath) =
               | line ->
                   (* log_info "Cache header: %s" line; *)
                   match U.split_pair re_metadata_sep line with
-                  | ("mtime", mtime) -> data.mtime <- float_of_string mtime
+                  | ("mtime", mtime) -> data.mtime <- Int64.of_string mtime
                   | ("size", size) -> data.size <- U.safe_int_of_string size
                   | _ -> ()
             done;
@@ -109,8 +109,9 @@ class cache (config:General.config) ~(cache_leaf:string) (source:filepath) =
               self#regenerate_cache (add_entry ch)
             );
             self#load_cache in
-          if data.mtime <> info.Unix.st_mtime then (
-            if data.mtime <> -1.0 then
+          let actual_mtime = Int64.of_float info.Unix.st_mtime in
+          if data.mtime <> actual_mtime then (
+            if data.mtime <> -1L then
               log_info "Modification time of %s has changed; invalidating cache" source;
             flush ()
           ) else if data.size <> info.Unix.st_size then (
@@ -131,7 +132,7 @@ class cache (config:General.config) ~(cache_leaf:string) (source:filepath) =
               let result = if_missing key in
               self#put key result;
               result in
-      let quick_test_file = Some (source, Distro.UnchangedSince data.mtime) in
+      let quick_test_file = Some (source, Distro.UnchangedSince (Int64.to_float data.mtime)) in
       (entries, quick_test_file)
 
     initializer self#load_cache
