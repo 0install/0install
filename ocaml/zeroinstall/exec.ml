@@ -15,7 +15,7 @@ let validate_exec_name name =
   else
     raise_safe "Invalid name in executable binding: %s" name
 
-class virtual launcher_builder config script =
+class launcher_builder config script =
   let hash = String.sub (Digest.to_hex @@ Digest.string script) 0 6 in
   object
     method make_dir name =
@@ -32,13 +32,6 @@ class virtual launcher_builder config script =
       let open Yojson.Basic in
       let json :json = `List (List.map (fun a -> `String a) command_argv) in
       Env.put env ("zeroinstall_runenv_" ^ name) (to_string json)
-  end
-
-(** If abspath_0install is a native binary, we can avoid starting a shell here. *)
-class native_launcher_builder config =
-  let script = Printf.sprintf "#!%s runenv\n" config.abspath_0install in
-  object (_ : #launcher_builder)
-    inherit launcher_builder config script
   end
 
 (** We can't use interpreted bytecode as a #! interpreter, so use a shell script instead. *)
@@ -68,8 +61,14 @@ let get_launcher_builder config =
     let buf = config.abspath_0install |> config.system#with_open_in [Open_rdonly; Open_binary] (Support.Utils.read_upto 2) in
     if buf = "#!" then
       new bytecode_launcher_builder config
-    else
-      new native_launcher_builder config
+    else (
+      (* If abspath_0install is a native binary, we can avoid starting a shell here. *)
+      let script = Printf.sprintf "#!%s runenv\n" config.abspath_0install in
+      if String.length script < 128 then
+        new launcher_builder config script (* execve(2) says 127 is the maximum *)
+      else
+        new bytecode_launcher_builder config
+    )
 
 let do_exec_binding dry_run builder env impls (role, {Binding.exec_type; Binding.name; Binding.command}) =
   validate_exec_name name;
