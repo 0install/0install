@@ -24,7 +24,7 @@ class type watcher =
 
 (** A database of trusted keys. *)
 class trust_db config =
-  (** In dry_run mode, we don't save the database to disk, so we need to store any changes in memory. *)
+  (* In dry_run mode, we don't save the database to disk, so we need to store any changes in memory. *)
   let dry_run_db = ref None in
   let watchers = ref [] in
 

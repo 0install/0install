@@ -87,6 +87,7 @@ val group_children : [< `feed | `group] t ->
   | `implementation of [`implementation] t
   | `package_impl of [`package_impl] t
   ] list
+
 (** Note: main on `feed is deprecated *)
 val main : [< `feed | attr_node] t -> string option
 val self_test : [< attr_node] t -> string option

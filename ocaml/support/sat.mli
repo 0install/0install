@@ -51,6 +51,7 @@ module MakeSAT :
       val implies : sat_problem -> ?reason:string -> lit -> lit list -> unit
 
       type at_most_one_clause
+
       (** Add a clause preventing more than one literal in the list from being [True]. *)
       val at_most_one : sat_problem -> lit list -> at_most_one_clause
 

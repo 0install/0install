@@ -17,7 +17,7 @@ let parse_restrictions options default_iface extra_restrictions =
   let before = ref None in
   let not_before = ref None in
 
-  (** Handle --before, --not-before and --version by converting to --version-for options *)
+  (* Handle --before, --not-before and --version by converting to --version-for options *)
   let options = options |> Support.Utils.filter_map (function
     | `Before v -> before := Some v; None
     | `NotBefore v -> not_before := Some v; None
@@ -36,10 +36,10 @@ let parse_restrictions options default_iface extra_restrictions =
   | None -> options
   | Some v -> `RequireVersionFor (default_iface, v) :: options in
 
-  (** Process --version-for options *)
+  (* Process --version-for options *)
   let r = ref extra_restrictions in
 
-  (** TODO: later options override earlier ones; issue an error instead *)
+  (* TODO: later options override earlier ones; issue an error instead *)
   let process = function
     | `RequireVersionFor (iface, "") -> r := StringMap.remove iface !r    (* TODO: check no error if already removed *)
     | `RequireVersionFor (iface, expr) -> r := StringMap.add iface expr !r in
@@ -71,8 +71,8 @@ let parse_update_options ?(update=true) options requirements =
     | `Source when not update -> r := {!r with source = true}
     | `Source when !r.source -> ()
     | `Source ->
-          (** Partly because it doesn't make much sense, and partly because you
-              can't undo it, as there's no --not-source option. *)
+          (* Partly because it doesn't make much sense, and partly because you
+             can't undo it, as there's no --not-source option. *)
           raise_safe "Can't update from binary to source type!"
   );
 

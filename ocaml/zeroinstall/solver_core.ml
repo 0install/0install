@@ -354,7 +354,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
     let impls = lookup_impl role in
     let commands = impls#get_commands command in
     let make_provides_command (_impl, elem) =
-      (** [var] will be true iff this <command> is selected. *)
+      (* [var] will be true iff this <command> is selected. *)
       let var = S.add_variable sat (SolverData.CommandElem elem) in
       (var, elem) in
     let vars = List.map make_provides_command commands in

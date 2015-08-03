@@ -6,6 +6,7 @@
 
 module type MAP = sig
   include Map.S
+
   (** Safe version of [find] that returns an option. *)
   val find : key -> 'a t -> 'a option
 end
