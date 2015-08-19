@@ -219,7 +219,7 @@ let verify (system:system) xml =
     lwt (stdout, stderr, exit_status) = Lwt.finalize
       (fun () ->
         lwt () =
-          Lwt_io.with_file ~flags:[Unix.O_WRONLY; Unix.O_CLOEXEC] ~mode:Lwt_io.output tmp (fun ch ->
+          Lwt_io.with_file ~flags:[Unix.O_WRONLY] ~mode:Lwt_io.output tmp (fun ch ->
             Lwt_io.write ch sig_data
           ) in
 
