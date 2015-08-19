@@ -215,13 +215,14 @@ let verify (system:system) xml =
       try Base64.str_decode base64_data
       with Base64.Invalid_char -> raise_safe "Invalid characters found in base 64 encoded signature" in
 
-    let tmp = Filename.temp_file "0install" "-gpg" in
+    let tmp = Filename.temp_file "0install-" "-gpg" in
     lwt (stdout, stderr, exit_status) = Lwt.finalize
       (fun () ->
-        lwt () =
-          Lwt_io.with_file ~flags:[Unix.O_WRONLY] ~mode:Lwt_io.output tmp (fun ch ->
-            Lwt_io.write ch sig_data
-          ) in
+        (* Don't use Lwt here, otherwise we may fork with the file open and leak it to a child
+         * process, which will break things on Windows. Unix.O_CLOEXEC requires OCaml >= 4.01 *)
+        U.finally_do close_out
+          (open_out_bin tmp)
+          (fun ch -> output_string ch sig_data);
 
         let write_stdin stdin = Lwt_io.write_from_exactly stdin xml 0 index in
         run_gpg_full system ~stdin:write_stdin [
