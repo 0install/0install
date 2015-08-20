@@ -62,6 +62,7 @@ class impl_provider =
       replacement = None;
       rejects = [];
       compare = (fun _ _ -> failwith "compare");
+      feed_problems = [];
       impls =
         try Hashtbl.find interfaces iface
         with Not_found -> failwith iface;

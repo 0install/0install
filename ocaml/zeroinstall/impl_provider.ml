@@ -66,6 +66,7 @@ type candidates = {
   impls : Impl.generic_implementation list;
   rejects : (Impl.generic_implementation * rejection_reason) list;
   compare : Impl.generic_implementation -> Impl.generic_implementation -> int * preference_reason;
+  feed_problems : string list;
 }
 
 class type impl_provider =
@@ -227,12 +228,13 @@ let src_to_bin ~host_arch ~rejects impl =
     | `Filtered_out -> None
 
 class default_impl_provider config (feed_provider : Feed_provider.feed_provider) (scope_filter:Scope_filter.t) =
-  let get_distro_impls feed =
-    let impls, overrides = feed_provider#get_distro_impls feed in
+  let get_distro_impls ~problem feed =
+    let {Feed_provider.impls; overrides; problems} = feed_provider#get_distro_impls feed in
+    problems |> List.iter problem;
     do_overrides overrides impls in
 
-  let get_impls (feed, overrides) =
-    let distro_impls = (get_distro_impls feed :> Impl.existing Impl.t list) in
+  let get_impls ~problem (feed, overrides) =
+    let distro_impls = (get_distro_impls ~problem feed :> Impl.existing Impl.t list) in
     distro_impls @ do_overrides overrides feed.Feed.implementations in
 
   let cached_digests = Stores.get_available_digests config.system config.stores in
@@ -266,6 +268,8 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
     let master_feed = feed_provider#get_feed (Feed_url.master_feed_of_iface iface) in
     let iface_config = feed_provider#get_iface_config iface in
     let extra_feeds = get_extra_feeds want_source iface_config in
+    let feed_problems = ref [] in
+    let problem msg = feed_problems := msg :: !feed_problems in
 
     (* From master feed, distribution feed, and sub-feeds of master *)
     let (main_impls, stability_policy) =
@@ -273,7 +277,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
       | None -> ([], None)
       | Some ((feed, _overrides) as pair) ->
           let sub_feeds = U.filter_map (get_feed_if_useful want_source) feed.Feed.imported_feeds in
-          let impls = List.concat (List.map get_impls (pair :: sub_feeds)) in
+          let impls = List.concat (List.map (get_impls ~problem) (pair :: sub_feeds)) in
           (impls, iface_config.Feed_cache.stability_policy) in
 
     let stability_policy =
@@ -311,12 +315,12 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
       ) in
 
     let impls =
-      List.concat (main_impls :: List.map get_impls extra_feeds)
+      List.concat (main_impls :: List.map (get_impls ~problem) extra_feeds)
       |> map_potential_binaries
       |> List.sort compare_impls
       |> List.filter do_filter in
 
-    {replacement; impls; rejects = !rejects; compare = compare_impls_full}
+    {replacement; impls; rejects = !rejects; compare = compare_impls_full; feed_problems = !feed_problems}
   ) in
 
   object (_ : #impl_provider)

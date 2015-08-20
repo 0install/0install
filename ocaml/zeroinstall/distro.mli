@@ -11,6 +11,7 @@ type query = {
   elem_props : Impl.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
   feed : Feed.feed;                 (* The feed containing the <package-element> *)
   results : Impl.distro_implementation Support.Common.StringMap.t ref;
+  problem : string -> unit;
 }
 
 type quick_test_condition = Exists | UnchangedSince of float
@@ -56,8 +57,13 @@ class virtual distribution : General.config ->
 
     (** Get the native implementations (installed or candidates for installation) for this feed.
      * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one.
-     * @param init add the results to this map, rather than starting with an empty one *)
-    method get_impls_for_feed : ?init:(Impl.distro_implementation Support.Common.StringMap.t) -> Feed.feed -> Impl.distro_implementation Support.Common.StringMap.t
+     * @param init add the results to this map, rather than starting with an empty one
+     * @param problem called to add warnings or notes about problems, for diagnostics *)
+    method get_impls_for_feed :
+      ?init:(Impl.distro_implementation Support.Common.StringMap.t) ->
+      problem:(string -> unit) ->
+      Feed.feed ->
+      Impl.distro_implementation Support.Common.StringMap.t
 
     (** Check (asynchronously) for available but currently uninstalled candidates. Once the returned
         promise resolves, the candidates should be included in future responses from [get_package_impls]. *)

@@ -20,9 +20,13 @@ let make_packagekit get_distro_candidates _config =
     val candidates = Hashtbl.create 10
 
     method is_available = Lwt.return true
-    method get_impls (package_name:string) : Zeroinstall.Packagekit.package_info list =
+
+    method get_impls package_name =
       log_info "packagekit: get_impls(%s)" package_name;
-      try Hashtbl.find candidates package_name with Not_found -> []
+      let results =
+        try Hashtbl.find candidates package_name with Not_found -> [] in
+      { Zeroinstall.Packagekit.results; problems = [] }
+
     method check_for_candidates ~ui:_ ~hint (package_names:string list) : unit Lwt.t =
       log_info "packagekit: check_for_candidates(%s) for %s" (String.concat ", " package_names) hint;
       package_names |> List.iter (fun package_name ->
@@ -233,7 +237,7 @@ let suite = "driver">::: [
       object (_ : Distro.distribution)
         method is_valid_package_name _ = true
         method is_installed_quick = failwith "is_installed"
-        method get_impls_for_feed ?init:_ _feed = StringMap.empty
+        method get_impls_for_feed ?init:_ ~problem:_ _feed = StringMap.empty
         method check_for_candidates = raise_safe "Unexpected check_for_candidates"
         method install_distro_packages = raise_safe "install_distro_packages"
         method match_name = (=) "dummy"

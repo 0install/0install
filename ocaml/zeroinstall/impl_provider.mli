@@ -20,6 +20,7 @@ type candidates = {
   impls : Impl.generic_implementation list;
   rejects : (Impl.generic_implementation * rejection_reason) list;
   compare : Impl.generic_implementation -> Impl.generic_implementation -> int * preference_reason;
+  feed_problems : string list;
 }
 
 class type impl_provider =

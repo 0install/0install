@@ -195,7 +195,8 @@ module CoreModel = struct
   let string_of_restriction r = r#to_string
 
   let implementations {scope = impl_provider; iface; source} =
-    let {Impl_provider.replacement; impls; rejects = _; compare = _} = impl_provider#get_implementations iface ~source in
+    let {Impl_provider.replacement; impls; rejects = _; compare = _; feed_problems = _} =
+      impl_provider#get_implementations iface ~source in
     let replacement = replacement |> pipe_some (fun replacement ->
       if replacement = iface then (
         log_warning "Interface %s replaced-by itself!" iface; None
@@ -205,7 +206,7 @@ module CoreModel = struct
 
   let rejects {scope = impl_provider; iface; source} =
     let candidates = impl_provider#get_implementations iface ~source in
-    candidates.Impl_provider.rejects
+    (candidates.Impl_provider.rejects, candidates.Impl_provider.feed_problems)
 
   let user_restrictions role =
     StringMap.find role.iface role.scope#extra_restrictions

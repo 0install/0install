@@ -18,6 +18,11 @@ type package_info = {
 type packagekit_id = string
 type size = Int64.t
 
+type query_result = {
+  results : package_info list;
+  problems : string list;
+}
+
 class type ui =
   object
     method monitor : Downloader.download -> unit
@@ -28,7 +33,7 @@ class type ui =
 class type packagekit =
   object
     method is_available : bool Lwt.t
-    method get_impls : string -> package_info list
+    method get_impls : string -> query_result
     method check_for_candidates : 'a. ui:(#ui as 'a) -> hint:string -> string list -> unit Lwt.t
     method install_packages : 'a. (#ui as 'a) -> (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
   end
@@ -70,21 +75,24 @@ let resolve pk package_names =
     log_info "packagekit: resolved %s: %s" package_id summary;
     match Str.bounded_split_delim U.re_semicolon package_id 4 with
     | [package_name; version; machine; repo] ->
-        begin match Version.try_cleanup_distro_version version with
-        | None -> log_warning "packagekit: failed to parse version string '%s' for '%s'" version package_name
-        | Some version ->
-            let machine = Support.System.canonical_machine machine in
-            let info = {
-              version;
-              machine = Arch.parse_machine machine;
-              installed = (repo = "installed");
-              retrieval_method = { Impl.
-                distro_size = None;    (* Gets filled in later *)
-                distro_install_info = ("packagekit", package_id)
+        Hashtbl.add details package_name begin
+          match Version.try_cleanup_distro_version version with
+          | None ->
+              `Error (Printf.sprintf "Failed to parse version string '%s' for '%s'" version package_name)
+          | Some version ->
+              let machine = Support.System.canonical_machine machine in
+              `Ok {
+                version;
+                machine = Arch.parse_machine machine;
+                installed = (repo = "installed");
+                retrieval_method = { Impl.
+                  distro_size = None;    (* Gets filled in later *)
+                  distro_install_info = ("packagekit", package_id)
+                }
               }
-            } in
-            Hashtbl.add details package_name info end
-    | _ -> log_warning "package_id: malformed package ID returned by PackageKit: '%s'" package_id in
+        end
+    | _ ->
+        log_warning "Malformed package ID returned by PackageKit: '%s'" package_id in
 
   lwt () =
     try_lwt
@@ -100,7 +108,7 @@ let resolve pk package_names =
     with Safe_exception _ as ex ->
       (* This is a bit broken. PackageKit seems to abort on the first unknown package, so we
        * lose the remaining results. Still, something is better than nothing... *)
-      log_debug ~ex "Error resolving names with PackageKit";
+      log_debug ~ex "Error resolving %s with PackageKit" (String.concat "," package_names);
       Lwt.return () in
 
   let add map name = map |> StringMap.add name (Hashtbl.find_all details name) in
@@ -308,7 +316,9 @@ let packagekit = ref (fun config ->
 
       let package_ids = StringMap.fold (fun _ infos acc ->
         infos |> List.fold_left (fun acc info ->
-          get_packagekit_id info.retrieval_method :: acc
+          match info with
+          | `Ok info -> get_packagekit_id info.retrieval_method :: acc
+          | `Error _ -> acc
         ) acc
       ) resolutions [] in
 
@@ -325,21 +335,32 @@ let packagekit = ref (fun config ->
           log_warning ~ex "packagekit: GetDetails failed";
           Lwt.return StringMap.empty in
 
-      (* Update [resolutions] with the size information *)
-      let add_size impl =
-        let rm = impl.retrieval_method in
-        let packagekit_id = get_packagekit_id rm in
-        match StringMap.find packagekit_id sizes with
-        | Some _ as size -> {impl with retrieval_method = {rm with Impl.distro_size = size}}
-        | None ->
-            log_info "No size returned for '%s'" packagekit_id;
-            impl in
-
       log_info "packagekit: fetch_batch done";
       (* Notify that each query is done *)
       queries |> List.iter (fun (name, resolver) ->
-        let impls = default [] @@ StringMap.find name resolutions in
-        Lwt.wakeup resolver (impls |> List.map add_size)
+        let impls = StringMap.find name resolutions |> default [] in
+        let problems = ref [] in
+
+        if impls = [] then
+          problems := Printf.sprintf "'%s' details not in PackageKit response" name :: !problems;
+
+        (* Update [resolutions] with the size information *)
+        let add_size = function
+          | `Error msg -> problems := Printf.sprintf "%s: %s" name msg :: !problems; None
+          | `Ok impl ->
+          let rm = impl.retrieval_method in
+          let packagekit_id = get_packagekit_id rm in
+          match StringMap.find packagekit_id sizes with
+          | Some _ as size -> Some {impl with retrieval_method = {rm with Impl.distro_size = size}}
+          | None ->
+              log_info "No size returned for '%s'" packagekit_id;
+              Some impl in
+
+        let results = U.filter_map add_size impls in
+        Lwt.wakeup resolver {
+          results;
+          problems = !problems;
+        }
       );
 
       Lwt.return ()
@@ -350,7 +371,7 @@ let packagekit = ref (fun config ->
       Lwt.return () in
 
   object (_ : packagekit)
-    val candidates : (string, package_info list Lwt.t) Hashtbl.t = Hashtbl.create 10
+    val candidates : (string, query_result Lwt.t) Hashtbl.t = Hashtbl.create 10
 
     (** Names of packages we're about to issue a query for and their resolvers/wakers. *)
     val mutable next_batch = []
@@ -362,12 +383,12 @@ let packagekit = ref (fun config ->
     (** Add any cached candidates.
         The candidates are those discovered by a previous call to [check_for_candidates].
         @param package_name the distribution's name for the package *)
-    method get_impls package_name : package_info list =
-      let task = try Hashtbl.find candidates package_name with Not_found -> Lwt.return [] in
+    method get_impls package_name =
+      let task = try Hashtbl.find candidates package_name with Not_found -> Lwt.return { results = []; problems = [] } in
 
       match Lwt.state task with
-      | Lwt.Sleep -> []             (* Fetch still in progress *)
-      | Lwt.Fail _ -> []            (* Fetch failed *)
+      | Lwt.Sleep -> { results = []; problems = [] }                 (* Fetch still in progress *)
+      | Lwt.Fail ex -> { results = []; problems = [Printexc.to_string ex] }     (* Fetch failed *)
       | Lwt.Return packages -> packages
 
     (** Request information about this package from PackageKit. *)

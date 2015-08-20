@@ -525,9 +525,9 @@ module Mac = struct
 
       method! match_name name = super#match_name name || darwin#match_name name
 
-      method! get_impls_for_feed ?init feed =
-        let ports = super#get_impls_for_feed ?init feed in
-        darwin#get_impls_for_feed ~init:ports feed
+      method! get_impls_for_feed ?init ~problem feed =
+        let ports = super#get_impls_for_feed ?init ~problem feed in
+        darwin#get_impls_for_feed ~init:ports ~problem feed
 
       method! private get_package_impls query =
         super#get_package_impls query;

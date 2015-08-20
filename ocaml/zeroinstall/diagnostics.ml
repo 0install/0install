@@ -33,6 +33,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
     | ReplacedByConflict of Model.Role.t
     | Restricts of Model.Role.t * Model.impl * Model.restriction list
     | RequiresCommand of Model.Role.t * Model.impl * Model.command_name
+    | Feed_problem of string
     | NoCandidates
 
   let format_restrictions r = String.concat ", " (List.map Model.string_of_restriction r)
@@ -92,6 +93,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
           add "%a %a requires %s" format_role other_role format_version impl (format_restrictions r)
       | RequiresCommand (other_role, impl, command) ->
           add "%a %a requires '%s' command" format_role other_role format_version impl (command :> string)
+      | Feed_problem msg -> add "%s" msg
       | NoCandidates ->
           if component#original_good = [] then (
             if component#original_bad = [] then (
@@ -113,14 +115,14 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
       [candidates] is the result from the impl_provider.
       [impl] is the selected implementation, or [None] if we chose [dummy_impl].
       [diagnostics] can be used to produce diagnostics as a last resort. *)
-  class component (candidates, orig_bad) (diagnostics:string Lazy.t) (selected_impl:Model.impl option) =
+  class component (candidates, orig_bad, feed_problems) (diagnostics:string Lazy.t) (selected_impl:Model.impl option) =
     let {Model.impls = orig_good; Model.replacement} = candidates in
     let orig_bad : (Model.impl * rejection_reason) list =
       List.map (fun (impl, reason) -> (impl, `Model_rejection reason)) orig_bad in
     (* orig_good is all the implementations passed to the SAT solver (these are the
        ones with a compatible OS, CPU, etc). They are sorted most desirable first. *)
     object (self)
-      val mutable notes = []
+      val mutable notes = List.map (fun x -> Feed_problem x) feed_problems
       val mutable good = orig_good
       val mutable bad = orig_bad
 
@@ -302,8 +304,8 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
         let diagnostics = lazy (Model.explain result role) in
         let impl = if impl == Model.dummy_impl then None else Some impl in
         let impl_candidates = Model.implementations role in
-        let rejects = Model.rejects role in
-        new component (impl_candidates, rejects) diagnostics impl in
+        let rejects, feed_problems = Model.rejects role in
+        new component (impl_candidates, rejects, feed_problems) diagnostics impl in
       RoleMap.mapi get_selected impls in
 
     process_root_req report root_req;

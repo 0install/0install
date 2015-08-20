@@ -41,14 +41,16 @@ type query = {
   elem_props : Impl.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
   feed : Feed.feed;                 (* The feed containing the <package-element> *)
   results : Impl.distro_implementation Support.Common.StringMap.t ref;
+  problem : string -> unit;
 }
 
-let make_query feed elem elem_props results = {
+let make_query feed elem elem_props results problem = {
   elem;
   package_name = Element.package elem;
   elem_props;
   feed;
   results;
+  problem;
 }
 
 type quick_test_condition = Exists | UnchangedSince of float
@@ -260,7 +262,7 @@ class virtual distribution config =
       | None -> false
       | Some master_feed ->
           let wanted_id = Element.id elem in
-          let impls = self#get_impls_for_feed master_feed in
+          let impls = self#get_impls_for_feed ~problem:ignore master_feed in
           match StringMap.find wanted_id impls with
           | None -> false
           | Some {Impl.impl_type = `package_impl {Impl.package_state; _}; _} -> package_state = `installed
@@ -280,7 +282,7 @@ class virtual distribution config =
 
     (** Get the native implementations (installed or candidates for installation) for this feed.
      * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one. *)
-    method get_impls_for_feed ?(init=StringMap.empty) (feed:Feed.feed) : Impl.distro_implementation StringMap.t =
+    method get_impls_for_feed ?(init=StringMap.empty) ~problem (feed:Feed.feed) : Impl.distro_implementation StringMap.t =
       let results = ref init in
 
       if check_host_python then (
@@ -291,13 +293,15 @@ class virtual distribution config =
       | [] -> !results
       | matches ->
           matches |> List.iter (fun (elem, props) ->
-            self#get_package_impls (make_query feed elem props results);
+            self#get_package_impls (make_query feed elem props results problem);
           );
           !results
 
     method private get_package_impls query : unit =
       let package_name = query.package_name in
-      packagekit#get_impls package_name |> List.iter (fun info ->
+      let pk_query = packagekit#get_impls package_name in
+      pk_query.Packagekit.problems |> List.iter query.problem;
+      pk_query.Packagekit.results |> List.iter (fun info ->
         let {Packagekit.version; Packagekit.machine; Packagekit.installed; Packagekit.retrieval_method} = info in
         let package_state =
           if installed then `installed

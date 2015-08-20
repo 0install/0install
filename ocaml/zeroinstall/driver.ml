@@ -42,8 +42,8 @@ let get_unavailable_selections config ?distro sels =
 
 (** Find a package implementation. Note: does not call [distro#check_for_candidates]. *)
 let find_distro_impl feed_provider id master_feed =
-  let (impls, _) = feed_provider#get_distro_impls master_feed in
-  StringMap.find_nf id impls
+  let result = feed_provider#get_distro_impls master_feed in
+  StringMap.find_nf id result.Feed_provider.impls
 
 (** Find a cached implementation. Not_found if the feed isn't cached or doesn't contain [id]. *)
 let find_zi_impl feed_provider id url =

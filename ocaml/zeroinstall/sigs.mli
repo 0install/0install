@@ -132,8 +132,9 @@ module type SOLVER_RESULT = sig
   (** The reason why the model rejected an implementation before it got to the solver. *)
   type rejection
 
-  (** Get the candidates which were rejected for a role (and not passed to the solver). *)
-  val rejects : Role.t -> (impl * rejection) list
+  (** Get the candidates which were rejected for a role (and not passed to the solver),
+   * as well as any general notes and warnings not tied to a particular impl. *)
+  val rejects : Role.t -> (impl * rejection) list * string list
 
   (** Used to sort the results. *)
   val compare_version : impl -> impl -> int

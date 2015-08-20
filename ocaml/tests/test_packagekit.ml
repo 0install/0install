@@ -23,7 +23,13 @@ let approve_ui =
     method! confirm msg = log_info "confirm: %s -> OK" msg; Lwt.return `ok
   end
 
-let test ?(package="gnupg") config fake_system =
+let test ?(package="gnupg") ?(expected_problems=[]) config fake_system =
+  let expected_problems = ref expected_problems in
+  let problem msg =
+    match !expected_problems with
+    | p::ps when p = msg -> expected_problems := ps
+    | p::_ -> assert_failure (Printf.sprintf "Expected:\n%s\nGot:\n%s" p msg)
+    | [] -> assert_failure (Printf.sprintf "Unexpected problem: %s" msg) in
   let system = (fake_system :> system) in
   let distro = Distro_impls.ArchLinux.arch_distribution config in
   let feed = Test_feed.feed_of_xml system (Printf.sprintf "\
@@ -33,12 +39,13 @@ let test ?(package="gnupg") config fake_system =
 </interface>" package) in
   distro#check_for_candidates ~ui:Fake_system.null_ui feed |> Lwt_main.run;
   log_info "done check_for_candidates";
-  let impls = distro#get_impls_for_feed feed |> Test_distro.to_impl_list in
+  let impls = distro#get_impls_for_feed ~problem feed |> Test_distro.to_impl_list in
   impls |> List.iter (function
     | {Impl.impl_type = `package_impl {Impl.package_state = `uninstalled rm; _}; _} ->
         assert_equal (Some (Int64.of_int 100)) rm.Impl.distro_size;
     | _ -> assert false
   );
+  !expected_problems |> List.iter (fun msg -> assert_failure (Printf.sprintf "Missing expected error: %s" msg));
   assert_equal `ok (Distro.install_distro_packages distro approve_ui impls |> Lwt_main.run);
   List.length impls
 
@@ -76,7 +83,7 @@ let suite =
             assert_equal 1 @@ test config fake_system;
             Fake_system.fake_log#assert_contains "confirm: The following components need to be installed using native packages.";
 
-            assert_equal 0 @@ test ~package:"foo" config fake_system;
+            assert_equal 0 @@ test ~package:"foo" ~expected_problems:["'foo' details not in PackageKit response"] config fake_system;
 
             destroy ();
             Fake_system.fake_log#reset;

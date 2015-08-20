@@ -14,6 +14,11 @@ type package_info = {
   retrieval_method : Impl.distro_retrieval_method;
 }
 
+type query_result = {
+  results : package_info list;
+  problems : string list;
+}
+
 class type ui =
   object
     method monitor : Downloader.download -> unit
@@ -28,7 +33,7 @@ type packagekit = <
   (** Return any cached candidates.
       The candidates are those discovered by a previous call to [check_for_candidates].
       @param package_name the distribution's name for the package *)
-  get_impls : string -> package_info list;
+  get_impls : string -> query_result;
 
   (** Request information about these packages from PackageKit. *)
   check_for_candidates : 'a. ui:(#ui as 'a) -> hint:string -> string list -> unit Lwt.t;

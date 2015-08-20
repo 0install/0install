@@ -143,7 +143,7 @@ let justify_decision config feed_provider requirements q_iface ~source q_impl =
           try
             let our_impl = List.find is_ours c.impls in
             wanted := spf "%s %s" q_iface @@ Impl.get_attr_ex FeedAttr.version our_impl;
-            {impls = [our_impl]; replacement = c.replacement; rejects = []; compare = c.compare}
+            {impls = [our_impl]; replacement = c.replacement; rejects = []; compare = c.compare; feed_problems = c.feed_problems}
           with Not_found ->
             try
               let (our_impl, problem) = List.find (fun (cand, _) -> is_ours cand) c.rejects in

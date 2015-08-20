@@ -129,10 +129,10 @@ class fake_feed_provider system (distro:Distro.distribution option) =
         Feed.user_stability = StringMap.empty;
       } in
       match distro with
-      | None -> (StringMap.empty, overrides)
+      | None -> {Feed_provider.impls = StringMap.empty; overrides; problems = []}
       | Some distro ->
-          let impls = distro#get_impls_for_feed feed in
-          (impls, overrides)
+          let impls = distro#get_impls_for_feed ~problem:failwith feed in
+          {Feed_provider.impls; overrides; problems = []}
 
     method get_iface_config _uri =
       {Feed_cache.stability_policy = None; Feed_cache.extra_feeds = [];}
@@ -433,9 +433,9 @@ let suite = "solver">::: [
               Some (feed, overrides)
 
         method! get_distro_impls feed =
-          let (impls, overrides) = super#get_distro_impls feed in
-          let overrides = {overrides with Feed.user_stability = StringMap.singleton "package:buggy" Buggy} in
-          (impls, overrides)
+          let result = super#get_distro_impls feed in
+          let overrides = {result.Feed_provider.overrides with Feed.user_stability = StringMap.singleton "package:buggy" Buggy} in
+          {result with Feed_provider.overrides}
       end in
     feed_provider#add_iface (Support.Qdom.parse_file Fake_system.real_system (Fake_system.tests_dir +/ "ranking.xml"));
     config.network_use <- Minimal_network;
