@@ -185,13 +185,16 @@ let extract_dmg config ~dstdir ?extract archive =
 
   let mountpoint = U.make_tmp_dir system ~prefix:"archive-" dstdir in
 
-  lwt () = run_command system ["hdiutil"; "attach"; "-quiet"; "-mountpoint"; mountpoint; "-nobrowse"; archive] in
+  lwt () = run_command system ["hdiutil"; "attach"; "-quiet"; "-readonly"; "-mountpoint"; mountpoint; "-nobrowse"; archive] in
   lwt () =
     Lwt.finalize (fun () ->
       let files =
         match system#readdir mountpoint with
         | Problem ex -> raise ex
-        | Success items -> Array.to_list items |> List.map ((^) (mountpoint ^ "/")) in
+        | Success items ->
+            Array.to_list items
+            |> List.filter ((<>) ".Trashes")
+            |> List.map ((^) (mountpoint ^ "/")) in
       run_command system @@ ["cp"; "-pR"] @ files @ [dstdir]
     ) (fun () ->
       run_command system @@ ["hdiutil"; "detach"; "-quiet"; mountpoint]
