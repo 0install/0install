@@ -3,4 +3,7 @@ install: bash -e .travis-install.sh
 script: bash -e .travis-build.sh
 env:
   matrix:
-    - OCAML_VERSION=4.01.0
+    - OCAML_VERSION=4.01.0 OPAMVERBOSE=1
+os:
+  - linux
+  - osx

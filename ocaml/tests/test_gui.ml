@@ -7,9 +7,15 @@ open OUnit
 
 module U = Support.Utils
 
+let on_osx =
+  match Fake_system.real_system#platform.Platform.os with
+  | "Darwin" | "MacOSX" -> true
+  | _ -> false
+
 let suite =
   (* Check we can load the GTK plugin *)
   "gui">:: (fun () ->
+    skip_if on_osx "GTK test hangs on OS X";
     let plugin_path = Fake_system.build_dir +/ "gui_gtk.cma" |> Dynlink.adapt_filename in
     skip_if (not (Sys.file_exists plugin_path)) "GTK plugin not found";
     Unix.putenv "DISPLAY" "dummy";

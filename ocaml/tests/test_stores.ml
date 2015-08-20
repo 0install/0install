@@ -143,7 +143,8 @@ let suite = "stores">::: [
   "check-permissions">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     let tmpdir = Stores.make_tmp_dir config.system config.stores in
     let subdir = tmpdir +/ "subdir" in
-    fake_system#mkdir subdir 0o1755;
+    fake_system#mkdir subdir 0o755;
+    fake_system#chmod subdir 0o1755;  (* OS X ignores sticky bit in mkdir *)
     Fake_system.assert_raises_safe "Unsafe mode: extracted file .* had special bits set in mode '1755'" (lazy (
       Stores.check_manifest_and_rename config ("sha1", "123") tmpdir |> Lwt_main.run
     ))

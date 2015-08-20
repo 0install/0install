@@ -510,7 +510,12 @@ let with_tmpdir fn () =
     (fun () -> Unix.putenv "ZEROINSTALL_PORTABLE_BASE" "/UNUSED"; Unix.putenv "GNUPGHOME" "/UNUSED") ()
     (fun () ->
       let tmppath = U.make_tmp_dir real_system temp_dir_name ~prefix:"0install-test-" in
-      U.finally_do (U.rmtree ~even_if_locked:true real_system) tmppath fn
+      U.finally_do
+        (fun tmppath ->
+          try U.rmtree ~even_if_locked:true real_system tmppath
+          with ex -> log_warning ~ex "Failed to delete tmpdir!" (* Don't hide underlying error *)
+        )
+        tmppath fn
     )
 
 let get_fake_config tmpdir =
