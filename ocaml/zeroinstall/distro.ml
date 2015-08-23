@@ -180,7 +180,7 @@ class virtual distribution config =
 
     val valid_package_name = Str.regexp "^[^.-][^/]*$"
 
-    val packagekit = !Packagekit.packagekit config
+    val packagekit = !Packagekit.packagekit (Support.Locale.LangMap.choose config.langs |> fst)
 
     (** All IDs will start with this string (e.g. "package:deb") *)
     val virtual id_prefix : string

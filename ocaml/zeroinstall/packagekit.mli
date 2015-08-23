@@ -45,4 +45,4 @@ type packagekit = <
 (** Create a packagekit object, which can be used to query the PackageKit D-BUS
  * service for information about (uninstalled) candidate packages.
  * (overridable for unit-tests) *)
-val packagekit : (General.config -> packagekit) ref
+val packagekit : (Support.Locale.lang_spec -> packagekit) ref

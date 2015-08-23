@@ -2,7 +2,6 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-open General
 open Support.Common
 module U = Support.Utils
 module IPackageKit = Packagekit_interfaces.Org_freedesktop_PackageKit
@@ -195,7 +194,7 @@ let install (ui:#ui) pk items =
     Lwt.return ()
 
 (** The top-level PackageKit service. *)
-let packagekit_service config proxy version =
+let packagekit_service lang_spec proxy version =
   object
     method version = version
 
@@ -215,7 +214,7 @@ let packagekit_service config proxy version =
       let trans_proxy = Dbus.OBus_proxy.make ~peer ~path in
 
       (* Set locale *)
-      let locale = Support.Locale.LangMap.choose config.langs |> fst |> Support.Locale.format_lang in
+      let locale = Support.Locale.format_lang lang_spec in
       lwt () =
         if version >= [0; 6; 0] then
           Dbus.OBus_method.call ITrans.m_SetHints trans_proxy ["locale=" ^ locale]
@@ -270,7 +269,7 @@ let packagekit_service config proxy version =
         Lwt_switch.turn_off switch
   end
 
-let packagekit = ref (fun config ->
+let packagekit = ref (fun lang_spec ->
   let proxy = lazy (
     match_lwt Dbus.system () with
     | None ->
@@ -295,7 +294,7 @@ let packagekit = ref (fun config ->
               0 :: version
             ) else version in
 
-          let p = packagekit_service config proxy version in
+          let p = packagekit_service lang_spec proxy version in
           Lwt.return (Some p)
         with
         | Lwt.Canceled ->
