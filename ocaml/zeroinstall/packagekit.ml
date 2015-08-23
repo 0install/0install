@@ -273,10 +273,10 @@ let packagekit_service lang_spec proxy version =
 let packagekit = ref (fun lang_spec ->
   let proxy = lazy (
     match_lwt Dbus.system () with
-    | None ->
-        log_debug "Can't connect to system D-BUS; PackageKit support disabled";
-        Lwt.return (`Unavailable "Can't connect to system D-BUS")
-    | Some bus ->
+    | `Error reason ->
+        log_debug "Can't connect to system D-BUS; PackageKit support disabled (%s)" reason;
+        Lwt.return (`Unavailable (Printf.sprintf "PackageKit not available: %s" reason))
+    | `Ok bus ->
         let proxy = Dbus.OBus_proxy.make
           ~peer:(Dbus.OBus_peer.make ~connection:bus ~name:"org.freedesktop.PackageKit")
           ~path:["org"; "freedesktop"; "PackageKit"] in

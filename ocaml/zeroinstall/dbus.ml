@@ -4,6 +4,7 @@
 
 (** Convenience functions for D-BUS. This module can be imported even if D-BUS support isn't available. *)
 
+open Lwt
 open Support.Common
 
 IFDEF HAVE_DBUS THEN
@@ -29,34 +30,31 @@ let () =
 let session ?switch () =
   Lwt.catch (fun () ->
     (* Prevent OBus from killing us. *)
-    Lwt.bind (OBus_bus.session ?switch ()) (fun session_bus ->
-      OBus_connection.set_on_disconnect session_bus (fun ex -> log_info ~ex "D-BUS disconnect"; Lwt.return ());
-      Lwt.return (Some session_bus)
-    )
+    OBus_bus.session ?switch () >>= fun session_bus ->
+    OBus_connection.set_on_disconnect session_bus (fun ex -> log_info ~ex "D-BUS disconnect"; return ());
+    return (`Ok session_bus)
   )
   (fun ex ->
     log_debug ~ex "Failed to get D-BUS session bus";
-    Lwt.return None
+    return (`Error "Failed to get D-BUS session bus")
   )
 
 let system () =
   Lwt.catch (fun () ->
-      Lwt.bind (OBus_bus.system ()) (fun system_bus -> Lwt.return (Some system_bus))
+      OBus_bus.system () >|= fun system_bus -> `Ok system_bus
     )
     (fun ex ->
       log_debug ~ex "Failed to get D-BUS system bus";
-      Lwt.return None
+      return (`Error "Failed to get D-BUS system bus")
     )
 
 ELSE
 
 let session ?switch:_ () =
-  log_debug "Compiled without D-BUS support";
-  Lwt.return None
+  return (`Error "0install was compiled without D-BUS support")
 
 let system ?switch:_ () =
-  log_debug "Compiled without D-BUS support";
-  Lwt.return None
+  return (`Error "0install was compiled without D-BUS support")
 
 let no_dbus _ = raise_safe "No D-BUS!"
 

@@ -136,8 +136,8 @@ let notify = ref (fun ~msg ~timeout ->
   Lwt_main.run (
     try_lwt
       match_lwt D.session () with
-      | None -> log_info "0install: %s" msg; Lwt.return ()
-      | Some _bus ->
+      | `Error _ -> log_info "0install: %s" msg; Lwt.return ()
+      | `Ok _bus ->
           ignore (D.Notification.notify ~timeout ~summary:"0install" ~body:msg ~icon:"info" ());
 
           (* Force a round-trip to make sure the notice has been sent before we exit
@@ -154,8 +154,8 @@ let get_network_state () : D.Nm_manager.state =
   Lwt_main.run (
     try_lwt
       match_lwt D.system () with
-      | None -> Lwt.return `Unknown
-      | Some _bus ->
+      | `Error _ -> Lwt.return `Unknown
+      | `Ok _bus ->
           lwt daemon = D.Nm_manager.daemon () in
           D.OBus_property.get (D.Nm_manager.state daemon)
     with ex ->
