@@ -561,9 +561,9 @@ let assert_error_contains expected (fn:unit -> unit) =
   with Safe_exception (msg, _) ->
     assert_contains expected msg
 
-let fake_packagekit _config =
+let fake_packagekit status _config =
   object (_ : Zeroinstall.Packagekit.packagekit)
-    method status = Lwt.return (`Unavailable "fake_packagekit")
+    method status = Lwt.return status
     method get_impls (package_name:string) =
       log_info "packagekit: get_impls(%s)" package_name;
       { Zeroinstall.Packagekit.results = []; problems = [] }

@@ -300,21 +300,27 @@ class virtual distribution config =
 
     method private get_package_impls query : unit =
       let package_name = query.package_name in
-      let pk_query = packagekit#get_impls package_name in
-      pk_query.Packagekit.problems |> List.iter query.problem;
-      pk_query.Packagekit.results |> List.iter (fun info ->
-        let {Packagekit.version; Packagekit.machine; Packagekit.installed; Packagekit.retrieval_method} = info in
-        let package_state =
-          if installed then `installed
-          else `uninstalled retrieval_method in
-        self#add_package_implementation
-          ~version
-          ~machine
-          ~package_state
-          ~quick_test:None
-          ~distro_name:distro_name
-          query
-      )
+      let pk_unavailable reason = query.problem (Printf.sprintf "%s: %s" package_name reason) in
+      match Lwt.state packagekit#status with
+      | Fail ex -> pk_unavailable (Printexc.to_string ex)
+      | Sleep -> pk_unavailable "Waiting for PackageKit..."
+      | Return (`Unavailable reason) -> pk_unavailable reason
+      | Return `Ok ->
+          let pk_query = packagekit#get_impls package_name in
+          pk_query.Packagekit.problems |> List.iter query.problem;
+          pk_query.Packagekit.results |> List.iter (fun info ->
+            let {Packagekit.version; Packagekit.machine; Packagekit.installed; Packagekit.retrieval_method} = info in
+            let package_state =
+              if installed then `installed
+              else `uninstalled retrieval_method in
+            self#add_package_implementation
+              ~version
+              ~machine
+              ~package_state
+              ~quick_test:None
+              ~distro_name:distro_name
+              query
+          )
 
     (** Called when an installed package is added, or when installation completes. This is useful to fix up the main value.
         The default implementation checks that main exists, and searches [system_paths] for

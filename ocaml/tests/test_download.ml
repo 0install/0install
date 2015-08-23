@@ -278,6 +278,7 @@ let suite = "download">::: [
   );
 
   "distro">:: Server.with_server (fun (config, fake_system) server ->
+    Zeroinstall.Packagekit.packagekit := Fake_system.fake_packagekit (`Unavailable "Use apt-cache");
     let native_url = "http://example.com:8000/Native.xml" in
     fake_system#set_spawn_handler (Some Fake_system.real_spawn_handler);
 

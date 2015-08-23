@@ -23,11 +23,15 @@ let approve_ui =
     method! confirm msg = log_info "confirm: %s -> OK" msg; Lwt.return `ok
   end
 
+let matches ~regex msg =
+  let re = Str.regexp regex in
+  Str.string_match re msg 0
+
 let test ?(package="gnupg") ?(expected_problems=[]) config fake_system =
   let expected_problems = ref expected_problems in
   let problem msg =
     match !expected_problems with
-    | p::ps when p = msg -> expected_problems := ps
+    | p::ps when matches ~regex:p msg -> expected_problems := ps
     | p::_ -> assert_failure (Printf.sprintf "Expected:\n%s\nGot:\n%s" p msg)
     | [] -> assert_failure (Printf.sprintf "Unexpected problem: %s" msg) in
   let system = (fake_system :> system) in
@@ -75,7 +79,8 @@ let suite =
           (fun () ->
 (*             Unix.system ("dbus-monitor --address " ^ bus_address ^ " &") |> ignore; *)
 
-            assert_equal 0 @@ test config fake_system;
+            assert_equal 0 @@ test config fake_system
+              ~expected_problems:["gnupg: PackageKit not available: .*"];
 
             let destroy =
               try Lwt_main.run (Pk_service.start [| 0; 8; 1 |])
@@ -89,7 +94,8 @@ let suite =
             Fake_system.fake_log#reset;
 
             (* Check service has stopped *)
-            assert_equal 0 @@ test config fake_system;
+            assert_equal 0 @@ test config fake_system
+              ~expected_problems:["gnupg: PackageKit not available: .*"];
 
             let destroy = Lwt_main.run (Pk_service.start [| 0; 7; 6 |]) in
             assert_equal 1 @@ test config fake_system;

@@ -296,6 +296,7 @@ let suite = "distro">::: [
 
   "debian">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
+    Zeroinstall.Packagekit.packagekit := Fake_system.fake_packagekit (`Unavailable "Use apt-cache");
     let xml =
       "<?xml version='1.0' ?>\n\
       <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>\n\

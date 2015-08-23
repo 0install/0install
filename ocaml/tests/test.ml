@@ -275,7 +275,7 @@ let show_log_on_failure fn () =
   Zeroinstall.Downloader.interceptor := None;
   Fake_system.forward_to_real_log := true;
   Update.wait_for_network := (fun () -> `Connected);
-  Zeroinstall.Packagekit.packagekit := Fake_system.fake_packagekit;
+  Zeroinstall.Packagekit.packagekit := Fake_system.fake_packagekit `Ok;
   try
     Fake_system.fake_log#reset;
     fn ();
