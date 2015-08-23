@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open Lwt
 open Support.Common
 module U = Support.Utils
 module IPackageKit = Packagekit_interfaces.Org_freedesktop_PackageKit
@@ -31,7 +32,7 @@ class type ui =
 
 class type packagekit =
   object
-    method is_available : bool Lwt.t
+    method status : [`Ok | `Unavailable of string] Lwt.t
     method get_impls : string -> query_result
     method check_for_candidates : 'a. ui:(#ui as 'a) -> hint:string -> string list -> unit Lwt.t
     method install_packages : 'a. (#ui as 'a) -> (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
@@ -274,7 +275,7 @@ let packagekit = ref (fun lang_spec ->
     match_lwt Dbus.system () with
     | None ->
         log_debug "Can't connect to system D-BUS; PackageKit support disabled";
-        Lwt.return None
+        Lwt.return (`Unavailable "Can't connect to system D-BUS")
     | Some bus ->
         let proxy = Dbus.OBus_proxy.make
           ~peer:(Dbus.OBus_peer.make ~connection:bus ~name:"org.freedesktop.PackageKit")
@@ -295,14 +296,14 @@ let packagekit = ref (fun lang_spec ->
             ) else version in
 
           let p = packagekit_service lang_spec proxy version in
-          Lwt.return (Some p)
+          Lwt.return (`Ok p)
         with
         | Lwt.Canceled ->
             log_warning "Timed-out waiting for PackageKit to report its version number!";
-            Lwt.return None
+            Lwt.return (`Unavailable "Timed-out waiting for PackageKit to report its version number!")
         | Dbus.OBus_bus.Service_unknown msg | Dbus.OBus_error.Unknown_object msg ->
             log_info "PackageKit not available: %s" msg;
-            Lwt.return None
+            Lwt.return (`Unavailable (Printf.sprintf "PackageKit not available: %s" msg))
   ) in
 
   (* Send a single PackageKit transaction for these packages. *)
@@ -375,9 +376,10 @@ let packagekit = ref (fun lang_spec ->
     (** Names of packages we're about to issue a query for and their resolvers/wakers. *)
     val mutable next_batch = []
 
-    method is_available =
-      lwt proxy = Lazy.force proxy in
-      Lwt.return (proxy <> None)
+    method status =
+      Lazy.force proxy >|= function
+      | `Ok _proxy -> `Ok
+      | `Unavailable _ as un -> un
 
     (** Add any cached candidates.
         The candidates are those discovered by a previous call to [check_for_candidates].
@@ -392,9 +394,9 @@ let packagekit = ref (fun lang_spec ->
 
     (** Request information about this package from PackageKit. *)
     method check_for_candidates ~ui ~hint package_names =
-      match_lwt Lazy.force proxy with
-      | None -> Lwt.return ()
-      | Some proxy ->
+      Lazy.force proxy >>= function
+      | `Unavailable _ -> Lwt.return ()
+      | `Ok proxy ->
           let progress, set_progress = Lwt_react.S.create (Int64.zero, None, false) in
           try_lwt
             let waiting_for = ref [] in
@@ -464,8 +466,8 @@ let packagekit = ref (fun lang_spec ->
       match response with
       | `cancel -> Lwt.return `cancel
       | `ok ->
-          lwt pk = Lazy.force proxy in
-          let pk = pk |? lazy (failwith "BUG: PackageKit has disappeared!") in
-          install ui pk items
+          Lazy.force proxy >>= function
+          | `Ok pk -> install ui pk items
+          | `Unavailable _ -> failwith "BUG: PackageKit has disappeared!"
   end
 )

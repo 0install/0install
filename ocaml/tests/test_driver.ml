@@ -19,7 +19,7 @@ let make_packagekit get_distro_candidates _config =
   object (_ : Zeroinstall.Packagekit.packagekit)
     val candidates = Hashtbl.create 10
 
-    method is_available = Lwt.return true
+    method status = Lwt.return `Ok
 
     method get_impls package_name =
       log_info "packagekit: get_impls(%s)" package_name;

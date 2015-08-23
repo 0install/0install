@@ -28,7 +28,7 @@ class type ui =
 
 type packagekit = <
   (* Check whether PackageKit is available (only slow the first time) *)
-  is_available : bool Lwt.t;
+  status : [`Ok | `Unavailable of string] Lwt.t;
 
   (* Return any cached candidates.
       The candidates are those discovered by a previous call to [check_for_candidates].

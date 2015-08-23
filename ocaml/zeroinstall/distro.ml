@@ -4,6 +4,7 @@
 
 (** Interacting with distribution package managers. *)
 
+open Lwt
 open General
 open Support.Common
 module FeedAttr = Constants.FeedAttr
@@ -344,12 +345,12 @@ class virtual distribution config =
       match get_matching_package_impls self feed with
       | [] -> Lwt.return ()
       | matches ->
-          lwt available = packagekit#is_available in
-          if available then (
-            let package_names = matches |> List.map (fun (elem, _props) -> Element.package elem) in
-            let hint = Feed_url.format_url feed.Feed.url in
-            packagekit#check_for_candidates ~ui ~hint package_names
-          ) else Lwt.return ()
+          packagekit#status >>= function
+          | `Unavailable _ -> Lwt.return ()
+          | `Ok ->
+              let package_names = matches |> List.map (fun (elem, _props) -> Element.package elem) in
+              let hint = Feed_url.format_url feed.Feed.url in
+              packagekit#check_for_candidates ~ui ~hint package_names
 
     method install_distro_packages : 'a. (#Packagekit.ui as 'a) -> string -> _ list -> [ `ok | `cancel ] Lwt.t =
       fun ui typ items ->

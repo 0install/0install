@@ -194,18 +194,18 @@ module Debian = struct
              * results directly. If it is available, we'll use these results to filter the PackageKit query, because
              * it doesn't like queries for missing packages (it tends to abort the query early and miss some results). *)
             lwt () = query_apt_cache package_names
-            and pkgkit_available = packagekit#is_available in
+            and pkgkit_status = packagekit#status in
 
-            if pkgkit_available then (
-              let hint = Feed_url.format_url feed.Feed.url in
-              package_names
-              |> List.filter (Hashtbl.mem apt_cache)
-              |> packagekit#check_for_candidates ~ui ~hint
-            ) else (
-              (* No PackageKit. Use apt-cache directly. *)
-              use_apt_cache_results <- true;
-              Lwt.return ()
-            )
+            match pkgkit_status with
+            | `Ok ->
+                let hint = Feed_url.format_url feed.Feed.url in
+                package_names
+                |> List.filter (Hashtbl.mem apt_cache)
+                |> packagekit#check_for_candidates ~ui ~hint
+            | `Unavailable _ ->
+                (* No PackageKit. Use apt-cache directly. *)
+                use_apt_cache_results <- true;
+                Lwt.return ()
 
       method! private add_package_implementation ?id ?main query ~version ~machine ~quick_test ~package_state ~distro_name =
         let version =
