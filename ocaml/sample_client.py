@@ -122,13 +122,19 @@ requirements = {
 	#"os": "Linux",
 	#"cpu": "src",
 	#"message": "I need this because ...",
+	#"may_compile": False,
 }
 
-def show_selections(status, result, info):
-	print(status)
-	print(info)
-	print(result)
-	sys.exit(0)
+def show_selections(status, result, info = None):
+	if status == "fail":
+		print("FAILED: " + result)
+		sys.exit(1)
+	else:
+		assert status == "ok"
+		print(status)
+		print(info)
+		print(result)
+		sys.exit(0)
 
 refresh = False
 ticket = invoke(show_selections, "select", requirements, refresh)
