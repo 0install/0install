@@ -104,8 +104,8 @@ val re_dash : Str.regexp
 val re_slash : Str.regexp
 val re_space : Str.regexp
 val re_tab : Str.regexp
-val re_dir_sep : Str.regexp    (** / on Unix *)
-val re_path_sep : Str.regexp   (** : on Unix *)
+val re_dir_sep : Str.regexp    (* / on Unix *)
+val re_path_sep : Str.regexp   (* : on Unix *)
 val re_colon : Str.regexp
 val re_equals : Str.regexp
 val re_semicolon : Str.regexp

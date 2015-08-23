@@ -76,7 +76,7 @@ type tools = <
   trust_db : Zeroinstall.Trust.trust_db;
   set_use_gui : Support.Common.yes_no_maybe -> unit;
   use_gui : Support.Common.yes_no_maybe;
-  release : unit;     (** Call this to release any open connections held by the download pool. *)
+  release : unit;     (* Call this to release any open connections held by the download pool. *)
 >
 
 type global_settings = {

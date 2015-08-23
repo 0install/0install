@@ -63,15 +63,15 @@ module MakeSAT(User : USER) =
            @return false if there is a conflict. *)
         propagate : lit -> bool;
 
-        (** Why are we causing a conflict?
+        (* Why are we causing a conflict?
             @return a list of literals which caused the problem by all being True. *)
         calc_reason : lit list;
 
-        (** Which literals caused [lit] to have its current value?
+        (* Which literals caused [lit] to have its current value?
             @return a list of literals which caused the problem by all being True. *)
         calc_reason_for : lit -> lit list;
 
-        (** For debugging *)
+        (* For debugging *)
         to_string : string;
       >
 

@@ -27,18 +27,18 @@ class type ui =
   end
 
 type packagekit = <
-  (** Check whether PackageKit is available (only slow the first time) *)
+  (* Check whether PackageKit is available (only slow the first time) *)
   is_available : bool Lwt.t;
 
-  (** Return any cached candidates.
+  (* Return any cached candidates.
       The candidates are those discovered by a previous call to [check_for_candidates].
       @param package_name the distribution's name for the package *)
   get_impls : string -> query_result;
 
-  (** Request information about these packages from PackageKit. *)
+  (* Request information about these packages from PackageKit. *)
   check_for_candidates : 'a. ui:(#ui as 'a) -> hint:string -> string list -> unit Lwt.t;
 
-  (** Install packages. Will confirm first with the user. *)
+  (* Install packages. Will confirm first with the user. *)
   install_packages : 'a. (#ui as 'a) -> (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t;
 >
 

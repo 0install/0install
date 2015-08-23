@@ -33,7 +33,7 @@ type 'a parsed_options = (string * 'a) list
 type ('a,'b) argparse_spec = {
   options_spec : ('a,'b) opt_spec list;
 
-  (** We've just read an argument; should any futher options be treated as arguments? *)
+  (* We've just read an argument; should any futher options be treated as arguments? *)
   no_more_options : string list -> bool
 }
 
