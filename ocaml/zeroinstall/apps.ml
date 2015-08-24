@@ -118,7 +118,7 @@ let set_selections config app_path sels ~touch_last_checked =
 let foreground_update tools app_path reqs =
   log_info "App '%s' needs to get new selections; current ones are not usable" app_path;
   let ui : Ui.ui_handler = tools#ui in
-  match_lwt ui#run_solver tools `Download_only reqs ~refresh:true with
+  ui#run_solver tools `Download_only reqs ~refresh:true >>= function
   | `Aborted_by_user -> raise_safe "Aborted by user"
   | `Success sels ->
       set_selections tools#config app_path sels ~touch_last_checked:true;
@@ -189,39 +189,36 @@ let check_for_updates tools app_path sels =
   (* When we solve, we might also discover there are new things we could download and therefore
      do a background update anyway. *)
 
-  lwt sels =
+  begin
     if need_solve then (
       let reqs = get_requirements system app_path in
-      lwt new_sels =
-        match Driver.quick_solve tools reqs with
-        | Some new_sels ->
-            if Selections.equal new_sels sels then (
-              log_info "Quick solve succeeded; no change needed";
-              Lwt.return sels
-            ) else (
-              log_info "Quick solve succeeded; saving new selections";
-              set_selections config app_path new_sels ~touch_last_checked:false;
-              Lwt.return new_sels
-            );
-        | None ->
-            log_info "Quick solve failed; we need to download something";
-            if unavailable_sels then (
-              (* Delete last-solve timestamp to force a recalculation.
-                 This is useful when upgrading from an old format that the Python can still handle but we can't. *)
-              if system#file_exists last_solve_path && not config.dry_run then
-                system#unlink last_solve_path;
-
-              foreground_update tools app_path reqs
-            ) else (
-              (* Continue with the current (cached) selections while we download *)
-              want_bg_update := true;
-              Lwt.return sels
-            ) in
+      begin match Driver.quick_solve tools reqs with
+      | Some new_sels when Selections.equal new_sels sels ->
+          log_info "Quick solve succeeded; no change needed";
+          return sels
+      | Some new_sels ->
+          log_info "Quick solve succeeded; saving new selections";
+          set_selections config app_path new_sels ~touch_last_checked:false;
+          return new_sels
+      | None when unavailable_sels ->
+          log_info "Quick solve failed; we need to download something";
+          (* Delete last-solve timestamp to force a recalculation.
+             This is useful when upgrading from an old format that the Python can still handle but we can't. *)
+          if system#file_exists last_solve_path && not config.dry_run then
+            system#unlink last_solve_path;
+          foreground_update tools app_path reqs
+      | None ->
+          log_info "Quick solve failed, but current selections are OK while we download";
+          (* Continue with the current (cached) selections while we download *)
+          want_bg_update := true;
+          return sels
+      end >>= fun new_sels ->
       let () =
         try U.touch system (app_path +/ "last-solve");
         with ex -> log_warning ~ex "Error while checking for updates" in
       Lwt.return new_sels
-    ) else Lwt.return sels in
+    ) else return sels
+  end >>= fun sels ->
 
   if !want_bg_update then (
     let last_check_attempt = get_mtime system last_check_path ~warn_if_missing:false in

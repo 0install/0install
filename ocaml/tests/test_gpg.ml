@@ -161,7 +161,6 @@ let suite = "gpg">::: [
 
   "not-xml">:: Fake_gpg_agent.with_gpg (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
-    let open Lwt in
     Fake_system.assert_raises_safe_lwt "This is not a Zero Install feed! It should be an XML document, but it starts:\nHello"
       (fun () -> G.verify config.system "Hello" >|= ignore)
   );

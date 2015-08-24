@@ -4,7 +4,6 @@
 
 (** Interacting with distribution package managers. *)
 
-open Lwt
 open General
 open Support.Common
 module FeedAttr = Constants.FeedAttr
@@ -167,8 +166,8 @@ module Debian = struct
         let package_name = query.package_name in
         (* Add any PackageKit candidates *)
         begin match Lwt.state packagekit#status with
-        | Return `Ok | Fail _ -> super#get_package_impls query;
-        | Return (`Unavailable _) ->
+        | Lwt.Return `Ok | Lwt.Fail _ -> super#get_package_impls query;
+        | Lwt.Return (`Unavailable _) ->
             (* Add apt-cache candidates if we're not using PackageKit *)
             let entry = try Hashtbl.find apt_cache package_name with Not_found -> None in
             entry |> if_some (fun {version; machine; size = _} ->
@@ -176,7 +175,7 @@ module Debian = struct
               let package_state = `uninstalled Impl.({distro_size = None; distro_install_info = ("apt-get install", package_name)}) in
               self#add_package_implementation ~package_state ~version ~machine ~quick_test:None ~distro_name query
             )
-        | Sleep -> ()   (* Only use apt-cache once we know PackageKit is missing *)
+        | Lwt.Sleep -> ()   (* Only use apt-cache once we know PackageKit is missing *)
         end;
         (* Add installed packages by querying dpkg. *)
         let infos, quick_test = cache#get ~if_missing:query_dpkg package_name in

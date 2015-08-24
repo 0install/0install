@@ -1,3 +1,3 @@
 true: for-pack(Zeroinstall)
-<apps.ml> or <json_connection.ml> or <helpers.ml> or <packagekit.ml> or <distro.ml> or <distro_impls.ml> or <python.ml> or <driver.ml> or <console.ml> or <gui.ml> or <fetch.ml> or <downloader.ml> or <archive.ml> or <key_info_provider.ml>: syntax(camlp4o), package(lwt.syntax)
+<json_connection.ml> or <packagekit.ml> or <distro_impls.ml> or <driver.ml> or <console.ml> or <gui.ml> or <fetch.ml> or <downloader.ml> or <archive.ml> or <key_info_provider.ml>: syntax(camlp4o), package(lwt.syntax)
 <dbus.ml> or <curl_threading.ml>: mypp

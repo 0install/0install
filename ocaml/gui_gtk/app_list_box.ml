@@ -107,12 +107,11 @@ let get_selections tools ~(gui:Ui.ui_handler) uri =
       gui#run_solver tools `Download_only reqs ~refresh:false
 
 let show_help_for_iface tools ~gui uri : unit Lwt.t =
-  match_lwt get_selections tools ~gui uri with
-  | `Aborted_by_user -> Lwt.return ()
+  get_selections tools ~gui uri >|= function
+  | `Aborted_by_user -> ()
   | `Success sels ->
-      let sel = Selections.(get_selected_ex {iface = uri; source = false} sels) in
-      show_help tools#config sel;
-      Lwt.return ()
+      Selections.(get_selected_ex {iface = uri; source = false} sels)
+      |> show_help tools#config
 
 let confirm_deletion ~parent name =
   let box = GWindow.dialog
@@ -161,7 +160,7 @@ let run config dialog tools gui uri =
   Gtk_utils.async ~parent:dialog (fun () ->
     Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.busy_cursor);
     try_lwt
-      match_lwt get_selections tools ~gui uri with
+      get_selections tools ~gui uri >>= function
       | `Aborted_by_user -> Lwt.return ()
       | `Success sels ->
           let feed_url = Feed_url.master_feed_of_iface uri in
@@ -254,7 +253,7 @@ let create config ~gui ~tools ~add_app =
         dialog#misc#set_sensitive false;
         Gtk_utils.async ~parent:dialog (fun () ->
           try_lwt
-            match_lwt confirm_deletion ~parent:dialog name with
+            confirm_deletion ~parent:dialog name >|= function
             | `delete ->
                 log_info "rm %s" path;
                 begin
@@ -263,9 +262,8 @@ let create config ~gui ~tools ~add_app =
                     raise_safe "Permission denied. You may be able to remove the entry manually with:\n\
                                 sudo rm '%s'" path
                 end;
-                model#remove row |> ignore;
-                Lwt.return ()
-            | `cancel -> Lwt.return ()
+                model#remove row |> ignore
+            | `cancel -> ()
           finally
             dialog#misc#set_sensitive true;
             Lwt.return ()

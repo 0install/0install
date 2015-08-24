@@ -235,7 +235,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
           | `Select_only -> on_success ()
           | `Download_only | `Select_for_run ->
               let sels = Zeroinstall.Solver.selections results in
-              match_lwt Driver.download_selections config tools#distro (lazy fetcher) ~include_packages:true ~feed_provider:watcher#feed_provider sels with
+              Driver.download_selections config tools#distro (lazy fetcher) ~include_packages:true ~feed_provider:watcher#feed_provider sels >>= function
               | `aborted_by_user -> widgets.ok_button#set_active false; Lwt.return ()
               | `success -> on_success ()
         with Safe_exception _ as ex ->

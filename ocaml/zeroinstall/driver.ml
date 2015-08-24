@@ -15,9 +15,9 @@ exception Aborted_by_user
 let rec collect_ex = function
   | [] -> Lwt.return []
   | x :: xs ->
-      lwt result = x in
-      lwt results = collect_ex xs in
-      result :: results |> Lwt.return
+      x >>= fun result ->
+      collect_ex xs >|= fun results ->
+      result :: results
    
 (** If [distro] is set then <package-implementation>s are included. Otherwise, they are ignored. *)
 let get_unavailable_selections config ?distro sels =
@@ -87,15 +87,14 @@ let solve_with_downloads config distro fetcher ~(watcher:#Progress.watcher) requ
     seen := DownloadSet.add url !seen;
     let wrapped =
       try_lwt
-        lwt fn = download in
-        Lwt.return (url, fn)
+        download >|= fun fn -> (url, fn)
       with Safe_exception (msg, _) ->
         watcher#report url msg;
         Lwt.return (url, fun () -> ()) in
     downloads_in_progress := DownloadMap.add url wrapped !downloads_in_progress
     in
 
-  (** Register a new download. When it resolves, process it in the main thread. *)
+  (* Register a new download. When it resolves, process it in the main thread. *)
   let rec handle_download f dl =
     add_download f (dl >|= fun result () ->
       (* (we are now running in the main thread) *)
@@ -168,14 +167,14 @@ let solve_with_downloads config distro fetcher ~(watcher:#Progress.watcher) requ
               log_info "Can't choose versions and in off-line mode, so aborting";
             Lwt.return result;
         | downloads ->
-            lwt (url, fn) = Lwt.choose downloads in
+            Lwt.choose downloads >>= fun (url, fn) ->
             downloads_in_progress := DownloadMap.remove url !downloads_in_progress;
             fn ();    (* Clears the old feed(s) from Feed_cache *)
             (* Run the solve again with the new information. *)
             loop ~try_quick_exit:false
   in
-  lwt (ready, result) = loop ~try_quick_exit:(not (!force || update_local)) in
-  Lwt.return (ready, result, feed_provider)
+  loop ~try_quick_exit:(not (!force || update_local)) >|= fun (ready, result) ->
+  (ready, result, feed_provider)
 
 let quick_solve tools reqs =
   let config = tools#config in
@@ -195,7 +194,7 @@ let download_and_import_feed fetcher url =
   let `remote_feed feed_url = url in
   let update = ref None in
   let rec wait_for (result:Fetch.fetch_feed_response Lwt.t) =
-    match_lwt result with
+    result >>= function
     | `update (feed, None) -> `success feed |> Lwt.return
     | `update (feed, Some next) ->
         update := Some feed;
@@ -251,7 +250,7 @@ let download_selections config distro fetcher ~include_packages ~(feed_provider:
         let (feed, _) = feed_provider#get_feed parsed_feed_url |? lazy (raise_safe "Missing local feed '%s'" path) in
         Lwt.return feed
       | `remote_feed feed_url as parsed_feed_url ->
-          match_lwt download_and_import_feed fetcher parsed_feed_url with
+          download_and_import_feed fetcher parsed_feed_url >>= function
           | `aborted_by_user -> raise Aborted_by_user
           | `no_update ->
               let (feed, _) = feed_provider#get_feed parsed_feed_url |? lazy (raise_safe "Missing feed '%s'" feed_url) in
@@ -278,19 +277,17 @@ let download_selections config distro fetcher ~include_packages ~(feed_provider:
         match feed_url with
         | `local_feed _ -> Lwt.return ()
         | `distribution_feed master_feed_url ->
-            lwt master_feed = get_latest_feed master_feed_url in
-            distro#check_for_candidates ~ui:fetcher#ui master_feed
+            get_latest_feed master_feed_url >>= distro#check_for_candidates ~ui:fetcher#ui
         | `remote_feed _ as feed_url ->
-            lwt _ = get_latest_feed feed_url in
-            Lwt.return () in
+            get_latest_feed feed_url >|= ignore in
 
       try
         get_impl () |> Lwt.return
       with Not_found ->
         (* Implementation is missing. Refresh everything and try again. *)
-        lwt () = refresh_feeds () in
+        refresh_feeds () >|= fun () ->
         try
-          get_impl () |> Lwt.return
+          get_impl ()
         with Not_found ->
           raise_safe "Implementation '%s' not found in feed '%s'" id (Feed_url.format_url feed_url) in
 

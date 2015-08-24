@@ -94,7 +94,7 @@ class console_ui =
             if max_width > 0 && String.length !msg > max_width then msg := String.sub !msg 0 max_width;
             prerr_string !msg;
             flush stderr end;
-        lwt () = Lwt_unix.sleep 0.1 in
+        Lwt_unix.sleep 0.1 >>= fun () ->
         loop () in
       loop ()
     with ex ->
@@ -110,15 +110,14 @@ class console_ui =
         ignore test_callback;
         ignore systray;
         let fetcher = tools#make_fetcher (self :> Progress.watcher) in
-        lwt result = Driver.solve_with_downloads config tools#distro fetcher reqs ~watcher:self ~force:refresh ~update_local:refresh in
-        match result with
+        Driver.solve_with_downloads config tools#distro fetcher reqs ~watcher:self ~force:refresh ~update_local:refresh >>= function
         | (false, result, _) -> raise_safe "%s" (Solver.get_failure_reason config result)
         | (true, result, feed_provider) ->
             let sels = Solver.selections result in
             match mode with
             | `Select_only -> Lwt.return (`Success sels)
             | `Download_only | `Select_for_run ->
-                match_lwt Driver.download_selections config tools#distro (lazy fetcher) ~feed_provider ~include_packages:true sels with
+                Driver.download_selections config tools#distro (lazy fetcher) ~feed_provider ~include_packages:true sels >>= function
                 | `success -> Lwt.return (`Success sels)
                 | `aborted_by_user -> Lwt.return `Aborted_by_user
       finally
@@ -187,15 +186,14 @@ class console_ui =
             Lwt.return ()
         ) in
 
-        lwt () =
-          (* Only wait for a key if something is pending. This is useful for the unit-tests. *)
-          if Lwt.state printers = Lwt.Sleep then (
-            let user_interrupt =
-              lwt _ = Lwt_io.read_char Lwt_io.stdin in
-              print "Skipping remaining key lookups due to input from user";
-              Lwt.return () in
-            Lwt.pick [user_interrupt; printers]
-          ) else Lwt.return () in
+        (* Only wait for a key if something is pending. This is useful for the unit-tests. *)
+        begin if Lwt.state printers = Lwt.Sleep then (
+          let user_interrupt =
+            Lwt_io.read_char Lwt_io.stdin >|= fun _ ->
+            print "Skipping remaining key lookups due to input from user" in
+          Lwt.pick [user_interrupt; printers]
+        ) else Lwt.return ()
+        end >>= fun () ->
 
         if not !shown then print "Warning: Nothing known about this key!";
 
@@ -206,7 +204,7 @@ class console_ui =
           else
             Printf.sprintf "Do you want to trust this key to sign feeds from '%s'?" domain in
 
-        match_lwt self#confirm prompt with
+        self#confirm prompt >>= function
         | `ok -> key_infos |> List.map fst |> Lwt.return
         | `cancel -> Lwt.return []
       )

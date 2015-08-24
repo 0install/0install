@@ -270,7 +270,7 @@ let open_cache_explorer config =
               lwt () = Lwt_preemptive.detach (U.rmtree ~even_if_locked:true config.system) dir in
               Unsorted_list.remove model x |> ignore;
               loop xs in
-        match_lwt confirm_deletion ~parent:dialog (List.length iters) with
+        confirm_deletion ~parent:dialog (List.length iters) >>= function
         | `delete -> loop iters
         | `cancel -> Lwt.return ()
       finally

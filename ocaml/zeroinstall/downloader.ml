@@ -259,13 +259,13 @@ let make_pool ~max_downloads_per_site : download_pool =
             Unix.set_close_on_exec (Unix.descr_of_out_channel ch);
             let ch = ref ch in
             Lwt_switch.add_hook (Some switch) (fun () ->
-              try_lwt
+              begin try
                 close_out !ch;         (* For Windows: ensure file is closed before unlinking *)
-                Unix.unlink tmpfile;
-                Lwt.return ()
+                Unix.unlink tmpfile
               with ex ->
-                log_warning ~ex "Failed to delete temporary file for download of '%s'" url;
-                Lwt.return ()
+                log_warning ~ex "Failed to delete temporary file for download of '%s'" url
+              end;
+              Lwt.return ()
             );
 
             let rec loop redirs_left url =
@@ -276,7 +276,7 @@ let make_pool ~max_downloads_per_site : download_pool =
                   let site = make_site max_downloads_per_site in
                   Hashtbl.add sites domain site;
                   site in
-              match_lwt site#schedule_download ~cancelled ?if_slow ?size ?modification_time ?start_offset ~progress:set_progress !ch url with
+              site#schedule_download ~cancelled ?if_slow ?size ?modification_time ?start_offset ~progress:set_progress !ch url >>= function
               | `success ->
                   close_out !ch;
                   `tmpfile tmpfile |> Lwt.return

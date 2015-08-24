@@ -186,3 +186,7 @@ let trim s =
     sub s !i (!j - !i + 1)
   else
     ""
+
+let (>>=) = Lwt.(>>=)
+let (>|=) = Lwt.(>|=)
+let return = Lwt.return

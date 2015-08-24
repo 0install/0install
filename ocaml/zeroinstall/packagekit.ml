@@ -2,7 +2,6 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-open Lwt
 open Support.Common
 module U = Support.Utils
 module IPackageKit = Packagekit_interfaces.Org_freedesktop_PackageKit
@@ -43,8 +42,7 @@ let max_batch_size = 100
 
 (** Wait for a task to complete, but ignore the actual return value. *)
 let lwt_wait_for task =
-  lwt _ = task in
-  Lwt.return ()
+  task >|= ignore
 
 (** [keep ~switch value] prevents [value] from being garbage collected until the switch is turned off.
  * See http://stackoverflow.com/questions/19975140/how-to-stop-ocaml-garbage-collecting-my-reactive-event-handler *)
@@ -63,9 +61,8 @@ let keep =
 (* We want to make lists of signal connection requests, so they all need the same type (and we can't used GADTs yet),
  * so we use closures rather than tuples. *)
 let make_signal_request signal handler switch proxy =
-  lwt event = Dbus.OBus_signal.(connect ~switch (make signal proxy)) in
-  Lwt_react.E.map (handler : _ -> unit) event |> keep ~switch;
-  Lwt.return ()
+  Dbus.OBus_signal.(connect ~switch (make signal proxy)) >|= fun event ->
+  Lwt_react.E.map (handler : _ -> unit) event |> keep ~switch
 
 (** Convert short names to PackageKit IDs (e.g. "gnupg" -> "gnupg;2.0.22;x86_64;arch") *)
 let resolve pk package_names =
@@ -128,10 +125,10 @@ let get_sizes pk = function
       let details_signal =
         if pk#version >= [0; 8; 1] then make_signal_request ITrans.s_Details2 update
         else make_signal_request ITrans.s_Details1 update in
-      lwt () = pk#run_transaction [details_signal] (fun _switch proxy ->
+      pk#run_transaction [details_signal] (fun _switch proxy ->
         Dbus.OBus_method.call ITrans.m_GetDetails proxy package_ids
-      ) in
-      Lwt.return !details
+      ) >|= fun () ->
+      !details
 
 let get_packagekit_id = function
   | {Impl.distro_install_info = ("packagekit", id); _} -> id
@@ -149,8 +146,8 @@ let install (ui:#ui) pk items =
   let finished, set_finished = Lwt_react.S.create false in
   try_lwt
     let cancelled = ref false in
-    lwt () = pk#run_transaction [] (fun switch proxy ->
-      lwt percentage = Dbus.OBus_property.monitor ~switch (Dbus.OBus_property.make ITrans.p_Percentage proxy) in
+    pk#run_transaction [] (fun switch proxy ->
+      Dbus.OBus_property.monitor ~switch (Dbus.OBus_property.make ITrans.p_Percentage proxy) >>= fun percentage ->
       let progress = Lwt_react.S.l2 (fun perc finished ->
         match total_size with
         | Some size when size <> Int64.zero ->
@@ -182,7 +179,7 @@ let install (ui:#ui) pk items =
         Dbus.OBus_method.call ITrans.m_InstallPackages2 proxy (Int64.zero, packagekit_ids)
       else
         Dbus.OBus_method.call ITrans.m_InstallPackages proxy (false, packagekit_ids)
-    ) in
+    ) >>= fun () ->
     (* Mark each package as now installed (possibly we should do this individually in a signal callback instead). *)
     items |> List.iter (fun (impl, _rm) ->
       let `package_impl info = impl.Impl.impl_type in
@@ -204,26 +201,23 @@ let packagekit_service lang_spec proxy version =
         the switch. *)
     method run_transaction signals cb =
       (* Create transaction *)
-      lwt path =
-        if version >= [0;8;1] then
-          Dbus.OBus_method.call IPackageKit.m_CreateTransaction proxy ()
-        else (
-          lwt path_str = Dbus.OBus_method.call IPackageKit.m_GetTid proxy () in
-          Dbus.OBus_path.of_string path_str |> Lwt.return
-        ) in
+      begin if version >= [0;8;1] then
+        Dbus.OBus_method.call IPackageKit.m_CreateTransaction proxy ()
+      else
+        Dbus.OBus_method.call IPackageKit.m_GetTid proxy () >|= Dbus.OBus_path.of_string
+      end >>= fun path ->
       let peer = proxy.Dbus.OBus_proxy.peer in
       let trans_proxy = Dbus.OBus_proxy.make ~peer ~path in
 
       (* Set locale *)
       let locale = Support.Locale.format_lang lang_spec in
-      lwt () =
-        if version >= [0; 6; 0] then
-          Dbus.OBus_method.call ITrans.m_SetHints trans_proxy ["locale=" ^ locale]
-        else
-          Dbus.OBus_method.call ITrans.m_SetLocale trans_proxy locale in
+      begin if version >= [0; 6; 0] then
+        Dbus.OBus_method.call ITrans.m_SetHints trans_proxy ["locale=" ^ locale]
+      else
+        Dbus.OBus_method.call ITrans.m_SetLocale trans_proxy locale
+      end >>= fun () ->
 
-      let switch = Lwt_switch.create () in
-      try_lwt
+      U.with_switch (fun switch ->
         let error = ref None in
         let finished, waker = Lwt.wait () in
 
@@ -259,20 +253,19 @@ let packagekit_service lang_spec proxy version =
           else make_signal_request ITrans.s_Finished1 finish in
 
         let signals = finished_signal :: connect_error :: signals in
-        lwt () = signals |> Lwt_list.iter_p (fun request -> request switch trans_proxy) in
+        signals |> Lwt_list.iter_p (fun request -> request switch trans_proxy) >>= fun () ->
 
         (* Start operation *)
-        lwt () = cb switch trans_proxy in
+        cb switch trans_proxy >>= fun () ->
 
         (* Wait for Finished signal *)
         finished
-      finally
-        Lwt_switch.turn_off switch
+      )
   end
 
 let packagekit = ref (fun lang_spec ->
   let proxy = lazy (
-    match_lwt Dbus.system () with
+    Dbus.system () >>= function
     | `Error reason ->
         log_debug "Can't connect to system D-BUS; PackageKit support disabled (%s)" reason;
         Lwt.return (`Unavailable (Printf.sprintf "PackageKit not available: %s" reason))
@@ -285,7 +278,7 @@ let packagekit = ref (fun lang_spec ->
             Dbus.OBus_property.get (Dbus.OBus_property.make prop proxy)
           ) in
           Lwt_timeout.create 5 (fun () -> Lwt.cancel version) |> Lwt_timeout.start;
-          lwt version = version in
+          version >>= fun version ->
           let version = version |> List.map Int32.to_int in
           log_info "Found PackageKit D-BUS service, version %s" (String.concat "." (List.map string_of_int version));
 
@@ -312,7 +305,7 @@ let packagekit = ref (fun lang_spec ->
 
     try_lwt
       (* Convert short names to PackageKit IDs *)
-      lwt resolutions = resolve proxy (List.map fst queries) in
+      resolve proxy (List.map fst queries) >>= fun resolutions ->
 
       let package_ids = StringMap.fold (fun _ infos acc ->
         infos |> List.fold_left (fun acc info ->
@@ -454,16 +447,14 @@ let packagekit = ref (fun lang_spec ->
             Lwt.return ()
 
     method install_packages (ui:#ui) items : [ `ok | `cancel ] Lwt.t =
-      lwt response =
-        let packagekit_ids = items |> List.map (fun (_impl, rm) -> get_packagekit_id rm) in
-        ui#confirm (
-          "The following components need to be installed using native packages. \
-           These come from your distribution, and should therefore be trustworthy, but they also \
-           run with extra privileges. In particular, installing them may run extra services on your \
-           computer or affect other users. You may be asked to enter a password to confirm. The \
-           packages are:\n\n- " ^ (String.concat "\n- " packagekit_ids)
-        ) in
-      match response with
+      let packagekit_ids = items |> List.map (fun (_impl, rm) -> get_packagekit_id rm) in
+      ui#confirm (
+        "The following components need to be installed using native packages. \
+         These come from your distribution, and should therefore be trustworthy, but they also \
+         run with extra privileges. In particular, installing them may run extra services on your \
+         computer or affect other users. You may be asked to enter a password to confirm. The \
+         packages are:\n\n- " ^ (String.concat "\n- " packagekit_ids)
+      ) >>= function
       | `cancel -> Lwt.return `cancel
       | `ok ->
           Lazy.force proxy >>= function

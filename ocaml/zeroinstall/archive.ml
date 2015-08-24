@@ -137,7 +137,7 @@ let extract_tar config ~dstdir ?extract ~compression archive =
     else bindir +/ "share"                        (* Running via 0install *)
   ) in
 
-  lwt tar_flavour = get_tar_flavour system in
+  get_tar_flavour system >>= fun tar_flavour ->
 
   let ext_cmd = ["tar"; "-xf"; archive; "-C"; dstdir] @
 
@@ -205,7 +205,7 @@ let extract_dmg config ~dstdir ?extract archive =
 let extract_deb config ~dstdir ?extract archive =
   extract |> if_some (fun _ -> raise_safe "Sorry, but the 'extract' attribute is not yet supported for Debs");
   let system = config.system in
-  lwt output = Lwt_process.pread (make_command system ["ar"; "t"; archive ]) in
+  Lwt_process.pread (make_command system ["ar"; "t"; archive ]) >>= fun output ->
   let rec get_type stream =
     try
       let name = Stream.next stream in
@@ -219,9 +219,9 @@ let extract_deb config ~dstdir ?extract archive =
     with Stream.Failure -> raise_safe "File is not a Debian package." in
   let data_tar, compression = get_type (U.stream_of_lines output) in
 
-  lwt () = run_command system ~cwd:dstdir ["ar"; "x"; archive; data_tar] in
+  run_command system ~cwd:dstdir ["ar"; "x"; archive; data_tar] >>= fun () ->
   let data_path = dstdir +/ data_tar in
-  lwt () = data_path |> extract_tar config ~dstdir ~compression in
+  data_path |> extract_tar config ~dstdir ~compression >>= fun () ->
   system#unlink data_path;
   Lwt.return ()
 
@@ -239,8 +239,8 @@ let extract_rpm config ~dstdir ?extract archive =
         let cpio = Lwt_process.exec ~stdin:(`FD_move r) ~stderr:`Dev_null @@ make_command system ["cpio"; "-mid"] in
         (rpm2cpio, cpio)
       ) in
-  lwt rpm2cpio = rpm2cpio
-  and cpio = cpio in
+  rpm2cpio >>= fun rpm2cpio ->
+  cpio >>= fun cpio ->
   Support.System.check_exit_status rpm2cpio;
   Support.System.check_exit_status cpio;
 

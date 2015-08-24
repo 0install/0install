@@ -88,7 +88,7 @@ class json_connection ~from_peer ~to_peer handle_request =
       try_lwt
         lwt return_value =
           try_lwt
-            match_lwt handle_request (op, args) with
+            handle_request (op, args) >>= function
             | `WithXML (json, attached_xml) ->
                 xml := Some attached_xml;
                 Lwt.return json
@@ -100,35 +100,33 @@ class json_connection ~from_peer ~to_peer handle_request =
         Lwt.return [`String "fail"; `String msg] in
     send_json ?xml:!xml @@ `List (`String "return" :: `String ticket :: response) in
 
+  let rec loop () =
+    read_chunk from_peer >>= function
+    | None -> log_debug "handle_messages: channel closed, so stopping handler"; return `Finished
+    | Some (`List [`String "invoke"; `String ticket; `String op; `List args]) ->
+        async @@ handle_invoke ticket op args; loop ()
+    | Some (`List [`String "return"; `String ticket; `String success; result]) ->
+        let resolver =
+          try Hashtbl.find pending_replies ticket
+          with Not_found -> raise_safe "Unknown ticket ID: %s" ticket in
+        Hashtbl.remove pending_replies ticket;
+        begin match success with
+        | "ok" -> Lwt.wakeup resolver result;
+        | "fail" -> Lwt.wakeup_exn resolver (Safe_exception (J.Util.to_string result, ref []))
+        | _ -> raise_safe "Invalid success type '%s' from peer:\n" success end;
+        loop ()
+    | Some json -> raise_safe "Invalid JSON from peer:\n%s" (J.to_string json) in
+
   (* Read and process messages from stream until it is closed. *)
   let () =
     async (fun () ->
-      try_lwt
-        lwt () =
-          let finished = ref false in
-          while_lwt not !finished do
-            lwt request = read_chunk from_peer in
-            begin match request with
-            | None -> log_debug "handle_messages: channel closed, so stopping handler"; finished := true
-            | Some (`List [`String "invoke"; `String ticket; `String op; `List args]) ->
-                async @@ handle_invoke ticket op args;
-            | Some (`List [`String "return"; `String ticket; `String success; result]) ->
-                let resolver =
-                  try Hashtbl.find pending_replies ticket
-                  with Not_found -> raise_safe "Unknown ticket ID: %s" ticket in
-                Hashtbl.remove pending_replies ticket;
-                begin match success with
-                | "ok" -> Lwt.wakeup resolver result;
-                | "fail" -> Lwt.wakeup_exn resolver (Safe_exception (J.Util.to_string result, ref []))
-                | _ -> raise_safe "Invalid success type '%s' from peer:\n" success end;
-            | Some json -> raise_safe "Invalid JSON from peer:\n%s" (J.to_string json) end;
-            Lwt.return ()
-          done in
+      Lwt.catch (fun () ->
+        loop () >|= fun `Finished ->
         Lwt.wakeup finish ();
-        Lwt.return ()
-      with ex ->
+      ) (fun ex ->
         Lwt.wakeup_exn finish ex;
         Lwt.return ()
+      )
     ) in
 
   object
@@ -139,7 +137,7 @@ class json_connection ~from_peer ~to_peer handle_request =
         let ticket = take_ticket () in
 
         Hashtbl.add pending_replies ticket resolver;
-        lwt () = send_json ?xml (`List [`String "invoke"; `String ticket; `String op; `List args]) in
+        send_json ?xml (`List [`String "invoke"; `String ticket; `String op; `List args]) >>= fun () ->
         response
       with Safe_exception _ as ex -> reraise_with_context ex "... invoking %s(%s)" op (J.to_string (`List args))
 

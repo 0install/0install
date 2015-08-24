@@ -4,7 +4,6 @@
 
 (** Convenience functions for D-BUS. This module can be imported even if D-BUS support isn't available. *)
 
-open Lwt
 open Support.Common
 
 IFDEF HAVE_DBUS THEN

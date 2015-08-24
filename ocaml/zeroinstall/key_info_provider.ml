@@ -37,17 +37,17 @@ let get (config, cache) ~download fingerprint =
             );
             let key_info_url = key_info_server ^ "/key/" ^ fingerprint in
             U.with_switch (fun switch ->
-              match_lwt download ~switch key_info_url with
+              download ~switch key_info_url >|= function
               | `network_failure msg ->
                   Hashtbl.remove cache fingerprint;
                   log_info "Error fetching key info: %s" msg;
-                  [Progress.Bad, "Error fetching key info: " ^ msg] |> Lwt.return
+                  [Progress.Bad, "Error fetching key info: " ^ msg]
               | `aborted_by_user ->
                   Hashtbl.remove cache fingerprint;
-                  [Progress.Bad, "Key lookup aborted by user"] |> Lwt.return
+                  [Progress.Bad, "Key lookup aborted by user"]
               | `tmpfile tmpfile ->
                   Q.parse_file config.system ~name:key_info_url tmpfile
-                  |> parse_key_info |> Lwt.return
+                  |> parse_key_info
             )
       with ex ->
         log_warning ~ex "Error fetching key info";

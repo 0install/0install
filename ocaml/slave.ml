@@ -32,7 +32,7 @@ let make_no_gui (connection:JC.json_connection) : Ui.ui_handler =
 
         let handle_pending fingerprint votes =
           let task =
-            lwt votes = votes in
+            votes >>= fun votes ->
             connection#invoke "update-key-info" [`String fingerprint; `List (json_of_votes votes)] in
           pending_tasks := task :: !pending_tasks in
 
@@ -45,7 +45,7 @@ let make_no_gui (connection:JC.json_connection) : Ui.ui_handler =
               | Lwt.Return votes -> json_of_votes votes in
             (fingerprint, `List json_votes)
           ) in
-          match_lwt connection#invoke "confirm-keys" [`String (Zeroinstall.Feed_url.format_url feed_url); `Assoc json_infos] with
+          connection#invoke "confirm-keys" [`String (Zeroinstall.Feed_url.format_url feed_url); `Assoc json_infos] >>= function
           | `List confirmed_keys -> confirmed_keys |> List.map Yojson.Basic.Util.to_string |> Lwt.return
           | _ -> raise_safe "Invalid response"
         finally
@@ -53,7 +53,7 @@ let make_no_gui (connection:JC.json_connection) : Ui.ui_handler =
           Lwt.return ()
 
       method! confirm message =
-        match_lwt connection#invoke "confirm" [`String message] with
+        connection#invoke "confirm" [`String message] >>= function
         | `String "ok" -> Lwt.return `ok
         | `String "cancel" -> Lwt.return `cancel
         | json -> raise_safe "Invalid response '%s'" (J.to_string json)
@@ -116,7 +116,7 @@ let select options (ui:Zeroinstall.Ui.ui_handler) requirements refresh =
     `WithXML (json, Zeroinstall.Selections.as_xml sels) |> Lwt.return in
 
   let select_with_refresh refresh =
-    match_lwt ui#run_solver options.tools `Select_only requirements ~refresh with
+    ui#run_solver options.tools `Select_only requirements ~refresh >>= function
     | `Success sels -> success ~sels ~stale:false
     | `Aborted_by_user -> `List [`String "aborted-by-user"] |> Lwt.return in
 
@@ -145,9 +145,9 @@ let wrap_for_2_6 next (op, args) =
   match op with
   | "select" ->
       (* Strip out the new "status" response for old clients *)
-      begin match_lwt next (op, args) with
-      | `WithXML (`List [`String "ok"; _info], xml) -> `WithXML (`List [`String "ok"], xml) |> Lwt.return
-      | x -> Lwt.return x end;
+      begin next (op, args) >|= function
+      | `WithXML (`List [`String "ok"; _info], xml) -> `WithXML (`List [`String "ok"], xml)
+      | x -> x end;
   | _ -> next (op, args)
 
 let handle options flags args =

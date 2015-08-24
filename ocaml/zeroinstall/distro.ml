@@ -4,7 +4,6 @@
 
 (** Interacting with distribution package managers. *)
 
-open Lwt
 open General
 open Support.Common
 module FeedAttr = Constants.FeedAttr
@@ -302,10 +301,10 @@ class virtual distribution config =
       let package_name = query.package_name in
       let pk_unavailable reason = query.problem (Printf.sprintf "%s: %s" package_name reason) in
       match Lwt.state packagekit#status with
-      | Fail ex -> pk_unavailable (Printexc.to_string ex)
-      | Sleep -> pk_unavailable "Waiting for PackageKit..."
-      | Return (`Unavailable reason) -> pk_unavailable reason
-      | Return `Ok ->
+      | Lwt.Fail ex -> pk_unavailable (Printexc.to_string ex)
+      | Lwt.Sleep -> pk_unavailable "Waiting for PackageKit..."
+      | Lwt.Return (`Unavailable reason) -> pk_unavailable reason
+      | Lwt.Return `Ok ->
           let pk_query = packagekit#get_impls package_name in
           pk_query.Packagekit.problems |> List.iter query.problem;
           pk_query.Packagekit.results |> List.iter (fun info ->
@@ -362,7 +361,7 @@ class virtual distribution config =
       fun ui typ items ->
         match typ with
         | "packagekit" ->
-            begin match_lwt packagekit#install_packages ui items with
+            begin packagekit#install_packages ui items >>= function
             | `cancel -> Lwt.return `cancel
             | `ok ->
                 items |> List.iter (fun (impl, _rm) ->
@@ -393,7 +392,7 @@ let install_distro_packages (distro:distribution) ui impls : [ `ok | `cancel ] L
   let rec loop = function
     | [] -> Lwt.return `ok
     | (typ, items) :: groups ->
-        match_lwt distro#install_distro_packages ui typ items with
+        distro#install_distro_packages ui typ items >>= function
         | `ok -> loop groups
         | `cancel -> Lwt.return `cancel in
   !groups |> StringMap.bindings |> loop

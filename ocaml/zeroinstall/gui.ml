@@ -165,7 +165,7 @@ let add_feed config iface feed_url =
   | feed_for -> raise_safe "This is not a feed for '%s'.\nOnly for:\n%s" iface (String.concat "\n" feed_for)
 
 let add_remote_feed config fetcher iface (feed_url:[`remote_feed of feed_url]) =
-  match_lwt Driver.download_and_import_feed fetcher feed_url with
+  Driver.download_and_import_feed fetcher feed_url >>= function
   | `aborted_by_user -> Lwt.return ()
   | `success _ | `no_update -> add_feed config iface feed_url; Lwt.return ()
 
@@ -196,10 +196,12 @@ let run_subprocess argv =
   try_lwt
     let command = (argv.(0), argv) in
     let child = Lwt_process.open_process_full command in
-    lwt () = Lwt_io.close child#stdin in
-    lwt stdout = Lwt_io.read child#stdout
+    Lwt_io.close child#stdin >>= fun () ->
+    let stdout = Lwt_io.read child#stdout
     and stderr = Lwt_io.read child#stderr in
-    match_lwt child#close with
+    stdout >>= fun stdout ->
+    stderr >>= fun stderr ->
+    child#close >>= function
     | Unix.WEXITED 0 -> Lwt.return stdout
     | status ->
         let output = stdout ^ stderr in
@@ -209,51 +211,47 @@ let run_subprocess argv =
     reraise_with_context ex "... executing %s" (Support.Logging.format_argv_for_logging (Array.to_list argv))
 
 let build_and_register config iface min_0compile_version =
-  lwt _ =
-    run_subprocess [|
-      config.abspath_0install; "run";
-      "--message"; "Download the 0compile tool, to compile the source code";
-      "--not-before=" ^ (Version.to_string min_0compile_version);
-      "http://0install.net/2006/interfaces/0compile.xml";
-      "gui";
-      iface
-    |] in
-  Lwt.return ()
+  run_subprocess [|
+    config.abspath_0install; "run";
+    "--message"; "Download the 0compile tool, to compile the source code";
+    "--not-before=" ^ (Version.to_string min_0compile_version);
+    "http://0install.net/2006/interfaces/0compile.xml";
+    "gui";
+    iface
+  |] >|= ignore
 
 (* Running subprocesses is a bit messy; this is just a direct translation of the (old) Python code. *)
 let compile config feed_provider iface ~autocompile =
   let our_min_version = Version.parse "1.0" in     (* The oldest version of 0compile we support *)
 
-  lwt () =
-    if autocompile then (
-      lwt _ =
-        run_subprocess [|
-          config.abspath_0install; "run";
-          "--message"; "Download the 0compile tool to compile the source code";
-          "--not-before=" ^ (Version.to_string our_min_version);
-          "http://0install.net/2006/interfaces/0compile.xml";
-          "autocompile";
-          "--gui";
-          "--"; iface;
-        |] in Lwt.return ()
-    ) else (
-      (* Prompt user to choose source version *)
-      lwt stdout = run_subprocess [|
-        config.abspath_0install; "download"; "--xml";
-        "--message"; "Download the source code to be compiled";
-        "--gui"; "--source";
-        "--"; iface;
-      |] in
-      let root = `String (0, stdout) |> Xmlm.make_input |> Q.parse_input None in
-      let sels = Selections.create root in
-      let sel = Selections.get_selected {Selections.iface; source = true} sels in
-      let sel = sel |? lazy (raise_safe "No implementation of root (%s)!" iface) in
-      let min_version =
-        match Element.compile_min_version sel with
-        | None -> our_min_version
-        | Some min_version -> max our_min_version (Version.parse min_version) in
-      build_and_register config iface min_version
-    ) in
+  if autocompile then (
+    run_subprocess [|
+      config.abspath_0install; "run";
+      "--message"; "Download the 0compile tool to compile the source code";
+      "--not-before=" ^ (Version.to_string our_min_version);
+      "http://0install.net/2006/interfaces/0compile.xml";
+      "autocompile";
+      "--gui";
+      "--"; iface;
+    |] >|= ignore
+  ) else (
+    (* Prompt user to choose source version *)
+    run_subprocess [|
+      config.abspath_0install; "download"; "--xml";
+      "--message"; "Download the source code to be compiled";
+      "--gui"; "--source";
+      "--"; iface;
+    |] >>= fun stdout ->
+    let root = `String (0, stdout) |> Xmlm.make_input |> Q.parse_input None in
+    let sels = Selections.create root in
+    let sel = Selections.get_selected {Selections.iface; source = true} sels in
+    let sel = sel |? lazy (raise_safe "No implementation of root (%s)!" iface) in
+    let min_version =
+      match Element.compile_min_version sel with
+      | None -> our_min_version
+      | Some min_version -> max our_min_version (Version.parse min_version) in
+    build_and_register config iface min_version
+  ) >>= fun () ->
 
   (* A new local feed may have been registered, so reload it from the disk cache *)
   log_info "0compile command completed successfully. Reloading interface details.";
@@ -410,9 +408,9 @@ let get_sigs config url =
   | Some cache_path ->
       if config.system#file_exists cache_path then (
         let xml = U.read_file config.system cache_path in
-        lwt sigs, warnings = Support.Gpg.verify config.system xml in
+        Support.Gpg.verify config.system xml >|= fun (sigs, warnings) ->
         if warnings <> "" then log_info "get_last_modified: %s" warnings;
-        Lwt.return sigs
+        sigs
       ) else Lwt.return []
 
 let format_para para =
@@ -421,39 +419,40 @@ let format_para para =
 (** The formatted text for the details panel. *)
 let generate_feed_description config trust_db feed overrides =
   let times = ref [] in
-  lwt signatures =
-    match feed.F.url with
-    | `local_feed _ -> Lwt.return []
-    | `remote_feed _ as feed_url ->
-        let domain = Trust.domain_from_url feed_url in
-        lwt sigs = get_sigs config feed_url in
-        if sigs <> [] then (
-          match trust_db#oldest_trusted_sig domain sigs with
-          | Some last_modified -> times := ("Last upstream change", last_modified) :: !times
-          | None -> ()
-        );
 
-        overrides.F.last_checked |> if_some (fun last_checked ->
-          times := ("Last checked", last_checked) :: !times
-        );
+  begin match feed.F.url with
+  | `local_feed _ -> Lwt.return []
+  | `remote_feed _ as feed_url ->
+      let domain = Trust.domain_from_url feed_url in
+      get_sigs config feed_url >>= fun sigs ->
+      if sigs <> [] then (
+        match trust_db#oldest_trusted_sig domain sigs with
+        | Some last_modified -> times := ("Last upstream change", last_modified) :: !times
+        | None -> ()
+      );
 
-        Feed_cache.get_last_check_attempt config feed_url |> if_some (fun last_check_attempt ->
-          match overrides.F.last_checked with
-          | Some last_checked when last_check_attempt <= last_checked ->
-              () (* Don't bother reporting successful attempts *)
-          | _ ->
-              times := ("Last check attempt (failed or in progress)", last_check_attempt) :: !times
-        );
+      overrides.F.last_checked |> if_some (fun last_checked ->
+        times := ("Last checked", last_checked) :: !times
+      );
 
-        sigs |> Lwt_list.map_s (function
-          | G.ValidSig {G.fingerprint; G.timestamp} ->
-              lwt name = G.get_key_name config.system fingerprint in
-              let is_trusted =
-                if trust_db#is_trusted ~domain fingerprint then `Trusted else `Not_trusted in
-              `Valid (fingerprint, timestamp, name, is_trusted) |> Lwt.return
-          | other_sig ->
-              `Invalid (G.string_of_sig other_sig) |> Lwt.return
-        ) in
+      Feed_cache.get_last_check_attempt config feed_url |> if_some (fun last_check_attempt ->
+        match overrides.F.last_checked with
+        | Some last_checked when last_check_attempt <= last_checked ->
+            () (* Don't bother reporting successful attempts *)
+        | _ ->
+            times := ("Last check attempt (failed or in progress)", last_check_attempt) :: !times
+      );
+
+      sigs |> Lwt_list.map_s (function
+        | G.ValidSig {G.fingerprint; G.timestamp} ->
+            G.get_key_name config.system fingerprint >|= fun name ->
+            let is_trusted =
+              if trust_db#is_trusted ~domain fingerprint then `Trusted else `Not_trusted in
+            `Valid (fingerprint, timestamp, name, is_trusted)
+        | other_sig ->
+            `Invalid (G.string_of_sig other_sig) |> Lwt.return
+      )
+  end >>= fun signatures ->
 
   let description =
     match F.get_description config.langs feed with

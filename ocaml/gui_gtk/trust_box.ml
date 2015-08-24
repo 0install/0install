@@ -265,12 +265,11 @@ let confirm_keys config trust_db ?parent feed_url valid_sigs =
         assert (to_trust <> []);
         let ok = confirm_unknown_keys ~parent:dialog to_trust valid_sigs in
         Gtk_utils.async ~parent:dialog (fun () ->
-          match_lwt ok with
-          | false -> Lwt.return ()
+          ok >|= function
+          | false -> ()
           | true ->
               Lwt.wakeup set_result to_trust;
-              dialog#destroy ();
-              Lwt.return ()
+              dialog#destroy ()
         )
     | `DELETE_EVENT | `CANCEL -> Lwt.wakeup set_result []; dialog#destroy ()
     | `HELP -> confirm_keys_help#display

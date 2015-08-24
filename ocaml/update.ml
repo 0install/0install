@@ -135,7 +135,7 @@ let handle options flags args =
 let notify = ref (fun ~msg ~timeout ->
   Lwt_main.run (
     try_lwt
-      match_lwt D.session () with
+      D.session () >>= function
       | `Error _ -> log_info "0install: %s" msg; Lwt.return ()
       | `Ok _bus ->
           ignore (D.Notification.notify ~timeout ~summary:"0install" ~body:msg ~icon:"info" ());
@@ -153,10 +153,10 @@ let notify = ref (fun ~msg ~timeout ->
 let get_network_state () : D.Nm_manager.state =
   Lwt_main.run (
     try_lwt
-      match_lwt D.system () with
+      D.system () >>= function
       | `Error _ -> Lwt.return `Unknown
       | `Ok _bus ->
-          lwt daemon = D.Nm_manager.daemon () in
+          D.Nm_manager.daemon () >>= fun daemon ->
           D.OBus_property.get (D.Nm_manager.state daemon)
     with ex ->
       log_info ~ex "Failed to get NetworkManager state";

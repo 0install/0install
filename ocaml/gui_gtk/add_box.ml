@@ -85,15 +85,14 @@ let create ~(gui:Zeroinstall.Ui.ui_handler) ~tools initial_uri =
     dialog#misc#set_sensitive false;
     try_lwt
       let reqs = Zeroinstall.Requirements.default_requirements iface in
-      match_lwt gui#run_solver tools `Download_only reqs ~refresh:false with
-      | `Aborted_by_user -> Lwt.return ()
+      gui#run_solver tools `Download_only reqs ~refresh:false >|= function
+      | `Aborted_by_user -> ()
       | `Success _ ->
           let feed_url = Feed_url.master_feed_of_iface iface in
           let feed = Zeroinstall.Feed_cache.get_cached_feed config feed_url |? lazy (raise_safe "BUG: feed still not cached!") in
           xdg_add_to_menu config feed;
           dialog#destroy ();
-          Lwt.wakeup set_finished ();
-          Lwt.return ()
+          Lwt.wakeup set_finished ()
     finally
       dialog#misc#set_sensitive true;
       Lwt.return () in

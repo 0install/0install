@@ -54,7 +54,6 @@ let suite = "feed-cache">::: [
   );
 
   "check-signed">:: Fake_gpg_agent.with_gpg (fun tmpdir ->
-    let open Lwt in
     let config, _fake_system = Fake_system.get_fake_config (Some tmpdir) in
     let trust_db = new Zeroinstall.Trust.trust_db config in
     trust_db#trust_key "92429807C9853C0744A68B9AAE07828059A53CC1" ~domain:"foo";
