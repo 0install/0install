@@ -430,6 +430,7 @@ module Mac = struct
         match query.package_name with
         | "openjdk-6-jre" | "openjdk-6-jdk" -> self#find_java "1.6" "6" query
         | "openjdk-7-jre" | "openjdk-7-jdk" -> self#find_java "1.7" "7" query
+        | "openjdk-8-jre" | "openjdk-8-jdk" -> self#find_java "1.8" "8" query
         | "gnupg" -> self#find_program "/usr/local/bin/gpg" query
         | "gnupg2" -> self#find_program "/usr/local/bin/gpg2" query
         | _ -> super#get_package_impls query
