@@ -16,6 +16,7 @@ let suite =
   (* Check we can load the GTK plugin *)
   "gui">:: (fun () ->
     skip_if on_osx "GTK test hangs on OS X";
+    skip_if on_windows "Doesn't look at $DISPLAY";
     let plugin_path = Fake_system.build_dir +/ "gui_gtk.cma" |> Dynlink.adapt_filename in
     skip_if (not (Sys.file_exists plugin_path)) "GTK plugin not found";
     Unix.putenv "DISPLAY" "dummy";
