@@ -849,10 +849,12 @@ let get_host_distribution config : Distro.distribution =
           Ports.ports_distribution config
       ) else if exists Slackware.slack_db then
         Slackware.slack_distribution config
-      else if config.system#platform.Platform.os = "Darwin" then
-        Mac.darwin_distribution config
-      else
-        generic_distribution config
+      else begin match config.system#platform.Platform.os with
+      | "Darwin" | "MacOSX" ->
+          Mac.darwin_distribution config
+      | _unknown ->
+          generic_distribution config
+      end
   | "Win32" -> Win.windows_distribution config
   | "Cygwin" -> Win.cygwin_distribution config
   | _ ->
