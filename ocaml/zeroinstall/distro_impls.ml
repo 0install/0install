@@ -532,6 +532,7 @@ module Mac = struct
         darwin#get_impls_for_feed ~init:ports ~problem feed
 
       method! private get_package_impls query =
+        (* Add any PackageKit candidates *)
         super#get_package_impls query;
 
         let infos, quick_test = cache#get query.package_name in
@@ -567,8 +568,6 @@ module Win = struct
       val id_prefix = "package:windows"
 
       method! private get_package_impls query =
-        super#get_package_impls query;
-
         let package_name = query.package_name in
         match package_name with
         | "openjdk-6-jre" -> self#find_java "Java Runtime Environment" "1.6" "6" query
@@ -585,9 +584,10 @@ module Win = struct
         | "netfx-client" ->
             self#find_netfx "v4\\Client" "4.0" query;
             self#find_netfx_release "v4\\Client" 378389 "4.5" query;
-        | _ -> ()
+        | _ ->
+            super#get_package_impls query
 
-        (* No PackageKit support on Windows *)
+      (* No PackageKit support on Windows *)
       method! check_for_candidates ~ui:_ _feed = Lwt.return ()
 
       method private find_netfx win_version zero_version query =
@@ -732,7 +732,7 @@ module Ports = struct
                 )
               )
             ) else (
-              log_warning "Cannot parse version from Ports package named '%s'" pkgname
+              query.problem (Printf.sprintf "Cannot parse version from Ports package named '%s'" pkgname)
             )
           )
         )
@@ -746,13 +746,16 @@ module Gentoo = struct
 
   let gentoo_distribution ?(pkgdir=Ports.pkg_db) config =
     object (self)
-      inherit Distro.distribution config
+      inherit Distro.distribution config as super
       val! valid_package_name = Str.regexp "^[^.-][^/]*/[^./][^/]*$"
       val distro_name = "Gentoo"
       val id_prefix = "package:gentoo"
       val check_host_python = false
 
       method! private get_package_impls query =
+        (* Add any PackageKit candidates *)
+        super#get_package_impls query;
+
         let re_version_start = Str.regexp "-[0-9]" in
 
         match Str.bounded_split_delim U.re_slash query.package_name 2 with
@@ -800,12 +803,14 @@ module Slackware = struct
 
   let slack_distribution ?(packages_dir=slack_db) config =
     object (self)
-      inherit Distro.distribution config
+      inherit Distro.distribution config as super
       val distro_name = "Slack"
       val id_prefix = "package:slack"
       val check_host_python = false
 
       method! private get_package_impls query =
+        (* Add any PackageKit candidates *)
+        super#get_package_impls query;
         packages_dir |> iter_dir config.system (fun entry ->
           match Str.bounded_split_delim U.re_dash entry 4 with
           | [name; version; arch; build] when name = query.package_name ->
