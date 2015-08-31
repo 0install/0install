@@ -426,7 +426,7 @@ module Mac = struct
       val id_prefix = "package:darwin"
       val check_host_python = true
 
-      method! private get_package_impls query =
+      method! get_package_impls query =
         match query.package_name with
         | "openjdk-6-jre" | "openjdk-6-jdk" -> self#find_java "1.6" "6" query
         | "openjdk-7-jre" | "openjdk-7-jdk" -> self#find_java "1.7" "7" query
@@ -527,20 +527,15 @@ module Mac = struct
 
       method! match_name name = super#match_name name || darwin#match_name name
 
-      method! get_impls_for_feed ?init ~problem feed =
-        let ports = super#get_impls_for_feed ?init ~problem feed in
-        darwin#get_impls_for_feed ~init:ports ~problem feed
-
       method! private get_package_impls query =
-        (* Add any PackageKit candidates *)
-        super#get_package_impls query;
-
+        darwin#get_package_impls query;
         let infos, quick_test = cache#get query.package_name in
         infos |> List.iter (fun (version, machine) ->
           self#add_package_implementation ~package_state:`installed ~version ~machine ~quick_test ~distro_name query
         )
     end
 
+  let darwin_distribution config = (darwin_distribution config :> Distro.distribution)
 end
 
 module Win = struct
