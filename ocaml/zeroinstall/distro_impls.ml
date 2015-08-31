@@ -416,8 +416,10 @@ module Mac = struct
     let java_home version arch =
       U.finally_do Unix.close (Unix.openfile Support.System.dev_null [Unix.O_WRONLY] 0)
         (fun dev_null ->
-          let command = ["/usr/libexec/java_home"; "--failfast"; "--version"; version; "--arch"; arch] in
-          trim (try command |> U.check_output config.system ~stderr:(`FD dev_null) input_line with End_of_file -> "")
+          let reaper pid = Support.System.waitpid_non_intr pid |> ignore in
+          ["/usr/libexec/java_home"; "--failfast"; "--version"; version; "--arch"; arch]
+          |> U.check_output config.system ~reaper ~stderr:(`FD dev_null) (fun ch -> try input_line ch with End_of_file -> "")
+          |> trim
         ) in
 
     object (self : #distribution)

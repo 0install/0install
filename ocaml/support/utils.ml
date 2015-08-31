@@ -243,7 +243,9 @@ let check_output ?env ?stderr ?reaper (system:system) fn (argv:string list) =
           let () =
             try
               system#reap_child ~kill_first:Sys.sigterm child_pid
-            with ex2 -> log_warning ~ex:ex2 "reap_child failed" in
+            with ex2 ->
+              let args = Logging.format_argv_for_logging argv in
+              log_warning ~ex:ex2 "reap_child failed (%s)" args in
           raise ex
       )
     in
