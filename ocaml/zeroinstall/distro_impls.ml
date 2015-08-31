@@ -167,15 +167,18 @@ module Debian = struct
         (* Add any PackageKit candidates *)
         begin match Lwt.state packagekit#status with
         | Lwt.Return `Ok | Lwt.Fail _ -> super#get_package_impls query;
+        | Lwt.Sleep -> ()   (* Only use apt-cache once we know PackageKit is missing *)
         | Lwt.Return (`Unavailable _) ->
             (* Add apt-cache candidates if we're not using PackageKit *)
-            let entry = try Hashtbl.find apt_cache package_name with Not_found -> None in
-            entry |> if_some (fun {version; machine; size = _} ->
-              let machine = Arch.parse_machine machine in
-              let package_state = `uninstalled Impl.({distro_size = None; distro_install_info = ("apt-get install", package_name)}) in
-              self#add_package_implementation ~package_state ~version ~machine ~quick_test:None ~distro_name query
-            )
-        | Lwt.Sleep -> ()   (* Only use apt-cache once we know PackageKit is missing *)
+            try
+              match Hashtbl.find apt_cache package_name with
+              | Some {version; machine; size = _} ->
+                  let machine = Arch.parse_machine machine in
+                  let package_state = `uninstalled Impl.({distro_size = None; distro_install_info = ("apt-get install", package_name)}) in
+                  self#add_package_implementation ~package_state ~version ~machine ~quick_test:None ~distro_name query
+              | None ->
+                  query.problem (Printf.sprintf "%s: not known to apt-cache" package_name)
+            with Not_found -> ()  (* We haven't checked yet *)
         end;
         (* Add installed packages by querying dpkg. *)
         let infos, quick_test = cache#get ~if_missing:query_dpkg package_name in
