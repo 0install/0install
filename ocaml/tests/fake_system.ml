@@ -259,7 +259,8 @@ class fake_system tmpdir =
           | Dir (mode, _items) -> Some (make_stat mode S_DIR)
           | File (_mode, target) -> real_system#stat target
         with Not_found ->
-          if hidden_subtree path then None
+          if tmpdir = None then None
+          else if hidden_subtree path then None
           else real_system#stat (check_read path)
       )
 
