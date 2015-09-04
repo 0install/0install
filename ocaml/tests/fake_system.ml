@@ -200,7 +200,12 @@ class fake_system tmpdir =
     method with_open_in flags fn path = real_system#with_open_in flags fn (check_read path)
     method with_open_out flags ~mode fn path = real_system#with_open_out flags ~mode fn (check_write path)
 
-    method mkdir path mode = real_system#mkdir (check_write path) mode
+    method mkdir path mode =
+      let path = check_write path in
+      let parent = Filename.dirname path in
+      if not (real_system#file_exists parent) && StringMap.mem parent !extra_files then
+        U.makedirs real_system parent 0o700;
+      real_system#mkdir path mode
 
     method rename source target =
       device_boundary |> if_some (fun device_boundary ->
