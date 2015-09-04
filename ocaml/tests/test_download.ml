@@ -593,6 +593,7 @@ let suite = "download">::: [
 
   "background-unsolvable">:: Server.with_server (fun (config, fake_system) server ->
     fake_system#allow_spawn_detach true;
+    fake_system#set_spawn_handler (Some Fake_system.real_spawn_handler);  (* For "ports -v" *)
     let trust_db = new Zeroinstall.Trust.trust_db config in
     let system = config.system in
     let home = U.getenv_ex system "HOME" in
