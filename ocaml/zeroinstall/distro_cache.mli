@@ -7,22 +7,19 @@
 
 open Support.Common
 
+type t
+
 type package_name = string
 type entry = Version.t * Arch.machine option
 
-(* [new cache config ~cache_leaf source] creates a new cache backed by [cache_leaf].
- * Whenever [source] changes, everything in the cache is assumed to be invalid. *)
-class cache : General.config -> cache_leaf:string -> filepath ->
-  object
-    (** Look up an item in the cache.
-     * @param if_missing called if given and no entries are found. Whatever it returns is cached. *)
-    method get :
-      ?if_missing:(package_name -> entry list) ->
-      package_name -> entry list * Distro.quick_test option
+val create_eager : General.config -> cache_leaf:string -> source:filepath -> regenerate:((package_name -> entry -> unit) -> unit) -> t
+(* [create_eager config ~cache_leaf ~source ~regenerate] creates a new cache backed by [cache_leaf].
+   Whenever [source] changes, everything in the cache is assumed to be invalid and [regenerate]
+   is called. It should call the provided function once for each entry. *)
 
-    (** The cache is being regenerated from scratch. If you want to
-     * pre-populate the cache, do it here by calling the provided function once
-     * for each entry. Otherwise, you can populate it lazily using [get
-     * ~if_missing]. *)
-    method private regenerate_cache : (package_name -> entry -> unit) -> unit
-  end
+val create_lazy : General.config -> cache_leaf:string -> source:filepath -> if_missing:(package_name -> entry list) -> t
+(** Similar to [create_eager], but the cache is repopulated lazily by calling [if_missing] for a single package
+   when it is requested and not present. *)
+
+val get : t -> package_name -> entry list * Distro.quick_test option
+(** Look up an item in the cache. *)

@@ -33,14 +33,14 @@ let iter_dir system fn path =
 (** Lookup [elem]'s package in the cache. Generate the ID(s) for the cached implementations and check that one of them
     matches the [id] attribute on [elem].
     Returns [false] if the cache is out-of-date. *)
-let check_cache id_prefix elem (cache:Distro_cache.cache) =
+let check_cache id_prefix elem cache =
   let package = Element.package elem in
   let sel_id = Element.id elem in
   let matches (installed_version, machine) =
     let installed_id = Printf.sprintf "%s:%s:%a:%s" id_prefix package Version.fmt installed_version (Arch.format_machine_or_star machine) in
     (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
     sel_id = installed_id in
-  List.exists matches (fst (cache#get package))
+  List.exists matches (fst (Distro_cache.get cache package))
 
 module Debian = struct
   let dpkg_db_status = "/var/lib/dpkg/status"
@@ -153,7 +153,7 @@ module Debian = struct
 
       val distro_name = "Debian"
       val id_prefix = "package:deb"
-      val cache = new Distro_cache.cache config ~cache_leaf:"dpkg-status2.cache" status_file
+      val cache = Distro_cache.create_lazy config ~cache_leaf:"dpkg-status2.cache" ~source:status_file ~if_missing:query_dpkg
 
       (* If we added apt_cache results AND package kit is unavailable, this is set
        * so that we include them in the results. Otherwise, we just take the PackageKit results. *)
@@ -181,7 +181,7 @@ module Debian = struct
             with Not_found -> ()  (* We haven't checked yet *)
         end;
         (* Add installed packages by querying dpkg. *)
-        let infos, quick_test = cache#get ~if_missing:query_dpkg package_name in
+        let infos, quick_test = Distro_cache.get cache package_name in
         infos |> List.iter (fun (version, machine) ->
           self#add_package_implementation ~package_state:`installed ~version ~machine ~quick_test ~distro_name query
         )
@@ -253,40 +253,38 @@ module RPM = struct
             )
           ) in
 
+    let regenerate add_entry =
+      ["rpm"; "-qa"; "--qf=%{NAME}\t%{VERSION}-%{RELEASE}\t%{ARCH}\n"]
+      |> U.check_output config.system (fun from_rpm  ->
+        try
+          while true do
+            let line = input_line from_rpm in
+            match Str.bounded_split_delim U.re_tab line 3 with
+            | ["gpg-pubkey"; _; _] -> ()
+            | [package; version; rpmarch] ->
+                let zi_arch = Support.System.canonical_machine (trim rpmarch) |> Arch.parse_machine in
+                try_cleanup_distro_version_warn version package |> if_some (fun clean_version ->
+                  add_entry package (clean_version, zi_arch)
+                )
+            | _ -> log_warning "Invalid output from 'rpm': %s" line
+          done
+        with End_of_file -> ()
+      ) in
+
     object (self)
       inherit Distro.distribution config as super
       val check_host_python = false
 
       val distro_name = "RPM"
       val id_prefix = "package:rpm"
-      val cache =
-        object
-          inherit Distro_cache.cache config ~cache_leaf:"rpm-status3.cache" rpm_db_packages
-          method! private regenerate_cache add_entry =
-            ["rpm"; "-qa"; "--qf=%{NAME}\t%{VERSION}-%{RELEASE}\t%{ARCH}\n"]
-              |> U.check_output config.system (fun from_rpm  ->
-                try
-                  while true do
-                    let line = input_line from_rpm in
-                    match Str.bounded_split_delim U.re_tab line 3 with
-                    | ["gpg-pubkey"; _; _] -> ()
-                    | [package; version; rpmarch] ->
-                        let zi_arch = Support.System.canonical_machine (trim rpmarch) |> Arch.parse_machine in
-                        try_cleanup_distro_version_warn version package |> if_some (fun clean_version ->
-                          add_entry package (clean_version, zi_arch)
-                        )
-                    | _ -> log_warning "Invalid output from 'rpm': %s" line
-                  done
-                with End_of_file -> ()
-              )
-        end
+      val cache = Distro_cache.create_eager config ~cache_leaf:"rpm-status3.cache" ~source:rpm_db_packages ~regenerate
 
       method! private get_package_impls query =
         (* Add any PackageKit candidates *)
         super#get_package_impls query;
 
         (* Add installed packages by querying rpm *)
-        let infos, quick_test = cache#get query.package_name in
+        let infos, quick_test = Distro_cache.get cache query.package_name in
         infos |> List.iter (fun (version, machine) ->
           self#add_package_implementation ~package_state:`installed ~version ~machine ~quick_test ~distro_name query
         )
@@ -476,6 +474,42 @@ module Mac = struct
   let macports_distribution ?(macports_db=macports_db) config =
     let re_version = Str.regexp "^@*\\([^+]+\\)\\(\\+.*\\)?$" in (* strip variants *)
     let re_extra = Str.regexp " platform='\\([^' ]*\\)\\( [0-9]+\\)?' archs='\\([^']*\\)'" in
+
+    let regenerate add_entry =
+      ["port"; "-v"; "installed"] |> U.check_output config.system (fun ch ->
+        try
+          while true do
+            let line = input_line ch in
+            log_debug "Got: '%s'" line;
+            if U.starts_with line " " then (
+              let line = trim line in
+              match Str.bounded_split_delim U.re_space line 3 with
+              | [package; version; extra] when U.starts_with extra "(active)" ->
+                  log_debug "Found package='%s' version='%s' extra='%s'" package version extra;
+                  if Str.string_match re_version version 0 then (
+                    let version = Str.matched_group 1 version in
+                    try_cleanup_distro_version_warn version package |> if_some (fun version ->
+                      if Str.string_match re_extra extra 0 then (
+                        (* let platform = Str.matched_group 1 extra in *)
+                        (* let major = Str.matched_group 2 extra in *)
+                        let archs = Str.matched_group 3 extra in
+                        Str.split U.re_space archs |> List.iter (fun arch ->
+                          let zi_arch = Support.System.canonical_machine arch in
+                          add_entry package (version, Arch.parse_machine zi_arch)
+                        )
+                      ) else (
+                        add_entry package (version, None)
+                      )
+                    )
+                  ) else log_debug "Failed to match version '%s'" version
+              | [_package; _version; _extra] -> ()
+              | [_package; _version] -> ()
+              | _ -> raise_safe "Invalid port output: '%s'" line
+            )
+          done
+        with End_of_file -> ()
+      ) in
+
     object (self : #distribution)
       inherit Distro.distribution config as super
 
@@ -485,45 +519,7 @@ module Mac = struct
 
       val distro_name = "MacPorts"
       val id_prefix = "package:macports"
-      val cache =
-        object
-          inherit Distro_cache.cache config ~cache_leaf:"macports-status2.cache" macports_db
-
-          method! private regenerate_cache add_entry =
-            ["port"; "-v"; "installed"] |> U.check_output config.system (fun ch ->
-              try
-                while true do
-                  let line = input_line ch in
-                  log_debug "Got: '%s'" line;
-                  if U.starts_with line " " then (
-                    let line = trim line in
-                    match Str.bounded_split_delim U.re_space line 3 with
-                    | [package; version; extra] when U.starts_with extra "(active)" ->
-                        log_debug "Found package='%s' version='%s' extra='%s'" package version extra;
-                        if Str.string_match re_version version 0 then (
-                          let version = Str.matched_group 1 version in
-                          try_cleanup_distro_version_warn version package |> if_some (fun version ->
-                            if Str.string_match re_extra extra 0 then (
-                              (* let platform = Str.matched_group 1 extra in *)
-                              (* let major = Str.matched_group 2 extra in *)
-                              let archs = Str.matched_group 3 extra in
-                              Str.split U.re_space archs |> List.iter (fun arch ->
-                                let zi_arch = Support.System.canonical_machine arch in
-                                add_entry package (version, Arch.parse_machine zi_arch)
-                              )
-                            ) else (
-                              add_entry package (version, None)
-                            )
-                          )
-                        ) else log_debug "Failed to match version '%s'" version
-                    | [_package; _version; _extra] -> ()
-                    | [_package; _version] -> ()
-                    | _ -> raise_safe "Invalid port output: '%s'" line
-                  )
-                done
-              with End_of_file -> ()
-            )
-        end
+      val cache = Distro_cache.create_eager config ~cache_leaf:"macports-status2.cache" ~source:macports_db ~regenerate
 
       method! private is_installed elem =
         check_cache id_prefix elem cache || super#is_installed elem
@@ -532,7 +528,7 @@ module Mac = struct
 
       method! private get_package_impls query =
         darwin#get_package_impls query;
-        let infos, quick_test = cache#get query.package_name in
+        let infos, quick_test = Distro_cache.get cache query.package_name in
         infos |> List.iter (fun (version, machine) ->
           self#add_package_implementation ~package_state:`installed ~version ~machine ~quick_test ~distro_name query
         )
@@ -660,38 +656,35 @@ module Win = struct
   (* Note: this is ported from the Python but completely untested. *)
   let cygwin_distribution config =
     let re_whitespace = Str.regexp "[ \t]+" in
+    let regenerate add_entry =
+      ["cygcheck"; "-c"; "-d"] |> U.check_output config.system (fun from_cyg  ->
+        try
+          while true do
+            match input_line from_cyg with
+            | "Cygwin Package Information" | "" -> ()
+            | line ->
+                match U.split_pair re_whitespace line with
+                | ("Package", "Version") -> ()
+                | (package, version) ->
+                    try_cleanup_distro_version_warn version package |> if_some (fun clean_version ->
+                      add_entry package (clean_version, None)
+                    )
+          done
+        with End_of_file -> ()
+      ) in
     object (self)
       inherit Distro.distribution config as super
       val distro_name = "Cygwin"
       val id_prefix = "package:cygwin"
       val check_host_python = false
 
-      val cache =
-        object
-          inherit Distro_cache.cache config ~cache_leaf:"cygcheck-status2.cache" cygwin_log
-          method! private regenerate_cache add_entry =
-            ["cygcheck"; "-c"; "-d"] |> U.check_output config.system (fun from_cyg  ->
-                try
-                  while true do
-                    match input_line from_cyg with
-                    | "Cygwin Package Information" | "" -> ()
-                    | line ->
-                        match U.split_pair re_whitespace line with
-                        | ("Package", "Version") -> ()
-                        | (package, version) ->
-                            try_cleanup_distro_version_warn version package |> if_some (fun clean_version ->
-                              add_entry package (clean_version, None)
-                            )
-                  done
-                with End_of_file -> ()
-              )
-        end
+      val cache = Distro_cache.create_eager config ~cache_leaf:"cygcheck-status2.cache" ~source:cygwin_log ~regenerate
 
       method! private is_installed elem =
         check_cache id_prefix elem cache || super#is_installed elem
 
       method! private get_package_impls query =
-        let infos, quick_test = cache#get query.package_name in
+        let infos, quick_test = Distro_cache.get cache query.package_name in
         infos |> List.iter (fun (version, machine) ->
           self#add_package_implementation ~package_state:`installed ~version ~machine ~quick_test ~distro_name query
         )
