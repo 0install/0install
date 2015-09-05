@@ -250,33 +250,43 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
       log_warning ~ex "Can't test whether impl is available: %a" Impl.fmt impl;
       false in
 
-  let get_feed_if_useful want_source feed_import =
+  let get_feed_if_useful ~problem want_source feed_import =
     try
       (* Don't look at a feed if it only provides things we can't use. *)
       if Scope_filter.use_feed scope_filter ~want_source feed_import
-      then feed_provider#get_feed feed_import.Feed.feed_src
-      else None
+      then (
+        let feed = feed_provider#get_feed feed_import.Feed.feed_src in
+        if feed = None then (
+          let feed_url = Feed_url.format_url feed_import.Feed.feed_src in
+          problem (Printf.sprintf "Imported feed '%s' not available" feed_url)
+        );
+        feed
+      ) else None
     with Safe_exception _ as ex ->
       log_warning ~ex "Failed to get implementations";
+      let feed_url = Feed_url.format_url feed_import.Feed.feed_src in
+      problem (Printf.sprintf "Error getting imported feed '%s': %s" feed_url (Printexc.to_string ex));
       None
   in
 
-  let get_extra_feeds want_source iface_config =
-    Support.Utils.filter_map (get_feed_if_useful want_source) iface_config.Feed_cache.extra_feeds in
+  let get_extra_feeds ~problem want_source iface_config =
+    Support.Utils.filter_map (get_feed_if_useful ~problem want_source) iface_config.Feed_cache.extra_feeds in
 
   let impls_for_iface = U.memoize ~initial_size:10 (fun (iface, want_source) ->
     let master_feed = feed_provider#get_feed (Feed_url.master_feed_of_iface iface) in
     let iface_config = feed_provider#get_iface_config iface in
-    let extra_feeds = get_extra_feeds want_source iface_config in
     let feed_problems = ref [] in
     let problem msg = feed_problems := msg :: !feed_problems in
+    let extra_feeds = get_extra_feeds ~problem want_source iface_config in
 
     (* From master feed, distribution feed, and sub-feeds of master *)
     let (main_impls, stability_policy) =
       match master_feed with
-      | None -> ([], None)
+      | None ->
+          problem (Printf.sprintf "Main feed '%s' not available" iface);
+          ([], None)
       | Some ((feed, _overrides) as pair) ->
-          let sub_feeds = U.filter_map (get_feed_if_useful want_source) feed.Feed.imported_feeds in
+          let sub_feeds = U.filter_map (get_feed_if_useful ~problem want_source) feed.Feed.imported_feeds in
           let impls = List.concat (List.map (get_impls ~problem) (pair :: sub_feeds)) in
           (impls, iface_config.Feed_cache.stability_policy) in
 

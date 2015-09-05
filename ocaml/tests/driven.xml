@@ -163,6 +163,7 @@
     <problem>
 Can't find all required implementations:
 - http://foo/ -> (problem)
+    Imported feed 'http://example.com' not available
     No known implementations at all
     </problem>
   </test>

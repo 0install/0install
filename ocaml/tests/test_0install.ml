@@ -839,6 +839,7 @@ let suite = "0install">::: [
     Fake_system.assert_raises_safe
      "Can't find all required implementations:\
     \n- http://foo/d -> (problem)\
+    \n    Main feed 'http://foo/d' not available\
     \n    No known implementations at all\
     \nNote: 0install is in off-line mode"
      (lazy (run_0install fake_system ~binary:"0launch" ["--offline"; "http://foo/d"] |> ignore));

@@ -354,6 +354,7 @@ http://example.com/lib1.xml: 2 to 1
     <problem>
 Can't find all required implementations:
 - http://localhost/top.xml -> (problem)
+    Main feed 'http://localhost/top.xml' not available
     No known implementations at all
     </problem>
   </test>
