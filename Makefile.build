@@ -7,18 +7,17 @@ MANPAGES = 0launch.1 0store-secure-add.1 0store.1 0desktop.1 0install.1
 
 vpath %.po ${SRCDIR}
 
-MO = $(shell cd ${SRCDIR}; find share/locale -name '*.po' | sort | sed -e 's/\.po/\.mo/')
-
 YOJSON = $(shell ocamlfind query yojson)
 BINIOU = $(shell ocamlfind query biniou)
 EASY_FORMAT = $(shell ocamlfind query easy-format)
 JSON_LIBS = "${EASY_FORMAT}/easy_format.cmo" "${BINIOU}/bi_util.cmo" "${BINIOU}/bi_share.cmo" "${BINIOU}/bi_outbuf.cmo" "${YOJSON}/yojson.cmo"
 XMLM = $(shell ocamlfind query xmlm)
 
-all: translations
+all:
 	(cd "${SRCDIR}/ocaml" && ocaml build-in.ml "${BUILDDIR}/ocaml")
 	(cd "${SRCDIR}" && cp README.md COPYING "${DISTDIR}/")
 	install -d "${DISTDIR}/files"
+	install -d "${DISTDIR}/files/share"
 	-install ocaml/gui_gtk.c*[sa] "${DISTDIR}/files/"
 	install ocaml/0install "${DISTDIR}/files/0install"
 	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0launch"
@@ -28,10 +27,7 @@ all: translations
 	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0alias"
 	(cd "${SRCDIR}" && cp ${MANPAGES} "${DISTDIR}/files")
 	install "${SRCDIR}/install.sh.src" "${DISTDIR}/install.sh"
-	(cp -r share "${DISTDIR}/files/")
 	(cd "${SRCDIR}" && cp -r share/0install.net share/applications share/appdata share/bash-completion share/fish share/icons share/zsh "${DISTDIR}/files/share/")
-
-translations: $(MO)
 
 install: install_local
 
@@ -48,4 +44,4 @@ install_local:
 	mkdir -p `dirname "$@"`
 	msgfmt -o "$@" "$<"
 
-.PHONY: all install translations
+.PHONY: all install

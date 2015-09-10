@@ -99,9 +99,5 @@ fi
 for size in 24x24 48x48 128x128 scalable; do \
   install -d "$DESTDIR${PREFIX_SHARE}/icons/hicolor/${size}/apps/" && \
   install -m 0644 share/icons/${size}/* "$DESTDIR${PREFIX_SHARE}/icons/hicolor/${size}/apps/"; done
-(cd share && for locale in locale/*; do \
-  install -d "$DESTDIR${PREFIX_SHARE}/${locale}/LC_MESSAGES/" && \
-  install -m 0644 "${locale}/LC_MESSAGES/zero-install.mo" "$DESTDIR${PREFIX_SHARE}/${locale}/LC_MESSAGES/"; \
-done)
 
 echo "OK. Now run \"$DESTDIR${PREFIX}/bin/0install --help\" for help."
