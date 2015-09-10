@@ -12,6 +12,9 @@ BINIOU = $(shell ocamlfind query biniou)
 EASY_FORMAT = $(shell ocamlfind query easy-format)
 JSON_LIBS = "${EASY_FORMAT}/easy_format.cmo" "${BINIOU}/bi_util.cmo" "${BINIOU}/bi_share.cmo" "${BINIOU}/bi_outbuf.cmo" "${YOJSON}/yojson.cmo"
 XMLM = $(shell ocamlfind query xmlm)
+OS = $(shell uname -s)
+MACHINE = $(shell uname -m)
+VERSION = $(shell sed -n 's/let version = "\(.*\)"/\1/p' ${SRCDIR}/ocaml/zeroinstall/about.ml)
 
 all:
 	(cd "${SRCDIR}/ocaml" && ocaml build-in.ml "${BUILDDIR}/ocaml")
@@ -28,6 +31,8 @@ all:
 	(cd "${SRCDIR}" && cp ${MANPAGES} "${DISTDIR}/files")
 	install "${SRCDIR}/install.sh.src" "${DISTDIR}/install.sh"
 	(cd "${SRCDIR}" && cp -r share/0install.net share/applications share/appdata share/bash-completion share/fish share/icons share/zsh "${DISTDIR}/files/share/")
+	install -d "${DISTDIR}/0install"
+	[ -f "${DISTDIR}/0install/build-environment.xml" ] || sed 's/@ARCH@/${OS}-${MACHINE}/;s/@VERSION@/${VERSION}/' "${SRCDIR}/binary-feed.xml.in" > "${DISTDIR}/0install/feed.xml"
 
 install: install_local
 

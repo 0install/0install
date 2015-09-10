@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>0install</name>
+  <summary>decentralised installation system</summary>
+  <feed-for interface="http://0install.net/tools/0install.xml"/>
+  <implementation id=".." license="OSI Approved :: GNU Lesser General Public License (LGPL)" main="files/0install"
+    		  version="@VERSION@" arch="@ARCH@">
+    <command name="run" path="files/0install"/>
+    <requires interface="http://repo.roscidus.com/security/gnupg">
+      <executable-in-var name="ZEROINSTALL_GPG"/>
+    </requires>
+  </implementation>
+</interface>
