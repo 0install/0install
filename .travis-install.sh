@@ -9,7 +9,7 @@ install_on_ubuntu () {
 
   echo "yes" | sudo add-apt-repository ppa:$ppa
   sudo apt-get update -qq
-  sudo apt-get install -qq ocaml ocaml-native-compilers camlp4-extra opam time libgmp-dev libgtk2.0-dev libcurl4-openssl-dev
+  sudo apt-get install -qq ocaml ocaml-native-compilers camlp4-extra opam time libgmp-dev libgtk2.0-dev libcurl4-openssl-dev python-gobject-2
 }
 
 install_on_osx () {
@@ -17,7 +17,7 @@ install_on_osx () {
   sudo hdiutil attach XQuartz-2.7.6.dmg
   sudo installer -verbose -pkg /Volumes/XQuartz-2.7.6/XQuartz.pkg -target /
   brew update &> /dev/null
-  brew install ocaml opam pkg-config gettext gnupg gtk+
+  brew install ocaml opam pkg-config gettext gnupg gtk+ pygobject
   brew link gettext --force
 }
 
