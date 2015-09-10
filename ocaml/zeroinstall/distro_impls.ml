@@ -433,6 +433,7 @@ module Mac = struct
         | "openjdk-8-jre" | "openjdk-8-jdk" -> self#find_java "1.8" "8" query
         | "gnupg" -> self#find_program "/usr/local/bin/gpg" query
         | "gnupg2" -> self#find_program "/usr/local/bin/gpg2" query
+        | "make" -> self#find_program "/usr/bin/make" query
         | _ -> super#get_package_impls query
 
       method private find_program main query =
