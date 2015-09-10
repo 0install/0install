@@ -177,7 +177,17 @@ module CoreModel = struct
           copy_elem (dep.Impl.dep_qdom)
       );
 
-      Element.as_xml impl.Impl.qdom |> ZI.iter ~name:"manifest-digest" copy_qdom;
+      begin match impl.Impl.impl_type with
+      | `cache_impl {Impl.digests = []; _} -> ()  (* todo: Shouldn't really happen *)
+      | `cache_impl {Impl.digests; _} ->
+          let rec aux attrs = function
+            | [] -> attrs
+            | (name, value) :: ds -> aux (Qdom.AttrMap.add_no_ns name value attrs) ds in
+          let attrs = aux Qdom.AttrMap.empty digests in
+          let manifest_digest =
+            ZI.make ~attrs ~source_hint:(Element.as_xml impl.Impl.qdom) "manifest-digest" in
+          child_nodes := manifest_digest :: !child_nodes
+      | `local_impl _ | `package_impl _ | `binary_of _ -> () end
     );
     ZI.make
       ~attrs

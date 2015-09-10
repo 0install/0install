@@ -84,13 +84,18 @@ let get_digests elem =
   let digests = ref [] in
 
   let id = Element.id elem in
-  begin match Str.bounded_split_delim U.re_equals id 2 with
-  | [key; value] when key = "sha1" || key = "sha1new" || key = "sha256" -> digests := [(key, value)]
-  | _ -> () end;
+  let same_as_id =
+    match Str.bounded_split_delim U.re_equals id 2 with
+    | ["sha1" | "sha1new" | "sha256" as key; value] ->
+        let digest = (key, value) in
+        digests := [digest];
+        (=) digest
+    | _ -> fun _ -> false in
 
   Element.as_xml elem |> ZI.iter ~name:"manifest-digest" (fun manifest_digest ->
     manifest_digest.Q.attrs |> Q.AttrMap.iter_values (fun (ns, name) value ->
-      if ns = "" then digests := (name, value) :: !digests
+      let digest = (name, value) in
+      if ns = "" && not (same_as_id digest) then digests := digest :: !digests
     )
   );
   !digests

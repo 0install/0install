@@ -733,12 +733,14 @@ Can't find all required implementations:
       <selection id="sha1new=9e367bae00e50616d6b612e94713616a7fb5af4d"
                  interface="http://gfxmonk.net/dist/0install/nose.xml" released="2010-07-19" version="0.11.2">
         <command name="run" path="bin/nosetests"/>
+	<manifest-digest sha1new="9e367bae00e50616d6b612e94713616a7fb5af4d"/>
       </selection>
       <selection id="sha1new=b6d40c5d38b58c1be359d879dadc90d212f9294c"
                  interface="http://gfxmonk.net/dist/0install/watchdog.xml" released="2011-02-09" version="0.5.3">
         <command name="test">
           <runner interface="http://gfxmonk.net/dist/0install/nose.xml"/>
         </command>
+	<manifest-digest sha1new="b6d40c5d38b58c1be359d879dadc90d212f9294c"/>
       </selection>
     </selections>
   </test>
@@ -767,7 +769,9 @@ Can't find all required implementations:
         <requires interface="http://localhost/Missing.xml" importance="recommended"/>
         <requires interface="http://foo/Binary.xml"/>
       </selection>
-      <selection id="sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" interface="http://foo/Binary.xml" version="1.0"/>
+      <selection id="sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" interface="http://foo/Binary.xml" version="1.0">
+	<manifest-digest sha1="3ce644dc725f1d21cfcf02562c76f375944b266a"/>
+      </selection>
     </selections>
 
   </test>
@@ -810,7 +814,9 @@ Can't find all required implementations:
         <requires interface="http://foo/Compiler-new.xml"/>
         <manifest-digest sha256new="def"/>
       </selection>
-      <selection from-feed="http://foo/Compiler.xml" id="sha1=999" interface="http://foo/Compiler-new.xml" version="5"/>
+      <selection from-feed="http://foo/Compiler.xml" id="sha1=999" interface="http://foo/Compiler-new.xml" version="5">
+	<manifest-digest sha1="999"/>
+      </selection>
     </selections>
   </test>
 
@@ -826,7 +832,9 @@ Can't find all required implementations:
         <command name="run" path="missing"/>
         <requires interface="http://localhost:8000/Hello"/>
       </selection>
-      <selection id="sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" interface="http://localhost:8000/Hello" version="1"/>
+      <selection id="sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" interface="http://localhost:8000/Hello" version="1">
+	<manifest-digest sha1="3ce644dc725f1d21cfcf02562c76f375944b266a"/>
+      </selection>
     </selections>
   </test>
 
