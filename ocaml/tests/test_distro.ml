@@ -432,7 +432,7 @@ let suite = "distro">::: [
         val distro_name = "test"
         val id_prefix = "package:test"
 
-        method! private get_package_impls query =
+        method private get_package_impls query =
           match query.Distro.package_name with
           | "foo" ->
               self#add_package_implementation
@@ -444,6 +444,8 @@ let suite = "distro">::: [
                 ~distro_name
                 query
           | _ -> ()
+
+        method check_for_candidates ~ui:_ _feed = Lwt.return ()
       end in
     let feed_provider = new Test_solver.fake_feed_provider config.system (Some distro) in
     feed_provider#add_iface master_feed;

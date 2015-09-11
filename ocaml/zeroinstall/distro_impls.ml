@@ -11,9 +11,70 @@ module U = Support.Utils
 
 open Distro
 
+(** Base class for platforms that can use PackageKit *)
+class virtual packagekit_distro config =
+  object (self)
+    inherit distribution config
+
+    val packagekit = !Packagekit.packagekit (Support.Locale.LangMap.choose config.langs |> fst)
+
+    method private get_package_impls query =
+      let package_name = query.package_name in
+      let pk_unavailable reason = query.problem (Printf.sprintf "%s: %s" package_name reason) in
+      match Lwt.state packagekit#status with
+      | Lwt.Fail ex -> pk_unavailable (Printexc.to_string ex)
+      | Lwt.Sleep -> pk_unavailable "Waiting for PackageKit..."
+      | Lwt.Return (`Unavailable reason) -> pk_unavailable reason
+      | Lwt.Return `Ok ->
+          let pk_query = packagekit#get_impls package_name in
+          pk_query.Packagekit.problems |> List.iter query.problem;
+          pk_query.Packagekit.results |> List.iter (fun info ->
+            let {Packagekit.version; Packagekit.machine; Packagekit.installed; Packagekit.retrieval_method} = info in
+            let package_state =
+              if installed then `installed
+              else `uninstalled retrieval_method in
+            self#add_package_implementation
+              ~version
+              ~machine
+              ~package_state
+              ~quick_test:None
+              ~distro_name:distro_name
+              query
+          )
+
+    (* This default implementation queries PackageKit, if available. *)
+    method check_for_candidates ~ui feed =
+      match get_matching_package_impls self feed with
+      | [] -> Lwt.return ()
+      | matches ->
+          packagekit#status >>= function
+          | `Unavailable _ -> Lwt.return ()
+          | `Ok ->
+              let package_names = matches |> List.map (fun (elem, _props) -> Element.package elem) in
+              let hint = Feed_url.format_url feed.Feed.url in
+              packagekit#check_for_candidates ~ui ~hint package_names
+
+    method! install_distro_packages ui typ items =
+      match typ with
+      | "packagekit" ->
+          begin packagekit#install_packages ui items >>= function
+          | `cancel -> Lwt.return `cancel
+          | `ok ->
+              items |> List.iter (fun (impl, _rm) ->
+                self#fixup_main impl
+              );
+              Lwt.return `ok end
+      | _ ->
+          let names = items |> List.map (fun (_impl, rm) -> snd rm.Impl.distro_install_info) in
+          ui#confirm (Printf.sprintf
+            "This program depends on some packages that are available through your distribution. \
+             Please install them manually using %s before continuing. Or, install 'packagekit' and I can \
+             use that to install things. The packages are:\n\n- %s" typ (String.concat "\n- " names))
+  end
+
 let generic_distribution config =
   object
-    inherit Distro.distribution config
+    inherit packagekit_distro config
     val check_host_python = true
     val distro_name = "fallback"
     val id_prefix = "package:fallback"
@@ -148,7 +209,7 @@ module Debian = struct
       ) in
 
     object (self : #Distro.distribution)
-      inherit Distro.distribution config as super
+      inherit packagekit_distro config as super
       val check_host_python = false
 
       val distro_name = "Debian"
@@ -272,7 +333,7 @@ module RPM = struct
       ) in
 
     object (self)
-      inherit Distro.distribution config as super
+      inherit packagekit_distro config as super
       val check_host_python = false
 
       val distro_name = "RPM"
@@ -367,7 +428,7 @@ module ArchLinux = struct
       | _ -> items in
 
     object (self : #Distro.distribution)
-      inherit Distro.distribution config as super
+      inherit packagekit_distro config as super
       val check_host_python = false
 
       val distro_name = "Arch"
@@ -421,12 +482,12 @@ module Mac = struct
         ) in
 
     object (self : #distribution)
-      inherit Distro.distribution config as super
+      inherit Distro.distribution config
       val distro_name = "Darwin"
       val id_prefix = "package:darwin"
       val check_host_python = true
 
-      method! get_package_impls query =
+      method get_package_impls query =
         match query.package_name with
         | "openjdk-6-jre" | "openjdk-6-jdk" -> self#find_java "1.6" "6" query
         | "openjdk-7-jre" | "openjdk-7-jdk" -> self#find_java "1.7" "7" query
@@ -434,7 +495,10 @@ module Mac = struct
         | "gnupg" -> self#find_program "/usr/local/bin/gpg" query
         | "gnupg2" -> self#find_program "/usr/local/bin/gpg2" query
         | "make" -> self#find_program "/usr/bin/make" query
-        | _ -> super#get_package_impls query
+        | package_name ->
+            if StringMap.is_empty !(query.results) then
+              query.problem (Printf.sprintf "%s: Unknown Darwin/OS X package" package_name)
+            (* else we have MacPorts results *)
 
       method private find_program main query =
         config.system#stat main |> if_some (fun info ->
@@ -470,6 +534,8 @@ module Mac = struct
                 query
           | None -> ()
         )
+
+      method check_for_candidates ~ui:_ _feed = Lwt.return ()
     end
 
   let macports_distribution ?(macports_db=macports_db) config =
@@ -527,12 +593,14 @@ module Mac = struct
 
       method! match_name name = super#match_name name || darwin#match_name name
 
-      method! private get_package_impls query =
-        darwin#get_package_impls query;
+      method private get_package_impls query =
         let infos, quick_test = Distro_cache.get cache query.package_name in
         infos |> List.iter (fun (version, machine) ->
           self#add_package_implementation ~package_state:`installed ~version ~machine ~quick_test ~distro_name query
-        )
+        );
+        darwin#get_package_impls query
+
+      method check_for_candidates ~ui:_ _feed = Lwt.return ()
     end
 
   let darwin_distribution config = (darwin_distribution config :> Distro.distribution)
@@ -554,7 +622,7 @@ module Win = struct
           (value32, None) in
 
     object (self)
-      inherit Distro.distribution config as super
+      inherit Distro.distribution config
       val check_host_python = false (* (0install's bundled Python may not be generally usable) *)
 
       val! system_paths = []
@@ -562,7 +630,7 @@ module Win = struct
       val distro_name = "Windows"
       val id_prefix = "package:windows"
 
-      method! private get_package_impls query =
+      method private get_package_impls query =
         let package_name = query.package_name in
         match package_name with
         | "openjdk-6-jre" -> self#find_java "Java Runtime Environment" "1.6" "6" query
@@ -580,10 +648,9 @@ module Win = struct
             self#find_netfx "v4\\Client" "4.0" query;
             self#find_netfx_release "v4\\Client" 378389 "4.5" query;
         | _ ->
-            super#get_package_impls query
+            query.problem (Printf.sprintf "%s: Unknown Windows package" package_name)
 
-      (* No PackageKit support on Windows *)
-      method! check_for_candidates ~ui:_ _feed = Lwt.return ()
+      method check_for_candidates ~ui:_ _feed = Lwt.return ()
 
       method private find_netfx win_version zero_version query =
         let reg_path = "SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\" ^ win_version in
@@ -684,11 +751,15 @@ module Win = struct
       method! private is_installed elem =
         check_cache id_prefix elem cache || super#is_installed elem
 
-      method! private get_package_impls query =
-        let infos, quick_test = Distro_cache.get cache query.package_name in
+      method private get_package_impls query =
+        match Distro_cache.get cache query.package_name with
+        | [], _ -> query.problem (Printf.sprintf "%s: Unknown Cygwin package" query.package_name)
+        | infos, quick_test ->
         infos |> List.iter (fun (version, machine) ->
           self#add_package_implementation ~package_state:`installed ~version ~machine ~quick_test ~distro_name query
         )
+
+      method check_for_candidates ~ui:_ _feed = Lwt.return ()
     end
 end
 
@@ -699,7 +770,7 @@ module Ports = struct
     let re_name_version = Str.regexp "^\\(.+\\)-\\([^-]+\\)$" in
 
     object (self)
-      inherit Distro.distribution config
+      inherit packagekit_distro config  (* Can ports use PackageKit? Not sure. *)
       val id_prefix = "package:ports"
       val distro_name = "Ports"
       val check_host_python = true
@@ -738,7 +809,7 @@ module Gentoo = struct
 
   let gentoo_distribution ?(pkgdir=Ports.pkg_db) config =
     object (self)
-      inherit Distro.distribution config as super
+      inherit packagekit_distro config as super
       val! valid_package_name = Str.regexp "^[^.-][^/]*/[^./][^/]*$"
       val distro_name = "Gentoo"
       val id_prefix = "package:gentoo"
@@ -795,7 +866,7 @@ module Slackware = struct
 
   let slack_distribution ?(packages_dir=slack_db) config =
     object (self)
-      inherit Distro.distribution config as super
+      inherit packagekit_distro config as super
       val distro_name = "Slack"
       val id_prefix = "package:slack"
       val check_host_python = false

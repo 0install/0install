@@ -383,9 +383,9 @@ let suite = "solver">::: [
         val distro_name = "dummy"
         val check_host_python = false
         method! private is_installed = failwith "is_installed"
-        method! check_for_candidates = raise_safe "Unexpected check_for_candidates"
+        method check_for_candidates = raise_safe "Unexpected check_for_candidates"
         method! install_distro_packages = raise_safe "install_distro_packages"
-        method! private get_package_impls query =
+        method private get_package_impls query =
           let machine = Some Arch.x86_64 in
           self#add_package_implementation
             ~package_state:`installed

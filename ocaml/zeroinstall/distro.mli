@@ -36,10 +36,15 @@ class virtual distribution : General.config ->
     (** Paths to search for missing binaries (i.e. the platform default for $PATH) *)
     val system_paths : string list
 
-    val packagekit : Packagekit.packagekit
-
     (** Can we use packages for this distribution? For example, MacPortsDistribution can use "MacPorts" and "Darwin" packages. *)
     method match_name : string -> bool
+
+    (** Sometimes we don't know the correct path for a binary until the package is installed.
+     * Called by [add_package_implementation] when the package is already installed and may also be
+     * used by [install_distro_packages] when a package becomes installed.
+     * The default implementation checks for a "run" command and calls
+     * [get_correct_main] to get the correct value. *)
+    method private fixup_main : Impl.distro_implementation -> unit
 
     (** Test whether this <selection> element is still valid. The default implementation tries to load the feed from the
      * feed cache, calls [distribution#get_impls_for_feed] on it and checks whether the required implementation ID is in the
@@ -51,9 +56,8 @@ class virtual distribution : General.config ->
     method is_installed_quick : Selections.selection -> bool
 
     (** Add the implementations for this feed to [query].
-     * Called by [get_impls_for_feed] once for each <package-implementation> element.
-     * This default implementation adds anything found previously by PackageKit. *)
-    method private get_package_impls : query -> unit
+     * Called by [get_impls_for_feed] once for each <package-implementation> element. *)
+    method virtual private get_package_impls : query -> unit
 
     (** Get the native implementations (installed or candidates for installation) for this feed.
      * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one.
@@ -67,10 +71,11 @@ class virtual distribution : General.config ->
 
     (** Check (asynchronously) for available but currently uninstalled candidates. Once the returned
         promise resolves, the candidates should be included in future responses from [get_package_impls]. *)
-    method check_for_candidates : 'a. ui:(#Packagekit.ui as 'a) -> Feed.feed -> unit Lwt.t
+    method virtual check_for_candidates : 'a. ui:(#Packagekit.ui as 'a) -> Feed.feed -> unit Lwt.t
 
     (** Install a set of packages of a given type (as set previously by [check_for_candidates]).
-     * Normally called only by the [Distro.install_distro_packages] function. *)
+     * Normally called only by the [Distro.install_distro_packages] function.
+     * The default implementation tells the user to install them manually using [Impl.distro_retrieval_method]. *)
     method install_distro_packages : 'a. (#Packagekit.ui as 'a) -> string -> (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
 
     (** Check whether this name is possible for this distribution. The default implementation filters using [valid_package_name]. *)
@@ -100,4 +105,4 @@ class virtual distribution : General.config ->
 val install_distro_packages : distribution -> #Packagekit.ui -> Impl.distro_implementation list -> [ `ok | `cancel ] Lwt.t
 
 (** Return the <package-implementation> elements that best match this distribution. *)
-val get_matching_package_impls : distribution -> Feed.feed -> ([`package_impl] Element.t * Impl.properties) list
+val get_matching_package_impls : #distribution -> Feed.feed -> ([`package_impl] Element.t * Impl.properties) list

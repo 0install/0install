@@ -164,23 +164,12 @@ class virtual distribution config =
         )
     | _ -> [] in
 
-  let fixup_main distro_get_correct_main impl =
-    let open Impl in
-    match get_command_opt "run" impl with
-    | None -> ()
-    | Some run ->
-        match distro_get_correct_main impl run with
-        | None -> ()
-        | Some new_main -> run.command_qdom <- Element.make_command ~path:new_main ~source_hint:None "run" in
-
   object (self)
     val virtual distro_name : string
     val virtual check_host_python : bool
     val system_paths = ["/usr/bin"; "/bin"; "/usr/sbin"; "/sbin"]
 
     val valid_package_name = Str.regexp "^[^.-][^/]*$"
-
-    val packagekit = !Packagekit.packagekit (Support.Locale.LangMap.choose config.langs |> fst)
 
     (** All IDs will start with this string (e.g. "package:deb") *)
     val virtual id_prefix : string
@@ -194,6 +183,15 @@ class virtual distribution config =
 
     (** Can we use packages for this distribution? For example, MacPortsDistribution can use "MacPorts" and "Darwin" packages. *)
     method match_name name = (name = distro_name)
+
+    method private fixup_main impl =
+      let open Impl in
+      match get_command_opt "run" impl with
+      | None -> ()
+      | Some run ->
+          match self#get_correct_main impl run with
+          | None -> ()
+          | Some new_main -> run.command_qdom <- Element.make_command ~path:new_main ~source_hint:None "run"
 
     (** Convenience wrapper for [add_result] that builds a new implementation from the given attributes. *)
     method private add_package_implementation ?id ?main (query:query) ~version ~machine ~quick_test ~package_state ~distro_name =
@@ -243,7 +241,7 @@ class virtual distribution config =
         impl_type = `package_impl { package_state; package_distro = distro_name };
       } in
 
-      if package_state = `installed then fixup_main self#get_correct_main impl;
+      if package_state = `installed then self#fixup_main impl;
 
       query.results := StringMap.add id impl !(query.results)
 
@@ -297,34 +295,12 @@ class virtual distribution config =
           );
           !results
 
-    method private get_package_impls query : unit =
-      let package_name = query.package_name in
-      let pk_unavailable reason = query.problem (Printf.sprintf "%s: %s" package_name reason) in
-      match Lwt.state packagekit#status with
-      | Lwt.Fail ex -> pk_unavailable (Printexc.to_string ex)
-      | Lwt.Sleep -> pk_unavailable "Waiting for PackageKit..."
-      | Lwt.Return (`Unavailable reason) -> pk_unavailable reason
-      | Lwt.Return `Ok ->
-          let pk_query = packagekit#get_impls package_name in
-          pk_query.Packagekit.problems |> List.iter query.problem;
-          pk_query.Packagekit.results |> List.iter (fun info ->
-            let {Packagekit.version; Packagekit.machine; Packagekit.installed; Packagekit.retrieval_method} = info in
-            let package_state =
-              if installed then `installed
-              else `uninstalled retrieval_method in
-            self#add_package_implementation
-              ~version
-              ~machine
-              ~package_state
-              ~quick_test:None
-              ~distro_name:distro_name
-              query
-          )
+    method virtual private get_package_impls : query -> unit
 
     (** Called when an installed package is added, or when installation completes. This is useful to fix up the main value.
         The default implementation checks that main exists, and searches [system_paths] for
         it if not. *)
-    method private get_correct_main _impl run_command =
+    method private get_correct_main (_impl:Impl.distro_implementation) run_command =
       let open Impl in
       Element.path run_command.command_qdom |> pipe_some (fun path ->
         if Filename.is_relative path || not (system#file_exists path) then (
@@ -345,36 +321,17 @@ class virtual distribution config =
         ) else None
       )
 
-    (* This default implementation queries PackageKit, if available. *)
-    method check_for_candidates : 'a. ui:(#Packagekit.ui as 'a) -> Feed.feed -> unit Lwt.t = fun ~ui feed ->
-      match get_matching_package_impls self feed with
-      | [] -> Lwt.return ()
-      | matches ->
-          packagekit#status >>= function
-          | `Unavailable _ -> Lwt.return ()
-          | `Ok ->
-              let package_names = matches |> List.map (fun (elem, _props) -> Element.package elem) in
-              let hint = Feed_url.format_url feed.Feed.url in
-              packagekit#check_for_candidates ~ui ~hint package_names
+    method virtual check_for_candidates : 'a. ui:(#Packagekit.ui as 'a) -> Feed.feed -> unit Lwt.t
 
-    method install_distro_packages : 'a. (#Packagekit.ui as 'a) -> string -> _ list -> [ `ok | `cancel ] Lwt.t =
+    method install_distro_packages : 'a. (#Packagekit.ui as 'a) -> string ->
+        (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t =
       fun ui typ items ->
-        match typ with
-        | "packagekit" ->
-            begin packagekit#install_packages ui items >>= function
-            | `cancel -> Lwt.return `cancel
-            | `ok ->
-                items |> List.iter (fun (impl, _rm) ->
-                  fixup_main self#get_correct_main impl
-                );
-                Lwt.return `ok end
-        | _ ->
-            let names = items |> List.map (fun (_impl, rm) -> snd rm.Impl.distro_install_info) in
-            ui#confirm (Printf.sprintf
-              "This program depends on some packages that are available through your distribution. \
-               Please install them manually using %s and try again. Or, install 'packagekit' and I can \
-               use that to install things. The packages are:\n\n- %s" typ (String.concat "\n- " names))
-
+        let names = items |> List.map (fun (_impl, rm) -> snd rm.Impl.distro_install_info) in
+        ui#confirm (Printf.sprintf
+          "This program depends on some packages that are available through your distribution. \
+           Please install them manually using %s before continuing. The packages are:\n\n- %s"
+           typ
+           (String.concat "\n- " names))
   end
 
 let install_distro_packages (distro:distribution) ui impls : [ `ok | `cancel ] Lwt.t =
