@@ -52,7 +52,7 @@ default: all
 %::
 	[ -d "${BUILDDIR}" ] || mkdir "${BUILDDIR}"
 	[ -d "${DISTDIR}" ] || mkdir "${DISTDIR}"
-	make -C "${BUILDDIR}" -f "${SRCDIR}/Makefile.build" "$@" SRCDIR="${SRCDIR}" BUILDDIR="${BUILDDIR}" DISTDIR="${DISTDIR}" DESTDIR="${DESTDIR}"
+	$(MAKE) -C "${BUILDDIR}" -f "${SRCDIR}/Makefile.build" "$@" SRCDIR="${SRCDIR}" BUILDDIR="${BUILDDIR}" DISTDIR="${DISTDIR}" DESTDIR="${DESTDIR}"
 
 share/locale/zero-install.pot: $(SH)
 	xgettext --sort-by-file --language=Shell -j --output=$@ $(SH)

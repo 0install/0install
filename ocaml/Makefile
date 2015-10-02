@@ -25,7 +25,7 @@ test: ocaml
 ocaml: build_dir
 	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) "all-${TYPE}.otarget"
 	#cp 0install.ml "$(OCAML_BUILDDIR)/"
-	if [ "$(OS)" = "Windows_NT" ];then make ocaml_windows; else make ocaml_posix; fi
+	if [ "$(OS)" = "Windows_NT" ];then $(MAKE) ocaml_windows; else $(MAKE) ocaml_posix; fi
 
 # For static Windows version, we also need the runenv.native helper.
 ocaml_windows:

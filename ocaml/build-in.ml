@@ -20,7 +20,7 @@ let make_relative path =
 
 let () =
   match Sys.argv with
-  | [| _prog; ocaml_build_dir |] ->
+  | [| _prog; ocaml_build_dir; make_path |] ->
       let ch = Unix.open_process_in "ocamlbuild -version" in
       let ocamlbuild_version = input_line ch in
       let need_relative_path = Str.string_match (Str.regexp "ocamlbuild 3") ocamlbuild_version 0 in
@@ -36,5 +36,5 @@ let () =
       |> List.filter (fun pair -> not (Str.string_match re_OCAMLLIB pair 0))
       |> Array.of_list in
 
-      Unix.execvpe "make" [| "make"; "OCAML_BUILDDIR=" ^ ocaml_build_dir |] env
+      Unix.execvpe make_path [| make_path; "OCAML_BUILDDIR=" ^ ocaml_build_dir |] env
   | _ -> failwith "usage: ocaml build-in.ml builddir"
