@@ -17,7 +17,7 @@ MACHINE = $(shell uname -m)
 VERSION = $(shell sed -n 's/let version = "\(.*\)"/\1/p' ${SRCDIR}/ocaml/zeroinstall/about.ml)
 
 all:
-	(cd "${SRCDIR}/ocaml" && ocaml build-in.ml "${BUILDDIR}/ocaml")
+	(cd "${SRCDIR}/ocaml" && ocaml build-in.ml "${BUILDDIR}/ocaml" "${MAKE}")
 	(cd "${SRCDIR}" && cp README.md COPYING "${DISTDIR}/")
 	install -d "${DISTDIR}/files"
 	install -d "${DISTDIR}/files/share"
