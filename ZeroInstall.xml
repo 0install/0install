@@ -23,7 +23,7 @@ interfere with those provided by the distribution.
   <release:management xmlns:release="http://zero-install.sourceforge.net/2007/namespaces/0release">
     <!-- Update the copy of the version number -->
     <release:update-version path="ocaml/zeroinstall/about.ml">^let version = &quot;(.*)&quot;$</release:update-version>
-    <release:action phase="generate-archive">rm .gitignore; make translations</release:action>
+    <release:action phase="generate-archive">rm .gitignore</release:action>
   </release:management>
 
   <group arch="*-src" license="OSI Approved :: GNU Lesser General Public License (LGPL)">
