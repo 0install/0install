@@ -7,7 +7,7 @@ dev-repo: "https://github.com/0install/0install.git"
 build: [
   [make]
 ]
-depends: [ "yojson" "xmlm" "ounit" "react" "lwt" "extlib" "ocurl" "sha"]
+depends: [ "yojson" "xmlm" "ounit" "react" "lwt" "extlib" "ocurl" "sha" "camlp4"]
 depopts: [ "obus" "lablgtk" ]
 depexts: [
   [["ubuntu"] ["unzip"]]
