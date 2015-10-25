@@ -152,11 +152,25 @@ let make_impossible_restriction msg =
     method to_string = Printf.sprintf "<impossible: %s>" msg
   end
 
+let re_exact_id = Str.regexp "^=\\([^#]+\\)#\\(.*\\)$"
+
 let make_version_restriction expr =
   try
-    let test = Version.parse_expr expr in
+    let test =
+      if Str.string_match re_exact_id expr 0 then (
+        (* =feed#url exact implementation *)
+        let req_feed = Str.matched_group 1 expr in
+        let req_id = Str.matched_group 2 expr in
+        fun impl ->
+          get_attr_ex FeedAttr.id impl = req_id &&
+          get_attr_ex FeedAttr.from_feed impl = req_feed
+      ) else (
+        (* version-based test *)
+        let test = Version.parse_expr expr in
+        fun impl -> test impl.parsed_version
+      ) in
     object
-      method meets_restriction impl = test impl.parsed_version
+      method meets_restriction = test
       method to_string = "version " ^ expr
     end
   with Safe_exception (ex_msg, _) as ex ->

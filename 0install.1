@@ -206,6 +206,7 @@ Select source code rather than a binary. This is used internally by `0compile'.
 \fB\-\-version=RANGE\fP
 Require a version of the main program within the given range. This can be a simple number (e.g. \fB\-\-version=2.3\fP) or a range (e.g. \fB\-\-version=2.3..!2.7\fP).
 For ranges, either end may be omitted. The "!" indicates that the range excludes the final value. Alternatives can be separated by "|", e.g. "2.6..!3 | 3.2.." (allows 2.6, 2.7, 3.2, etc, but not 2.5 or 3.0).
+You can also force a particular implementation by its ID, using the syntax "=FEED#ID".
 
 .TP
 \fB\-\-version-for=URI RANGE\fP
