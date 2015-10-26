@@ -15,17 +15,17 @@
   </test>
 
   <test name='force-id' add-downloads='true'>
-    <interface uri='http://example.com/prog.xml' min-injector-version='1'>
+    <interface uri='/path#foo/prog.xml' min-injector-version='1'>
       <name>0install</name>
-      <implementation id='v1' version='1'><command name='run' path='main'/></implementation>
-      <implementation id='v2' version='2'><command name='run' path='main'/></implementation>
+      <implementation id='v1#x/y' version='1'><command name='run' path='main'/></implementation>
+      <implementation id='v2#x/y' version='2'><command name='run' path='main'/></implementation>
     </interface>
-    <requirements command='run' interface='http://example.com/prog.xml'>
-      <restricts interface='http://example.com/prog.xml' version='=http://example.com/prog.xml#v1'/>
-      <restricts interface='http://example.com/prog2.xml' version='=http://example.com/prog.xml#v2'/>
+    <requirements command='run' interface='/path#foo/prog.xml'>
+      <restricts interface='/path#foo/prog.xml' version='=/path#foo/prog.xml/v1#x__y'/>
+      <restricts interface='/path#foo/prog2.xml' version='=/path#foo/prog.xml/v2#x__y'/>
     </requirements>
-    <selections source="false" command="run" interface="http://example.com/prog.xml">
-      <selection id='v1' interface='http://example.com/prog.xml' version='1'>
+    <selections source="false" command="run" interface="/path#foo/prog.xml">
+      <selection id='v1#x/y' interface='/path#foo/prog.xml' version='1'>
         <command name="run" path="main"/>
       </selection>
     </selections>

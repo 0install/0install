@@ -51,7 +51,7 @@ let pretty uri =
     The result is a valid file leaf name (i.e. does not contain / etc).
     Letters, digits, '-', '.', and characters > 127 are copied unmodified.
     '/' becomes '__'. Other characters become '_code_', where code is the
-    lowercase hex value of the character in Unicode. *)
+    lowercase hex value of the byte. *)
 let underscore_escape src =
   let b = Buffer.create (String.length src * 2) in
   for i = 0 to String.length src - 1 do

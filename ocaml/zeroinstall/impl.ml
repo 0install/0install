@@ -152,27 +152,28 @@ let make_impossible_restriction msg =
     method to_string = Printf.sprintf "<impossible: %s>" msg
   end
 
-let re_exact_id = Str.regexp "^=\\([^#]+\\)#\\(.*\\)$"
+let re_exact_id = Str.regexp "^=\\(.+\\)/\\([^/]*\\)$"
 
 let make_version_restriction expr =
   try
-    let test =
-      if Str.string_match re_exact_id expr 0 then (
-        (* =feed#url exact implementation *)
-        let req_feed = Str.matched_group 1 expr in
-        let req_id = Str.matched_group 2 expr in
-        fun impl ->
+    if Str.string_match re_exact_id expr 0 then (
+      (* =FEED/ID exact implementation spec *)
+      let req_feed = Str.matched_group 1 expr in
+      let req_id = Str.matched_group 2 expr |> Escape.ununderscore_escape in
+      object
+        method meets_restriction impl =
           get_attr_ex FeedAttr.id impl = req_id &&
           get_attr_ex FeedAttr.from_feed impl = req_feed
-      ) else (
-        (* version-based test *)
-        let test = Version.parse_expr expr in
-        fun impl -> test impl.parsed_version
-      ) in
-    object
-      method meets_restriction = test
-      method to_string = "version " ^ expr
-    end
+        method to_string = Printf.sprintf "feed=%S, impl=%S" req_feed req_id
+      end
+    ) else (
+      (* version-based test *)
+      let test = Version.parse_expr expr in
+      object
+        method meets_restriction impl = test impl.parsed_version
+        method to_string = "version " ^ expr
+      end
+    )
   with Safe_exception (ex_msg, _) as ex ->
     let msg = Printf.sprintf "Can't parse version restriction '%s': %s" expr ex_msg in
     log_warning ~ex:ex "%s" msg;
