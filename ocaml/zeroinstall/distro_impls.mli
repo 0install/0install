@@ -39,3 +39,8 @@ module Mac : sig
   val macports_distribution : ?macports_db:Support.Common.filepath -> General.config -> Distro.distribution
   val darwin_distribution : General.config -> Distro.distribution
 end
+
+module FreeBSD : sig
+  val freebsd_distribution : ?db_file:Support.Common.filepath -> General.config -> Distro.distribution
+  val process_pkg_line : line:string -> add_entry:(string -> (Version.t * 'a option) -> unit) -> unit
+end

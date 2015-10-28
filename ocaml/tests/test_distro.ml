@@ -14,6 +14,8 @@ module Impl = Zeroinstall.Impl
 module F = Zeroinstall.Feed
 module U = Support.Utils
 
+exception Called_with of string * (Version.t * string option);;
+
 let is_available_locally config impl =
   let open Impl in
   match impl.impl_type with
@@ -186,6 +188,15 @@ let suite = "distro">::: [
     | impls -> assert_failure @@ Printf.sprintf "want 1, got %d" (List.length impls) end;
 
     Unix.putenv "PATH" old_path;
+  );
+
+  "freebsd">:: (fun () ->
+    try (
+      Distro_impls.FreeBSD.process_pkg_line ~line:"gnupg-2.1.8" ~add_entry:(fun x y -> raise (Called_with (x, y)));
+      assert false
+    ) with
+      Called_with (x, y) ->
+        assert_equal (x, y) ("gnupg", (Version.parse "2.1.8", None))
   );
 
   "test_host_python">:: Fake_system.with_tmpdir (fun tmpdir ->

@@ -892,6 +892,51 @@ module Slackware = struct
     end
 end
 
+module FreeBSD = struct
+  let db_file = "/var/db/pkg/repo-FreeBSD.sqlite"
+
+  let process_pkg_line = fun ~line ~add_entry ->
+    let delim_pos = Str.search_backward (Str.regexp "-") line (String.length line) in
+    let package_name = Str.string_before line delim_pos in
+    let version = Str.string_after line (delim_pos + 1) in
+    try_cleanup_distro_version_warn version package_name |> if_some (fun clean_version ->
+      add_entry package_name (clean_version, None)
+    )
+
+  let freebsd_distribution ?(db_file=db_file) config =
+    let regenerate add_entry =
+      ["pkg"; "info"; "-q"] |> U.check_output config.system (fun from_pkg ->
+        try
+          while true do
+            process_pkg_line ~line:(input_line from_pkg) ~add_entry
+          done
+        with End_of_file -> ()
+      ) in
+    object (self)
+      inherit Distro.distribution config
+
+      val! system_paths = ["/usr/local/bin"]
+      val distro_name = "FreeBSD"
+      val id_prefix = "package:pkgng"
+      val check_host_python = true
+
+      val cache = Distro_cache.create_eager config ~cache_leaf:"pkgng.cache" ~source:db_file ~regenerate
+
+      method! private is_installed elem =
+        check_cache id_prefix elem cache
+
+      method private get_package_impls query =
+        match Distro_cache.get cache query.package_name with
+        | [], _ -> query.problem (Printf.sprintf "%s: Unknown FreeBSD package" query.package_name)
+        | infos, quick_test ->
+        infos |> List.iter (fun (version, machine) ->
+          self#add_package_implementation ~package_state:`installed ~version ~machine ~quick_test ~distro_name query
+        )
+
+      method check_for_candidates ~ui:_ _feed = Lwt.return ()
+    end
+end
+
 let get_host_distribution config : Distro.distribution =
   let exists = config.system#file_exists in
 
@@ -910,6 +955,8 @@ let get_host_distribution config : Distro.distribution =
         RPM.rpm_distribution config
       else if exists Mac.macports_db then
         Mac.macports_distribution config
+      else if exists FreeBSD.db_file then
+        FreeBSD.freebsd_distribution config
       else if exists Ports.pkg_db then (
         if config.system#platform.Platform.os = "Linux" then
           Gentoo.gentoo_distribution config
