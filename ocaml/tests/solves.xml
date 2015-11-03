@@ -14,6 +14,521 @@
     </selections>
   </test>
 
+  <test name="simple-dependency" add-downloads="true">
+    <interface uri="http://example.com/app.xml">
+      <name>prog</name>
+      <implementation version="1.0" id="app1">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/lib.xml"/>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/lib.xml">
+      <name>lib</name>
+      <implementation version="1.0" id="lib1"/>
+    </interface>
+    <requirements command="run" interface="http://example.com/app.xml"/>
+    <selections source="false" command="run" interface="http://example.com/app.xml">
+      <selection version="1.0" id="app1" interface="http://example.com/app.xml">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/lib.xml"/>
+      </selection>
+      <selection version="1.0" id="lib1" interface="http://example.com/lib.xml"/>
+    </selections>
+  </test>
+
+  <test name="optional-dependency-satisfiable" add-downloads="true">
+    <interface uri="http://example.com/app.xml">
+      <name>prog</name>
+      <implementation version="1.0" id="app1">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/lib.xml" importance="recommended"/>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/lib.xml">
+      <name>lib</name>
+      <implementation version="1.0" id="lib1"/>
+    </interface>
+    <requirements command="run" interface="http://example.com/app.xml"/>
+    <selections source="false" command="run" interface="http://example.com/app.xml">
+      <selection version="1.0" id="app1" interface="http://example.com/app.xml">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/lib.xml" importance="recommended"/>
+      </selection>
+      <selection version="1.0" id="lib1" interface="http://example.com/lib.xml"/>
+    </selections>
+  </test>
+
+  <test name="optional-dependency-not-satisfiable" add-downloads="true">
+    <interface uri="http://example.com/app.xml">
+      <name>prog</name>
+      <implementation version="1.0" id="app1">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/lib.xml" importance="recommended"/>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/lib.xml">
+      <name>lib</name>
+    </interface>
+    <requirements command="run" interface="http://example.com/app.xml"/>
+    <selections source="false" command="run" interface="http://example.com/app.xml">
+      <selection version="1.0" id="app1" interface="http://example.com/app.xml">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/lib.xml" importance="recommended"/>
+      </selection>
+    </selections>
+  </test>
+
+  <test name="os-specific-dependency-applicable" add-downloads="true">
+    <interface uri="http://example.com/app.xml">
+      <name>prog</name>
+      <implementation version="1.0" id="app1">
+        <command name="run" path="test-app"/>
+        <requires os="Windows" interface="http://example.com/lib.xml"/>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/lib.xml">
+      <name>lib</name>
+      <implementation version="1.0" id="lib1"/>
+    </interface>
+    <requirements command="run" interface="http://example.com/app.xml" os="Windows"/>
+    <selections source="false" command="run" interface="http://example.com/app.xml">
+      <selection version="1.0" id="app1" interface="http://example.com/app.xml">
+        <command name="run" path="test-app"/>
+        <requires os="Windows" interface="http://example.com/lib.xml"/>
+      </selection>
+      <selection version="1.0" id="lib1" interface="http://example.com/lib.xml"/>
+    </selections>
+  </test>
+
+  <test name="os-specific-dependency-not-applicable" add-downloads="true">
+    <interface uri="http://example.com/app.xml">
+      <name>prog</name>
+      <implementation version="1.0" id="app1">
+        <command name="run" path="test-app"/>
+        <requires os="Windows" interface="http://example.com/lib.xml"/>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/lib.xml">
+      <name>lib</name>
+      <implementation version="1.0" id="lib1"/>
+    </interface>
+    <requirements command="run" interface="http://example.com/app.xml" os="Linux"/>
+    <selections source="false" command="run" interface="http://example.com/app.xml">
+      <selection version="1.0" id="app1" interface="http://example.com/app.xml">
+        <command name="run" path="test-app"/>
+      </selection>
+    </selections>
+  </test>
+
+  <test name="cyclic-dependency" add-downloads="true">
+    <interface uri="http://example.com/app.xml">
+      <name>prog</name>
+      <implementation version="1.0" id="app1">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/lib.xml"/>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/lib.xml">
+      <name>lib</name>
+      <implementation version="1.0" id="lib1">
+        <requires interface="http://example.com/app.xml"/>
+      </implementation>
+    </interface>
+    <requirements command="run" interface="http://example.com/app.xml"/>
+    <selections source="false" command="run" interface="http://example.com/app.xml">
+      <selection version="1.0" id="app1" interface="http://example.com/app.xml">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/lib.xml"/>
+      </selection>
+      <selection version="1.0" id="lib1" interface="http://example.com/lib.xml">
+        <requires interface="http://example.com/app.xml"/>
+      </selection>
+    </selections>
+  </test>
+
+  <test name="transitive-dependency" add-downloads="true">
+    <interface uri="http://example.com/app.xml">
+      <name>prog</name>
+      <implementation version="1.0" id="app1">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/liba.xml"/>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/liba.xml">
+      <name>libA</name>
+      <implementation version="1.0" id="libA1">
+        <requires interface="http://example.com/libb.xml"/>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/libb.xml">
+      <name>libB</name>
+      <implementation version="1.0" id="libB1"/>
+    </interface>
+    <requirements command="run" interface="http://example.com/app.xml"/>
+    <selections source="false" command="run" interface="http://example.com/app.xml">
+      <selection version="1.0" id="app1" interface="http://example.com/app.xml">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/liba.xml"/>
+      </selection>
+      <selection version="1.0" id="libA1" interface="http://example.com/liba.xml">
+        <requires interface="http://example.com/libb.xml"/>
+      </selection>
+      <selection version="1.0" id="libB1" interface="http://example.com/libb.xml"/>
+    </selections>
+  </test>
+
+  <test name="runner-dependency" add-downloads="true">
+    <interface uri="http://example.com/app.xml">
+      <name>prog</name>
+      <implementation version="1.0" id="app1">
+        <command name="run" path="test-app">
+          <runner interface="http://example.com/runner.xml"/>
+        </command>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/runner.xml">
+      <name>runner</name>
+      <implementation version="1.0" id="runner1">
+        <command name="run" path="test-runner"/>
+      </implementation>
+    </interface>
+    <requirements command="run" interface="http://example.com/app.xml"/>
+    <selections source="false" command="run" interface="http://example.com/app.xml">
+      <selection version="1.0" id="app1" interface="http://example.com/app.xml">
+        <command name="run" path="test-app">
+          <runner interface="http://example.com/runner.xml"/>
+        </command>
+      </selection>
+      <selection version="1.0" id="runner1" interface="http://example.com/runner.xml">
+        <command name="run" path="test-runner"/>
+      </selection>
+    </selections>
+  </test>
+
+  <test name="dependency-with-binding" add-downloads="true">
+    <interface uri="http://example.com/app.xml">
+      <name>prog</name>
+      <implementation version="1.0" id="app1">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/lib.xml">
+          <environment name="var1" insert="."/>
+        </requires>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/lib.xml">
+      <name>lib</name>
+      <implementation version="1.0" id="lib1"/>
+    </interface>
+    <requirements command="run" interface="http://example.com/app.xml"/>
+    <selections source="false" command="run" interface="http://example.com/app.xml">
+      <selection version="1.0" id="app1" interface="http://example.com/app.xml">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/lib.xml">
+          <environment name="var1" insert="."/>
+        </requires>
+      </selection>
+      <selection version="1.0" id="lib1" interface="http://example.com/lib.xml"/>
+    </selections>
+  </test>
+
+  <test name="self-command-dependencies" add-downloads="true">
+    <interface uri="http://example.com/app.xml">
+      <name>prog</name>
+      <implementation version="1.0" id="app1">
+        <command name="commandA" path="helperA"/>
+        <command name="run" path="test-app">
+          <executable-in-path command="commandA" name="helperA"/>
+        </command>
+      </implementation>
+    </interface>
+    <requirements command="run" interface="http://example.com/app.xml"/>
+    <selections source="false" command="run" interface="http://example.com/app.xml">
+      <selection version="1.0" id="app1" interface="http://example.com/app.xml">
+        <command name="commandA" path="helperA"/>
+        <command name="run" path="test-app">
+          <executable-in-path command="commandA" name="helperA"/>
+        </command>
+      </selection>
+    </selections>
+  </test>
+
+  <test name="multiple-command-dependencies" add-downloads="true">
+    <interface uri="http://example.com/app.xml">
+      <name>prog</name>
+      <implementation version="1.0" id="app1">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/helper.xml">
+          <executable-in-path command="commandA" name="helperA"/>
+          <executable-in-path command="commandB" name="helperB"/>
+        </requires>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/helper.xml">
+      <name>helper</name>
+      <implementation version="1.0" id="helper1">
+        <command name="commandA" path="helperA"/>
+        <command name="commandB" path="helperB">
+          <runner interface="http://example.com/runner.xml"/>
+        </command>
+        <command name="commandC" path="helperC"/>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/runner.xml">
+      <name>runner</name>
+      <implementation version="1.0" id="runner1">
+        <command name="run" path="test-runner"/>
+      </implementation>
+    </interface>
+    <requirements command="run" interface="http://example.com/app.xml"/>
+    <selections source="false" command="run" interface="http://example.com/app.xml">
+      <selection version="1.0" id="app1" interface="http://example.com/app.xml">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/helper.xml">
+          <executable-in-path command="commandA" name="helperA"/>
+          <executable-in-path command="commandB" name="helperB"/>
+        </requires>
+      </selection>
+      <selection version="1.0" id="helper1" interface="http://example.com/helper.xml">
+        <command name="commandA" path="helperA"/>
+        <command name="commandB" path="helperB">
+          <runner interface="http://example.com/runner.xml"/>
+        </command>
+      </selection>
+      <selection version="1.0" id="runner1" interface="http://example.com/runner.xml">
+        <command name="run" path="test-runner"/>
+      </selection>
+    </selections>
+  </test>
+
+  <test name="executable-binding-in-dependency" add-downloads="true">
+    <interface uri="http://example.com/app.xml">
+      <name>prog</name>
+      <implementation version="1.0" id="app1">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/helper.xml">
+          <executable-in-path name="helper"/>
+        </requires>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/helper.xml">
+      <name>helper</name>
+      <implementation version="1.0" id="helper1">
+        <command name="run" path="test-helper"/>
+      </implementation>
+    </interface>
+    <requirements command="run" interface="http://example.com/app.xml"/>
+    <selections source="false" command="run" interface="http://example.com/app.xml">
+      <selection version="1.0" id="app1" interface="http://example.com/app.xml">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/helper.xml">
+          <executable-in-path name="helper"/>
+        </requires>
+      </selection>
+      <selection version="1.0" id="helper1" interface="http://example.com/helper.xml">
+        <command name="run" path="test-helper"/>
+      </selection>
+    </selections>
+  </test>
+
+  <test name="executable-binding-in-dependency-triggering-additional-requirements" add-downloads="true">
+    <interface uri="http://example.com/app.xml">
+      <name>prog</name>
+      <implementation version="1.0" id="app1">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/helper.xml">
+          <executable-in-path command="helper" name="helper"/>
+        </requires>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/helper.xml">
+      <name>helper</name>
+      <implementation version="1.0" id="helper1">
+        <command name="helper" path="helper-app"/>
+      </implementation>
+    </interface>
+    <requirements command="run" interface="http://example.com/app.xml"/>
+    <selections source="false" command="run" interface="http://example.com/app.xml">
+      <selection version="1.0" id="app1" interface="http://example.com/app.xml">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/helper.xml">
+          <executable-in-path command="helper" name="helper"/>
+        </requires>
+      </selection>
+      <selection version="1.0" id="helper1" interface="http://example.com/helper.xml">
+        <command name="helper" path="helper-app"/>
+      </selection>
+    </selections>
+  </test>
+
+  <test name="executable-binding-in-implementation-triggering-additional-requirements" add-downloads="true">
+    <interface uri="http://example.com/app.xml">
+      <name>prog</name>
+      <implementation version="1.0" id="app1">
+        <executable-in-path command="helper" name="helper"/>
+        <command name="run" path="test-app"/>
+        <command name="helper" path="helper-app">
+          <requires interface="http://example.com/helper.xml"/>
+        </command>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/helper.xml">
+      <name>helper</name>
+      <implementation version="1.0" id="helper1"/>
+    </interface>
+    <requirements command="run" interface="http://example.com/app.xml"/>
+    <selections source="false" command="run" interface="http://example.com/app.xml">
+      <selection version="1.0" id="app1" interface="http://example.com/app.xml">
+        <command name="helper" path="helper-app">
+          <requires interface="http://example.com/helper.xml"/>
+        </command>
+        <command name="run" path="test-app"/>
+        <executable-in-path command="helper" name="helper"/>
+      </selection>
+      <selection version="1.0" id="helper1" interface="http://example.com/helper.xml"/>
+    </selections>
+  </test>
+
+  <test name="simple-restriction" add-downloads="true">
+    <interface uri="http://example.com/app.xml">
+      <name>prog</name>
+      <implementation version="1.0" id="app1">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/liba.xml"/>
+        <requires interface="http://example.com/libb.xml"/>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/liba.xml">
+      <name>libA</name>
+      <implementation version="1.0" id="liba1">
+        <restricts interface="http://example.com/libb.xml" version="1.0"/>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/libb.xml">
+      <name>libB</name>
+      <implementation version="1.0" id="libb1"/>
+      <implementation version="2.0" id="libb2"/>
+    </interface>
+    <requirements command="run" interface="http://example.com/app.xml"/>
+    <selections source="false" command="run" interface="http://example.com/app.xml">
+      <selection version="1.0" id="app1" interface="http://example.com/app.xml">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/liba.xml"/>
+        <requires interface="http://example.com/libb.xml"/>
+      </selection>
+      <selection version="1.0" id="liba1" interface="http://example.com/liba.xml"/>
+      <selection version="1.0" id="libb1" interface="http://example.com/libb.xml"/>
+    </selections>
+  </test>
+
+  <test name="os-specific-restriction-applicable" add-downloads="true">
+    <interface uri="http://example.com/app.xml">
+      <name>prog</name>
+      <implementation version="1.0" id="app1">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/liba.xml"/>
+        <requires interface="http://example.com/libb.xml"/>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/liba.xml">
+      <name>libA</name>
+      <implementation version="1.0" id="liba1">
+        <restricts os="Windows" interface="http://example.com/libb.xml" version="1.0"/>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/libb.xml">
+      <name>libB</name>
+      <implementation version="1.0" id="libb1"/>
+      <implementation version="2.0" id="libb2"/>
+    </interface>
+    <requirements command="run" interface="http://example.com/app.xml" os="Windows"/>
+    <selections source="false" command="run" interface="http://example.com/app.xml">
+      <selection version="1.0" id="app1" interface="http://example.com/app.xml">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/liba.xml"/>
+        <requires interface="http://example.com/libb.xml"/>
+      </selection>
+      <selection version="1.0" id="liba1" interface="http://example.com/liba.xml"/>
+      <selection version="1.0" id="libb1" interface="http://example.com/libb.xml"/>
+    </selections>
+  </test>
+
+  <test name="os-specific-restriction-not-applicable" add-downloads="true">
+    <interface uri="http://example.com/app.xml">
+      <name>prog</name>
+      <implementation version="1.0" id="app1">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/liba.xml"/>
+        <requires interface="http://example.com/libb.xml"/>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/liba.xml">
+      <name>libA</name>
+      <implementation version="1.0" id="liba1">
+        <restricts os="Windows" interface="http://example.com/libb.xml" version="1.0"/>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/libb.xml">
+      <name>libB</name>
+      <implementation version="1.0" id="libb1"/>
+      <implementation version="2.0" id="libb2"/>
+    </interface>
+    <requirements command="run" interface="http://example.com/app.xml" os="Linux"/>
+    <selections source="false" command="run" interface="http://example.com/app.xml">
+      <selection version="1.0" id="app1" interface="http://example.com/app.xml">
+        <command name="run" path="test-app"/>
+        <requires interface="http://example.com/liba.xml"/>
+        <requires interface="http://example.com/libb.xml"/>
+      </selection>
+      <selection version="1.0" id="liba1" interface="http://example.com/liba.xml"/>
+      <selection version="2.0" id="libb2" interface="http://example.com/libb.xml"/>
+    </selections>
+  </test>
+
+  <test name="simple-feed-reference" add-downloads="true">
+    <interface uri="http://example.com/prog1.xml">
+      <name>prog1</name>
+      <feed src="http://example.com/prog2.xml"/>
+      <implementation version="1.0" id="app1">
+        <command name="run" path="test-app1"/>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/prog2.xml">
+      <name>prog2</name>
+      <implementation version="2.0" id="app2">
+        <command name="run" path="test-app2"/>
+      </implementation>
+    </interface>
+    <requirements command="run" interface="http://example.com/prog1.xml"/>
+    <selections source="false" command="run" interface="http://example.com/prog1.xml">
+      <selection version="2.0" id="app2" interface="http://example.com/prog1.xml" from-feed="http://example.com/prog2.xml">
+        <command name="run" path="test-app2"/>
+      </selection>
+    </selections>
+  </test>
+
+  <test name="cyclic-feed-reference" add-downloads="true">
+    <interface uri="http://example.com/prog1.xml">
+      <name>prog1</name>
+      <feed src="http://example.com/prog2.xml"/>
+      <implementation version="1.0" id="app1">
+        <command name="run" path="test-app1"/>
+      </implementation>
+    </interface>
+    <interface uri="http://example.com/prog2.xml">
+      <name>prog2</name>
+      <feed src="http://example.com/prog1.xml"/>
+      <implementation version="2.0" id="app2">
+        <command name="run" path="test-app2"/>
+      </implementation>
+    </interface>
+    <requirements command="run" interface="http://example.com/prog1.xml"/>
+    <selections source="false" command="run" interface="http://example.com/prog1.xml">
+      <selection version="2.0" id="app2" interface="http://example.com/prog1.xml" from-feed="http://example.com/prog2.xml">
+        <command name="run" path="test-app2"/>
+      </selection>
+    </selections>
+  </test>
+
   <test name='force-id' add-downloads='true'>
     <interface uri='/path#foo/prog.xml' min-injector-version='1'>
       <name>0install</name>
