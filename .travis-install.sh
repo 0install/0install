@@ -17,7 +17,7 @@ install_on_osx () {
   sudo hdiutil attach XQuartz-2.7.6.dmg
   sudo installer -verbose -pkg /Volumes/XQuartz-2.7.6/XQuartz.pkg -target /
   brew update &> /dev/null
-  brew install ocaml opam pkg-config gettext gnupg gtk+ pygobject
+  brew install ocaml opam gettext gnupg gtk+ pygobject
   brew link gettext --force
 }
 
