@@ -350,8 +350,13 @@ let suite = "0install">::: [
     assert_contains "[dry-run] would write selections to " out;
     assert_contains "[dry-run] would write launcher script " out;
 
-    Unix.mkdir (tmpdir +/ "bin") 0o700;
-    fake_system#putenv "PATH" ((tmpdir +/ "bin") ^ path_sep ^ U.getenv_ex fake_system "PATH");
+    let bin_dir = (tmpdir +/ "bin") in
+    assert (not (fake_system#file_exists bin_dir));
+
+    let out = run ["add"; "local-app-make-bin"; local_feed] in
+    assert_str_equal "" out;
+
+    assert (fake_system#file_exists bin_dir);
 
     let out = run ["add"; "local-app"; local_feed] in
     assert_str_equal "" out;

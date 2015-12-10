@@ -303,7 +303,9 @@ let find_bin_dir_in ~warn_about_path config paths =
 
   let best =
     match home_bin with
-    | Some home_bin when List.mem home_bin paths -> Some home_bin
+    | Some home_bin when List.mem home_bin paths ->
+        U.makedirs system home_bin 0o755;
+        Some home_bin
     | _ ->
       paths |> U.first_match (fun path ->
         let path = U.realpath system path in
