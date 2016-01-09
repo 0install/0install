@@ -19,7 +19,7 @@ let suite = "apps">::: [
 
     fake_system#add_file "/lib/ld-linux.so.2" "/";    (* Enable multi-arch *)
 
-    let interface_cache = tmpdir +/ "cache/0install.net/interfaces" in
+    let interface_cache = tmpdir +/ "cache/interfaces" in
     U.makedirs system interface_cache 0o755;
     U.copy_file system
       "../tests/Hello.xml"

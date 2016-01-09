@@ -124,8 +124,8 @@ let suite = "0install">::: [
   "select">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (_config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let system = (fake_system :> system) in
-    fake_system#add_file (tmpdir +/ "cache" +/ "0install.net" +/ "interfaces" +/ "http%3a%2f%2fexample.com%3a8000%2fHello.xml") (feed_dir +/ "Hello.xml");
-    fake_system#add_dir (tmpdir +/ "cache" +/ "0install.net" +/ "implementations") ["sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"];
+    fake_system#add_file (tmpdir +/ "cache" +/ "interfaces" +/ "http%3a%2f%2fexample.com%3a8000%2fHello.xml") (feed_dir +/ "Hello.xml");
+    fake_system#add_dir (tmpdir +/ "cache" +/ "implementations") ["sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"];
     fake_system#add_file "/lib/ld-linux.so.2" "/";    (* Enable multi-arch *)
 
     (* In --offline mode we select from the cached feed *)

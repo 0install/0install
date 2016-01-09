@@ -24,9 +24,9 @@ let get_default system =
         }
     | Some base ->
         { Support.Basedir.
-          data = [base +/ "data" +/ site];
-          cache = [base +/ "cache" +/ site];
-          config = [base +/ "config" +/ site];
+          data = [base +/ "data"];
+          cache = [base +/ "cache"];
+          config = [base +/ "config"];
         } in
   { system; dirs }
 

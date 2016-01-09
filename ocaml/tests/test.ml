@@ -64,13 +64,13 @@ let test_portable_base () =
   system#putenv "ZEROINSTALL_PORTABLE_BASE" "/mnt/0install";
   let paths = Paths.get_default (system :> system) in
   equal_str_lists ~msg:"PORT-1"
-    ["/mnt/0install/config/0install.net/injector/global"]
+    ["/mnt/0install/config/injector/global"]
     (Paths.Config.(all_paths injector_global) paths);
   equal_str_lists ~msg:"PORT-2"
-    ["/mnt/0install/data/0install.net/site-packages"]
+    ["/mnt/0install/data/site-packages"]
     (Paths.Data.(all_paths site_packages) paths);
   equal_str_lists ~msg:"PORT-3"
-    ["/mnt/0install/cache/0install.net/interface_icons"]
+    ["/mnt/0install/cache/interface_icons"]
     (Paths.Cache.(all_paths icons) paths)
 
 let as_list flags =

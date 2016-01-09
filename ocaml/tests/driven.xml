@@ -59,7 +59,7 @@
 
     <download digest='sha1=123'/>
 
-    <output>\[dry-run] would execute: .*/cache/0install.net/implementations/sha1=123/ThisBetterNotExist</output>
+    <output>\[dry-run] would execute: .*/cache/implementations/sha1=123/ThisBetterNotExist</output>
   </test>
 
   <test name='binding'>
@@ -99,13 +99,13 @@
     <set-env name='FOO_PATH' value='old'/>
     <cache digest='sha1=123'/>
     <output>Would execute: .*/\. Hello</output>
-    <check-env name='FOO_PATH'>@TMP@/cache/0install.net/implementations/sha1=123/.:old</check-env>
-    <check-env name='BAR_PATH'>@TMP@/cache/0install.net/implementations/sha1=123/.:/a:/b</check-env>
-    <check-env name='BAZ_PATH'>@TMP@/cache/0install.net/implementations/sha1=123/.</check-env>
+    <check-env name='FOO_PATH'>@TMP@/cache/implementations/sha1=123/.:old</check-env>
+    <check-env name='BAR_PATH'>@TMP@/cache/implementations/sha1=123/.:/a:/b</check-env>
+    <check-env name='BAZ_PATH'>@TMP@/cache/implementations/sha1=123/.</check-env>
     <check-env name='NO_PATH'>val</check-env>
     <check-env name='SELF_GROUP'>@TMP@/group</check-env>
     <check-env name='SELF_IMPL'>@TMP@/impl</check-env>
-    <check-env name='XDG_DATA_DIRS'>@TMP@/cache/0install.net/implementations/sha1=123/.:/usr/local/share:/usr/share</check-env>
+    <check-env name='XDG_DATA_DIRS'>@TMP@/cache/implementations/sha1=123/.:/usr/local/share:/usr/share</check-env>
 
   </test>
 
@@ -132,7 +132,7 @@
     <requirements command='run' interface='http://foo/' dry-run='true'/>
 
     <download digest='sha1=123'/>
-    <output>\[dry-run] would execute: .*/cache/0install.net/implementations/sha1=123/dummy</output>
+    <output>\[dry-run] would execute: .*/cache/implementations/sha1=123/dummy</output>
   </test>
 
   <test name='no-local'>
@@ -221,7 +221,7 @@ Can't find all required implementations:
 
     <requirements command='run' interface='http://foo/' dry-run='true'/>
     <download digest='sha1=123'/>
-    <output>\[dry-run] would execute: .*/cache/0install.net/implementations/sha1=123/foo</output>
+    <output>\[dry-run] would execute: .*/cache/implementations/sha1=123/foo</output>
   </test>
 
   <test name='constraints'>
@@ -255,7 +255,7 @@ Can't find all required implementations:
     <requirements command='run' interface='http://foo/' dry-run='true'/>
     <download digest='sha1=123'/>
     <download digest='sha1=150'/>
-    <output>\[dry-run] would execute: .*/cache/0install.net/implementations/sha1=123/dummy</output>
+    <output>\[dry-run] would execute: .*/cache/implementations/sha1=123/dummy</output>
   </test>
 
 </test-cases>
