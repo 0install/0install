@@ -33,7 +33,7 @@ class trust_db config =
     match !dry_run_db with
     | Some db -> db
     | None ->
-        match Basedir.load_first config.system config_trust_db config.basedirs.Basedir.config with
+        match Paths.Config.(first trust_db) config.paths with
         | None -> StringMap.empty
         | Some path ->
             let root = Q.parse_file config.system path in
@@ -53,8 +53,7 @@ class trust_db config =
     StringSet.mem domain domains || StringSet.mem "*" domains in
 
   let save db =
-    let d = Basedir.save_path config.system (config_site +/ config_prog) config.basedirs.Basedir.config in
-    let db_file = d +/ "trustdb.xml" in
+    let db_file = Paths.Config.(save_path trust_db) config.paths in
     if config.dry_run then (
       Dry_run.log "would update trust database %s" db_file;
       dry_run_db := Some db

@@ -13,7 +13,7 @@ exception Not_stored of string
 
 val lookup_maybe : system -> Manifest.digest list -> stores -> filepath option
 val lookup_any : system -> Manifest.digest list -> stores -> string
-val get_default_stores : system -> Support.Basedir.basedirs -> stores
+val get_default_stores : system -> Paths.t -> stores
 
 (** Scan all the stores and build a set of the available digests. This can be used
     later to quickly test whether a digest is in the cache. *)

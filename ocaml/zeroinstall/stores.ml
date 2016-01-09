@@ -33,12 +33,11 @@ let lookup_any system digests stores =
       let str_stores = String.concat "\n- " stores in
       raise (Not_stored ("Item with digest " ^ str_digests ^ " not found in stores. Searched:\n- " ^ str_stores))
 
-let read_impl_dirs (system:system) basedirs =
+let read_impl_dirs (system:system) paths =
   (* Read the old implementation-dirs configuration file *)
   let extra_impl_dirs = ref [] in
-  let impl_dirs = "0install.net" +/ "injector" +/ "implementation-dirs" in
-  basedirs.Support.Basedir.config |> List.iter (fun dir ->
-    let path = dir +/ impl_dirs in
+  Paths.Config.(all_paths implementation_dirs) paths
+  |> List.iter (fun path ->
     try
       if system#file_exists path then (
         let re_cache_dir = Str.regexp "^\\([^#].*\\)$" in
@@ -58,10 +57,9 @@ let read_impl_dirs (system:system) basedirs =
   );
   !extra_impl_dirs
 
-let get_default_stores system basedirs =
-  let open Support.Basedir in
-  List.map (fun prefix -> prefix +/ "0install.net" +/ "implementations") basedirs.cache
-  @ read_impl_dirs system basedirs
+let get_default_stores system paths =
+  Paths.Cache.(all_paths implementations) paths
+  @ read_impl_dirs system paths
 
 let get_available_digests (system:system) stores =
   let digests = Hashtbl.create 1000 in

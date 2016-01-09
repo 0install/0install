@@ -283,9 +283,8 @@ let get_implementations feed =
     Probably we should use a simple timestamp file for the last-checked time and attach
     the stability ratings to the interface, not the feed. *)
 let load_feed_overrides config feed_url =
-  let open Support.Basedir in
   let url = Feed_url.format_url feed_url in
-  match load_first config.system (config_site +/ config_prog +/ "feeds" +/ Escape.pretty url) config.basedirs.config with
+  match Paths.Config.(first (feeds // Escape.pretty url)) config.paths with
   | None -> { last_checked = None; user_stability = StringMap.empty }
   | Some path ->
       let root = Q.parse_file config.system path in
@@ -309,7 +308,8 @@ let load_feed_overrides config feed_url =
 let save_feed_overrides config feed_url overrides =
   let module B = Support.Basedir in
   let {last_checked; user_stability} = overrides in
-  let feeds = B.save_path config.system (config_site +/ config_prog +/ "feeds") config.basedirs.B.config in
+  let url = Feed_url.format_url feed_url in
+  let feed_path = Paths.Config.(save_path (feeds // Escape.pretty url)) config.paths in
 
   let attrs =
     match last_checked with
@@ -322,8 +322,7 @@ let save_feed_overrides config feed_url overrides =
     )
   ) in
   let root = ZI.make ~attrs ~child_nodes "feed-preferences" in
-  let url = Feed_url.format_url feed_url in
-  feeds +/ Escape.pretty url |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
+  feed_path |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
     Q.output (`Channel ch |> Xmlm.make_output) root;
   )
 

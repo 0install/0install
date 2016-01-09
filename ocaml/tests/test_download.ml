@@ -22,6 +22,9 @@ let run_0install = Test_0install.run_0install
 
 let binary iface = {Selections.iface; source = false}
 
+let config_site = "0install.net"
+let config_prog = "injector"
+
 exception Open_gui
 
 let parse_sels xml =
@@ -768,7 +771,8 @@ let suite = "download">::: [
     let url = "http://example.com:8000/Hello.xml" in
     F.save_feed_overrides config (`remote_feed url) F.({last_checked = None; user_stability = StringMap.empty});
     let rel_path = config_site +/ config_prog +/ "last-check-attempt" +/ Zeroinstall.Escape.pretty url in
-    let last_check_attempt = B.load_first config.system rel_path config.basedirs.B.cache |> expect in
+    let basedirs = Support.Basedir.get_default_config config.system in
+    let last_check_attempt = B.load_first config.system rel_path basedirs.B.cache |> expect in
     fake_system#unlink last_check_attempt;
 
     fake_system#allow_spawn_detach true;

@@ -18,8 +18,8 @@ let validate_exec_name name =
 class launcher_builder config script =
   let hash = String.sub (Digest.to_hex @@ Digest.string script) 0 6 in
   object
-    method make_dir name =
-      Basedir.save_path config.system ("0install.net" +/ "injector" +/ ("exec-" ^ hash) +/ name) config.basedirs.Basedir.cache
+    method save_path name =
+      Paths.Cache.(save_path (injector // ("exec-" ^ hash) // name)) config.paths
 
     method add_launcher path =
       if not @@ Sys.file_exists path then (
@@ -73,8 +73,8 @@ let get_launcher_builder config =
 let do_exec_binding dry_run builder env impls (role, {Binding.exec_type; Binding.name; Binding.command}) =
   validate_exec_name name;
 
-  let exec_dir = builder#make_dir name in
-  let exec_path = exec_dir +/ name in
+  let exec_path = builder#save_path (name +/ name) in
+  let exec_dir = Filename.dirname exec_path in
   if not dry_run then (
     builder#add_launcher exec_path;
     Unix.chmod exec_dir 0o500;

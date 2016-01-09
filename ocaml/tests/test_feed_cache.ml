@@ -13,6 +13,7 @@ module G = Support.Gpg
 module Q = Support.Qdom
 module Basedir = Support.Basedir
 
+let config_site = "0install.net"
 let cache_path_for config url = Feed_cache.get_save_cache_path config url
 
 let suite = "feed-cache">::: [
@@ -110,7 +111,8 @@ let suite = "feed-cache">::: [
 
   "test-list">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     assert (StringSet.is_empty @@ Feed_cache.list_all_feeds config);
-    let iface_dir = Basedir.save_path config.system (config_site +/ "interfaces") config.basedirs.Basedir.cache in
+    let basedirs = Support.Basedir.get_default_config config.system in
+    let iface_dir = Basedir.save_path config.system (config_site +/ "interfaces") basedirs.Basedir.cache in
     U.touch config.system (iface_dir +/ "http%3a%2f%2ffoo");
     Fake_system.equal_str_lists ["http://foo"] @@ (StringSet.elements @@ Feed_cache.list_all_feeds config)
   );
@@ -161,9 +163,10 @@ let suite = "feed-cache">::: [
 
     let expected_escape = "section__prog_5f_1.xml" in
 
+    let basedirs = Support.Basedir.get_default_config config.system in
     let meta_dir = Basedir.save_path config.system
       ("0install.net" +/ "site-packages" +/ "http" +/ "example.com" +/ expected_escape +/ "1.0" +/ "0install")
-      config.basedirs.Basedir.data in
+      basedirs.Basedir.data in
     let feed = meta_dir +/ "feed.xml" in
     U.copy_file config.system (Test_0install.feed_dir +/ "Local.xml") feed 0o644;
 
@@ -177,8 +180,8 @@ let suite = "feed-cache">::: [
     (* Check that we write it out, so that older 0installs can find it *)
     Feed_cache.save_iface_config config iface iface_config;
 
-    let config_file = Fake_system.expect @@ Config.load_first_config ("0install.net" +/ "injector" +/
-                                            "interfaces" +/ "http:##example.com#section#prog_1.xml") config in
+    let config_file = Fake_system.expect @@ Basedir.load_first config.system ("0install.net" +/ "injector" +/
+                          "interfaces" +/ "http:##example.com#section#prog_1.xml") basedirs.Basedir.config in
     let doc = Q.parse_file config.system config_file in
 
     let is_feed elem = (ZI.tag elem = Some "feed") in
@@ -192,7 +195,7 @@ let suite = "feed-cache">::: [
     (* Check feeds are automatically removed again *)
     let site_dir = Fake_system.expect @@ Basedir.load_first config.system
       ("0install.net" +/ "site-packages" +/ "http" +/ "example.com" +/ expected_escape)
-      config.basedirs.Basedir.data in
+      basedirs.Basedir.data in
     U.rmtree config.system ~even_if_locked:false site_dir;
 
     let iface_config = Feed_cache.load_iface_config config iface in

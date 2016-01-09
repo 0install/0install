@@ -55,7 +55,7 @@ let load_config config =
     )
     | _ -> ignore in    (* other [sections] *)
 
-  match Support.Basedir.load_first config.system config_injector_global config.basedirs.Support.Basedir.config with
+  match Paths.Config.(first injector_global) config.paths with
   | None -> ()
   | Some path -> Support.Utils.parse_ini config.system handle_ini_mapping path
 
@@ -80,11 +80,11 @@ let get_default_config system path_to_prog =
         if Filename.check_suffix name ".exe" then ".exe" else ""
     ) in
 
-  let basedirs = Support.Basedir.get_default_config system in
+  let paths = Paths.get_default system in
 
   let config = {
-    basedirs;
-    stores = Stores.get_default_stores system basedirs;
+    paths;
+    stores = Stores.get_default_stores system paths;
     extra_stores = [];
     abspath_0install;
     freshness = Some (30. *. days);
@@ -102,14 +102,10 @@ let get_default_config system path_to_prog =
 
   config
 
-let load_first_config rel_path config =
-  let open Support in
-  Basedir.load_first config.system rel_path config.basedirs.Basedir.config
-
 (** Write global settings. *)
 let save_config config =
-  let dir = Support.Basedir.save_path config.system (Filename.dirname config_injector_global) config.basedirs.Support.Basedir.config in
-  dir +/ "global" |> config.system#atomic_write [Open_wronly] ~mode:0o644 (fun ch ->
+  Paths.Config.(save_path injector_global) config.paths
+  |> config.system#atomic_write [Open_wronly] ~mode:0o644 (fun ch ->
     output_string ch "[global]\n";
 
     Printf.fprintf ch "help_with_testing = %s\n" (format_bool config.help_with_testing);

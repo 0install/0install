@@ -76,8 +76,9 @@ let suite =
         assert_contains "add x86_64 \n" @@ complete ["select"; "--cpu"; "="] 3;
       );
 
+      let basedirs = Support.Basedir.get_default_config config.system in
       let interfaces_dir =
-        Support.Basedir.save_path (config.system) "0install.net/interfaces" config.basedirs.Support.Basedir.cache in
+        Support.Basedir.save_path (config.system) "0install.net/interfaces" basedirs.Support.Basedir.cache in
       let example_cached_path = interfaces_dir +/ "http%3a%2f%2fexample.com%2ffoo" in
       example_cached_path |> system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
         output_string ch (

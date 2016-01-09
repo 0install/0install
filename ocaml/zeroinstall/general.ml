@@ -16,7 +16,7 @@ type feed_url = string
 type network_use = Full_network | Minimal_network | Offline
 
 type config = {
-  basedirs: Support.Basedir.basedirs;
+  paths : Paths.t;
   mutable stores: filepath list;
   mutable extra_stores: filepath list;      (* (subset of stores; passed to Python slave with --with-store) *)
   abspath_0install: filepath;
@@ -41,20 +41,6 @@ type config = {
 let hours = 60. *. 60.         (* Seconds per hour *)
 
 let days = 24. *. hours       (* Seconds per day *)
-
-(** {2 Relative configuration paths (e.g. under ~/.config)} *)
-
-let config_site = "0install.net"
-let config_prog = "injector"
-let config_injector_interfaces = config_site +/ config_prog +/ "interfaces"
-let config_injector_global = config_site +/ config_prog +/ "global"
-let config_trust_db = config_site +/ config_prog +/ "trustdb.xml"
-
-let data_site_packages = config_site +/ "site-packages"     (* 0compile builds, etc *)
-let data_native_feeds = config_site +/ "native_feeds"       (* Feeds provided by distribution packages (rare) *)
-
-let cache_last_check_attempt = config_site +/ config_prog +/ "last-check-attempt"
-let cache_icons = config_site +/ "interface_icons"
 
 (** {2 The 0install XML namespace} *)
 

@@ -4,6 +4,8 @@
 
 (** Some useful abstract module types. *)
 
+open Support.Common
+
 module type MAP = sig
   include Map.S
 
@@ -158,4 +160,23 @@ module type SOLVER_RESULT = sig
   (* A dummy implementation, used to get diagnostic information if the solve fails.
    * It satisfies all requirements, even conflicting ones. *)
   val dummy_impl : impl
+end
+
+module type SEARCH_PATH = sig
+  type config
+  type key
+
+  val all_paths : key -> config -> filepath list
+  (** [all_paths key config] is all the existing paths for [key], in search order. *)
+
+  val first : key -> config -> filepath option
+  (** [first key config] is the first existing path of [key] in the search path. *)
+
+  val save_path : key -> config -> filepath
+  (** [save_path key config] creates a directory for [key] in the first directory in
+      the search path (if it doesn't yet exist) and returns the path of the
+      [key] within it (which may not yet exist). *)
+
+  val ( // ) : key -> string -> key
+  (** [key // sub] is a sub-directory or file under [key]. *)
 end

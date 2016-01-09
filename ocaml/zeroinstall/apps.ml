@@ -19,7 +19,7 @@ let validate_name purpose name =
 
 let lookup_app config name =
   if Str.string_match re_app_name name 0 then
-    Basedir.load_first config.system ("0install.net" +/ "apps" +/ name) config.basedirs.Basedir.config
+    Paths.Config.(first (apps // name)) config.paths
   else
     None
 
@@ -41,7 +41,7 @@ If this throws an exception, we will log it and re-solve anyway.
 *)
 let iter_inputs config cb sels =
   let check_maybe_config rel_path =
-    match Config.load_first_config rel_path config with
+    match Paths.Config.first rel_path config.paths with
     | None -> ()
     | Some p -> cb p
   in
@@ -49,7 +49,7 @@ let iter_inputs config cb sels =
     let feed = Selections.get_feed sel_elem in
 
     (* Check per-feed config *)
-    check_maybe_config (config_injector_interfaces +/ Escape.pretty feed);
+    check_maybe_config Paths.Config.(injector_interfaces // Escape.pretty feed);
 
     match Feed_url.parse feed with
       (* If the package has changed version, we'll detect that below with get_unavailable_selections. *)
@@ -62,7 +62,7 @@ let iter_inputs config cb sels =
   );
 
   (* Check global config *)
-  check_maybe_config config_injector_global
+  check_maybe_config Paths.Config.injector_global
 
 (** Get the mtime of the given path. If the path doesn't exist, returns 0.0 and,
     if [warn_if_missing] is true, logs the problem.
@@ -242,17 +242,17 @@ let get_selections_internal system app_path =
     None
 
 let list_app_names config =
-  let apps = ref StringSet.empty in
+  let results = ref StringSet.empty in
   let system = config.system in
   let scan_dir path =
     let check_app name =
       if Str.string_match re_app_name name 0 then
-        apps := StringSet.add name !apps in
-    match system#readdir (path +/ config_site +/ "apps") with
+        results := StringSet.add name !results in
+    match system#readdir path with
     | Problem _ -> ()
     | Success files -> Array.iter check_app files in
-  List.iter scan_dir config.basedirs.Basedir.config;
-  StringSet.elements !apps
+  List.iter scan_dir (Paths.Config.(all_paths apps) config.paths);
+  StringSet.elements !results
 
 let get_selections_may_update tools app_path =
   let system = tools#config.system in
@@ -277,8 +277,7 @@ let set_requirements config path req =
 let create_app config name requirements =
   validate_name "application" name;
 
-  let apps_dir = Basedir.save_path config.system (config_site +/ "apps") config.basedirs.Basedir.config in
-  let app_dir = apps_dir +/ name in
+  let app_dir = Paths.Config.(save_path (apps // name)) config.paths in
   if U.is_dir config.system app_dir then
     raise_safe "Application '%s' already exists: %s" name app_dir;
 
@@ -298,9 +297,7 @@ let export (system:system) name value =
 
 let find_bin_dir_in ~warn_about_path config paths =
   let system = config.system in
-  let cache_home = List.hd config.basedirs.Support.Basedir.cache in
   let home_bin = system#getenv "HOME" |> pipe_some (fun home -> Some (home +/ "bin")) in
-
   let best =
     match home_bin with
     | Some home_bin when List.mem home_bin paths ->
@@ -311,7 +308,7 @@ let find_bin_dir_in ~warn_about_path config paths =
         let path = U.realpath system path in
         let starts x = U.starts_with path x in
         if starts "/bin" || starts "/sbin" then None
-        else if starts cache_home then None (* print "Skipping cache: %s" path *)
+        else if Paths.Cache.in_user_cache path config.paths then None (* print "Skipping cache: %s" path *)
         else (
           try
             Unix.(access path [W_OK]);
@@ -321,7 +318,6 @@ let find_bin_dir_in ~warn_about_path config paths =
           with Unix.Unix_error _ -> None
         )
       ) in
-
     match best with
     | Some path -> path
     | None ->

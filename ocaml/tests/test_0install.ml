@@ -784,7 +784,8 @@ let suite = "0install">::: [
   "list">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     let out = run_0install fake_system ["list"] in
     assert_str_equal "" out;
-    let cached_ifaces = List.hd config.basedirs.Support.Basedir.cache +/ "0install.net" +/ "interfaces" in
+    let basedirs = Support.Basedir.get_default_config config.system in
+    let cached_ifaces = List.hd basedirs.Support.Basedir.cache +/ "0install.net" +/ "interfaces" in
 
     U.makedirs config.system cached_ifaces 0o700;
     U.touch config.system @@ cached_ifaces +/ "file%3a%2f%2ffoo";

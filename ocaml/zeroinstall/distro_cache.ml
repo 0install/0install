@@ -98,7 +98,7 @@ let ensure_valid ?regenerate config data =
       )
 
 let create ~config ~cache_leaf ~source =
-  let cache_path = Basedir.save_path config.system (config_site +/ config_prog) config.basedirs.Basedir.cache +/ cache_leaf in
+  let cache_path = Paths.Cache.(save_path (injector // cache_leaf)) config.paths in
   let data = { source; cache_path; mtime = 0L; size = -1; contents = Hashtbl.create 10; warned_missing = false } in
   load_cache config data;
   data

@@ -19,10 +19,11 @@ exception Found
 
 (** Search through the configured XDG datadirs looking for .desktop files created by us. *)
 let discover_existing_apps config =
+  let basedirs = Support.Basedir.get_default_config config.system in
   let re_exec = Str.regexp "^Exec=0launch \\(-- \\)?\\([^ ]*\\) " in
   let system = config.system in
   let already_installed = ref [] in
-  config.basedirs.Basedir.data |> List.iter (fun data_path ->
+  basedirs.Basedir.data |> List.iter (fun data_path ->
     let apps_dir = data_path +/ "applications" in
     if system#file_exists apps_dir then (
       match system#readdir apps_dir with
