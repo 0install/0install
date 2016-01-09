@@ -10,13 +10,15 @@ module U = Support.Utils
 
 let orig_packagekit = !Zeroinstall.Packagekit.packagekit
 
-let () =
+let reset_env () =
   (* Make oUnit 2 happy: we need to be able to reset these to their initial values after each test. *)
   Unix.putenv "ZEROINSTALL_PORTABLE_BASE" "/UNUSED";
   Unix.putenv "DISPLAY" "";
   Unix.putenv "DBUS_SESSION_BUS_ADDRESS" "UNUSED";
   Unix.putenv "DBUS_SYSTEM_BUS_ADDRESS" "UNUSED";
   Unix.putenv "GNUPGHOME" "/UNUSED"
+
+let () = reset_env ()
 
 (* For temporary directory names *)
 let () = Random.self_init ()
@@ -123,7 +125,7 @@ let src_dir = Filename.dirname ocaml_dir
 let tests_dir = ocaml_dir +/ "tests"
 let test_0install = U.realpath real_system (build_dir +/ "0install")
 
-class fake_system tmpdir =
+class fake_system ?(portable_base=true) tmpdir =
   let extra_files : dentry StringMap.t ref = ref StringMap.empty in
   let hidden_files = ref StringSet.empty in
   let redirect_writes = ref None in
@@ -389,8 +391,12 @@ class fake_system tmpdir =
     initializer
       match tmpdir with
       | Some dir ->
-          self#putenv "ZEROINSTALL_PORTABLE_BASE" dir;
-          Unix.putenv "ZEROINSTALL_PORTABLE_BASE" dir   (* For sub-processes *)
+          let set name value =
+            self#putenv name value;
+            Unix.putenv name value in (* For sub-processes *)
+          if portable_base then (
+            set "ZEROINSTALL_PORTABLE_BASE" dir
+          )
       | None -> ()
 
     method bypass_dryrun = (self :> system)
@@ -512,8 +518,7 @@ let temp_dir_name =
         | _ -> failwith "temp_dir_name: unknown filesystem" end
 
 let with_tmpdir fn () =
-  U.finally_do
-    (fun () -> Unix.putenv "ZEROINSTALL_PORTABLE_BASE" "/UNUSED"; Unix.putenv "GNUPGHOME" "/UNUSED") ()
+  U.finally_do reset_env ()
     (fun () ->
       let tmppath = U.make_tmp_dir real_system temp_dir_name ~prefix:"0install-test-" in
       U.finally_do
@@ -524,8 +529,8 @@ let with_tmpdir fn () =
         tmppath fn
     )
 
-let get_fake_config tmpdir =
-  let system = new fake_system tmpdir in
+let get_fake_config ?portable_base tmpdir =
+  let system = new fake_system ?portable_base tmpdir in
   let home =
     match tmpdir with
     | None -> "/home/testuser";
@@ -551,9 +556,9 @@ let get_fake_config tmpdir =
   );
   (Config.get_default_config (system :> system) test_0install, system)
 
-let with_fake_config fn =
+let with_fake_config ?portable_base fn =
   with_tmpdir (fun tmpdir ->
-    get_fake_config (Some tmpdir) |> fn
+    get_fake_config ?portable_base (Some tmpdir) |> fn
   )
 
 let assert_contains expected whole =

@@ -757,7 +757,7 @@ let suite = "download">::: [
     assert_contains "Firefox - Webbrowser" out
   );
 
-  "select">:: Server.with_server (fun (config, fake_system) server ->
+  "select">:: Server.with_server ~portable_base:false (fun (config, fake_system) server ->
     server#expect [
       [("Hello.xml", `Serve)];
       [("6FCF121BE2390E0B.gpg", `Serve)];

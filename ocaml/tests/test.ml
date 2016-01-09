@@ -5,6 +5,7 @@
 Unix.putenv "TZ" "Europe/London"
 
 open OUnit
+open Zeroinstall
 open Zeroinstall.General
 open Support.Common
 open Fake_system
@@ -40,13 +41,37 @@ let test_basedir () =
   let bd = get_default_config (system :> system) in
   equal_str_lists ~msg:"XDG1" ["/home/bob/prefs"; "/etc/xdg"] bd.config;
   equal_str_lists ~msg:"XDG2" ["/home/bob/.cache"] bd.cache;
-  equal_str_lists ~msg:"XDG3" ["/home/bob/.local/share"; "/data1"; "/data2"] bd.data;
+  equal_str_lists ~msg:"XDG3" ["/home/bob/.local/share"; "/data1"; "/data2"] bd.data
 
+let test_portable_base () =
+  let system = new fake_system None in
+  system#putenv "HOME" "/home/bob";
+  let paths = Paths.get_default (system :> system) in
+  (* Check paths when not using portable base... *)
+  equal_str_lists ~msg:"XDG-1"
+    ["/home/bob/.config/0install.net/injector/global"; "/etc/xdg/0install.net/injector/global"]
+    (Paths.Config.(all_paths injector_global) paths);
+  equal_str_lists ~msg:"XDG-2"
+    ["/home/bob/.local/share/0install.net/site-packages";
+     "/usr/local/share/0install.net/site-packages";
+     "/usr/share/0install.net/site-packages"]
+    (Paths.Data.(all_paths site_packages) paths);
+  equal_str_lists ~msg:"XDG-3"
+    ["/home/bob/.cache/0install.net/interface_icons";
+     "/var/cache/0install.net/interface_icons"]
+    (Paths.Cache.(all_paths icons) paths);
+  (* Now try with portable base... *)
   system#putenv "ZEROINSTALL_PORTABLE_BASE" "/mnt/0install";
-  let bd = get_default_config (system :> system) in
-  equal_str_lists ~msg:"PORT-1" ["/mnt/0install/config"] bd.config;
-  equal_str_lists ~msg:"PORT-2" ["/mnt/0install/cache"] bd.cache;
-  equal_str_lists ~msg:"PORT-3" ["/mnt/0install/data"] bd.data
+  let paths = Paths.get_default (system :> system) in
+  equal_str_lists ~msg:"PORT-1"
+    ["/mnt/0install/config/0install.net/injector/global"]
+    (Paths.Config.(all_paths injector_global) paths);
+  equal_str_lists ~msg:"PORT-2"
+    ["/mnt/0install/data/0install.net/site-packages"]
+    (Paths.Data.(all_paths site_packages) paths);
+  equal_str_lists ~msg:"PORT-3"
+    ["/mnt/0install/cache/0install.net/interface_icons"]
+    (Paths.Cache.(all_paths icons) paths)
 
 let as_list flags =
   let lst = ref [] in
@@ -233,6 +258,7 @@ let suite =
   Test_qdom.suite;
   Test_run.suite;
  "test_basedir">:: test_basedir;
+ "test_portable_base">:: test_portable_base;
  "test_option_parsing">:: (fun () -> collect_logging test_option_parsing);
  "test_run_real">:: (fun () -> collect_logging (with_tmpdir test_run_real));
  "test_run_fake">:: (fun () -> collect_logging (with_tmpdir test_run_fake));

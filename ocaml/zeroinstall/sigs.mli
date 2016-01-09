@@ -167,7 +167,8 @@ module type SEARCH_PATH = sig
   type key
 
   val all_paths : key -> config -> filepath list
-  (** [all_paths key config] is all the existing paths for [key], in search order. *)
+  (** [all_paths key config] is all configured paths for [key], in search order,
+      whether they exist currently or not. *)
 
   val first : key -> config -> filepath option
   (** [first key config] is the first existing path of [key] in the search path. *)

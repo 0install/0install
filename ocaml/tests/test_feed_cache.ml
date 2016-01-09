@@ -109,7 +109,7 @@ let suite = "feed-cache">::: [
       (fun () -> fetcher#import_feed feed_url foo_signed_xml)
   );
 
-  "test-list">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+  "test-list">:: Fake_system.with_fake_config ~portable_base:false (fun (config, _fake_system) ->
     assert (StringSet.is_empty @@ Feed_cache.list_all_feeds config);
     let basedirs = Support.Basedir.get_default_config config.system in
     let iface_dir = Basedir.save_path config.system (config_site +/ "interfaces") basedirs.Basedir.cache in
@@ -142,7 +142,7 @@ let suite = "feed-cache">::: [
     | _ -> assert false end;
   );
 
-  "site-packages">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+  "site-packages">:: Fake_system.with_fake_config ~portable_base:false (fun (config, _fake_system) ->
     (* The old system (0install < 1.9):
      * - 0compile stores implementations to ~/.cache, and
      * - adds to extra_feeds

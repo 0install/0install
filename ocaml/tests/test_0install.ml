@@ -781,7 +781,7 @@ let suite = "0install">::: [
     assert (U.starts_with out "Usage:")
   );
 
-  "list">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+  "list2">:: Fake_system.with_fake_config ~portable_base:false (fun (config, fake_system) ->
     let out = run_0install fake_system ["list"] in
     assert_str_equal "" out;
     let basedirs = Support.Basedir.get_default_config config.system in

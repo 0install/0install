@@ -36,10 +36,8 @@ let suite = "apps">::: [
     let app = Fake_system.expect @@ Apps.lookup_app config "hello" in
     Fake_system.assert_str_equal url (Apps.get_requirements system app).R.interface_uri;
 
-    let basedirs = Support.Basedir.get_default_config config.system in
-    ignore @@ Support.Basedir.save_path system
-      ("0install.net" +/ "implementations" +/ "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a")
-      basedirs.Support.Basedir.cache;
+    ignore @@ Zeroinstall.Paths.Cache.(save_path (implementations // "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" // "README.txt"))
+      config.paths;
 
     (* Initialise the new app with selections for version 0.1-pre *)
     let distro = Zeroinstall.Distro_impls.generic_distribution config in

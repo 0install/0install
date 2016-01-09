@@ -44,36 +44,28 @@ let get_unix_home (system:system) =
   )
 
 let get_default_config (system:system) =
-  match system#getenv "ZEROINSTALL_PORTABLE_BASE" with
-  | Some base ->
-      {
-        data = [base +/ "data"];
-        cache = [base +/ "cache"];
-        config = [base +/ "config"];
-      }
-  | None -> 
-      let get = get_path system in
-      if on_windows then (
-        match !Windows_api.windowsAPI with
-        | None -> failwith "Failed to load Windows support module!"
-        | Some api -> (
-            let app_data = api#get_appdata () in
-            let local_app_data = api#get_local_appdata () in
-            let common_app_data = api#get_common_appdata () in
-            {
-              data = get "XDG_DATA_HOME" "XDG_DATA_DIRS" [app_data; common_app_data];
-              cache = get "XDG_CACHE_HOME" "XDG_CACHE_DIRS" [local_app_data; common_app_data];
-              config = get "XDG_CONFIG_HOME" "XDG_CONFIG_DIRS" [app_data; common_app_data];
-            }
-        )
-      ) else (
-        let home = get_unix_home system in
+  let get = get_path system in
+  if on_windows then (
+    match !Windows_api.windowsAPI with
+    | None -> failwith "Failed to load Windows support module!"
+    | Some api -> (
+        let app_data = api#get_appdata () in
+        let local_app_data = api#get_local_appdata () in
+        let common_app_data = api#get_common_appdata () in
         {
-          data = get "XDG_DATA_HOME" "XDG_DATA_DIRS" [home +/ ".local/share"; "/usr/local/share"; "/usr/share"];
-          cache = get "XDG_CACHE_HOME" "XDG_CACHE_DIRS" [home +/ ".cache"; "/var/cache"];
-          config = get "XDG_CONFIG_HOME" "XDG_CONFIG_DIRS" [home +/ ".config"; "/etc/xdg"];
+          data = get "XDG_DATA_HOME" "XDG_DATA_DIRS" [app_data; common_app_data];
+          cache = get "XDG_CACHE_HOME" "XDG_CACHE_DIRS" [local_app_data; common_app_data];
+          config = get "XDG_CONFIG_HOME" "XDG_CONFIG_DIRS" [app_data; common_app_data];
         }
-      )
+    )
+  ) else (
+    let home = get_unix_home system in
+    {
+      data = get "XDG_DATA_HOME" "XDG_DATA_DIRS" [home +/ ".local/share"; "/usr/local/share"; "/usr/share"];
+      cache = get "XDG_CACHE_HOME" "XDG_CACHE_DIRS" [home +/ ".cache"; "/var/cache"];
+      config = get "XDG_CONFIG_HOME" "XDG_CONFIG_DIRS" [home +/ ".config"; "/etc/xdg"];
+    }
+  )
 
 let load_first (system:system) rel_path search_path =
   let rec loop = function

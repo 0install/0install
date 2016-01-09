@@ -27,7 +27,7 @@ let do_complete (system:fake_system) shell args cword =
 
 let suite =
   "completion">:: with_tmpdir (fun tmpdir ->
-    let config, system = get_fake_config (Some tmpdir) in
+    let config, system = get_fake_config ~portable_base:false (Some tmpdir) in
     ListLabels.iter ["bash"; "zsh"; "fish"] ~f:(fun shell ->
       let complete = do_complete system shell in
       if shell <> "bash" then (
