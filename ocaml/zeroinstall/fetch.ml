@@ -648,8 +648,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
         | `network_failure msg -> raise_safe "%s" msg
         | `aborted_by_user -> Lwt.return ()
         | `tmpfile tmpfile ->
-            let key = Escape.escape (Feed_url.format_url feed_url) in
-            let icon_file = Paths.Cache.(save_path (icons // key)) config.paths in
+            let icon_file = Paths.Cache.(save_path (icon feed_url)) config.paths in
             tmpfile |> system#with_open_in [Open_rdonly;Open_binary] (fun ic ->
               icon_file |> system#atomic_write [Open_wronly;Open_binary] ~mode:0o644 (U.copy_channel ic)
             );

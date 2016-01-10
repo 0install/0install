@@ -50,28 +50,28 @@ let test_portable_base () =
   (* Check paths when not using portable base... *)
   equal_str_lists ~msg:"XDG-1"
     ["/home/bob/.config/0install.net/injector/global"; "/etc/xdg/0install.net/injector/global"]
-    (Paths.Config.(all_paths injector_global) paths);
+    (Paths.Config.(all_paths global) paths);
   equal_str_lists ~msg:"XDG-2"
-    ["/home/bob/.local/share/0install.net/site-packages";
-     "/usr/local/share/0install.net/site-packages";
-     "/usr/share/0install.net/site-packages"]
-    (Paths.Data.(all_paths site_packages) paths);
+    ["/home/bob/.local/share/0install.net/site-packages/http/example.com/hello";
+     "/usr/local/share/0install.net/site-packages/http/example.com/hello";
+     "/usr/share/0install.net/site-packages/http/example.com/hello"]
+    (Paths.Data.(all_paths (site_packages "http://example.com/hello")) paths);
   equal_str_lists ~msg:"XDG-3"
-    ["/home/bob/.cache/0install.net/interface_icons";
-     "/var/cache/0install.net/interface_icons"]
-    (Paths.Cache.(all_paths icons) paths);
+    ["/home/bob/.cache/0install.net/interface_icons/%2fmy%20prog";
+     "/var/cache/0install.net/interface_icons/%2fmy%20prog"]
+    (Paths.Cache.(all_paths (icon (`local_feed "/my prog"))) paths);
   (* Now try with portable base... *)
   system#putenv "ZEROINSTALL_PORTABLE_BASE" "/mnt/0install";
   let paths = Paths.get_default (system :> system) in
   equal_str_lists ~msg:"PORT-1"
     ["/mnt/0install/config/injector/global"]
-    (Paths.Config.(all_paths injector_global) paths);
+    (Paths.Config.(all_paths global) paths);
   equal_str_lists ~msg:"PORT-2"
-    ["/mnt/0install/data/site-packages"]
-    (Paths.Data.(all_paths site_packages) paths);
+    ["/mnt/0install/data/site-packages/http/example.com/hello"]
+    (Paths.Data.(all_paths (site_packages "http://example.com/hello")) paths);
   equal_str_lists ~msg:"PORT-3"
-    ["/mnt/0install/cache/interface_icons"]
-    (Paths.Cache.(all_paths icons) paths)
+    ["/mnt/0install/cache/interface_icons/%2fmy%20prog"]
+    (Paths.Cache.(all_paths (icon (`local_feed "/my prog"))) paths)
 
 let as_list flags =
   let lst = ref [] in

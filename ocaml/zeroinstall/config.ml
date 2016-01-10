@@ -55,7 +55,7 @@ let load_config config =
     )
     | _ -> ignore in    (* other [sections] *)
 
-  match Paths.Config.(first injector_global) config.paths with
+  match Paths.Config.(first global) config.paths with
   | None -> ()
   | Some path -> Support.Utils.parse_ini config.system handle_ini_mapping path
 
@@ -104,7 +104,7 @@ let get_default_config system path_to_prog =
 
 (** Write global settings. *)
 let save_config config =
-  Paths.Config.(save_path injector_global) config.paths
+  Paths.Config.(save_path global) config.paths
   |> config.system#atomic_write [Open_wronly] ~mode:0o644 (fun ch ->
     output_string ch "[global]\n";
 

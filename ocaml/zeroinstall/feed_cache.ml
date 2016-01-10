@@ -20,37 +20,32 @@ type interface_config = {
 (* If we started a check within this period, don't start another one *)
 let failed_check_delay = 1. *. hours
 
-let get_cached_feed_path config (`remote_feed url) =
-  Paths.Cache.(first (interfaces // Escape.escape url)) config.paths
+let get_cached_feed_path config url =
+  Paths.Cache.(first (feed url)) config.paths
 
-let get_save_cache_path config (`remote_feed url) =
-  Paths.Cache.(save_path (interfaces // Escape.escape url)) config.paths
+let get_save_cache_path config url =
+  Paths.Cache.(save_path (feed url)) config.paths
 
 let get_cached_icon_path config feed_url =
-  let (`remote_feed url | `local_feed url) = feed_url in
-  Paths.Cache.(first (icons // Escape.escape url)) config.paths
+  Paths.Cache.(first (icon feed_url)) config.paths
 
 let list_all_feeds config =
-  let feeds = ref StringSet.empty in
+  let results = ref StringSet.empty in
   let system = config.system in
-
   let check_leaf leaf =
     if leaf.[0] <> '.' then
       let uri = Escape.unescape leaf in
-      feeds := StringSet.add uri !feeds in
-
+      results := StringSet.add uri !results in
   let scan_dir path =
     match system#readdir path with
     | Problem _ -> ()
     | Success files -> Array.iter check_leaf files in
-
-  List.iter scan_dir (Paths.Cache.(all_paths interfaces) config.paths);
-
-  !feeds
+  List.iter scan_dir (Paths.Cache.(all_paths feeds) config.paths);
+  !results
 
 (* Note: this was called "update_user_overrides" in the Python *)
 let load_iface_config config uri : interface_config =
-  let get_site_feed dir =
+  let get_site_feeds dir =
     if config.system#file_exists dir then (
       match config.system#readdir dir with
       | Success items ->
@@ -77,7 +72,7 @@ let load_iface_config config uri : interface_config =
   try
     (* Distribution-provided feeds *)
     let distro_feeds =
-      match Paths.Data.(first (native_feeds // Escape.pretty uri)) config.paths with
+      match Paths.Data.(first (native_feed uri)) config.paths with
       | None -> []
       | Some path ->
           log_info "Adding native packager feed '%s'" path;
@@ -90,9 +85,8 @@ let load_iface_config config uri : interface_config =
 
     (* Local feeds in the data directory (e.g. builds created with 0compile) *)
     let site_feeds =
-      let key = String.concat Filename.dir_sep @@ Escape.escape_interface_uri uri in
-      Paths.Data.(all_paths (site_packages // key)) config.paths
-      |> List.map get_site_feed
+      Paths.Data.(all_paths (site_packages uri)) config.paths
+      |> List.map get_site_feeds
       |> List.concat in
 
     let load config_file =
@@ -134,11 +128,11 @@ let load_iface_config config uri : interface_config =
 
       { stability_policy; extra_feeds = distro_feeds @ site_feeds @ user_feeds; } in
 
-    match Paths.Config.(first (injector_interfaces // Escape.pretty uri)) config.paths with
+    match Paths.Config.(first (interface uri)) config.paths with
     | Some path -> load path
     | None ->
         (* For files saved by 0launch < 0.49 *)
-        match Paths.Config.(first (user_overrides // Escape.escape uri)) config.paths with
+        match Paths.Config.(first (user_overrides uri)) config.paths with
         | None -> { stability_policy = None; extra_feeds = distro_feeds @ site_feeds }
         | Some path -> load path
   with Safe_exception _ as ex -> reraise_with_context ex "... reading configuration settings for interface %s" uri
@@ -158,7 +152,7 @@ let add_import_elem feed_import =
       Some (ZI.make ~attrs:!attrs "feed")
 
 let save_iface_config config uri iface_config =
-  let config_file = Paths.Config.(save_path (injector_interfaces // Escape.pretty uri)) config.paths in
+  let config_file = Paths.Config.(save_path (interface uri)) config.paths in
 
   let attrs = ref (Q.AttrMap.singleton FeedAttr.uri uri) in
   iface_config.stability_policy |> if_some (fun policy ->
@@ -190,8 +184,8 @@ let get_cached_feed config = function
           if feed.Feed.url = remote_feed then Some feed
           else raise_safe "Incorrect URL in cached feed - expected '%s' but found '%s'" url (Feed_url.format_url feed.Feed.url)
 
-let get_last_check_attempt config (`remote_feed url) =
-  match Paths.Cache.(first (last_check_attempt // Escape.pretty url)) config.paths with
+let get_last_check_attempt config url =
+  match Paths.Cache.(first (last_check_attempt url)) config.paths with
   | None -> None
   | Some path ->
       match config.system#stat path with
@@ -228,6 +222,6 @@ let is_stale config url =
   let overrides = Feed.load_feed_overrides config url in
   internal_is_stale config url (Some overrides)
 
-let mark_as_checking config (`remote_feed url) =
-  let timestamp_path = Paths.Cache.(save_path (last_check_attempt // Escape.pretty url)) config.paths in
+let mark_as_checking config url =
+  let timestamp_path = Paths.Cache.(save_path (last_check_attempt url)) config.paths in
   U.touch config.system timestamp_path

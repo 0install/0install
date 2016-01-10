@@ -80,7 +80,7 @@ let ununderscore_escape escaped =
     "/root/feed.xml" becomes ["file", "root__feed.xml"]
     The number of components is determined by the scheme (three for http, two for file).
     Uses [underscore_escape] to escape each component. *)
-let escape_interface_uri (uri:Sigs.iface_uri) : string list =
+let escape_interface_uri uri =
   let handle_rest rest =
     try
       let i = String.index rest '/' in

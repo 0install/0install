@@ -39,36 +39,39 @@ module Make (F : Field) = struct
   let all_paths key t = F.paths t |> List.map (fun f -> f +/ key)
   let save_path key t =
     Support.Basedir.save_path t.system (Filename.dirname key) (F.paths t) +/ Filename.basename key
-
-  let (//) = (+/)
 end
 
 module Config = struct
   include Make(struct let paths t = t.dirs.Support.Basedir.config end)
 
-  let injector_interfaces = prog +/ "interfaces"
-  let injector_global = prog +/ "global"
+  let interface uri = prog +/ "interfaces" +/ Escape.pretty uri
+  let global = prog +/ "global"
   let trust_db = prog +/ "trustdb.xml"
   let apps = "apps"
-  let feeds = prog +/ "feeds"
-  let user_overrides = prog +/ "user_overrides"
+  let app name = apps +/ name
+  let feed url = prog +/ "feeds" +/ Escape.pretty (Feed_url.format_url url)
+  let user_overrides uri = prog +/ "user_overrides" +/ Escape.escape uri
   let implementation_dirs = prog +/ "implementation-dirs"
 end
 
 module Data = struct
   include Make(struct let paths t = t.dirs.Support.Basedir.data end)
 
-  let site_packages = "site-packages"
-  let native_feeds = "native_feeds"
+  let site_packages uri = "site-packages" +/ String.concat Filename.dir_sep (Escape.escape_interface_uri uri)
+  let native_feed uri = "native_feeds" +/ Escape.pretty uri
 end
 
 module Cache = struct
   include Make(struct let paths t = t.dirs.Support.Basedir.cache end)
 
-  let last_check_attempt = prog +/ "last-check-attempt"
-  let icons = "interface_icons"
-  let injector = prog
-  let interfaces = "interfaces"
+  let last_check_attempt (`remote_feed url) = prog +/ "last-check-attempt" +/ Escape.pretty url
+  let icon feed =
+    let (`remote_feed url | `local_feed url) = feed in
+    "interface_icons" +/ Escape.escape url
+  let distro_cache name = prog +/ name
+  let named_runner ~hash name = prog +/ "exec-" ^ hash +/ name
+  let feeds = "interfaces"
+  let feed (`remote_feed url) = "interfaces" +/ Escape.escape url
   let implementations = "implementations"
 
   let in_user_cache path t =

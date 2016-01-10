@@ -183,7 +183,4 @@ module type SEARCH_PATH = sig
   (** [save_path key config] creates a directory for [key] in the first directory in
       the search path (if it doesn't yet exist) and returns the path of the
       [key] within it (which may not yet exist). *)
-
-  val ( // ) : key -> string -> key
-  (** [key // sub] is a sub-directory or file under [key]. *)
 end

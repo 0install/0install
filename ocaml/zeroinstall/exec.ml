@@ -19,7 +19,7 @@ class launcher_builder config script =
   let hash = String.sub (Digest.to_hex @@ Digest.string script) 0 6 in
   object
     method save_path name =
-      Paths.Cache.(save_path (injector // ("exec-" ^ hash) // name)) config.paths
+      Paths.Cache.(save_path (named_runner ~hash name)) config.paths
 
     method add_launcher path =
       if not @@ Sys.file_exists path then (

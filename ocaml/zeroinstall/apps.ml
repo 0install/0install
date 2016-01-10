@@ -19,7 +19,7 @@ let validate_name purpose name =
 
 let lookup_app config name =
   if Str.string_match re_app_name name 0 then
-    Paths.Config.(first (apps // name)) config.paths
+    Paths.Config.(first (app name)) config.paths
   else
     None
 
@@ -45,24 +45,27 @@ let iter_inputs config cb sels =
     | None -> ()
     | Some p -> cb p
   in
-  sels |> Selections.iter (fun _iface sel_elem ->
-    let feed = Selections.get_feed sel_elem in
+  sels |> Selections.iter (fun role sel_elem ->
+    let feed_url = Selections.get_feed sel_elem |> Feed_url.parse in
+
+    (* Check per-interface config *)
+    check_maybe_config (Paths.Config.interface role.Selections.iface);
 
     (* Check per-feed config *)
-    check_maybe_config Paths.Config.(injector_interfaces // Escape.pretty feed);
+    check_maybe_config (Paths.Config.feed feed_url);
 
-    match Feed_url.parse feed with
+    match feed_url with
       (* If the package has changed version, we'll detect that below with get_unavailable_selections. *)
     | `distribution_feed _ -> ()
     | `local_feed path -> cb path   (* Check the timestamp of this local feed hasn't changed *)
     | `remote_feed _ as remote_feed ->
       match Feed_cache.get_cached_feed_path config remote_feed with
-      | None -> need_solve @@ "Source feed no longer cached: " ^ feed
+      | None -> need_solve @@ "Source feed no longer cached: " ^ (Feed_url.format_url feed_url)
       | Some path -> cb path              (* Check feed hasn't changed *)
   );
 
   (* Check global config *)
-  check_maybe_config Paths.Config.injector_global
+  check_maybe_config Paths.Config.global
 
 (** Get the mtime of the given path. If the path doesn't exist, returns 0.0 and,
     if [warn_if_missing] is true, logs the problem.
@@ -277,7 +280,7 @@ let set_requirements config path req =
 let create_app config name requirements =
   validate_name "application" name;
 
-  let app_dir = Paths.Config.(save_path (apps // name)) config.paths in
+  let app_dir = Paths.Config.(save_path (app name)) config.paths in
   if U.is_dir config.system app_dir then
     raise_safe "Application '%s' already exists: %s" name app_dir;
 
