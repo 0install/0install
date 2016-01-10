@@ -18,7 +18,7 @@ type impl = selection
 type command_name = string
 
 type role = {
-  iface : General.iface_uri;
+  iface : Sigs.iface_uri;
   source : bool;
 }
 

@@ -15,14 +15,14 @@ type global_id = {
   id : string;
 }
 
-val parse_non_distro : General.feed_url -> non_distro_feed
+val parse_non_distro : Sigs.feed_url -> non_distro_feed
 
-val parse : General.feed_url -> parsed_feed_url
+val parse : Sigs.feed_url -> parsed_feed_url
 
-val format_url : [< parsed_feed_url] -> General.feed_url
+val format_url : [< parsed_feed_url] -> Sigs.feed_url
 
 (** Get the master feed for an interface URI. Internally, this is just [parse_non_distro]. *)
-val master_feed_of_iface : General.iface_uri -> [> non_distro_feed]
+val master_feed_of_iface : Sigs.iface_uri -> [> non_distro_feed]
 
 module FeedSet : (Set.S with type elt = non_distro_feed)
 module FeedMap : (Map.S with type key = non_distro_feed)

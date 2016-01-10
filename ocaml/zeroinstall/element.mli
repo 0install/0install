@@ -120,14 +120,14 @@ val compile_include_binary : [< dependency_node] t -> bool option
 
 (** {2 Feeds and interfaces} *)
 val interface :
-  [< `selections | `selection | `requires | `restricts | `runner | `replaced_by | `feed_for] t -> General.iface_uri
+  [< `selections | `selection | `requires | `restricts | `runner | `replaced_by | `feed_for] t -> Sigs.iface_uri
 val from_feed : [`selection] t -> string option
 
 (** {2 Implementations} *)
 val make_impl : ?source_hint:Support.Qdom.element -> ?child_nodes:Support.Qdom.element list -> Support.Qdom.AttrMap.t -> [> `implementation] t
 
 (** Copy element with a new interface. Used to make relative paths absolute. *)
-val with_interface : General.iface_uri -> ([< dependency_node] t as 'a) -> 'a
+val with_interface : Sigs.iface_uri -> ([< dependency_node] t as 'a) -> 'a
 
 (** {2 Dependencies} *)
 val importance : [< `requires | `runner] t -> [> `essential | `recommended]

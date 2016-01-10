@@ -8,11 +8,6 @@
 
 open Support.Common
 
-(** A URI used to identify an interface. Uses only plain URI characters, unicode chars, spaces, etc are %-escaped. *)
-type iface_uri = string
-
-type feed_url = string
-
 type network_use = Full_network | Minimal_network | Offline
 
 type config = {

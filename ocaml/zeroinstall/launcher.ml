@@ -5,10 +5,9 @@
 (** Parsing 0alias and app launcher scripts. *)
 
 open Support.Common
-open General
 
 type alias_info = {
-  uri : iface_uri;
+  uri : Sigs.iface_uri;
   command : string option;
   main : string option;
 }

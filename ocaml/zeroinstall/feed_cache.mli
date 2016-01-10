@@ -22,8 +22,8 @@ val get_cached_icon_path : config -> [< Feed_url.non_distro_feed] -> filepath op
 
 val list_all_feeds : config -> StringSet.t
 
-val load_iface_config : config -> iface_uri -> interface_config
-val save_iface_config : config -> iface_uri -> interface_config -> unit
+val load_iface_config : config -> Sigs.iface_uri -> interface_config
+val save_iface_config : config -> Sigs.iface_uri -> interface_config -> unit
 
 (** Check whether feed [url] is stale.
  * Returns false if it's stale but last-check-attempt is recent *)

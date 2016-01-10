@@ -45,7 +45,7 @@ and restriction = < meets_restriction : impl_type t -> bool; to_string : string 
 and dependency = {
   dep_qdom : Element.dependency_node Element.t;
   dep_importance : importance;
-  dep_iface : General.iface_uri;
+  dep_iface : Sigs.iface_uri;
   dep_src : bool;
   dep_restrictions : restriction list;
   dep_required_commands : string list;

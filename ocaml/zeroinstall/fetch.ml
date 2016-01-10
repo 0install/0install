@@ -10,7 +10,7 @@ module Q = Support.Qdom
 module G = Support.Gpg
 module FeedAttr = Constants.FeedAttr
 
-type non_mirror_case = [ `ok of [`feed] Element.t | `no_trusted_keys | `replay_attack of (feed_url * float * float) | `aborted_by_user ]
+type non_mirror_case = [ `ok of [`feed] Element.t | `no_trusted_keys | `replay_attack of (Sigs.feed_url * float * float) | `aborted_by_user ]
 
 type fetch_feed_response =
   [ `update of ([`feed] Element.t * fetch_feed_response Lwt.t option)  (* Use this version (but a better version may come soon) *)
@@ -507,7 +507,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
       reraise_with_context ex "... downloading implementation %s %s (id=%s)" (Feed_url.format_url feed) version id in
 
   object
-    method download_and_import_feed (feed : [`remote_feed of feed_url]) : fetch_feed_response Lwt.t =
+    method download_and_import_feed (feed : [`remote_feed of Sigs.feed_url]) : fetch_feed_response Lwt.t =
       let `remote_feed feed_url = feed in
       log_debug "download_and_import_feed %s" feed_url;
 
@@ -631,7 +631,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
           raise first
     )
 
-    method import_feed (feed_url:[`remote_feed of feed_url]) xml =
+    method import_feed (feed_url:[`remote_feed of Sigs.feed_url]) xml =
       import_feed ~mirror_used:None feed_url xml >>= function
       | `ok _ -> Lwt.return ()
       | (`aborted_by_user | `no_trusted_keys | `replay_attack _) as r -> raise_safe "%s" (string_of_result r)

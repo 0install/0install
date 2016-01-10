@@ -50,7 +50,7 @@ and binding = Element.binding_node Element.t
 and dependency = {
   dep_qdom : Element.dependency_node Element.t;
   dep_importance : importance;
-  dep_iface: iface_uri;
+  dep_iface: Sigs.iface_uri;
   dep_src: bool;
   dep_restrictions: restriction list;
   dep_required_commands: string list;

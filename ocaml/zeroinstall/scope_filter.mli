@@ -4,7 +4,6 @@
 
 (** Used for filtering and ranking implementations before passing them to the solver. *)
 
-open General
 open Support.Common
 
 type t = {
@@ -40,7 +39,7 @@ val machine_rank : t -> Arch.machine -> int option
 val lang_rank : t -> Support.Locale.lang_spec -> int
 
 (* Get the user-provided restriction for an interface, if any. *)
-val user_restriction_for : t -> iface_uri -> Impl.restriction option
+val user_restriction_for : t -> Sigs.iface_uri -> Impl.restriction option
 
 (* Should we consider this feed import? *)
 val use_feed : t -> want_source:bool -> Feed.feed_import -> bool

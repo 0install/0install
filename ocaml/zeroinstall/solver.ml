@@ -15,7 +15,7 @@ module AttrMap = Qdom.AttrMap
 type scope = Impl_provider.impl_provider
 type role = {
   scope : scope;
-  iface : iface_uri;
+  iface : Sigs.iface_uri;
   source : bool;
 }
 

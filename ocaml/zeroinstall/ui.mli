@@ -31,7 +31,7 @@ class type ui_handler =
 
     method open_app_list_box : unit Lwt.t
 
-    method open_add_box : General.feed_url -> unit Lwt.t
+    method open_add_box : Sigs.feed_url -> unit Lwt.t
 
     method open_cache_explorer : unit Lwt.t
 

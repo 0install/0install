@@ -22,7 +22,7 @@ type version_restriction_option = [
   | `Before of version
   | `NotBefore of version
   | `RequireVersion of version
-  | `RequireVersionFor of iface_uri * version
+  | `RequireVersionFor of Zeroinstall.Sigs.iface_uri * version
 ]
 
 type other_req_option = [

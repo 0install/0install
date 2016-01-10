@@ -16,7 +16,7 @@ val describe_problem : _ Impl.t -> rejection_reason -> string
 val describe_preference : preference_reason -> string
 
 type candidates = {
-  replacement : General.iface_uri option;
+  replacement : Sigs.iface_uri option;
   impls : Impl.generic_implementation list;
   rejects : (Impl.generic_implementation * rejection_reason) list;
   compare : Impl.generic_implementation -> Impl.generic_implementation -> int * preference_reason;
@@ -27,7 +27,7 @@ class type impl_provider =
   object
     (** Return all the implementations of this interface (including from feeds).
         Most preferred implementations should come first. *)
-    method get_implementations : General.iface_uri -> source:bool -> candidates
+    method get_implementations : Sigs.iface_uri -> source:bool -> candidates
 
     (** Should the solver consider this dependency? *)
     method is_dep_needed : Impl.dependency -> bool

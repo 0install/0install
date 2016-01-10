@@ -11,7 +11,7 @@ open Support.Common
 
 type selection = [`selection] Element.t
 type role = {
-  iface : General.iface_uri;
+  iface : Sigs.iface_uri;
   source : bool;
 }
 
@@ -65,7 +65,7 @@ val get_source : selection -> impl_source
 val get_path : system -> Stores.stores -> selection -> filepath option
 
 (** Get the URL of the feed this selection came from. *)
-val get_feed : selection -> General.feed_url
+val get_feed : selection -> Sigs.feed_url
 
 (** Get the globally unique ID of this selection (feed + ID) *)
 val get_id : selection -> Feed_url.global_id

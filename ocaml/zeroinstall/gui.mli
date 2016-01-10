@@ -34,12 +34,12 @@ val try_get_gui : General.config -> use_gui:Support.Common.yes_no_maybe -> Ui.ui
 val add_remote_feed :
   General.config ->
   Fetch.fetcher ->
-  General.iface_uri -> Feed_url.remote_feed -> unit Lwt.t
+  Sigs.iface_uri -> Feed_url.remote_feed -> unit Lwt.t
 
 (** Add a local feed to an interface. *)
-val add_feed : General.config -> General.iface_uri -> Feed_url.local_feed -> unit
-val remove_feed : General.config -> General.iface_uri -> Feed_url.non_distro_feed -> unit
-val compile : General.config -> Feed_provider.feed_provider -> General.iface_uri -> autocompile:bool -> unit Lwt.t
+val add_feed : General.config -> Sigs.iface_uri -> Feed_url.local_feed -> unit
+val remove_feed : General.config -> Sigs.iface_uri -> Feed_url.non_distro_feed -> unit
+val compile : General.config -> Feed_provider.feed_provider -> Sigs.iface_uri -> autocompile:bool -> unit Lwt.t
 
 (** Try to guess whether we have source for this interface.
  * Returns true if we have any source-only feeds, or any source implementations
@@ -47,7 +47,7 @@ val compile : General.config -> Feed_provider.feed_provider -> General.iface_uri
  * source feed containing no implementations will still count as true).
  * This is used in the GUI to decide whether to shade the Compile button.
  *)
-val have_source_for : Feed_provider.feed_provider -> General.iface_uri -> bool
+val have_source_for : Feed_provider.feed_provider -> Sigs.iface_uri -> bool
 
 (** List the implementations of this interface in the order they should be shown in the GUI.
  * @return (selected_version, implementations). *)
@@ -66,7 +66,7 @@ val get_bug_report_details : General.config -> role:Solver.role -> (bool * Solve
 (** Submit a bug report for this interface.
  * @return the response from the server (on success).
  * @raise Safe_exception on failure. *)
-val send_bug_report : General.iface_uri -> string -> string Lwt.t
+val send_bug_report : Sigs.iface_uri -> string -> string Lwt.t
 
 val run_test : General.config -> Distro.distribution -> (Selections.t -> string Lwt.t) -> (bool * Solver.Model.t) -> string Lwt.t
 

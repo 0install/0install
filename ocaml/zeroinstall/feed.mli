@@ -37,7 +37,7 @@ type feed = {
 
   (* The URI of the interface that replaced the one with the URI of this feed's URL.
      This is the value of the feed's <replaced-by interface'...'/> element. *)
-  replacement : General.iface_uri option;
+  replacement : Sigs.iface_uri option;
 
   package_implementations : ([`package_impl] Element.t * Impl.properties) list;
 }
@@ -56,7 +56,7 @@ val get_summary : int Support.Locale.LangMap.t -> feed -> string option
 val get_description : int Support.Locale.LangMap.t -> feed -> string option
 
 (** The <feed-for> elements' interfaces *)
-val get_feed_targets : feed -> General.iface_uri list
+val get_feed_targets : feed -> Sigs.iface_uri list
 val make_user_import : [< Feed_url.non_distro_feed] -> feed_import
 
 val get_category : feed -> string option

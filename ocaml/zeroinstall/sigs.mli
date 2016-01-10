@@ -6,6 +6,12 @@
 
 open Support.Common
 
+type iface_uri = string
+(** A URI used to identify an interface.
+    Uses only plain URI characters, unicode chars, spaces, etc are %-escaped. *)
+
+type feed_url = string
+
 module type MAP = sig
   include Map.S
 

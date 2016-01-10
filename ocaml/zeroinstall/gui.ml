@@ -164,7 +164,7 @@ let add_feed config iface feed_url =
       );
   | feed_for -> raise_safe "This is not a feed for '%s'.\nOnly for:\n%s" iface (String.concat "\n" feed_for)
 
-let add_remote_feed config fetcher iface (feed_url:[`remote_feed of feed_url]) =
+let add_remote_feed config fetcher iface (feed_url:[`remote_feed of Sigs.feed_url]) =
   Driver.download_and_import_feed fetcher feed_url >>= function
   | `aborted_by_user -> Lwt.return ()
   | `success _ | `no_update -> add_feed config iface feed_url; Lwt.return ()
