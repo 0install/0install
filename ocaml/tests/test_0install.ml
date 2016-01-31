@@ -708,6 +708,15 @@ let suite = "0install">::: [
 
     let get_value name = run_0install fake_system ["config"; name] in
 
+    let injector_dir = fake_system#tmpdir +/ "config/injector" in
+    assert_equal ~msg:"init no config" false (fake_system#file_exists injector_dir);
+
+    run_0install fake_system ["config"; "--dry-run"; "help_with_testing"; "false"]
+    |> Fake_system.assert_matches "^\\[dry-run] Would write config to .*/config/injector/global";
+    Zeroinstall.Config.load_config config;
+    assert_equal false config.help_with_testing;
+    assert_equal ~msg:"no config dir created" false (fake_system#file_exists injector_dir);
+
     assert_str_equal "30d\n" @@ get_value "freshness";
     assert_str_equal "full\n" @@ get_value "network_use";
     assert_str_equal "False\n" @@ get_value "help_with_testing";
@@ -715,6 +724,8 @@ let suite = "0install">::: [
     assert_str_equal "" @@ run_0install fake_system ["config"; "freshness"; "5m"];
     assert_str_equal "" @@ run_0install fake_system ["config"; "help_with_testing"; "True"];
     assert_str_equal "" @@ run_0install fake_system ["config"; "network_use"; "minimal"];
+
+    assert_equal ~msg:"config dir exists" true (fake_system#file_exists injector_dir);
 
     Zeroinstall.Config.load_config config;
     assert_equal (Some (5. *. 60.)) @@ config.freshness;

@@ -16,7 +16,7 @@ type config = {
   mutable extra_stores: filepath list;      (* (subset of stores; passed to Python slave with --with-store) *)
   abspath_0install: filepath;
 
-  mutable system : Support.Common.system;
+  system : Support.Common.system;
 
   mutable mirror : string option;
   mutable key_info_server : string option;

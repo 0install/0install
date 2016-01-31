@@ -565,6 +565,11 @@ let assert_contains expected whole =
   try ignore @@ Str.search_forward (Str.regexp_string expected) whole 0
   with Not_found -> assert_failure (Printf.sprintf "Expected string '%s' not found in '%s'" expected whole)
 
+let assert_matches pattern result =
+  let re = Str.regexp pattern in
+  if not (Str.string_match re result 0) then
+    assert_failure (Printf.sprintf "Result %S doesn't match RE %S" result pattern)
+
 let assert_error_contains expected (fn:unit -> unit) =
   try
     fn ();

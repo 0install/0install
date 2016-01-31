@@ -4,6 +4,7 @@
 
 (** The main executable *)
 
+open Zeroinstall.General
 open Support.Common
 module U = Support.Utils
 
@@ -28,6 +29,14 @@ let crash_handler system crash_dir entries =
   );
   Printf.fprintf stderr "(wrote crash logs to %s)\n" log_file
 
+let with_config system prog fn =
+  let config = Zeroinstall.Config.get_default_config system prog in
+  try fn config
+  with Common_options.Retry_with_dryrun ->
+    let system = new Zeroinstall.Dry_run.dryrun_system system in
+    let config = Zeroinstall.Config.get_default_config system prog in
+    fn {config with dry_run = true}
+
 let main (system:system) : unit =
   begin match system#getenv "ZEROINSTALL_CRASH_LOGS" with
   | Some dir when dir <> "" -> Support.Logging.set_crash_logs_handler (crash_handler system dir)
@@ -36,7 +45,7 @@ let main (system:system) : unit =
   match Array.to_list system#argv with
   | [] -> assert false
   | prog :: args ->
-      let config = Zeroinstall.Config.get_default_config system prog in
+      with_config system prog @@ fun config ->
       match String.lowercase @@ Filename.basename prog with
       | "0launch" | "0launch.exe" ->
           begin match args with

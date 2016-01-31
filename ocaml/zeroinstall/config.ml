@@ -104,18 +104,22 @@ let get_default_config system path_to_prog =
 
 (** Write global settings. *)
 let save_config config =
-  Paths.Config.(save_path global) config.paths
-  |> config.system#atomic_write [Open_wronly] ~mode:0o644 (fun ch ->
-    output_string ch "[global]\n";
+  let path = Paths.Config.(save_path global) config.paths in
+  if config.dry_run then
+    Dry_run.log "Would write config to %S" path
+  else (
+    path |> config.system#atomic_write [Open_wronly] ~mode:0o644 (fun ch ->
+      output_string ch "[global]\n";
 
-    Printf.fprintf ch "help_with_testing = %s\n" (format_bool config.help_with_testing);
-    Printf.fprintf ch "network_use = %s\n" (format_network_use config.network_use);
-    Printf.fprintf ch "freshness = %s\n" (format_freshness config.freshness);
-    Printf.fprintf ch "auto_approve_keys = %s\n" (format_bool config.auto_approve_keys);
-    let key_info_server_str =
-      match config.key_info_server with
-      | None -> Some ""
-      | server when server = default_key_info_server -> None
-      | server -> server in
-    key_info_server_str |> if_some (Printf.fprintf ch "key_info_server = %s\n")
+      Printf.fprintf ch "help_with_testing = %s\n" (format_bool config.help_with_testing);
+      Printf.fprintf ch "network_use = %s\n" (format_network_use config.network_use);
+      Printf.fprintf ch "freshness = %s\n" (format_freshness config.freshness);
+      Printf.fprintf ch "auto_approve_keys = %s\n" (format_bool config.auto_approve_keys);
+      let key_info_server_str =
+        match config.key_info_server with
+        | None -> Some ""
+        | server when server = default_key_info_server -> None
+        | server -> server in
+      key_info_server_str |> if_some (Printf.fprintf ch "key_info_server = %s\n")
+    )
   )
