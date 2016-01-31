@@ -118,13 +118,25 @@ let get_sizes pk = function
   | package_ids ->
       let details = ref StringMap.empty in
 
-      let update (package_id, _license, _group, _detail, _url, size) =
+      let update_new map =
+        try
+          let package_id = List.assoc "package-id" map |> Dbus.OBus_value.C.(cast_single basic_string) in
+          let size = List.assoc "size" map |> Dbus.OBus_value.C.(cast_single basic_uint64) in
+          details := !details |> StringMap.add package_id size
+        with Not_found | Dbus.OBus_value.C.Signature_mismatch ->
+          let items = map |> List.map (fun (k, v) ->
+            Printf.sprintf "%s=%s" k (Dbus.OBus_value.V.string_of_single v)
+          ) in
+          log_warning "Invalid Details message from PackageKit: {%s}" (String.concat ", " items) in
+
+      let update_old (package_id, _license, _group, _detail, _url, size) =
         log_info "packagekit: got size %s: %s" package_id (Int64.to_string size);
         details := !details |> StringMap.add package_id size in
 
       let details_signal =
-        if pk#version >= [0; 8; 1] then make_signal_request ITrans.s_Details2 update
-        else make_signal_request ITrans.s_Details1 update in
+        if pk#version >= [0; 9; 1] then make_signal_request ITrans.s_Details3 update_new
+        else if pk#version >= [0; 8; 1] then make_signal_request ITrans.s_Details2 update_old
+        else make_signal_request ITrans.s_Details1 update_old in
       pk#run_transaction [details_signal] (fun _switch proxy ->
         Dbus.OBus_method.call ITrans.m_GetDetails proxy package_ids
       ) >|= fun () ->

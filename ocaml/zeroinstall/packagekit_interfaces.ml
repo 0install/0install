@@ -189,6 +189,13 @@ struct
                        (Some "size", basic_uint64));
     Signal.annotations = [];
   }
+  let s_Details3 = {
+    Signal.interface = interface;
+    Signal.member = "Details";
+    Signal.args = (arg1
+                       (Some "data", dict string variant));
+    Signal.annotations = [("org.qtproject.QtDBus.QtTypeName.In0", "QVariantMap")];
+  }
   let p_Percentage = {
     Property.interface = interface;
     Property.member = "Percentage";

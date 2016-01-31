@@ -136,7 +136,12 @@ module OBus_value =
   struct
     module C =
       struct
+        exception Signature_mismatch
         let array _ = ()
+        let dict _ _ = ()
+        let string = ()
+        let variant = ()
+        let cast_single _ = failwith "cast_single"
         let basic_boolean = ()
         let basic_uint32 = ()
         let basic_uint64 = ()
@@ -144,6 +149,10 @@ module OBus_value =
         let basic_object_path = ()
         type 'a sequence = 'a list
       end
+
+    module V = struct
+      let string_of_single _ = ""
+    end
 
     type 'a arguments = unit
 
