@@ -219,17 +219,18 @@ let commands : commands = [
   "slave",        make_command "VERSION"                       Slave.handle      @@ common_options;
 ]
 
+let pp_command parents fmt (command, info) =
+  match info with
+  | Command info when (Command_tree.help info = None) -> ()
+  | _ -> Format.fprintf fmt "0install%s %s@," parents command
+
 let show_group_help config parents group =
-  let print fmt = Support.Utils.print config.system fmt in
   let top_options = show_version_options @ common_options in
-  Common_options.show_help config.system top_options "COMMAND [OPTIONS]" (fun () ->
+  Common_options.show_help config.system top_options "COMMAND [OPTIONS]" (fun fmt ->
     let parents = String.concat "" (List.map ((^) " ") parents) in
-    print "\nTry --help with one of these:\n";
-    ListLabels.iter group ~f:(fun (command, info) ->
-      match info with
-      | Command info when (Command_tree.help info = None) -> ()
-      | _ -> print "0install%s %s" parents command;
-    );
+    let no_sep _ () = () in
+    Format.fprintf fmt "Try --help with one of these:@\n@\n@[<v2>  %a@]@."
+      (Format.pp_print_list ~pp_sep:no_sep (pp_command parents)) group
   )
 
 let handle_no_command options flags args =

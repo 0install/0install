@@ -43,30 +43,25 @@ let increase_verbosity options =
 let show_version system =
   let prog = Filename.basename system#argv.(0) in
   let prog = if Support.Utils.starts_with prog "0launch" then "0launch" else "0install" in
-
-  system#print_string @@ Printf.sprintf
-    "%s (zero-install) %s\n\
-     Copyright (C) 2013 Thomas Leonard\n\
-     This program comes with ABSOLUTELY NO WARRANTY,\n\
-     to the extent permitted by law.\n\
-     You may redistribute copies of this program\n\
-     under the terms of the GNU Lesser General Public License.\n\
-     For more information about these matters, see the file named COPYING.\n"
+  Format.fprintf system#std_formatter
+    "%s (zero-install) %s@,\
+     Copyright (C) 2016 Thomas Leonard@\n\
+     This program comes with ABSOLUTELY NO WARRANTY,@ \
+     to the extent permitted by law.@ \
+     You may redistribute copies of this program@ \
+     under the terms of the GNU Lesser General Public License.@ \
+     For more information about these matters, see the file named COPYING.@."
      prog Zeroinstall.About.version
 
 let show_help (system:system) valid_options help extra_fn =
   let prog = Filename.basename system#argv.(0) in
-  if Support.Utils.starts_with prog "0launch" then
-    Support.Utils.print system "Usage: %s [OPTIONS] URI [ARGS]" prog
-  else if Support.Utils.starts_with prog "0desktop" then
-    Support.Utils.print system "Usage: %s [OPTIONS] [URI]" prog
-  else
-    Support.Utils.print system "Usage: %s %s" prog help;
-
-  extra_fn ();
-
-  system#print_string "\n";
-  Support.Argparse.format_options system format_type valid_options
+  let usage =
+    if Support.Utils.starts_with prog "0launch" then "[OPTIONS] URI [ARGS]"
+    else if Support.Utils.starts_with prog "0desktop" then "[OPTIONS] [URI]"
+    else help in
+  Format.fprintf system#std_formatter "Usage: %s %s@.@\n%t%a@."
+    prog usage extra_fn
+    (Support.Argparse.pp_options format_type) valid_options
 
 let process_common_option options =
   let config = options.config in

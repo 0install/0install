@@ -75,4 +75,4 @@ class ['a, 'b] one_arg : 'b -> (string -> 'a) -> ['a, 'b] option_parser
 class ['a, 'b] two_arg : 'b -> 'b -> (string -> string -> 'a) -> ['a, 'b] option_parser
 
 (** Print out these options in a formatted list. *)
-val format_options : Common.system -> ('b -> string) -> ('a, 'b) opt_spec list -> unit
+val pp_options : ('b -> string) -> Format.formatter -> ('a, 'b) opt_spec list -> unit

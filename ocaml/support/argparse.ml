@@ -259,11 +259,7 @@ class ['a,'b] two_arg arg1_type arg2_type (fn : string -> string -> 'a) =
       end
   end
 
-let format_options system format_type opts =
-  let print fmt = Utils.print system fmt in
-
-  print "Options:";
-
+let pp_options format_type fmt opts =
   let display_options =
     opts |> Utils.filter_map (fun (names, (nargs:int), help, p) ->
       match help with
@@ -279,15 +275,12 @@ let format_options system format_type opts =
           let arg_strs = String.concat ", " (List.map format_opt names) in
 
           Some (arg_strs, help)) in
-
   let col1_width = 2 + (min 20 @@ List.fold_left (fun w (syn, _help) -> max (String.length syn) w) 0 display_options) in
-
   let spaces n = String.make n ' ' in
-
-  ListLabels.iter display_options ~f:(fun (syn, help) ->
+  let format_item fmt (syn, help) =
     let padding = col1_width - String.length syn in
     if padding > 0 then
-      print "  %s%s%s" syn (spaces padding) help
+      Format.fprintf fmt "%s%s%s" syn (spaces padding) help
     else
-      print "  %s\n  %s%s" syn (spaces col1_width) help
-  );
+      Format.fprintf fmt "%s\n  %s%s" syn (spaces col1_width) help in
+  Format.fprintf fmt "Options:@,@[<v2>  %a@]" (Format.pp_print_list format_item) display_options

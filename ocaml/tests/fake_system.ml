@@ -188,6 +188,11 @@ class fake_system ?(portable_base=true) tmpdir =
       | None -> real_system#print_string s
       | Some b -> Buffer.add_string b s
 
+    method std_formatter =
+      match stdout with
+      | None -> real_system#std_formatter
+      | Some b -> Format.formatter_of_buffer b
+
     val mutable argv = [| test_0install |]
 
     method argv = argv
