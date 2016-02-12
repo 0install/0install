@@ -277,10 +277,15 @@ let pp_options format_type fmt opts =
           Some (arg_strs, help)) in
   let col1_width = 2 + (min 20 @@ List.fold_left (fun w (syn, _help) -> max (String.length syn) w) 0 display_options) in
   let spaces n = String.make n ' ' in
-  let format_item fmt (syn, help) =
-    let padding = col1_width - String.length syn in
-    if padding > 0 then
-      Format.fprintf fmt "%s%s%s" syn (spaces padding) help
-    else
-      Format.fprintf fmt "%s\n  %s%s" syn (spaces col1_width) help in
-  Format.fprintf fmt "Options:@,@[<v2>  %a@]" (Format.pp_print_list format_item) display_options
+  let pp_items fmt items =
+    let need_cut = ref false in
+    items |> List.iter (fun (syn, help) ->
+      if !need_cut then Format.pp_print_cut fmt ()
+      else need_cut := true;
+      let padding = col1_width - String.length syn in
+      if padding > 0 then
+        Format.fprintf fmt "%s%s%s" syn (spaces padding) help
+      else
+        Format.fprintf fmt "%s@\n%s%s" syn (spaces col1_width) help
+    ) in
+  Format.fprintf fmt "Options:@,@[<v2>  %a@]" pp_items display_options
