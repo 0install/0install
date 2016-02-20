@@ -885,7 +885,7 @@ let suite = "0install">::: [
   "logging">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
     let out = run_0install fake_system ["-v"; "list"; "UNKNOWN"] in
     assert_str_equal "" out;
-    Fake_system.fake_log#assert_contains "0install (OCaml version): verbose mode on";
+    Fake_system.fake_log#assert_contains "0install .* (OCaml version): verbose mode on";
   );
 
   "help2">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
