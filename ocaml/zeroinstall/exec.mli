@@ -15,9 +15,9 @@ val get_exec_args : config -> ?main:string -> Selections.t -> string list -> (st
     If [exec] is given, use that instead of config.system#exec. *)
 val execute_selections :
   config ->
-  ?exec:(string list -> env:string array -> unit) ->
+  ?exec:(string list -> env:string array -> 'a) ->
   ?wrapper:string ->
   ?main:string ->
   Selections.t ->
   string list ->
-  unit
+  [ `Dry_run of string | `Ok of 'a ]

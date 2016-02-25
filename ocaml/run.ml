@@ -17,28 +17,19 @@ type run_options = {
 
 (** This is run when the user clicks the test button in the bug-report dialog box. *)
 let run_test options run_opts run_args sels =
-  let result, set_result = Lwt.wait () in
-
   let exec args ~env =
-    U.async (fun () ->
-      try_lwt
-        let command = (U.find_in_path_ex options.config.system (List.hd args), Array.of_list args) in
-        lwt out = Lwt_process.pread ~env ~stderr:(`FD_copy Unix.stdout) command in
-        Lwt.wakeup set_result out;
-        Lwt.return ()
-      with ex ->
-        Lwt.wakeup_exn set_result ex;
-        Lwt.return ()
-    ) in
-
-  let () =
-    try
-      Zeroinstall.Exec.execute_selections ~exec options.config sels run_args ?main:run_opts.main ?wrapper:run_opts.wrapper;
-    with ex ->
+    let command = (U.find_in_path_ex options.config.system (List.hd args), Array.of_list args) in
+    Lwt_process.pread ~env ~stderr:(`FD_copy Unix.stdout) command in
+  Lwt.catch
+    (fun () ->
+      match Zeroinstall.Exec.execute_selections ~exec options.config sels run_args ?main:run_opts.main ?wrapper:run_opts.wrapper with
+      | `Dry_run msg -> return msg
+      | `Ok x -> x
+    )
+    (fun ex ->
       log_info ~ex "Error from test command";
-      Lwt.wakeup_exn set_result ex in
-
-  result
+      Lwt.fail ex
+    )
 
 let handle options flags args =
   let run_opts = {
@@ -61,7 +52,10 @@ let handle options flags args =
     let exec args ~env =
       options.config.system#exec args ~env in
 
-    try Zeroinstall.Exec.execute_selections ~exec options.config sels run_args ?main:run_opts.main ?wrapper:run_opts.wrapper
+    try
+      match Zeroinstall.Exec.execute_selections ~exec options.config sels run_args ?main:run_opts.main ?wrapper:run_opts.wrapper with
+      | `Dry_run msg -> Zeroinstall.Dry_run.log "%s" msg
+      | `Ok () -> ()
     with Safe_exception _ as ex -> reraise_with_context ex "... running %s" arg
   )
   | _ -> raise (Support.Argparse.Usage_error 1)

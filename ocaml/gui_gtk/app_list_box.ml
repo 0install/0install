@@ -167,8 +167,9 @@ let run config dialog tools gui uri =
           let feed_url = Feed_url.master_feed_of_iface uri in
           let feed = FC.get_cached_feed config feed_url |? lazy (raise_safe "BUG: feed still not cached! %s" uri) in
           let exec args ~env = config.system#spawn_detach ~env (maybe_with_terminal tools#config.system feed args) in
-          Exec.execute_selections config ~exec sels [];
-          Lwt_unix.sleep 0.5
+          match Exec.execute_selections config ~exec sels [] with
+          | `Ok () -> Lwt_unix.sleep 0.5
+          | `Dry_run _ -> assert false
     finally
       Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.default_cursor);
       Lwt.return ()

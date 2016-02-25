@@ -90,7 +90,7 @@ class type system =
     method symlink : target:filepath -> newlink:filepath -> unit
     method readlink : filepath -> filepath option
 
-    method exec : ?search_path:bool -> ?env:string array -> string list -> 'a
+    method exec : 'a. ?search_path:bool -> ?env:string array -> string list -> 'a
     method spawn_detach : ?search_path:bool -> ?env:string array -> string list -> unit
     method create_process : ?env:string array -> string list -> Unix.file_descr -> Unix.file_descr -> Unix.file_descr -> int
     (** [reap_child ?kill_first:signal child_pid] calls [waitpid] to collect the child.

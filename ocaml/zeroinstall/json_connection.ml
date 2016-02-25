@@ -22,12 +22,6 @@ module J = Yojson.Basic
 
 exception Bad_request    (* Throw this from a handler to report a bad request message to the peer. *)
 
-let async fn =
-  Lwt.ignore_result (
-    try_lwt fn ()
-    with ex -> log_warning ~ex "Unhandled error from Lwt thread"; Lwt.fail ex
-  )
-
 (* Read the next chunk from the channel.
    Returns [None] if the channel was closed. *)
 let read_chunk ch : J.json option Lwt.t =
@@ -104,7 +98,7 @@ class json_connection ~from_peer ~to_peer handle_request =
     read_chunk from_peer >>= function
     | None -> log_debug "handle_messages: channel closed, so stopping handler"; return `Finished
     | Some (`List [`String "invoke"; `String ticket; `String op; `List args]) ->
-        async @@ handle_invoke ticket op args; loop ()
+        U.async @@ handle_invoke ticket op args; loop ()
     | Some (`List [`String "return"; `String ticket; `String success; result]) ->
         let resolver =
           try Hashtbl.find pending_replies ticket
@@ -119,7 +113,7 @@ class json_connection ~from_peer ~to_peer handle_request =
 
   (* Read and process messages from stream until it is closed. *)
   let () =
-    async (fun () ->
+    U.async (fun () ->
       Lwt.catch (fun () ->
         loop () >|= fun `Finished ->
         Lwt.wakeup finish ();

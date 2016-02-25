@@ -75,34 +75,37 @@ let make_gpg_command system args =
 let run_gpg_full system ?stdin args =
   let command = make_gpg_command system args in
   let child = new Lwt_process.process_full command in
-  try_lwt
-    (* Start collecting output... *)
-    let stdout = Lwt_io.read child#stdout in
-    let stderr = Lwt_io.read child#stderr in
+  Lwt.catch
+    (fun () ->
+      (* Start collecting output... *)
+      let stdout = Lwt_io.read child#stdout in
+      let stderr = Lwt_io.read child#stderr in
 
-    (* At the same time, write the input, if any *)
-    lwt () =
-      match stdin with
+      (* At the same time, write the input, if any *)
+      begin match stdin with
       | None -> Lwt.return ()
-      | Some stdin -> stdin child#stdin in
+      | Some stdin -> stdin child#stdin
+      end >>= fun () ->
 
-    lwt () = Lwt_io.close child#stdin in
+      Lwt_io.close child#stdin >>= fun () ->
 
-    (* Join the collection threads *)
-    lwt stdout = stdout
-    and stderr = stderr in
-    lwt status = child#close in
-    Lwt.return (stdout, stderr, status)
-  with ex ->
-    (* child#terminate; - not in Debian *)
-    ignore child#close;
-    raise ex
+      (* Join the collection threads *)
+      stdout >>= fun stdout ->
+      stderr >>= fun stderr ->
+      child#close >>= fun status ->
+      Lwt.return (stdout, stderr, status)
+    )
+    (fun ex ->
+      (* child#terminate; - not in Debian *)
+      ignore child#close;
+      Lwt.fail ex
+    )
 
 (** Run gpg, passing [stdin] as input and collecting the output.
  * If the command returns an error, report stderr as the error (on success, stderr is discarded).
  *)
 let run_gpg system ?stdin args =
-  lwt stdout, stderr, status = run_gpg_full system ?stdin args in
+  run_gpg_full system ?stdin args >>= fun (stdout, stderr, status) ->
   if stdout <> "" then log_info "GPG: output:\n%s" (trim stdout);
   if stderr <> "" then log_info "GPG: warnings:\n%s" (trim stderr);
   match status with
@@ -114,25 +117,24 @@ let run_gpg system ?stdin args =
 (** Run "gpg --import" with this data as stdin. *)
 let import_key system key_data =
   let write_stdin stdin = Lwt_io.write stdin key_data in
-  lwt output = run_gpg system ~stdin:write_stdin ["--quiet"; "--import"; "--batch"] in
-  if output <> "" then
-    log_warning "Output from gpg:\n%s" output;
-  Lwt.return ()
+  run_gpg system ~stdin:write_stdin ["--quiet"; "--import"; "--batch"] >|= function
+  | "" -> ()
+  | output -> log_warning "Output from gpg:\n%s" output
 
 (** Call 'gpg --list-keys' and return the results split into lines and columns. *)
 let get_key_details system key_id : string array list Lwt.t =
   (* Note: GnuPG 2 always uses --fixed-list-mode *)
-  lwt output = run_gpg system ["--fixed-list-mode"; "--with-colons"; "--list-keys"; "--"; key_id] in
+  run_gpg system ["--fixed-list-mode"; "--with-colons"; "--list-keys"; "--"; key_id] >>= fun output ->
   let parse_line line = Str.split U.re_colon line |> Array.of_list in
   output |> Str.split re_newline |> List.map parse_line |> Lwt.return
 
 (** Get the first human-readable name from the details. *)
 let get_key_name system key_id =
-  lwt details = get_key_details system key_id in
+  get_key_details system key_id >|= fun details ->
   details |> U.first_match (fun details ->
     if Array.length details > 9 && details.(0) = "uid" then Some details.(9)
     else None
-  ) |> Lwt.return
+  )
 
 let find_sig_end xml =
   let rec skip_ws last =
@@ -216,7 +218,7 @@ let verify (system:system) xml =
       with Base64.Invalid_char -> raise_safe "Invalid characters found in base 64 encoded signature" in
 
     let tmp = Filename.temp_file "0install-" "-gpg" in
-    lwt (stdout, stderr, exit_status) = Lwt.finalize
+    Lwt.finalize
       (fun () ->
         (* Don't use Lwt here, otherwise we may fork with the file open and leak it to a child
          * process, which will break things on Windows. Unix.O_CLOEXEC requires OCaml >= 4.01 *)
@@ -240,8 +242,8 @@ let verify (system:system) xml =
         begin try Unix.unlink tmp
         with ex -> log_warning ~ex "Failed to clean up GnuPG temporary file '%s'" tmp end;
         Lwt.return ()
-      ) in
-
+      )
+    >>= fun (stdout, stderr, exit_status) ->
     ignore exit_status;
     Lwt.return (sigs_from_gpg_status_output stdout, trim stderr)
   )
@@ -257,9 +259,10 @@ let load_keys system fingerprints =
     (* Otherwise GnuPG returns everything... *)
     Lwt.return StringMap.empty
   ) else (
-    lwt output = run_gpg system @@ [
+    run_gpg system @@ [
       "--fixed-list-mode"; "--with-colons"; "--list-keys";
-      "--with-fingerprint"; "--with-fingerprint"] @ fingerprints in
+      "--with-fingerprint"; "--with-fingerprint"] @ fingerprints
+    >>= fun output ->
 
     let keys = ref StringMap.empty in
 

@@ -145,9 +145,7 @@ let execute_selections config ?exec ?wrapper ?main sels args =
     | Some command -> ["/bin/sh"; "-c"; command ^ " \"$@\""; "-"] @ prog_args in
 
   if config.dry_run then
-    Dry_run.log "would execute: %s" (String.concat " " prog_args)
-  else (
-    match exec with
-    | None -> config.system#exec prog_args ~env:env
-    | Some exec -> exec prog_args ~env:env
-  )
+    `Dry_run (Printf.sprintf "would execute: %s" (String.concat " " prog_args))
+  else match exec with
+  | None -> `Ok (config.system#exec prog_args ~env:env)
+  | Some exec -> `Ok (exec prog_args ~env:env)

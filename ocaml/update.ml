@@ -134,33 +134,39 @@ let handle options flags args =
 (* Send a D-BUS notification. Can be overridden for unit-tests. *)
 let notify = ref (fun ~msg ~timeout ->
   Lwt_main.run (
-    try_lwt
-      D.session () >>= function
-      | `Error _ -> log_info "0install: %s" msg; Lwt.return ()
-      | `Ok _bus ->
-          ignore (D.Notification.notify ~timeout ~summary:"0install" ~body:msg ~icon:"info" ());
+    Lwt.catch
+      (fun () ->
+        D.session () >>= function
+        | `Error _ -> log_info "0install: %s" msg; Lwt.return ()
+        | `Ok _bus ->
+            ignore (D.Notification.notify ~timeout ~summary:"0install" ~body:msg ~icon:"info" ());
 
-          (* Force a round-trip to make sure the notice has been sent before we exit
-           * ([notify] itself only resolves when the notification is closed) *)
-          Lwt.bind (D.Notification.get_server_information ()) (fun _ -> Lwt.return ())
-    with ex ->
-      log_debug ~ex "Failed to send notification via D-BUS";
-      log_info "0install: %s" msg;
-      Lwt.return ()
+            (* Force a round-trip to make sure the notice has been sent before we exit
+             * ([notify] itself only resolves when the notification is closed) *)
+            Lwt.bind (D.Notification.get_server_information ()) (fun _ -> Lwt.return ())
+      )
+      (fun ex ->
+        log_debug ~ex "Failed to send notification via D-BUS";
+        log_info "0install: %s" msg;
+        Lwt.return ()
+      )
   )
 )
 
 let get_network_state () : D.Nm_manager.state =
   Lwt_main.run (
-    try_lwt
-      D.system () >>= function
-      | `Error _ -> Lwt.return `Unknown
-      | `Ok _bus ->
-          D.Nm_manager.daemon () >>= fun daemon ->
-          D.OBus_property.get (D.Nm_manager.state daemon)
-    with ex ->
-      log_info ~ex "Failed to get NetworkManager state";
-      Lwt.return `Unknown
+    Lwt.catch
+      (fun () ->
+        D.system () >>= function
+        | `Error _ -> Lwt.return `Unknown
+        | `Ok _bus ->
+            D.Nm_manager.daemon () >>= fun daemon ->
+            D.OBus_property.get (D.Nm_manager.state daemon)
+      )
+      (fun ex ->
+        log_info ~ex "Failed to get NetworkManager state";
+        Lwt.return `Unknown
+      )
   )
 
 (** Unix.sleep aborts early if we get a signal. *)

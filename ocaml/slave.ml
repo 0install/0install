@@ -36,21 +36,24 @@ let make_no_gui (connection:JC.json_connection) : Ui.ui_handler =
             connection#invoke "update-key-info" [`String fingerprint; `List (json_of_votes votes)] in
           pending_tasks := task :: !pending_tasks in
 
-        try_lwt
-          let json_infos = infos |> List.map (fun (fingerprint, votes) ->
-            let json_votes =
-              match Lwt.state votes with
-              | Lwt.Sleep -> handle_pending fingerprint votes; [`String "pending"]
-              | Lwt.Fail ex -> [`List [`String "bad"; `String (Printexc.to_string ex)]]
-              | Lwt.Return votes -> json_of_votes votes in
-            (fingerprint, `List json_votes)
-          ) in
-          connection#invoke "confirm-keys" [`String (Zeroinstall.Feed_url.format_url feed_url); `Assoc json_infos] >>= function
-          | `List confirmed_keys -> confirmed_keys |> List.map Yojson.Basic.Util.to_string |> Lwt.return
-          | _ -> raise_safe "Invalid response"
-        finally
-          !pending_tasks |> List.iter Lwt.cancel;
-          Lwt.return ()
+        Lwt.finalize
+          (fun () ->
+            let json_infos = infos |> List.map (fun (fingerprint, votes) ->
+              let json_votes =
+                match Lwt.state votes with
+                | Lwt.Sleep -> handle_pending fingerprint votes; [`String "pending"]
+                | Lwt.Fail ex -> [`List [`String "bad"; `String (Printexc.to_string ex)]]
+                | Lwt.Return votes -> json_of_votes votes in
+              (fingerprint, `List json_votes)
+            ) in
+            connection#invoke "confirm-keys" [`String (Zeroinstall.Feed_url.format_url feed_url); `Assoc json_infos] >>= function
+            | `List confirmed_keys -> confirmed_keys |> List.map Yojson.Basic.Util.to_string |> Lwt.return
+            | _ -> raise_safe "Invalid response"
+          )
+          (fun () ->
+            !pending_tasks |> List.iter Lwt.cancel;
+            Lwt.return ()
+          )
 
       method! confirm message =
         connection#invoke "confirm" [`String message] >>= function
@@ -134,10 +137,14 @@ let select options (ui:Zeroinstall.Ui.ui_handler) requirements refresh =
 
 (* Note: this function only supports the latest API. Previous APIs are handled using wrappers. *)
 let handle_request options ui = function
-  | "select", [`Assoc reqs; `Bool refresh] -> begin
+  | "select", [`Assoc reqs; `Bool refresh] ->
       let requirements = parse_requirements reqs in
-      try_lwt select options ui requirements refresh
-      with Safe_exception (msg, _) -> `List [`String "fail"; `String msg] |> Lwt.return end
+      Lwt.catch
+        (fun () -> select options ui requirements refresh)
+        (function
+          | Safe_exception (msg, _) -> `List [`String "fail"; `String msg] |> Lwt.return
+          | ex -> Lwt.fail ex
+        )
   | _ -> raise JC.Bad_request
 
 (* Wrap for 2.6. Convert 2.6 requests and responses to/from 2.7 format. *)

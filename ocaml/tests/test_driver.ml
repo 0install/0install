@@ -158,7 +158,9 @@ let make_driver_test test_elem =
                 actual_env := StringMap.add name value !actual_env
               );
               print_endline ("Would execute: " ^ Support.Logging.format_argv_for_logging cmd) in
-            Zeroinstall.Exec.execute_selections ~exec {config with dry_run = !dry_run} sels (List.rev !args)
+            match Zeroinstall.Exec.execute_selections ~exec {config with dry_run = !dry_run} sels (List.rev !args) with
+            | `Dry_run msg -> Zeroinstall.Dry_run.log "%s" msg
+            | `Ok () -> ()
           ) in
           let re = Str.regexp !expected_output in
           if not (Str.string_match re output 0) then
