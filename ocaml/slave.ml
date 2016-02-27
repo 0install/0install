@@ -14,7 +14,7 @@ module JC = Zeroinstall.Json_connection
 module Ui = Zeroinstall.Ui
 module Progress = Zeroinstall.Progress
 
-let make_no_gui (connection:JC.json_connection) : Ui.ui_handler =
+let make_no_gui connection : Ui.ui_handler =
   let json_of_votes =
     List.map (function
       | Progress.Good, msg -> `List [`String "good"; `String msg]
@@ -33,7 +33,7 @@ let make_no_gui (connection:JC.json_connection) : Ui.ui_handler =
         let handle_pending fingerprint votes =
           let task =
             votes >>= fun votes ->
-            connection#invoke "update-key-info" [`String fingerprint; `List (json_of_votes votes)] in
+            JC.invoke connection "update-key-info" [`String fingerprint; `List (json_of_votes votes)] in
           pending_tasks := task :: !pending_tasks in
 
         Lwt.finalize
@@ -46,7 +46,7 @@ let make_no_gui (connection:JC.json_connection) : Ui.ui_handler =
                 | Lwt.Return votes -> json_of_votes votes in
               (fingerprint, `List json_votes)
             ) in
-            connection#invoke "confirm-keys" [`String (Zeroinstall.Feed_url.format_url feed_url); `Assoc json_infos] >>= function
+            JC.invoke connection "confirm-keys" [`String (Zeroinstall.Feed_url.format_url feed_url); `Assoc json_infos] >>= function
             | `List confirmed_keys -> confirmed_keys |> List.map Yojson.Basic.Util.to_string |> Lwt.return
             | _ -> raise_safe "Invalid response"
           )
@@ -56,10 +56,10 @@ let make_no_gui (connection:JC.json_connection) : Ui.ui_handler =
           )
 
       method! confirm message =
-        connection#invoke "confirm" [`String message] >>= function
+        JC.invoke connection "confirm" [`String message] >>= function
         | `String "ok" -> Lwt.return `ok
         | `String "cancel" -> Lwt.return `cancel
-        | json -> raise_safe "Invalid response '%s'" (J.to_string json)
+        | json -> raise_safe "Invalid response '%a'" JC.pp_opt_xml json
     end in
 
   (ui :> Zeroinstall.Ui.ui_handler)
@@ -110,23 +110,23 @@ let parse_requirements json_assoc =
   table |> Hashtbl.iter (fun name _ -> log_warning "Unexpected requirements field '%s'!" name);
   reqs
 
-let select options (ui:Zeroinstall.Ui.ui_handler) requirements refresh =
+let select config tools (ui:Zeroinstall.Ui.ui_handler) requirements refresh =
   let success ~sels ~stale =
     let info = `Assoc [
       "stale", `Bool stale;
     ] in
-    let json : JC.J.json = `List [`String "ok"; info] in
+    let json = `List [`String "ok"; info] in
     `WithXML (json, Zeroinstall.Selections.as_xml sels) |> Lwt.return in
 
   let select_with_refresh refresh =
-    ui#run_solver options.tools `Select_only requirements ~refresh >>= function
+    ui#run_solver tools `Select_only requirements ~refresh >>= function
     | `Success sels -> success ~sels ~stale:false
     | `Aborted_by_user -> `List [`String "aborted-by-user"] |> Lwt.return in
 
-  if refresh || options.tools#use_gui = Yes then select_with_refresh refresh
+  if refresh || tools#use_gui = Yes then select_with_refresh refresh
   else (
-    let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider options.config options.tools#distro in
-    match Zeroinstall.Solver.solve_for options.config feed_provider requirements with
+    let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config tools#distro in
+    match Zeroinstall.Solver.solve_for config feed_provider requirements with
     | (false, _results) ->
         log_info "Quick solve failed; can't select without updating feeds";
         select_with_refresh true
@@ -136,11 +136,11 @@ let select options (ui:Zeroinstall.Ui.ui_handler) requirements refresh =
   )
 
 (* Note: this function only supports the latest API. Previous APIs are handled using wrappers. *)
-let handle_request options ui = function
+let handle_request config tools ui = function
   | "select", [`Assoc reqs; `Bool refresh] ->
       let requirements = parse_requirements reqs in
       Lwt.catch
-        (fun () -> select options ui requirements refresh)
+        (fun () -> select config tools ui requirements refresh)
         (function
           | Safe_exception (msg, _) -> `List [`String "fail"; `String msg] |> Lwt.return
           | ex -> Lwt.fail ex
@@ -157,30 +157,25 @@ let wrap_for_2_6 next (op, args) =
       | x -> x end;
   | _ -> next (op, args)
 
+
+let run_slave config tools ~from_peer ~to_peer ~requested_api_version =
+  if requested_api_version < Version.parse "2.6" then
+    raise_safe "Minimum supported API version is 2.6";
+  let api_version = min requested_api_version Zeroinstall.About.parsed_version in
+  let make_handler connection =
+    let ui = make_ui config connection tools#use_gui in
+    let handle_request = handle_request config tools ui in
+    if api_version <= Version.parse "2.6" then wrap_for_2_6 handle_request
+    else handle_request in
+  let _connection, thread = JC.server ~api_version ~from_peer ~to_peer make_handler in
+  thread >|= fun () ->
+  log_info "OCaml slave exiting"
+
 let handle options flags args =
   Support.Argparse.iter_options flags (Common_options.process_common_option options);
-
   match args with
   | [requested_api_version] ->
-      let module V = Zeroinstall.Version in
-      let requested_api_version = V.parse requested_api_version in
-      if requested_api_version < V.parse "2.6" then
-        raise_safe "Minimum supported API version is 2.6";
-      let api_version = min requested_api_version Zeroinstall.About.parsed_version in
-
-      let handler, set_handler = Lwt.wait () in
-      let connection = new JC.json_connection ~from_peer:Lwt_io.stdin ~to_peer:Lwt_io.stdout handler in
-      let ui = make_ui options.config connection options.tools#use_gui in
-
-      let handle_request = handle_request options ui in
-      let handle_request =
-        if api_version <= V.parse "2.6" then wrap_for_2_6 handle_request
-        else handle_request in
-
-      Lwt.wakeup set_handler handle_request;
-
-      connection#notify "set-api-version" [`String (V.to_string api_version)] |> Lwt_main.run;
-
-      Lwt_main.run connection#run;
-      log_info "OCaml slave exiting"
-  | _ -> raise (Support.Argparse.Usage_error 1);
+      let requested_api_version = Version.parse requested_api_version in
+      Lwt_main.run (run_slave options.config options.tools ~from_peer:Lwt_io.stdin ~to_peer:Lwt_io.stdout ~requested_api_version)
+  | _ ->
+      raise (Support.Argparse.Usage_error 1);

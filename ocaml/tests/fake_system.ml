@@ -439,6 +439,7 @@ let make_tools config =
     method downloader = download_pool#with_monitor ignore
     method make_fetcher watcher = Zeroinstall.Fetch.make config trust_db distro download_pool watcher
     method ui = (null_ui :> Zeroinstall.Ui.ui_handler)
+    method use_gui = No
   end
 
 let fake_log =
@@ -608,3 +609,7 @@ let input_all ch =
     failwith "!"
   with End_of_file -> Buffer.contents b
 
+let monitor thread =
+  Lwt.on_failure thread @@ function
+  | Lwt.Canceled -> ()
+  | ex -> log_warning ~ex "Daemon thread failed"

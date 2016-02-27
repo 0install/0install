@@ -784,4 +784,43 @@ let suite = "download">::: [
     assert_contains "Version: 1\n" out;
     assert_contains "(not cached)" out;
   );
+
+  "slave-2.6">::  Server.with_server ~portable_base:false (fun (config, _fake_system) server ->
+    server#expect [
+      [("Hello.xml", `Serve)];
+      [("6FCF121BE2390E0B.gpg", `Serve)];
+      [("DE937DD411906ACF7C263B396FCF121BE2390E0B", `AcceptKey)];
+    ];
+    let tools = Fake_system.make_tools config in
+    let from_peer, to_slave = Lwt_io.pipe () in
+    let from_slave, to_peer = Lwt_io.pipe () in
+    let requested_api_version = Version.parse "2.6" in
+    let slave = Slave.run_slave config tools ~from_peer ~to_peer ~requested_api_version in
+    Fake_system.monitor slave;
+    let callback _conn (x, _) = failwith x in
+    Lwt_main.run begin
+      Json_connection.client ~from_peer:from_slave ~to_peer:to_slave callback
+      >>= fun (client, client_thread, version) ->
+      Fake_system.monitor client_thread;
+      OUnit.assert_equal "2.6" (Version.to_string version);
+      Json_connection.invoke client "select" [
+        `Assoc [
+          "interface", `String "http://example.com:8000/Hello.xml";
+        ];
+        `Bool false
+      ] >>= begin function
+      | `WithXML (`List [`String "ok"], xml) -> Lwt.return xml
+      | x -> raise_safe "Bad reply %a" Json_connection.pp_opt_xml x
+      end >>= fun xml ->
+      let sels = Selections.create xml in
+      let impl = Selections.(get_selected (root_role sels) sels) |> expect in
+      Selections.get_id impl |> assert_equal { Feed_url.
+        feed = `remote_feed "http://example.com:8000/Hello.xml";
+        id = "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"
+      };
+      Lwt.cancel slave;
+      Lwt.cancel client_thread;
+      Lwt.return ()
+    end
+  );
 ]
