@@ -46,8 +46,12 @@ module Platform =
 
 (** Convenient way to create a new [Safe_exception] with no initial context. *)
 let raise_safe fmt =
-  let do_raise msg = raise @@ Safe_exception (msg, ref []) in
-  Printf.ksprintf do_raise fmt
+  let b = Buffer.create 512 in
+  let ppf = Format.formatter_of_buffer b in
+  let do_raise f =
+    Format.pp_print_flush f ();
+    raise @@ Safe_exception (Buffer.contents b, ref []) in
+  Format.kfprintf do_raise ppf fmt
 
 module StringMap = struct
   include Map.Make(String)

@@ -62,24 +62,21 @@ let console_handler ?ex level msg =
 
 let handler = ref console_handler
 
-(* [fmt] has type ('a, unit, string, unit) format4, which means:
-   - we accept any a format with variables type (e.g. "got:%s" has type string -> unit)
-   - any custom print function passed by the caller has type unit -> string
-   - the final result of the whole thing is unit
- *)
-
-let log level ?ex =
-  let do_log msg =
+let log level ?ex fmt =
+  let b = Buffer.create 512 in
+  let ppf = Format.formatter_of_buffer b in
+  let do_log f =
+    Format.pp_print_flush f ();
+    let msg = Buffer.contents b in
     if level >= !threshold then
       !handler ?ex level msg;
-
     match !crash_log with
     | None -> ()
     | Some crash_log ->
         crash_log.entries <- (Unix.gettimeofday (), ex, level, msg) :: crash_log.entries;
         if level >= Warning then dump_crash_log ()
   in
-  Printf.ksprintf do_log
+  Format.kfprintf do_log ppf fmt
 
 let log_debug ?ex fmt = log Debug ?ex fmt
 

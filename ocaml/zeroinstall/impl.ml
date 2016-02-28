@@ -293,4 +293,4 @@ let get_id impl =
   let feed_url = get_attr_ex FeedAttr.from_feed impl in
   Feed_url.({feed = Feed_url.parse feed_url; id = get_attr_ex FeedAttr.id impl})
 
-let fmt () impl = Element.show_with_loc impl.qdom
+let fmt f impl = Format.pp_print_string f (Element.show_with_loc impl.qdom)

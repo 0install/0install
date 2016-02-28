@@ -11,9 +11,9 @@ module U = Support.Utils
 module Make (Model : Sigs.SOLVER_RESULT) = struct
   module RoleMap = Model.RoleMap
 
-  let format_role () = Model.Role.to_string
+  let format_role f role = Format.pp_print_string f (Model.Role.to_string role)
 
-  let spf = Printf.sprintf
+  let spf = Format.asprintf
 
   (* Why a particular implementation was rejected. This could be because the model rejected it,
      or because it conflicts with something else in the example (partial) solution. *)
@@ -37,7 +37,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
     | NoCandidates
 
   let format_restrictions r = String.concat ", " (List.map Model.string_of_restriction r)
-  let format_version () = Model.format_version
+  let format_version f v = Format.pp_print_string f (Model.format_version v)
 
   let describe_problem impl = function
     | `Model_rejection r -> Model.describe_problem impl r
@@ -55,12 +55,10 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
     | `DiagnosticsFailure msg -> spf "Reason for rejection unknown: %s" msg
 
   (* Add a textual description of this component's report to [buf]. *)
-  let format_report buf role component =
+  let format_report f role component =
     let prefix = ref "- " in
 
-    let add fmt =
-      let do_add msg = Buffer.add_string buf !prefix; Buffer.add_string buf msg in
-      Printf.ksprintf do_add fmt in
+    let add fmt = Format.fprintf f ("%s" ^^ fmt) !prefix in
 
     let name_impl impl = Model.id_of_impl impl in
 
@@ -105,9 +103,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
             add "Rejected candidates:"
           );
           show_rejections (component#bad)
-    );
-
-    Buffer.add_string buf "\n"
+    )
 
   (** Represents a single interface in the example (failed) selections produced by the solver.
       It partitions the implementations into good and bad based (initially) on the split from the
@@ -316,11 +312,16 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
 
     report
 
+  let pp_rolemap f reasons =
+    let first = ref true in
+    reasons |> RoleMap.iter (fun r ->
+      if !first then first := false
+      else Format.pp_print_cut f ();
+      format_report f r
+    )
+
   (** Return a message explaining why the solve failed. *)
   let get_failure_reason result =
     let reasons = get_failure_report result in
-    let buf = Buffer.create 1000 in
-    Buffer.add_string buf "Can't find all required implementations:\n";
-    RoleMap.iter (format_report buf) reasons;
-    Buffer.sub buf 0 (Buffer.length buf - 1)
+    Format.asprintf "Can't find all required implementations:@\n@[<v0>%a@]" pp_rolemap reasons
 end

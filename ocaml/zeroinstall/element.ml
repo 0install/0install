@@ -274,7 +274,7 @@ let raise_elem = Q.raise_elem
 let log_elem = Q.log_elem
 let show_with_loc = Q.show_with_loc
 let as_xml x = x
-let fmt () = Q.show_with_loc
+let fmt f q = Format.pp_print_string f (Q.show_with_loc q)
 
 let deps_and_bindings sel =
   sel |> ZI.filter_map (fun child ->

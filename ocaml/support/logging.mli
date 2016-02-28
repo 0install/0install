@@ -23,20 +23,15 @@ type handler = ?ex:exn -> level -> string -> unit
 
 val handler : handler ref
 
-(* [fmt] has type ('a, unit, string, unit) format4, which means:
-   - we accept any a format with variables type (e.g. "got:%s" has type string -> unit)
-   - any custom print function passed by the caller has type unit -> string
-   - the final result of the whole thing is unit
- *)
-val log : level -> ?ex:exn -> ('a, unit, string, unit) format4 -> 'a
+val log : level -> ?ex:exn -> ('a, Format.formatter, unit) format -> 'a
 
-val log_debug : ?ex:exn -> ('a, unit, string, unit) format4 -> 'a
+val log_debug : ?ex:exn -> ('a, Format.formatter, unit) format -> 'a
 
 (** Write a message to stderr if verbose logging is on. *)
-val log_info : ?ex:exn -> ('a, unit, string, unit) format4 -> 'a
+val log_info : ?ex:exn -> ('a, Format.formatter, unit) format -> 'a
 
 (** Write a message to stderr, prefixed with "warning: ". *)
-val log_warning  : ?ex:exn -> ('a, unit, string, unit) format4 -> 'a
+val log_warning  : ?ex:exn -> ('a, Format.formatter, unit) format -> 'a
 
 val format_argv_for_logging : string list -> string
 

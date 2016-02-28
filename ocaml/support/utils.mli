@@ -74,7 +74,7 @@ val copy_channel : in_channel -> out_channel -> unit
 
 (** Copy [source] to [dest]. Error if [dest] already exists. *)
 val copy_file : Common.system -> Common.filepath -> Common.filepath -> Unix.file_perm -> unit
-val print : Common.system -> ('a, unit, string, unit) format4 -> 'a
+val print : Common.system -> ('a, Format.formatter, unit) format -> 'a
 
 (** {2 Strings} *)
 val starts_with : string -> string -> bool

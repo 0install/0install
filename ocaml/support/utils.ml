@@ -349,9 +349,13 @@ let slice ~start ?stop lst =
             | (x::xs) -> x :: take xs (i - 1)
       in take from_start (stop - start)
 
-let print (system:system) =
-  let do_print msg = system#print_string (msg ^ "\n") in
-  Printf.ksprintf do_print
+let print (system:system) fmt =
+  let b = Buffer.create 512 in
+  let ppf = Format.formatter_of_buffer b in
+  let do_print f =
+    Format.pp_print_flush f ();
+    system#print_string (Buffer.contents b) in
+  Format.kfprintf do_print ppf (fmt ^^ "@.")
 
 let realpath (system:system) path =
   let (+/) = Filename.concat in   (* Faster version, since we know the path is relative *)
