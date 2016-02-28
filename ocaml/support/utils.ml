@@ -350,12 +350,7 @@ let slice ~start ?stop lst =
       in take from_start (stop - start)
 
 let print (system:system) fmt =
-  let b = Buffer.create 512 in
-  let ppf = Format.formatter_of_buffer b in
-  let do_print f =
-    Format.pp_print_flush f ();
-    system#print_string (Buffer.contents b) in
-  Format.kfprintf do_print ppf (fmt ^^ "@.")
+  Logging.kasprintf system#print_string (fmt ^^ "@.")
 
 let realpath (system:system) path =
   let (+/) = Filename.concat in   (* Faster version, since we know the path is relative *)

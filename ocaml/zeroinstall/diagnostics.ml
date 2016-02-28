@@ -13,7 +13,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
 
   let format_role f role = Format.pp_print_string f (Model.Role.to_string role)
 
-  let spf = Format.asprintf
+  let spf = Support.Logging.asprintf
 
   (* Why a particular implementation was rejected. This could be because the model rejected it,
      or because it conflicts with something else in the example (partial) solution. *)
@@ -323,5 +323,5 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
   (** Return a message explaining why the solve failed. *)
   let get_failure_reason result =
     let reasons = get_failure_report result in
-    Format.asprintf "Can't find all required implementations:@\n@[<v0>%a@]" pp_rolemap reasons
+    spf "Can't find all required implementations:@\n@[<v0>%a@]" pp_rolemap reasons
 end
