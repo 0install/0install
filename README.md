@@ -93,55 +93,38 @@ To try 0install without installing:
 
 ### Windows installation
 
-A Windows binary of 0install is available at [0install.de](http://0install.de/?lang=en).
+A C# Windows version of 0install is available at [0install.de](http://0install.de/?lang=en).
+This uses some of the OCaml code internally, but adds its own user interface and has better Windows integration.
 
-To install from source:
+To compile the OCaml version on Windows (which is currently only really useful if you want to build it for use with the C# code):
 
-1. Install [WODI](http://wodi.forge.ocamlcore.org/) (I used the 64-bit graphical installer). This gets you OCaml and a package manager for installing OCaml libraries.
+1. Install [OPAM for Windows](http://fdopen.github.io/opam-repository-mingw/installation/).
+   I used the 64-bit graphical installer.
+   Choose a mirror when prompted and select `gnupg` when prompted to select extra packages.
+   When this completes, you will have OCaml and a package manager for installing OCaml libraries.
 
-   During the install, you should select and install these Cygwin packags:
-   - `make`
-   - `mingw64-x86_64-gcc-core` or `mingw64-i686-gcc-core` (for 64-bit or 32-bit WODI)
-   - `gnupg`
+Run the newly installed `Cygwin64 Terminal` application and run these commands at the prompt:
 
-   If you don't get prompted, install [Cygwin](http://www.cygwin.com/) manually and use it to install the packages.
+    opam install depext-cygwinports depext
+    opam depext 0install
+    opam pin -y add -k git 0install .
 
-2. Run "Wodi64 Cygwin".
-3. Install the dependencies with:
+Notes:
 
-        godi_add godi-yojson godi-xmlm godi-react godi-lwt \
-          godi-extlib godi-sha godi-curl godi-lablgtk2 godi-ounit
-   Notes:
-   - lablgtk2 is optional (only needed if you want the GTK GUI).
-   - ounit is optional (only needed to run the unit-tests during the build - these currently fail on Windows).
-   - There is no visible progress indicator while the packages are installing, but you should see the output of `ocamlfind list` getting longer.
+- The binary requires various DLLs to run. Use `cygcheck 0install.exe` to get a list of the ones
+  you need and copy them from `/usr/x86_64-w64-mingw32/sys-root/mingw/bin` to the directory containing
+  the 0install binary.
 
-5. Change directory to the "ocaml" subdirectory of 0install and build:
+- The tests don't currently pass on Windows.
 
-        cd ocaml
-        make ocaml
+- The native OCaml code cannot currently cope with archives containing
+  executable files (with the Unix X bit set) - you'll get the error
+  `Incorrect manifest -- archive is corrupted`. When the OCaml version of 0install
+  is run under the .NET version, the .NET version sets the environment variable
+  `%ZEROINSTALL_EXTERNAL_FETCHER%` to a .NET helper process which does the
+  unpacking correctly.
 
-This creates the executables `build/ocaml/install.exe` and `build/ocaml/0install-runenv.exe`:
-
-    $ ../build/ocaml/0install.exe --help
-    Usage: 0install.exe COMMAND [OPTIONS]
-    [...]
-
-If you'd like to make the top-level Makefile work on Windows so you can `make install`, please
-send a patch.
-
-To run, you may need to copy these DLLs from /opt/wodi64/bin to the `build/ocaml` directory:
-
-- libcurl-4.dll
-- libcares-2.dll
-- zlib1.dll
-
-Note that the native OCaml code cannot currently cope with archives containing
-executable files (with the Unix X bit set) - you'll get the error
-`Incorrect manifest -- archive is corrupted`. When the OCaml version of 0install
-is run under the .NET version, the .NET version sets the environment variable
-`%ZEROINSTALL_EXTERNAL_FETCHER%` to a .NET helper process which does the
-unpacking correctly. Patches to add native support are welcome.
+Patches to improve the situation are welcome.
 
 
 TAB COMPLETION

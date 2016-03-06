@@ -1,6 +1,13 @@
 OCAML_BUILDDIR=../build/ocaml
+
+ifeq ($(shell uname -o),Cygwin)
+  BUILDDIR_NATIVE = $(shell cygpath -w ${OCAML_BUILDDIR})
+else
+  BUILDDIR_NATIVE = ${OCAML_BUILDDIR}
+endif
+
 TYPE=native
-OCAMLBUILD=ocamlbuild -j 0 -build-dir "${OCAML_BUILDDIR}"
+OCAMLBUILD=ocamlbuild -j 0 -build-dir "${BUILDDIR_NATIVE}"
 ifeq ($(OS), Windows_NT)
   WINDOWS_LIBS = $(shell dirname $(shell which ocamlc))
   OCAMLBUILDFLAGS = -lflag -cclib -lflag -lshell32
