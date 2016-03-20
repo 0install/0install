@@ -18,10 +18,7 @@
 type t
 
 type opt_xml = [Yojson.Basic.json | `WithXML of Yojson.Basic.json * Support.Qdom.element ]
-type 'a handler = (string * Yojson.Basic.json list) -> opt_xml Lwt.t
-
-exception Bad_request
-(** Throw this from a handler to report a bad request message to the peer. *)
+type 'a handler = (string * Yojson.Basic.json list) -> [opt_xml | `Bad_request] Lwt.t
 
 val client :
   from_peer:Lwt_io.input_channel ->

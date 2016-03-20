@@ -8,8 +8,6 @@ module U = Support.Utils
 module Q = Support.Qdom
 module J = Yojson.Basic
 
-exception Bad_request
-
 let read_line ch =
   Lwt.catch
     (fun () -> Lwt_io.read_line ch >|= fun line -> Some line)
@@ -50,7 +48,7 @@ type t = {
   mutable last_ticket : int64;
 }
 
-type 'a handler = (string * Yojson.Basic.json list) -> opt_xml Lwt.t
+type 'a handler = (string * Yojson.Basic.json list) -> [opt_xml | `Bad_request] Lwt.t
 
 let send_json t ?xml request : unit Lwt.t =
   let data = J.to_string request in
@@ -76,23 +74,24 @@ let take_ticket t =
 
 
 let handle_invoke t ~handle_request ticket op args () =
-  let xml = ref None in
-  lwt response =
-    try_lwt
-      lwt return_value =
-        try_lwt
-          handle_request (op, args) >>= function
-          | `WithXML (json, attached_xml) ->
-              xml := Some attached_xml;
-              Lwt.return json
-          | #J.json as json -> Lwt.return json
-        with Bad_request -> raise_safe "Invalid arguments for '%s': %s" op (J.to_string (`List args)) in
-      Lwt.return [`String (if !xml = None then "ok" else "ok+xml"); return_value]
-    with Safe_exception (msg, _) as ex ->
-      log_warning ~ex "Returning error to peer";
-      Lwt.return [`String "fail"; `String msg] in
+  Lwt.catch
+    (fun () ->
+      handle_request (op, args) >|= function
+      | #J.json as json ->
+          ([`String "ok"; json], None)
+      | `WithXML (json, attached_xml) ->
+          ([`String "ok+xml"; json], Some attached_xml)
+      | `Bad_request -> raise_safe "Invalid arguments for '%s': %s" op (J.to_string (`List args))
+    )
+    (function
+      | Safe_exception (msg, _) as ex ->
+          log_warning ~ex "Returning error to peer";
+          Lwt.return ([`String "fail"; `String msg], None)
+      | ex -> Lwt.fail ex
+    )
+  >>= fun (response, xml) ->
   match ticket with
-  | `String _ as ticket -> send_json t ?xml:!xml @@ `List (`String "return" :: ticket :: response)
+  | `String _ as ticket -> send_json t ?xml @@ `List (`String "return" :: ticket :: response)
   | `Null -> Lwt.return ()  (* No reply requested *)
 
 let listen t handle_request =
@@ -117,13 +116,18 @@ let listen t handle_request =
 
 (** Send a JSON message to the peer and return whatever data it sends back. *)
 let invoke t ?xml op args =
-  try_lwt
-    let (response, resolver) = Lwt.wait () in
-    let ticket = take_ticket t in
-    Hashtbl.add t.pending_replies ticket resolver;
-    send_json t ?xml (`List [`String "invoke"; `String ticket; `String op; `List args]) >>= fun () ->
-    response
-  with Safe_exception _ as ex -> reraise_with_context ex "... invoking %s(%s)" op (J.to_string (`List args))
+  Lwt.catch
+    (fun () ->
+      let (response, resolver) = Lwt.wait () in
+      let ticket = take_ticket t in
+      Hashtbl.add t.pending_replies ticket resolver;
+      send_json t ?xml (`List [`String "invoke"; `String ticket; `String op; `List args]) >>= fun () ->
+      response
+    )
+    (function
+      | Safe_exception _ as ex -> reraise_with_context ex "... invoking %s(%s)" op (J.to_string (`List args))
+      | ex -> Lwt.fail ex
+    )
 
 (** Send a one-way message (with no ticket). *)
 let notify t ?xml op args =

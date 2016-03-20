@@ -145,7 +145,7 @@ let handle_request config tools ui = function
           | Safe_exception (msg, _) -> `List [`String "fail"; `String msg] |> Lwt.return
           | ex -> Lwt.fail ex
         )
-  | _ -> raise JC.Bad_request
+  | _ -> Lwt.return `Bad_request
 
 (* Wrap for 2.6. Convert 2.6 requests and responses to/from 2.7 format. *)
 let wrap_for_2_6 next (op, args) =
