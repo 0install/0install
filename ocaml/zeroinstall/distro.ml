@@ -80,10 +80,14 @@ let python_test_code =
 
 (** Set quick-test-file and quick-test-mtime from path. *)
 let get_quick_test_attrs path =
-  let mtime = (Unix.stat path).Unix.st_mtime in
+  let mtime =
+    (* Ensure we round the same way as in [is_installed_quick] *)
+    (Unix.stat path).Unix.st_mtime
+    |> Int64.of_float
+    |> Int64.to_string in
   Q.AttrMap.empty
   |> Q.AttrMap.add_no_ns FeedAttr.quick_test_file path
-  |> Q.AttrMap.add_no_ns FeedAttr.quick_test_mtime (Printf.sprintf "%.0f" mtime)
+  |> Q.AttrMap.add_no_ns FeedAttr.quick_test_mtime mtime
 
 let make_restricts_distro iface_uri distros = { Impl.
     dep_qdom = Element.dummy_restricts;

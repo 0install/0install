@@ -3,7 +3,7 @@
 install_on_ubuntu () {
   case "$OCAML_VERSION" in
     4.01.0) ppa=avsm/ocaml41+opam12 ;;
-    4.02.0) ppa=avsm/ocaml42+opam12 ;;
+    4.02.3) ppa=avsm/ocaml42+opam12 ;;
     *) echo Unknown $OCAML_VERSION; exit 1 ;;
   esac
 
@@ -36,6 +36,7 @@ echo OCaml version
 ocaml -version
 
 export OPAMYES=1
+export OPAMVERBOSE=y
 
 opam init git://github.com/ocaml/opam-repository
 opam install yojson xmlm ounit react lwt extlib ocurl $OPAM_EXTRA lablgtk sha
