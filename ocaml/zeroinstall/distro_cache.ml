@@ -21,7 +21,7 @@ type cache_data = {
   (* The status of the cache when we loaded it. *)
   mutable mtime : Int64.t;
   mutable size : int;
-  contents : (package_name, entry list) Hashtbl.t;
+  content : (package_name, entry list) Hashtbl.t;
 }
 
 let re_invalid = Str.regexp ".*[\t\n]"
@@ -39,7 +39,7 @@ let add_entry ch package_name (version, machine) =
 let load_cache config data =
   data.mtime <- -1L;
   data.size <- -1;
-  Hashtbl.clear data.contents;
+  Hashtbl.clear data.content;
   if Sys.file_exists data.cache_path then (
     try
       data.cache_path |> config.system#with_open_in [Open_rdonly; Open_text] (fun ch ->
@@ -58,12 +58,12 @@ let load_cache config data =
           while true do
             let line = input_line ch in
             let key, value = U.split_pair re_key_value_sep line in
-            let prev = try Hashtbl.find data.contents key with Not_found -> [] in
+            let prev = try Hashtbl.find data.content key with Not_found -> [] in
             if value = "-" then (
-              Hashtbl.replace data.contents key prev    (* Ensure empty list is in the table *)
+              Hashtbl.replace data.content key prev    (* Ensure empty list is in the table *)
             ) else (
               let version, machine = U.split_pair U.re_tab value in
-              Hashtbl.replace data.contents key @@ (Version.parse version, Arch.parse_machine machine) :: prev
+              Hashtbl.replace data.content key @@ (Version.parse version, Arch.parse_machine machine) :: prev
             )
           done
         with End_of_file -> ()
@@ -99,7 +99,7 @@ let ensure_valid ?regenerate config data =
 
 let create ~config ~cache_leaf ~source =
   let cache_path = Paths.Cache.(save_path (distro_cache cache_leaf)) config.paths in
-  let data = { source; cache_path; mtime = 0L; size = -1; contents = Hashtbl.create 10; warned_missing = false } in
+  let data = { source; cache_path; mtime = 0L; size = -1; content = Hashtbl.create 10; warned_missing = false } in
   load_cache config data;
   data
 
@@ -111,7 +111,7 @@ let create_eager config ~cache_leaf ~source ~regenerate =
   let data = create ~config ~cache_leaf ~source in
   fun key ->
     ensure_valid config data ~regenerate;
-    let entries = try Hashtbl.find data.contents key with Not_found -> [] in
+    let entries = try Hashtbl.find data.content key with Not_found -> [] in
     (entries, quick_test_file data)
 
 let create_lazy config ~cache_leaf ~source ~if_missing =
@@ -119,7 +119,7 @@ let create_lazy config ~cache_leaf ~source ~if_missing =
   (* Add some entries to the cache. *)
   let put key values =
     try
-      Hashtbl.replace data.contents key values;
+      Hashtbl.replace data.content key values;
       data.cache_path |> config.system#with_open_out [Open_append; Open_creat] ~mode:0o644 (fun ch ->
         if values = [] then (
           validate_key key;
@@ -132,7 +132,7 @@ let create_lazy config ~cache_leaf ~source ~if_missing =
   fun key ->
     ensure_valid config data;
     let entries =
-      try Hashtbl.find data.contents key
+      try Hashtbl.find data.content key
       with Not_found ->
         let result = if_missing key in
         put key result;
