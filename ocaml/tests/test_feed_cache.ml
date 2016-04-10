@@ -59,7 +59,7 @@ let suite = "feed-cache">::: [
     let trust_db = new Zeroinstall.Trust.trust_db config in
     trust_db#trust_key "92429807C9853C0744A68B9AAE07828059A53CC1" ~domain:"foo";
     let download_pool = Zeroinstall.Downloader.make_pool ~max_downloads_per_site:2 in
-    let distro = Zeroinstall.Distro_impls.generic_distribution config in
+    let distro = Fake_distro.make config in
     let fetcher = Zeroinstall.Fetch.make config trust_db distro download_pool Fake_system.null_ui in
     let foo_signed_xml = U.read_file config.system (Fake_system.tests_dir +/ "foo.xml") in
 

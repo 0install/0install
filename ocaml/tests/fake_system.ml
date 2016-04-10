@@ -8,15 +8,13 @@ open Support.Common
 module Config = Zeroinstall.Config
 module U = Support.Utils
 
-let orig_packagekit = !Zeroinstall.Packagekit.packagekit
-
 let reset_env () =
   (* Make oUnit 2 happy: we need to be able to reset these to their initial values after each test. *)
-  Unix.putenv "ZEROINSTALL_PORTABLE_BASE" "/UNUSED";
+  Unix.putenv "ZEROINSTALL_PORTABLE_BASE" "/PORTABLE_UNUSED";
   Unix.putenv "DISPLAY" "";
-  Unix.putenv "DBUS_SESSION_BUS_ADDRESS" "UNUSED";
-  Unix.putenv "DBUS_SYSTEM_BUS_ADDRESS" "UNUSED";
-  Unix.putenv "GNUPGHOME" "/UNUSED"
+  Unix.putenv "DBUS_SESSION_BUS_ADDRESS" "DBUS_SESSION_UNUSED";
+  Unix.putenv "DBUS_SYSTEM_BUS_ADDRESS" "DBUS_SYSTEM_UNUSED";
+  Unix.putenv "GNUPGHOME" "/GPG_UNUSED"
 
 let () = reset_env ()
 
@@ -427,7 +425,7 @@ let release () =
   Queue.clear download_pools
 
 let make_tools config =
-  let distro = Zeroinstall.Distro_impls.generic_distribution config in
+  let distro = Fake_distro.make config in
   let trust_db = new Zeroinstall.Trust.trust_db config in
   let download_pool = Zeroinstall.Downloader.make_pool ~max_downloads_per_site:2 in
   Queue.add download_pool download_pools;
@@ -582,18 +580,6 @@ let assert_error_contains expected (fn:unit -> unit) =
     assert_failure (Printf.sprintf "Expected error '%s' but got success!" expected)
   with Safe_exception (msg, _) ->
     assert_contains expected msg
-
-let fake_packagekit status _config =
-  object (_ : Zeroinstall.Packagekit.packagekit)
-    method status = Lwt.return status
-    method get_impls (package_name:string) =
-      log_info "packagekit: get_impls(%s)" package_name;
-      { Zeroinstall.Packagekit.results = []; problems = [] }
-    method check_for_candidates ~ui:_ ~hint (package_names:string list) : unit Lwt.t =
-      log_info "packagekit: check_for_candidates(%s) for %s" (String.concat ", " package_names) hint;
-      Lwt.return ()
-    method install_packages _ui _names = failwith "install_packages"
-  end
 
 (** Read all input from a channel. *)
 let input_all ch =

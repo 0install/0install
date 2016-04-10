@@ -35,7 +35,8 @@ let test ?(package="gnupg") ?(expected_problems=[]) config fake_system =
     | p::_ -> assert_failure (Printf.sprintf "Expected:\n%s\nGot:\n%s" p msg)
     | [] -> assert_failure (Printf.sprintf "Unexpected problem: %s" msg) in
   let system = (fake_system :> system) in
-  let distro = Distro_impls.ArchLinux.arch_distribution config in
+  let packagekit = lazy (Zeroinstall.Packagekit.make (Support.Locale.LangMap.choose config.langs |> fst)) in
+  let distro = Distro_impls.ArchLinux.arch_distribution ~packagekit config in
   let feed = Test_feed.feed_of_xml system (Printf.sprintf "\
 <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface' uri='http://example.com/gpg'>\n\
   <name>Gpg</name>\n\
@@ -60,8 +61,6 @@ let suite =
       | None -> skip_if true "No dbus-daemon"; assert false
       | Some path -> path in
 
-    Zeroinstall.Packagekit.packagekit := Fake_system.orig_packagekit;
-
     let dbus_config = Fake_system.tests_dir +/ "dbus.conf" in
     let addr = "unix:tmpdir=" ^ Fake_system.temp_dir_name in
     let dbus_args = [daemon_prog; "--nofork"; "--print-address"; "--address=" ^ addr; "--config-file"; dbus_config] in
@@ -74,7 +73,7 @@ let suite =
         Unix.close r;
 
         U.finally_do
-          (fun () -> Unix.putenv "DBUS_SYSTEM_BUS_ADDRESS" "UNUSED")
+          (fun () -> Unix.putenv "DBUS_SYSTEM_BUS_ADDRESS" "DBUS_SYSTEM_UNUSED")
           (Unix.putenv "DBUS_SYSTEM_BUS_ADDRESS" bus_address; fake_system#putenv "DBUS_SYSTEM_BUS_ADDRESS" bus_address)
           (fun () ->
 (*             Unix.system ("dbus-monitor --address " ^ bus_address ^ " &") |> ignore; *)

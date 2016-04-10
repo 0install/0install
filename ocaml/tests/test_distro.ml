@@ -70,6 +70,8 @@ let make_test_feed package_name = Test_feed.feed_of_xml Fake_system.real_system 
     <name>%s</name><package-implementation package='%s'/>\
   </interface>" package_name package_name)
 
+let packagekit = lazy (Fake_distro.fake_packagekit `Ok)
+
 let suite = "distro">::: [
   "arch">:: Fake_system.with_tmpdir (fun tmpdir ->
     skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
@@ -81,7 +83,7 @@ let suite = "distro">::: [
     assert (not @@ fake_system#file_exists "/usr/bin/python2");
     fake_system#add_dir "/bin" ["python2"; "python3"];
     let system = (fake_system :> system) in
-    let distro = Distro_impls.ArchLinux.arch_distribution config in
+    let distro = Distro_impls.ArchLinux.arch_distribution ~packagekit config in
     let feed = load_feed system test_feed in
     let impls = distro#get_impls_for_feed ~problem:failwith feed |> to_impl_list in
     let open Impl in
@@ -96,7 +98,7 @@ let suite = "distro">::: [
   "arch2">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
     let arch_db = Test_0install.feed_dir +/ "arch" in
-    let distro = Distro_impls.ArchLinux.arch_distribution ~arch_db config in
+    let distro = Distro_impls.ArchLinux.arch_distribution ~arch_db ~packagekit config in
 
     distro#get_impls_for_feed ~problem:failwith gimp_feed |> to_impl_list |> assert_equal [];
 
@@ -111,7 +113,7 @@ let suite = "distro">::: [
     skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
     let slackdir = Test_0install.feed_dir +/ "slack" in
     let packages_dir = slackdir +/ "packages" in
-    let distro = Distro_impls.Slackware.slack_distribution ~packages_dir config in
+    let distro = Distro_impls.Slackware.slack_distribution ~packages_dir ~packagekit config in
 
     distro#get_impls_for_feed ~problem:failwith gimp_feed |> to_impl_list |> assert_equal [];
 
@@ -126,7 +128,7 @@ let suite = "distro">::: [
   "gentoo">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
     let pkgdir = Test_0install.feed_dir +/ "gentoo" in
-    let distro = Distro_impls.Gentoo.gentoo_distribution ~pkgdir config in
+    let distro = Distro_impls.Gentoo.gentoo_distribution ~pkgdir ~packagekit config in
 
     distro#get_impls_for_feed ~problem:failwith gimp_feed |> to_impl_list |> assert_equal [];
 
@@ -159,7 +161,7 @@ let suite = "distro">::: [
   "ports">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
     let pkg_db = Test_0install.feed_dir +/ "ports" in
-    let distro = Distro_impls.Ports.ports_distribution ~pkg_db config in
+    let distro = Distro_impls.Ports.ports_distribution ~pkg_db ~packagekit config in
 
     begin match distro#get_impls_for_feed ~problem:failwith (make_test_feed "zeroinstall-injector") |> to_impl_list with
     | [impl] ->
@@ -199,7 +201,7 @@ let suite = "distro">::: [
 
     fake_system#set_spawn_handler (Some Fake_system.real_spawn_handler);
 
-    let distro = Distro_impls.generic_distribution config in
+    let distro = Distro_impls.generic_distribution ~packagekit config in
 
     let open Impl in
     let is_host (id, _impl) = U.starts_with id "package:host:" in
@@ -248,7 +250,7 @@ let suite = "distro">::: [
     Unix.putenv "PATH" (rpmdir ^ ":" ^ old_path);
 
     fake_system#set_spawn_handler (Some Fake_system.real_spawn_handler);
-    let rpm = Distro_impls.RPM.rpm_distribution ~rpm_db_packages:(rpmdir +/ "Packages") config in
+    let rpm = Distro_impls.RPM.rpm_distribution ~rpm_db_packages:(rpmdir +/ "Packages") ~packagekit config in
 
     let get_feed xml = load_feed config.system (Printf.sprintf
       "<?xml version='1.0'?>\n\
@@ -296,7 +298,7 @@ let suite = "distro">::: [
 
   "debian">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
-    Zeroinstall.Packagekit.packagekit := Fake_system.fake_packagekit (`Unavailable "Use apt-cache");
+    let packagekit = lazy (Fake_distro.fake_packagekit (`Unavailable "Use apt-cache")) in
     let xml =
       "<?xml version='1.0' ?>\n\
       <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>\n\
@@ -317,7 +319,7 @@ let suite = "distro">::: [
     Unix.putenv "PATH" (dpkgdir ^ ":" ^ old_path);
     fake_system#putenv "PATH" (dpkgdir ^ ":" ^ old_path);
     fake_system#set_spawn_handler (Some Fake_system.real_spawn_handler);
-    let deb = Distro_impls.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") config in
+    let deb = Distro_impls.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") ~packagekit config in
     begin match to_impl_list @@ deb#get_impls_for_feed ~problem:failwith feed with
     | [impl] ->
         Fake_system.assert_str_equal "package:deb:python-bittorrent:3.4.2-10-2:*" (Impl.get_attr_ex "id" impl);
@@ -407,7 +409,7 @@ let suite = "distro">::: [
 
     (* Check the disk cache works *)
     fake_system#set_spawn_handler None;
-    let deb = Distro_impls.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") config in
+    let deb = Distro_impls.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") ~packagekit config in
     begin match to_impl_list @@ deb#get_impls_for_feed ~problem:failwith feed with
     | [impl] -> Fake_system.assert_str_equal "7.3-2.1.1-3" @@ Impl.get_attr_ex "version" impl
     | _ -> assert false end;

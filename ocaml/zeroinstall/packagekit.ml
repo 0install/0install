@@ -275,7 +275,7 @@ let packagekit_service lang_spec proxy version =
       )
   end
 
-let packagekit = ref (fun lang_spec ->
+let make lang_spec =
   let proxy = lazy (
     Dbus.system () >>= function
     | `Error reason ->
@@ -473,4 +473,3 @@ let packagekit = ref (fun lang_spec ->
           | `Ok pk -> install ui pk items
           | `Unavailable _ -> failwith "BUG: PackageKit has disappeared!"
   end
-)

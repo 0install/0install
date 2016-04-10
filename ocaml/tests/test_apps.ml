@@ -40,7 +40,7 @@ let suite = "apps">::: [
     U.makedirs system (impl_dir +/ "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a") 0o755;
 
     (* Initialise the new app with selections for version 0.1-pre *)
-    let distro = Zeroinstall.Distro_impls.generic_distribution config in
+    let distro = Fake_distro.make config in
     let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config distro in
     let () =
       match Zeroinstall.Solver.solve_for config feed_provider r with

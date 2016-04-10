@@ -28,6 +28,9 @@ let () =
 
 let session ?switch () =
   Lwt.catch (fun () ->
+    begin try if Sys.getenv "DBUS_SESSION_BUS_ADDRESS" = "DBUS_SESSION_UNUSED" then
+      failwith "Disabled for unit-tests"
+    with Not_found -> () end;
     (* Prevent OBus from killing us. *)
     OBus_bus.session ?switch () >>= fun session_bus ->
     OBus_connection.set_on_disconnect session_bus (fun ex -> log_info ~ex "D-BUS disconnect"; return ());
@@ -40,6 +43,9 @@ let session ?switch () =
 
 let system () =
   Lwt.catch (fun () ->
+      begin try if Sys.getenv "DBUS_SYSTEM_BUS_ADDRESS" = "DBUS_SYSTEM_UNUSED" then
+        failwith "Disabled for unit-tests"
+      with Not_found -> () end;
       OBus_bus.system () >|= fun system_bus -> `Ok system_bus
     )
     (fun ex ->

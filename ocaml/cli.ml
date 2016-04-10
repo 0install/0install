@@ -250,7 +250,8 @@ let make_tools config =
   let gui = ref Maybe in
   let pool = ref None in
   let ui = lazy (Zeroinstall.Default_ui.make_ui config !gui) in
-  let distro = lazy (Zeroinstall.Distro_impls.get_host_distribution config) in
+  let packagekit = lazy (Zeroinstall.Packagekit.make (Support.Locale.LangMap.choose config.langs |> fst)) in
+  let distro = lazy (Zeroinstall.Distro_impls.get_host_distribution ~packagekit config) in
   let trust_db = lazy (new Zeroinstall.Trust.trust_db config) in
   let download_pool = lazy (let p = Zeroinstall.Downloader.make_pool ~max_downloads_per_site:2 in pool := Some p; p) in
   let make_fetcher = lazy (Zeroinstall.Fetch.make config (Lazy.force trust_db) (Lazy.force distro) (Lazy.force download_pool)) in

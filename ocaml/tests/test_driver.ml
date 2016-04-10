@@ -15,7 +15,7 @@ module Q = Support.Qdom
 
 let cache_path_for config url = Feed_cache.get_save_cache_path config url
 
-let make_packagekit get_distro_candidates _config =
+let make_packagekit get_distro_candidates =
   object (_ : Zeroinstall.Packagekit.packagekit)
     val candidates = Hashtbl.create 10
 
@@ -140,7 +140,7 @@ let make_driver_test test_elem =
           with Not_found -> `problem "Unexpected feed requested"
       end in
 
-    let distro = Zeroinstall.Distro_impls.generic_distribution config in
+    let distro = Fake_distro.make config in
     let tools = fake_fetcher config handler distro in
     let () =
       try
@@ -206,8 +206,8 @@ let suite = "driver">::: [
           }])
       | name -> failwith name in
 
-    Zeroinstall.Packagekit.packagekit := make_packagekit get_distro_candidates;
-    let distro = Distro_impls.generic_distribution config in
+    let packagekit = lazy (make_packagekit get_distro_candidates) in
+    let distro = Distro_impls.generic_distribution ~packagekit config in
     let tools = fake_fetcher config handler distro in
     let (ready, result, _fp) = Driver.solve_with_downloads config tools#distro tools#fetcher ~watcher:tools#ui#watcher reqs ~force:true ~update_local:true |> Lwt_main.run in
     if not ready then

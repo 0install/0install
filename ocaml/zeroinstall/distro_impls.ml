@@ -12,13 +12,12 @@ module U = Support.Utils
 open Distro
 
 (** Base class for platforms that can use PackageKit *)
-class virtual packagekit_distro config =
+class virtual packagekit_distro ~(packagekit:Packagekit.packagekit Lazy.t) config =
   object (self)
     inherit distribution config
 
-    val packagekit = !Packagekit.packagekit (Support.Locale.LangMap.choose config.langs |> fst)
-
     method private get_package_impls query =
+      let packagekit = Lazy.force packagekit in
       let package_name = query.package_name in
       let pk_unavailable reason = query.problem (Printf.sprintf "%s: %s" package_name reason) in
       match Lwt.state packagekit#status with
@@ -44,6 +43,7 @@ class virtual packagekit_distro config =
 
     (* This default implementation queries PackageKit, if available. *)
     method check_for_candidates ~ui feed =
+      let packagekit = Lazy.force packagekit in
       match get_matching_package_impls self feed with
       | [] -> Lwt.return ()
       | matches ->
@@ -57,6 +57,7 @@ class virtual packagekit_distro config =
     method! install_distro_packages ui typ items =
       match typ with
       | "packagekit" ->
+          let packagekit = Lazy.force packagekit in
           begin packagekit#install_packages ui items >>= function
           | `cancel -> Lwt.return `cancel
           | `ok ->
@@ -72,9 +73,9 @@ class virtual packagekit_distro config =
              use that to install things. The packages are:\n\n- %s" typ (String.concat "\n- " names))
   end
 
-let generic_distribution config =
+let generic_distribution ~packagekit config =
   object
-    inherit packagekit_distro config
+    inherit packagekit_distro ~packagekit config
     val check_host_python = true
     val distro_name = "fallback"
     val id_prefix = "package:fallback"
@@ -118,7 +119,7 @@ module Debian = struct
     size : Int64.t option;
   }
 
-  let debian_distribution ?(status_file=dpkg_db_status) config =
+  let debian_distribution ?(status_file=dpkg_db_status) ~packagekit config =
     let apt_cache = Hashtbl.create 10 in
     let system = config.system in
 
@@ -209,7 +210,7 @@ module Debian = struct
       ) in
 
     object (self : #Distro.distribution)
-      inherit packagekit_distro config as super
+      inherit packagekit_distro ~packagekit config as super
       val check_host_python = false
 
       val distro_name = "Debian"
@@ -224,6 +225,7 @@ module Debian = struct
         check_cache id_prefix elem cache || super#is_installed elem
 
       method! private get_package_impls query =
+        let packagekit = Lazy.force packagekit in
         let package_name = query.package_name in
         (* Add any PackageKit candidates *)
         begin match Lwt.state packagekit#status with
@@ -251,6 +253,7 @@ module Debian = struct
         match Distro.get_matching_package_impls self feed with
         | [] -> Lwt.return ()
         | matches ->
+            let packagekit = Lazy.force packagekit in
             let package_names = matches |> List.map (fun (elem, _props) -> (Element.package elem)) in
 
             (* Check apt-cache to see whether we have the pacakges. If PackageKit isn't available, we'll use these
@@ -295,7 +298,7 @@ end
 module RPM = struct
   let rpm_db_packages = "/var/lib/rpm/Packages"
 
-  let rpm_distribution ?(rpm_db_packages = rpm_db_packages) config =
+  let rpm_distribution ?(rpm_db_packages = rpm_db_packages) ~packagekit config =
     let fixup_java_main impl java_version =
       (* (note: on Fedora, unlike Debian, the arch is x86_64, not amd64) *)
 
@@ -333,7 +336,7 @@ module RPM = struct
       ) in
 
     object (self)
-      inherit packagekit_distro config as super
+      inherit packagekit_distro ~packagekit config as super
       val check_host_python = false
 
       val distro_name = "RPM"
@@ -384,7 +387,7 @@ end
 module ArchLinux = struct
   let arch_db = "/var/lib/pacman"
 
-  let arch_distribution ?(arch_db=arch_db) config =
+  let arch_distribution ?(arch_db=arch_db) ~packagekit config =
     let packages_dir = arch_db ^ "/local" in
     let parse_dirname entry =
       try
@@ -428,7 +431,7 @@ module ArchLinux = struct
       | _ -> items in
 
     object (self : #Distro.distribution)
-      inherit packagekit_distro config as super
+      inherit packagekit_distro ~packagekit config as super
       val check_host_python = false
 
       val distro_name = "Arch"
@@ -766,11 +769,11 @@ end
 module Ports = struct
   let pkg_db = "/var/db/pkg"
 
-  let ports_distribution ?(pkg_db=pkg_db) config =
+  let ports_distribution ?(pkg_db=pkg_db) ~packagekit config =
     let re_name_version = Str.regexp "^\\(.+\\)-\\([^-]+\\)$" in
 
     object (self)
-      inherit packagekit_distro config  (* Can ports use PackageKit? Not sure. *)
+      inherit packagekit_distro ~packagekit config  (* Can ports use PackageKit? Not sure. *)
       val id_prefix = "package:ports"
       val distro_name = "Ports"
       val check_host_python = true
@@ -807,9 +810,9 @@ module Gentoo = struct
     | '0' .. '9' -> true
     | _ -> false
 
-  let gentoo_distribution ?(pkgdir=Ports.pkg_db) config =
+  let gentoo_distribution ?(pkgdir=Ports.pkg_db) ~packagekit config =
     object (self)
-      inherit packagekit_distro config as super
+      inherit packagekit_distro ~packagekit config as super
       val! valid_package_name = Str.regexp "^[^.-][^/]*/[^./][^/]*$"
       val distro_name = "Gentoo"
       val id_prefix = "package:gentoo"
@@ -864,9 +867,9 @@ end
 module Slackware = struct
   let slack_db = "/var/log/packages"
 
-  let slack_distribution ?(packages_dir=slack_db) config =
+  let slack_distribution ?(packages_dir=slack_db) ~packagekit config =
     object (self)
-      inherit packagekit_distro config as super
+      inherit packagekit_distro ~packagekit config as super
       val distro_name = "Slack"
       val id_prefix = "package:slack"
       val check_host_python = false
@@ -892,9 +895,8 @@ module Slackware = struct
     end
 end
 
-let get_host_distribution config : Distro.distribution =
+let get_host_distribution ~packagekit config : Distro.distribution =
   let exists = config.system#file_exists in
-
   match Sys.os_type with
   | "Unix" ->
       let is_debian =
@@ -903,27 +905,27 @@ let get_host_distribution config : Distro.distribution =
         | _ -> false in
 
       if is_debian then
-        Debian.debian_distribution config
+        Debian.debian_distribution ~packagekit config
       else if exists ArchLinux.arch_db then
-        ArchLinux.arch_distribution config
+        ArchLinux.arch_distribution ~packagekit config
       else if exists RPM.rpm_db_packages then
-        RPM.rpm_distribution config
+        RPM.rpm_distribution ~packagekit config
       else if exists Mac.macports_db then
         Mac.macports_distribution config
       else if exists Ports.pkg_db then (
         if config.system#platform.Platform.os = "Linux" then
-          Gentoo.gentoo_distribution config
+          Gentoo.gentoo_distribution ~packagekit config
         else
-          Ports.ports_distribution config
+          Ports.ports_distribution ~packagekit config
       ) else if exists Slackware.slack_db then
-        Slackware.slack_distribution config
+        Slackware.slack_distribution ~packagekit config
       else begin match config.system#platform.Platform.os with
       | "Darwin" | "MacOSX" ->
           Mac.darwin_distribution config
       | _unknown ->
-          generic_distribution config
+          generic_distribution ~packagekit config
       end
   | "Win32" -> Win.windows_distribution config
   | "Cygwin" -> Win.cygwin_distribution config
   | _ ->
-      generic_distribution config
+      generic_distribution ~packagekit config

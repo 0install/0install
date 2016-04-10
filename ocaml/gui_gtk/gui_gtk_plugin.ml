@@ -16,7 +16,8 @@ let make_gtk_ui config =
   let batch_ui = lazy (new Zeroinstall.Console.batch_ui) in
 
   let tools = (* TODO: move this out of the plugin *)
-    let distro = Zeroinstall.Distro_impls.get_host_distribution config in
+    let packagekit = lazy (Zeroinstall.Packagekit.make (Support.Locale.LangMap.choose config.langs |> fst)) in
+    let distro = Zeroinstall.Distro_impls.get_host_distribution ~packagekit config in
     let download_pool = Zeroinstall.Downloader.make_pool ~max_downloads_per_site:2 in
     object
       method config = config
