@@ -39,5 +39,5 @@ export OPAMYES=1
 export OPAMVERBOSE=y
 
 opam init git://github.com/ocaml/opam-repository
-opam install yojson xmlm ounit react lwt extlib ocurl $OPAM_EXTRA lablgtk sha
+opam install yojson xmlm ounit react lwt extlib ocurl $OPAM_EXTRA lablgtk sha camlp4
 eval `opam config env`
