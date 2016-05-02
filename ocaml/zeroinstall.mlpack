@@ -39,6 +39,7 @@ Launcher
 Manifest
 Mirror
 Packagekit
+Packagekit_stubs
 Packagekit_interfaces
 Paths
 Progress
