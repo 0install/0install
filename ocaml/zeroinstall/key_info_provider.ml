@@ -10,9 +10,16 @@ module Q = Support.Qdom
 module G = Support.Gpg
 module KI = Empty   (* Key info XML documents don't have a namespace. *)
 
-type t = (General.config * (G.fingerprint, Progress.key_vote list Lwt.t) Hashtbl.t)
+type t = {
+  config : General.config;
+  cache : (G.fingerprint, Progress.key_vote list Lwt.t) Hashtbl.t
+}
 
-let make config = (config, Hashtbl.create 10)
+let lookup t fingerprint =
+  try Some (Hashtbl.find t.cache fingerprint)
+  with Not_found -> None
+
+let make config = {config; cache = Hashtbl.create 10}
 
 let parse_key_info xml =
   xml |> KI.check_tag "key-lookup";
@@ -24,37 +31,43 @@ let parse_key_info xml =
       (Progress.Bad, msg)
   )
 
-let get (config, cache) ~download fingerprint =
-  try Hashtbl.find cache fingerprint
-  with Not_found ->
-    let result =
-      try_lwt
-        match config.key_info_server with
-        | None -> Lwt.return []
-        | Some key_info_server ->
-            if config.dry_run then (
-              Dry_run.log "asking %s about key %s" key_info_server fingerprint;
-            );
-            let key_info_url = key_info_server ^ "/key/" ^ fingerprint in
-            U.with_switch (fun switch ->
-              download ~switch key_info_url >|= function
-              | `Network_failure msg ->
-                  Hashtbl.remove cache fingerprint;
-                  log_info "Error fetching key info: %s" msg;
-                  [Progress.Bad, "Error fetching key info: " ^ msg]
-              | `Aborted_by_user ->
-                  Hashtbl.remove cache fingerprint;
-                  [Progress.Bad, "Key lookup aborted by user"]
-              | `Tmpfile tmpfile ->
-                  Q.parse_file config.system ~name:key_info_url tmpfile
-                  |> parse_key_info
-            )
-      with ex ->
-        log_warning ~ex "Error fetching key info";
-        Hashtbl.remove cache fingerprint;
-        Lwt.return [Progress.Bad, "Error fetching key info: " ^ (Printexc.to_string ex)] in
+let fetch_key t ~download fingerprint =
+  match t.config.key_info_server with
+  | None -> Lwt.return []
+  | Some key_info_server ->
+      if t.config.dry_run then (
+        Dry_run.log "asking %s about key %s" key_info_server fingerprint;
+      );
+      let key_info_url = key_info_server ^ "/key/" ^ fingerprint in
+      U.with_switch (fun switch ->
+        download ~switch key_info_url >|= function
+        | `Network_failure msg ->
+            log_info "Error fetching key info: %s" msg;
+            [Progress.Bad, "Error fetching key info: " ^ msg]
+        | `Aborted_by_user ->
+            [Progress.Bad, "Key lookup aborted by user"]
+        | `Tmpfile tmpfile ->
+            Q.parse_file t.config.system ~name:key_info_url tmpfile
+            |> parse_key_info
+      )
 
-    (* Add the pending result immediately.
-     * If the lookup fails, we'll remove it later. *)
-    Hashtbl.add cache fingerprint result;
-    result
+let get_exn t ~download fingerprint =
+  let fetch () =
+    let result = fetch_key t ~download fingerprint in
+    Hashtbl.replace t.cache fingerprint result;
+    result in
+  match lookup t fingerprint with
+  | None -> fetch ()
+  | Some th ->
+    let open Lwt in
+    match state th with
+    | Return _ | Sleep -> th
+    | Fail _ -> fetch ()
+
+let get t ~download fingerprint =
+  Lwt.catch
+    (fun () -> get_exn t ~download fingerprint)
+    (fun ex ->
+       log_warning ~ex "Error fetching key info";
+       Lwt.return [Progress.Bad, "Error fetching key info: " ^ (Printexc.to_string ex)]
+    )
