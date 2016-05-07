@@ -86,11 +86,14 @@ let solve_with_downloads config distro fetcher ~(watcher:#Progress.watcher) requ
     let url = (url :> Feed_url.parsed_feed_url) in
     seen := DownloadSet.add url !seen;
     let wrapped =
-      try_lwt
-        download >|= fun fn -> (url, fn)
-      with Safe_exception (msg, _) ->
-        watcher#report url msg;
-        Lwt.return (url, fun () -> ()) in
+      Lwt.catch
+        (fun () -> download >|= fun fn -> (url, fn))
+        (function
+          | Safe_exception (msg, _) ->
+            watcher#report url msg;
+            Lwt.return (url, fun () -> ())
+          | ex -> Lwt.fail ex (* or report this too? *)
+        ) in
     downloads_in_progress := DownloadMap.add url wrapped !downloads_in_progress
     in
 
@@ -291,9 +294,11 @@ let download_selections config distro fetcher ~include_packages ~(feed_provider:
         with Not_found ->
           raise_safe "Implementation '%s' not found in feed '%s'" id (Feed_url.format_url feed_url) in
 
-    try_lwt
-      lwt impls = missing |> List.map impl_of_sel |> collect_ex in
-      fetcher#download_impls impls
-    with Aborted_by_user -> Lwt.return `Aborted_by_user
+    Lwt.catch
+      (fun () -> missing |> List.map impl_of_sel |> collect_ex >>= fetcher#download_impls)
+      (function
+        | Aborted_by_user -> Lwt.return `Aborted_by_user
+        | ex -> Lwt.fail ex
+      )
   )
 

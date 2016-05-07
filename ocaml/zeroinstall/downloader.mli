@@ -4,15 +4,39 @@
 
 (** Low-level download interface *)
 
+type t
+
 type download_result =
  [ `Aborted_by_user
  | `Network_failure of string
  | `Tmpfile of Support.Common.filepath ]
 
-exception Unmodified
+val download : t ->
+  switch:Lwt_switch.t ->
+  ?if_slow:(unit Lazy.t) ->
+  ?size:Int64.t ->
+  ?start_offset:Int64.t ->
+  ?hint:[< Feed_url.parsed_feed_url] ->
+  string ->
+  download_result Lwt.t
+(** Download url to a new temporary file and return its name.
+    @param switch delete the temporary file when this is turned off
+    @param if_slow is forced if the download is taking a long time (excluding queuing time)
+    @hint a tag to attach to the download (used by the GUI to associate downloads with feeds) *)
 
-(* (bytes so far, total expected, finished) *)
+val download_if_unmodified : t ->
+  switch:Lwt_switch.t ->
+  ?modification_time:float ->
+  ?if_slow:(unit Lazy.t) ->
+  ?size:Int64.t ->
+  ?start_offset:Int64.t ->
+  ?hint:[< Feed_url.parsed_feed_url] ->
+  string ->
+  [ download_result | `Unmodified ] Lwt.t
+(** Like [download], but returns [`Unmodified] if the file hasn't changed since [modification_time]. *)
+
 type progress = (Int64.t * Int64.t option * bool) Lwt_react.signal
+(** (bytes so far, total expected, finished) *)
 
 type download = {
   cancel : unit -> unit Lwt.t;
@@ -35,19 +59,9 @@ val interceptor :
 
 type monitor = download -> unit
 
-type downloader =
-  < download : 'b.
-      switch:Lwt_switch.t ->
-      ?modification_time:float ->
-      ?if_slow:(unit Lazy.t) ->
-      ?size:Int64.t ->
-      ?start_offset:Int64.t ->
-      ?hint:([< Feed_url.parsed_feed_url] as 'b) ->
-      string -> download_result Lwt.t >
-
 class type download_pool =
   object
-    method with_monitor : monitor -> downloader
+    method with_monitor : monitor -> t
     method release : unit
   end
 

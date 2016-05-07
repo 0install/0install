@@ -138,6 +138,19 @@ let reraise_with_context ex fmt =
     raise ex
   in Printf.ksprintf do_raise fmt
 
+(** [with_error_info note f] is [f ()], except that if it raises [Safe_exception] then
+    we call [note writer] and add whatever is passed to writer to the context. *)
+let with_error_info note f =
+  Lwt.catch f
+    (function
+      | Safe_exception (_, old_contexts) as ex ->
+        let writer fmt =
+          fmt |> Logging.kasprintf (fun context -> old_contexts := context :: !old_contexts) in
+        note writer;
+        raise ex
+      | ex -> Lwt.fail ex
+    )
+
 let log_debug = Logging.log_debug
 let log_info = Logging.log_info
 let log_warning = Logging.log_warning

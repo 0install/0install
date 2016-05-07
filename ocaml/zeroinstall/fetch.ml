@@ -42,10 +42,13 @@ let get_final_response = function
 let rec join_errors = function
   | [] -> Lwt.return []
   | x :: xs ->
-      try_lwt lwt () = x in join_errors xs
-      with ex ->
-        lwt exs = join_errors xs in
-        ex :: exs |> Lwt.return
+      Lwt.try_bind
+        (fun () -> x)
+        (fun () -> join_errors xs)
+        (fun ex ->
+           join_errors xs >|= fun exs ->
+           ex :: exs
+        )
 
 exception Aborted
 exception Try_mirror of string  (* An error where we should try the mirror (i.e. a network problem) *)
@@ -87,7 +90,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
       log_info "Fetching key from %s" key_url;
 
       U.with_switch (fun switch ->
-        downloader#download ~switch ~hint:feed_url key_url >>= function
+        Downloader.download downloader ~switch ~hint:feed_url key_url >>= function
         | `Network_failure msg -> raise_safe "%s" msg
         | `Aborted_by_user -> raise Aborted
         | `Tmpfile tmpfile ->
@@ -109,9 +112,10 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
     if List.mem Aborted errors then Lwt.return `Aborted_by_user
     else (
       (* Recalculate signatures if we imported any new keys. *)
-      lwt sigs, messages =
+      begin
         if !any_imported then G.verify system xml
-        else Lwt.return (sigs, messages) in
+        else Lwt.return (sigs, messages)
+      end >>= fun (sigs, messages) ->
 
       let have_valid = sigs |> List.exists (function
         | G.ValidSig _ -> true
@@ -211,17 +215,19 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
     let if_slow = lazy (Lwt.wakeup timeout_waker []) in
 
     (* Start downloading information about the keys... *)
-    let key_downloader ~switch url = downloader#download ~switch ~if_slow ~hint:feed url in
+    let key_downloader ~switch url = Downloader.download downloader ~switch ~if_slow ~hint:feed url in
     let key_infos = valid_sigs |> List.map (fun {G.fingerprint; _} ->
       (fingerprint, Key_info_provider.get key_info_provider ~download:key_downloader fingerprint)
     ) in
 
     log_info "Waiting for response from key-info server...";
-    lwt () =
-      let key_tasks = key_infos |> List.map snd in
-      try_lwt
-        lwt _ = Lwt.choose (timeout_task :: key_tasks) in Lwt.return ()
-      with ex -> log_warning ~ex "Error looking up key information"; Lwt.return () in
+    Lwt.catch
+      (fun () ->
+         let key_tasks = key_infos |> List.map snd in
+         Lwt.choose (timeout_task :: key_tasks) >|= ignore
+      )
+      (fun ex -> log_warning ~ex "Error looking up key information"; Lwt.return ())
+    >>= fun () ->
 
     (* If we're already confirming something else, wait for that to finish... *)
     Lwt_mutex.with_lock trust_dialog_lock (fun () ->
@@ -281,7 +287,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
       Dry_run.log "downloading feed from %s" url;
 
     U.with_switch (fun switch ->
-      downloader#download ~switch ?if_slow ~hint:feed url >>= function
+      Downloader.download downloader ~switch ?if_slow ~hint:feed url >>= function
       | `Network_failure msg -> `Problem msg |> Lwt.return
       | `Aborted_by_user -> Lwt.return `Aborted_by_user
       | `Tmpfile tmpfile ->
@@ -335,7 +341,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
       if config.dry_run then
         Dry_run.log "downloading %s" url;
       let mirror_url = if may_use_mirror then Mirror.for_archive config url else None in
-      downloader#download ~switch ?size ~start_offset ~hint:feed url >>= function
+      Downloader.download downloader ~switch ?size ~start_offset ~hint:feed url >>= function
       | `Aborted_by_user -> raise Aborted
       | `Tmpfile tmpfile -> lazy (fn tmpfile) |> Lwt.return
       | `Network_failure primary_msg ->
@@ -343,7 +349,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
            * we raise [Try_mirror] to try the other strategy. *)
           let mirror_url = mirror_url |? lazy (raise (Try_mirror primary_msg)) in
           log_warning "Primary download failed; trying mirror URL '%s'..." mirror_url;
-          downloader#download ~switch ?size ~hint:feed mirror_url >>= function
+          Downloader.download downloader ~switch ?size ~hint:feed mirror_url >>= function
           | `Aborted_by_user -> raise Aborted
           | `Tmpfile tmpfile -> lazy (fn tmpfile) |> Lwt.return
           | `Network_failure mirror_msg ->
@@ -425,12 +431,11 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
                       U.makedirs real_system basedir 0o755;
                       basedir in
                 let mime_type = mime_type |? lazy (Archive.type_from_url url) in
-                try_lwt
-                  Archive.unpack_over {config with system = system#bypass_dryrun}
-                    ~archive:tmpfile ~tmpdir:(Filename.dirname tmpdir)
-                    ~destdir:basedir ?extract ~mime_type
-                with Safe_exception _ as ex ->
-                  reraise_with_context ex "... unpacking archive '%s'" url
+                with_error_info (fun f -> f "... unpacking archive '%s'" url) (fun () ->
+                    Archive.unpack_over {config with system = system#bypass_dryrun}
+                      ~archive:tmpfile ~tmpdir:(Filename.dirname tmpdir)
+                      ~destdir:basedir ?extract ~mime_type
+                  )
               )
           | DownloadStep {url; size; download_type = FileDownload dest} ->
               url |> download_file ~switch ?size ~start_offset:Int64.zero ~feed ~may_use_mirror:false (fun tmpfile ->
@@ -488,23 +493,24 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
   (* Download a 0install implementation and add it to a store *)
   let download_impl (impl, required_digest, retrieval_method) : unit Lwt.t =
     let download ~may_use_mirror recipe = download_impl_internal ~may_use_mirror impl required_digest recipe in
-    try_lwt
-      download ~may_use_mirror:true retrieval_method >>= function
-      | `Success -> Lwt.return ()
-      | `Aborted_by_user -> raise Aborted
-      | `Network_failure orig_msg ->
-          let mirror_download = Mirror.for_impl config impl |? lazy (raise_safe "%s" orig_msg) in
-          log_info "%s: trying implementation mirror at %s" orig_msg (config.mirror |> default "-");
-          download ~may_use_mirror:false mirror_download >>= function
-          | `Aborted_by_user -> raise Aborted
-          | `Success -> Lwt.return ()
-          | `Network_failure mirror_msg ->
-              log_info "Error from mirror: %s" mirror_msg;
-              raise_safe "%s" orig_msg
-    with Safe_exception _ as ex ->
-      let {Feed_url.feed; Feed_url.id} = Impl.get_id impl in
-      let version = Impl.get_attr_ex FeedAttr.version impl in
-      reraise_with_context ex "... downloading implementation %s %s (id=%s)" (Feed_url.format_url feed) version id in
+    with_error_info (fun f ->
+        let {Feed_url.feed; Feed_url.id} = Impl.get_id impl in
+        let version = Impl.get_attr_ex FeedAttr.version impl in
+        f "... downloading implementation %s %s (id=%s)" (Feed_url.format_url feed) version id
+      ) (fun () ->
+        download ~may_use_mirror:true retrieval_method >>= function
+        | `Success -> Lwt.return ()
+        | `Aborted_by_user -> raise Aborted
+        | `Network_failure orig_msg ->
+            let mirror_download = Mirror.for_impl config impl |? lazy (raise_safe "%s" orig_msg) in
+            log_info "%s: trying implementation mirror at %s" orig_msg (config.mirror |> default "-");
+            download ~may_use_mirror:false mirror_download >>= function
+            | `Aborted_by_user -> raise Aborted
+            | `Success -> Lwt.return ()
+            | `Network_failure mirror_msg ->
+                log_info "Error from mirror: %s" mirror_msg;
+                raise_safe "%s" orig_msg
+      ) in
 
   object
     method download_and_import_feed (feed : [`Remote_feed of Sigs.feed_url]) : fetch_feed_response Lwt.t =
@@ -642,19 +648,17 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
         |> pipe_some system#stat
         |> pipe_some (fun info -> Some info.Unix.st_mtime) in
 
-      let switch = Lwt_switch.create () in
-      try_lwt
-        downloader#download ~switch ?modification_time ~hint:feed_url icon_url >>= function
+      U.with_switch (fun switch ->
+        Downloader.download_if_unmodified downloader ~switch ?modification_time ~hint:feed_url icon_url >|= function
         | `Network_failure msg -> raise_safe "%s" msg
-        | `Aborted_by_user -> Lwt.return ()
+        | `Aborted_by_user -> ()
+        | `Unmodified -> ()
         | `Tmpfile tmpfile ->
             let icon_file = Paths.Cache.(save_path (icon feed_url)) config.paths in
             tmpfile |> system#with_open_in [Open_rdonly;Open_binary] (fun ic ->
               icon_file |> system#atomic_write [Open_wronly;Open_binary] ~mode:0o644 (U.copy_channel ic)
-            );
-            Lwt.return ()
-      with Downloader.Unmodified -> Lwt.return ()
-      finally Lwt_switch.turn_off switch
+            )
+      )
 
     method ui = (ui :> Progress.watcher)
   end
@@ -679,47 +683,46 @@ class external_fetcher command underlying =
     method ui = underlying#ui
 
     method download_impls impls =
-      try_lwt
-        let child_nodes = impls |> List.map (function
-          | { qdom; Impl.impl_type = `Cache_impl { Impl.digests; _}; _} ->
-              let qdom = Element.as_xml qdom in
-              let attrs = ref Q.AttrMap.empty in
-              digests |> List.iter (fun (name, value) ->
-                attrs := !attrs |> Q.AttrMap.add_no_ns name value
-              );
-              let manifest_digest = ZI.make ~attrs:!attrs "manifest-digest" in
-              let child_nodes = qdom.Q.child_nodes |> List.map add_mime_types in
-              { qdom with
-                Q.child_nodes = manifest_digest :: child_nodes
-              }
-          | impl -> Element.as_xml impl.Impl.qdom
-        ) in
-        let root = ZI.make ~child_nodes "interface" in
+      with_error_info (fun f -> f "... downloading with external fetcher '%s'" command) @@ fun () ->
+      let child_nodes = impls |> List.map (function
+        | { qdom; Impl.impl_type = `Cache_impl { Impl.digests; _}; _} ->
+            let qdom = Element.as_xml qdom in
+            let attrs = ref Q.AttrMap.empty in
+            digests |> List.iter (fun (name, value) ->
+              attrs := !attrs |> Q.AttrMap.add_no_ns name value
+            );
+            let manifest_digest = ZI.make ~attrs:!attrs "manifest-digest" in
+            let child_nodes = qdom.Q.child_nodes |> List.map add_mime_types in
+            { qdom with
+              Q.child_nodes = manifest_digest :: child_nodes
+            }
+        | impl -> Element.as_xml impl.Impl.qdom
+      ) in
+      let root = ZI.make ~child_nodes "interface" in
 
-        (* Crazy Lwt API to split a command into words and search in PATH *)
-        let lwt_command = ("", [| "\000" ^ command |]) in
+      (* Crazy Lwt API to split a command into words and search in PATH *)
+      let lwt_command = ("", [| "\000" ^ command |]) in
 
-        log_info "Running external fetcher: %s" command;
-        let child = Lwt_process.open_process_full lwt_command in
+      log_info "Running external fetcher: %s" command;
+      let child = Lwt_process.open_process_full lwt_command in
 
-        (* .NET helper API wants an XML document with no line-breaks. Multi-line fields
-         * aren't used for anything here, so just replace with spaces. *)
-        let msg = Q.to_utf8 root |> String.map (function '\n' -> ' ' | x -> x) in
-        log_debug "Sending XML to fetcher process:\n%s" msg;
-        lwt () = (Lwt_io.write child#stdin (msg ^ "\n") >> Lwt_io.close child#stdin)
-        and output = Lwt_io.read child#stdout
-        and errors = Lwt_io.read child#stderr in
-
-        log_debug "External fetch process complete";
-
-        try_lwt
-          lwt status = child#close in
+      (* .NET helper API wants an XML document with no line-breaks. Multi-line fields
+       * aren't used for anything here, so just replace with spaces. *)
+      let msg = Q.to_utf8 root |> String.map (function '\n' -> ' ' | x -> x) in
+      log_debug "Sending XML to fetcher process:\n%s" msg;
+      let stdin = Lwt_io.write child#stdin (msg ^ "\n") >>= fun () -> Lwt_io.close child#stdin in
+      let output = Lwt_io.read child#stdout in
+      let errors = Lwt_io.read child#stderr in
+      stdin >>= fun () ->
+      output >>= fun output ->
+      errors >>= fun errors ->
+      log_debug "External fetch process complete";
+      with_error_info (fun f -> f "stdout: %s\nstderr: %s" output errors)
+        (fun () ->
+          child#close >|= fun status ->
           Support.System.check_exit_status status;
-          Lwt.return `Success
-        with Safe_exception _ as ex ->
-          reraise_with_context ex "stdout: %s\nstderr: %s" output errors
-      with Safe_exception _ as ex ->
-        reraise_with_context ex "... downloading with external fetcher '%s'" command
+          `Success
+        )
 
   end
 

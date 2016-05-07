@@ -64,7 +64,7 @@ let make_dl_tester () =
       let switch = Lwt_switch.create () in
       let result =
         try_lwt
-          match_lwt downloader#download ~switch ~hint:(`Remote_feed "testing") url with
+          match_lwt Downloader.download downloader ~switch ~hint:(`Remote_feed "testing") url with
           | `Tmpfile _ -> Lwt.return `Success
           | (`Aborted_by_user | `Network_failure _) as x -> Lwt.return x
         finally
@@ -295,7 +295,7 @@ let suite = "fetch">::: [
       let switch = Lwt_switch.create () in
       lwt result =
         try_lwt
-          match_lwt downloader#download ~switch ~hint:(`Remote_feed "testing") "http://localhost/test.tgz" with
+          match_lwt Downloader.download downloader ~switch ~hint:(`Remote_feed "testing") "http://localhost/test.tgz" with
           | `Tmpfile _ -> Lwt.return `Success
           | (`Aborted_by_user | `Network_failure _) as x -> Lwt.return x
         finally
