@@ -1,3 +1,2 @@
 true: for-pack(Zeroinstall)
-<distro_impls.ml>: syntax(camlp4o), package(lwt.syntax)
 <dbus.ml> or <curl_threading.ml>: mypp

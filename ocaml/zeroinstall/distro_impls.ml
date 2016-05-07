@@ -127,10 +127,10 @@ module Debian = struct
     let query_apt_cache package_names =
       package_names |> Lwt_list.iter_s (fun package ->
         (* Check to see whether we could get a newer version using apt-get *)
-        lwt result =
-          try_lwt
+        Lwt.catch
+          (fun () ->
             let stderr = if Support.Logging.will_log Support.Logging.Debug then None else Some `Dev_null in
-            lwt out = Lwt_process.pread ?stderr (U.make_command system ["apt-cache"; "--no-all-versions"; "show"; "--"; package]) in
+            Lwt_process.pread ?stderr (U.make_command system ["apt-cache"; "--no-all-versions"; "show"; "--"; package]) >>= fun out ->
             let machine = ref None in
             let version = ref None in
             let size = ref None in
@@ -150,9 +150,12 @@ module Debian = struct
             match !version, !machine with
             | Some version, Some machine -> Lwt.return (Some {version; machine; size = !size})
             | _ -> Lwt.return None
-          with ex ->
+          )
+          (fun ex ->
             log_warning ~ex "'apt-cache show %s' failed" package;
-            Lwt.return None in
+            Lwt.return None
+          )
+        >>= fun result ->
         (* (multi-arch support? can there be multiple candidates?) *)
         Hashtbl.replace apt_cache package result;
         Lwt.return ()
@@ -259,9 +262,9 @@ module Debian = struct
             (* Check apt-cache to see whether we have the pacakges. If PackageKit isn't available, we'll use these
              * results directly. If it is available, we'll use these results to filter the PackageKit query, because
              * it doesn't like queries for missing packages (it tends to abort the query early and miss some results). *)
-            lwt () = query_apt_cache package_names
-            and pkgkit_status = packagekit#status in
-
+            let apt = query_apt_cache package_names in
+            packagekit#status >>= fun pkgkit_status ->
+            apt >>= fun () ->
             match pkgkit_status with
             | `Ok ->
                 let hint = Feed_url.format_url feed.Feed.url in
