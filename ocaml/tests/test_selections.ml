@@ -33,7 +33,7 @@ let binary iface = {Selections.iface; source = false}
 let suite = "selections">::: [
   "selections">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     let import name =
-      let url = `remote_feed ("http://foo/" ^ name) in
+      let url = `Remote_feed ("http://foo/" ^ name) in
       U.copy_file config.system (Test_0install.feed_dir +/ name) (Test_driver.cache_path_for config url) 0o644;
       Zeroinstall.Feed.update_last_checked_time config url in
     import "Source.xml";
@@ -99,7 +99,7 @@ let suite = "selections">::: [
           | _ -> assert false in
 
         match get_dependencies src with
-        | [`requires dep] -> (
+        | [`Requires dep] -> (
             assert_str_equal "http://foo/Compiler.xml" @@ Element.interface dep;
             match Element.bindings dep |> List.map Binding.parse_binding with
             | [EnvironmentBinding {var_name = "PATH"; mode = Add {separator; _}; source = InsertPath "bin"};
@@ -143,7 +143,7 @@ let suite = "selections">::: [
       | Selections.CacheSelection [("sha1", "999")] -> ()
       | _ -> assert false in
 
-    assert_equal Feed_url.({id = "foo bar=123"; feed = `local_feed iface}) @@ Selections.get_id sel
+    assert_equal Feed_url.({id = "foo bar=123"; feed = `Local_feed iface}) @@ Selections.get_id sel
   );
 
   "commands">:: Fake_system.with_fake_config (fun (config, fake_system) ->
@@ -159,7 +159,7 @@ let suite = "selections">::: [
 
     let () =
       match Element.command_children run with
-      | `requires dep :: _ ->
+      | `Requires dep :: _ ->
           let dep_impl_uri = Element.interface dep in
           let dep_impl = Selections.get_selected_ex (binary dep_impl_uri) sels in
           assert_equal "sha1=256" @@ Element.id dep_impl;
@@ -174,7 +174,7 @@ let suite = "selections">::: [
 
     let runnable_impl = Selections.get_selected_ex (binary runnable) s3 in
     Element.deps_and_bindings runnable_impl |> U.filter_map (function
-      | `command child -> Some (Element.command_name child)
+      | `Command child -> Some (Element.command_name child)
       | _ -> None
     ) |> Fake_system.equal_str_lists ["foo"; "run"]
   );
@@ -213,7 +213,7 @@ let suite = "selections">::: [
       \n";
 
     match Selections.collect_bindings sels with
-    | [(_, `environment s2_self); (_, `environment s2_dep)] ->
+    | [(_, `Environment s2_self); (_, `Environment s2_dep)] ->
         Element.binding_name s2_dep |> assert_str_equal "key";
         Element.binding_name s2_self |> assert_str_equal "S2";
     | _ -> assert false

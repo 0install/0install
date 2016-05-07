@@ -171,7 +171,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
     | `HELP -> main_window_help#display
     | `PREFERENCES -> Gtk_utils.async ~parent:dialog show_preferences
     | `DELETE_EVENT | `CANCEL ->
-        Lwt.wakeup set_user_response `aborted_by_user
+        Lwt.wakeup set_user_response `Aborted_by_user
   );
 
   (* If a system tray icon was requested, create one. Otherwise, show the main window. *)
@@ -222,7 +222,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
       (* Downloads done - check button is still pressed *)
       if widgets.ok_button#active then (
         watcher#abort_all_downloads;
-        Lwt.wakeup set_user_response `ok;
+        Lwt.wakeup set_user_response `Ok;
       );
       Lwt.return () in
     let (ready, results) = watcher#results in
@@ -236,8 +236,8 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
           | `Download_only | `Select_for_run ->
               let sels = Zeroinstall.Solver.selections results in
               Driver.download_selections config tools#distro (lazy fetcher) ~include_packages:true ~feed_provider:watcher#feed_provider sels >>= function
-              | `aborted_by_user -> widgets.ok_button#set_active false; Lwt.return ()
-              | `success -> on_success ()
+              | `Aborted_by_user -> widgets.ok_button#set_active false; Lwt.return ()
+              | `Success -> on_success ()
         with Safe_exception _ as ex ->
           widgets.ok_button#set_active false;
           report_error ex;
@@ -284,11 +284,11 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
     dialog#destroy ();
 
     match response with
-    | `ok ->
+    | `Ok ->
         let (ready, results) = watcher#results in
         assert ready;
         `Success (Zeroinstall.Solver.selections results) |> Lwt.return
-    | `aborted_by_user -> `Aborted_by_user |> Lwt.return
+    | `Aborted_by_user -> `Aborted_by_user |> Lwt.return
   ) in
 
   object

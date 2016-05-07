@@ -44,9 +44,9 @@ let get_download_size info impl =
 let get_fetch_info config impl =
   try
     match impl.Impl.impl_type with
-    | `binary_of _ -> ("(compile)", "Need to compile from source")
-    | `local_impl path -> ("(local)", path)
-    | `cache_impl info -> (
+    | `Binary_of _ -> ("(compile)", "Need to compile from source")
+    | `Local_impl path -> ("(local)", path)
+    | `Cache_impl info -> (
         match Stores.lookup_maybe config.system info.Impl.digests config.stores with
         | None ->
           begin match get_download_size info impl with
@@ -56,10 +56,10 @@ let get_fetch_info config impl =
           | None -> ("-", "No size") end;
         | Some path -> ("(cached)", "This version is already stored on your computer:\n" ^ path)
     )
-    | `package_impl info ->
+    | `Package_impl info ->
         begin match info.Impl.package_state with
-        | `installed -> ("(package)", "This distribution-provided package is already installed.")
-        | `uninstalled retrieval_method ->
+        | `Installed -> ("(package)", "This distribution-provided package is already installed.")
+        | `Uninstalled retrieval_method ->
           let size = retrieval_method.Impl.distro_size |> pipe_some (fun s -> Some (Int64.to_float s)) in
           match size with
           | None -> ("(install)", "No size information available for this download")
@@ -146,7 +146,7 @@ let download_icon (fetcher:Fetch.fetcher) (feed_provider:Feed_provider.feed_prov
       fetcher#download_icon parsed_url href
 
 let add_feed config iface feed_url =
-  let (`remote_feed url | `local_feed url) = feed_url in
+  let (`Remote_feed url | `Local_feed url) = feed_url in
 
   let feed = Feed_cache.get_cached_feed config feed_url |? lazy (raise_safe "Failed to read new feed!") in
   match Feed.get_feed_targets feed with
@@ -164,10 +164,10 @@ let add_feed config iface feed_url =
       );
   | feed_for -> raise_safe "This is not a feed for '%s'.\nOnly for:\n%s" iface (String.concat "\n" feed_for)
 
-let add_remote_feed config fetcher iface (feed_url:[`remote_feed of Sigs.feed_url]) =
+let add_remote_feed config fetcher iface (feed_url:[`Remote_feed of Sigs.feed_url]) =
   Driver.download_and_import_feed fetcher feed_url >>= function
-  | `aborted_by_user -> Lwt.return ()
-  | `success _ | `no_update -> add_feed config iface feed_url; Lwt.return ()
+  | `Aborted_by_user -> Lwt.return ()
+  | `Success _ | `No_update -> add_feed config iface feed_url; Lwt.return ()
 
 let remove_feed config iface feed_url =
   let iface_config = Feed_cache.load_iface_config config iface in
@@ -421,8 +421,8 @@ let generate_feed_description config trust_db feed overrides =
   let times = ref [] in
 
   begin match feed.F.url with
-  | `local_feed _ -> Lwt.return []
-  | `remote_feed _ as feed_url ->
+  | `Local_feed _ -> Lwt.return []
+  | `Remote_feed _ as feed_url ->
       let domain = Trust.domain_from_url feed_url in
       get_sigs config feed_url >>= fun sigs ->
       if sigs <> [] then (
@@ -460,7 +460,7 @@ let generate_feed_description config trust_db feed overrides =
     | None -> ["-"] in
 
   let homepages = Element.feed_metadata feed.F.root |> U.filter_map (function
-    | `homepage homepage -> Some (Element.simple_content homepage)
+    | `Homepage homepage -> Some (Element.simple_content homepage)
     | _ -> None
   ) in
 

@@ -29,7 +29,7 @@ let dummy_impl = Impl.({
     bindings = [];
   };
   parsed_version = Version.parse "0";
-  impl_type = `local_impl "/dummy";
+  impl_type = `Local_impl "/dummy";
 })
 
 let assert_order a b =
@@ -184,11 +184,11 @@ let suite = "versions">::: [
   "restrictions">:: (fun () ->
     let v6 = {dummy_impl with
       Impl.parsed_version = (Version.parse "6");
-      Impl.impl_type = `package_impl {Impl.package_distro = "RPM"; Impl.package_state = `installed};
+      Impl.impl_type = `Package_impl {Impl.package_distro = "RPM"; Impl.package_state = `Installed};
     } in
     let v7 = {dummy_impl with
       Impl.parsed_version = (Version.parse "7");
-      Impl.impl_type = `package_impl {Impl.package_distro = "Gentoo"; Impl.package_state = `installed};
+      Impl.impl_type = `Package_impl {Impl.package_distro = "Gentoo"; Impl.package_state = `Installed};
     } in
 
     let r = Impl.make_version_restriction "!7" in

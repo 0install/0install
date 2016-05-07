@@ -188,15 +188,15 @@ let add_to_store config store digest tmpdir =
 
 let add_with_helper config required_digest tmpdir =
   let system = config.system in
-  if fst required_digest = "sha1" then Lwt.return `no_helper     (* Old digest alg not supported *)
-  else if system#getenv "ZEROINSTALL_PORTABLE_BASE" <> None then Lwt.return `no_helper  (* Can't use helper with portable mode *)
+  if fst required_digest = "sha1" then Lwt.return `No_helper     (* Old digest alg not supported *)
+  else if system#getenv "ZEROINSTALL_PORTABLE_BASE" <> None then Lwt.return `No_helper  (* Can't use helper with portable mode *)
   else (
     match U.find_in_path system "0store-secure-add-helper" with
-    | None -> log_info "'0store-secure-add-helper' command not found. Not adding to system cache."; Lwt.return `no_helper
+    | None -> log_info "'0store-secure-add-helper' command not found. Not adding to system cache."; Lwt.return `No_helper
     | Some helper ->
         let digest_str = Manifest.format_digest required_digest in
         if config.dry_run then (
-          Dry_run.log "would use %s to store %s in system store" helper digest_str; Lwt.return `success
+          Dry_run.log "would use %s to store %s in system store" helper digest_str; Lwt.return `Success
         ) else (
           let env = Array.append system#environment [|
             (* (warn about insecure configurations) *)
@@ -217,10 +217,10 @@ let add_with_helper config required_digest tmpdir =
             try
               Support.System.check_exit_status status;
               log_info "Added succcessfully using helper.";
-              Lwt.return `success
+              Lwt.return `Success
             with Safe_exception _ as ex ->
               log_warning ~ex "Error running %s" helper;
-              Lwt.return `no_helper
+              Lwt.return `No_helper
           )
         )
   )
@@ -274,8 +274,8 @@ let check_manifest_and_rename config required_digest tmpdir =
         Lwt.return ()
       with Unix.Unix_error (Unix.EACCES, _, _) | Unix.Unix_error (Unix.EROFS, _, _) ->
         Lwt.bind (add_with_helper config required_digest tmpdir) (function
-          | `success -> U.rmtree config.system ~even_if_locked:true tmpdir; Lwt.return ()
-          | `no_helper -> add_to_store config user_store required_digest tmpdir; Lwt.return ()
+          | `Success -> U.rmtree config.system ~even_if_locked:true tmpdir; Lwt.return ()
+          | `No_helper -> add_to_store config user_store required_digest tmpdir; Lwt.return ()
         )
 
 (** Like [check_manifest_and_rename], but copies [dir] rather than renaming it. *)

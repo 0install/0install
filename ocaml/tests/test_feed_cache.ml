@@ -20,7 +20,7 @@ let suite = "feed-cache">::: [
   "is-stale">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
 
-    let url = `remote_feed "http://localhost:8000/Hello" in
+    let url = `Remote_feed "http://localhost:8000/Hello" in
 
     fake_system#add_file (cache_path_for config url) (Test_0install.feed_dir +/ "Hello");
 
@@ -41,7 +41,7 @@ let suite = "feed-cache">::: [
   );
 
   "check-attempt">:: Fake_system.with_fake_config (fun (config, fake_system) ->
-    let bar = `remote_feed "http://foo/bar.xml" in
+    let bar = `Remote_feed "http://foo/bar.xml" in
     assert_equal None @@ Feed_cache.get_last_check_attempt config bar;
 
     fake_system#set_time 100.0;
@@ -51,7 +51,7 @@ let suite = "feed-cache">::: [
       | Some 100.0 -> ()
       | _ -> assert false in
 
-    assert_equal None @@ Feed_cache.get_last_check_attempt config (`remote_feed "http://foo/bar2.xml")
+    assert_equal None @@ Feed_cache.get_last_check_attempt config (`Remote_feed "http://foo/bar2.xml")
   );
 
   "check-signed">:: Fake_gpg_agent.with_gpg (fun tmpdir ->
@@ -75,10 +75,10 @@ let suite = "feed-cache">::: [
       ("URL mismatch in feed:\n\
         http://foo/wrong expected\n\
         http://foo/ given in 'uri' attribute on <interface> at http://foo/wrong:3:97")
-      (fun () -> fetcher#import_feed (`remote_feed "http://foo/wrong") foo_signed_xml) in
+      (fun () -> fetcher#import_feed (`Remote_feed "http://foo/wrong") foo_signed_xml) in
 
     (* Signed *)
-    let feed_url = `remote_feed "http://foo/" in
+    let feed_url = `Remote_feed "http://foo/" in
     lwt () = fetcher#import_feed feed_url foo_signed_xml in
 
     assert_equal ["http://foo/"] @@ StringSet.elements @@ Feed_cache.list_all_feeds config;
@@ -129,8 +129,8 @@ let suite = "feed-cache">::: [
     Feed_cache.save_iface_config config iface {
       Feed_cache.stability_policy = Some Developer;
       Feed_cache.extra_feeds = [
-        { F.feed_src = `remote_feed "http://sys-feed"; F.feed_os = None; F.feed_machine = None; F.feed_langs = None; F.feed_type = F.Distro_packages };
-        { F.feed_src = `remote_feed "http://user-feed"; F.feed_os = Some Arch.linux; F.feed_machine = None; F.feed_langs = None; F.feed_type = F.User_registered };
+        { F.feed_src = `Remote_feed "http://sys-feed"; F.feed_os = None; F.feed_machine = None; F.feed_langs = None; F.feed_type = F.Distro_packages };
+        { F.feed_src = `Remote_feed "http://user-feed"; F.feed_os = Some Arch.linux; F.feed_machine = None; F.feed_langs = None; F.feed_type = F.User_registered };
       ];
     };
 
@@ -138,7 +138,7 @@ let suite = "feed-cache">::: [
     let iface_config = Feed_cache.load_iface_config config iface in
     assert_equal (Some Developer) iface_config.Feed_cache.stability_policy;
     begin match iface_config.Feed_cache.extra_feeds with
-    | [ {F.feed_src = `remote_feed "http://user-feed"; F.feed_os; F.feed_machine = None; _ } ] when feed_os = Some Arch.linux -> ()
+    | [ {F.feed_src = `Remote_feed "http://user-feed"; F.feed_os; F.feed_machine = None; _ } ] when feed_os = Some Arch.linux -> ()
     | _ -> assert false end;
   );
 

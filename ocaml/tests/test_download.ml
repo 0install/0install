@@ -255,7 +255,7 @@ let suite = "download">::: [
       run_0install fake_system ["import"; "-v"; "NO-SUCH-FILE"] |> ignore
     ));
 
-    assert_equal None @@ FC.get_cached_feed config (`remote_feed "http://localhost:8000/Hello");
+    assert_equal None @@ FC.get_cached_feed config (`Remote_feed "http://localhost:8000/Hello");
 
     server#expect [
       [("6FCF121BE2390E0B.gpg", `Serve)];
@@ -272,7 +272,7 @@ let suite = "download">::: [
     assert (trust_db#is_trusted ~domain "DE937DD411906ACF7C263B396FCF121BE2390E0B");
 
     (* Check we imported the interface after trusting the key *)
-    let hello = FC.get_cached_feed config (`remote_feed "http://localhost:8000/Hello") |> Fake_system.expect in
+    let hello = FC.get_cached_feed config (`Remote_feed "http://localhost:8000/Hello") |> Fake_system.expect in
     assert_equal 1 @@ StringMap.cardinal hello.F.implementations;
 
     (* Shouldn't need to prompt the second time *)
@@ -286,7 +286,7 @@ let suite = "download">::: [
     fake_system#set_spawn_handler (Some Fake_system.real_spawn_handler);
 
     (* Initially, we don't have the feed at all... *)
-    assert_equal None @@ FC.get_cached_feed config (`remote_feed native_url);
+    assert_equal None @@ FC.get_cached_feed config (`Remote_feed native_url);
 
     server#expect [
       [("Native.xml", `Serve)];
@@ -297,7 +297,7 @@ let suite = "download">::: [
       run_0install fake_system ["download"; native_url] |> ignore
     ));
 
-    let feed = Fake_system.expect @@ FC.get_cached_feed config (`remote_feed native_url) in
+    let feed = Fake_system.expect @@ FC.get_cached_feed config (`Remote_feed native_url) in
     assert_equal 0 @@ StringMap.cardinal feed.F.implementations;
 
     let dpkgdir = Test_0install.feed_dir +/ "dpkg" in
@@ -694,7 +694,7 @@ let suite = "download">::: [
   "replay">:: Server.with_server (fun (config, fake_system) server ->
     let iface = "http://example.com:8000/Hello.xml" in
     let system = config.system in
-    let cached = FC.get_save_cache_path config (`remote_feed iface) in
+    let cached = FC.get_save_cache_path config (`Remote_feed iface) in
     U.copy_file system (Test_0install.feed_dir +/ "Hello-new.xml") cached 0o644;
 
     let trust_db = new Zeroinstall.Trust.trust_db config in
@@ -740,7 +740,7 @@ let suite = "download">::: [
     let iface = Test_0install.feed_dir +/ "Binary.xml" in
     Fake_system.assert_raises_safe "Error downloading 'http://localhost/missing.png': \
                                     The requested URL returned error: 404" (lazy (
-      Lwt_main.run @@ Zeroinstall.Gui.download_icon (tools#make_fetcher tools#ui#watcher) feed_provider (`local_feed iface);
+      Lwt_main.run @@ Zeroinstall.Gui.download_icon (tools#make_fetcher tools#ui#watcher) feed_provider (`Local_feed iface);
     ));
   );
 
@@ -769,7 +769,7 @@ let suite = "download">::: [
 
     (* Check background select - update metadata only *)
     let url = "http://example.com:8000/Hello.xml" in
-    F.save_feed_overrides config (`remote_feed url) F.({last_checked = None; user_stability = StringMap.empty});
+    F.save_feed_overrides config (`Remote_feed url) F.({last_checked = None; user_stability = StringMap.empty});
     let rel_path = config_site +/ config_prog +/ "last-check-attempt" +/ Zeroinstall.Escape.pretty url in
     let basedirs = Support.Basedir.get_default_config config.system in
     let last_check_attempt = B.load_first config.system rel_path basedirs.B.cache |> expect in
@@ -815,7 +815,7 @@ let suite = "download">::: [
       let sels = Selections.create xml in
       let impl = Selections.(get_selected (root_role sels) sels) |> expect in
       Selections.get_id impl |> assert_equal { Feed_url.
-        feed = `remote_feed "http://example.com:8000/Hello.xml";
+        feed = `Remote_feed "http://example.com:8000/Hello.xml";
         id = "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"
       };
       Lwt.cancel slave;

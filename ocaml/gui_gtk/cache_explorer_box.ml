@@ -177,8 +177,8 @@ let confirm_deletion ~parent n_items =
     box#destroy ();
     Lwt.wakeup set_result (
       match response with
-      | `DELETE -> `delete
-      | `CANCEL | `DELETE_EVENT -> `cancel
+      | `DELETE -> `Delete
+      | `CANCEL | `DELETE_EVENT -> `Cancel
     )
   );
   box#show ();
@@ -271,8 +271,8 @@ let open_cache_explorer config =
               Unsorted_list.remove model x |> ignore;
               loop xs in
         confirm_deletion ~parent:dialog (List.length iters) >>= function
-        | `delete -> loop iters
-        | `cancel -> Lwt.return ()
+        | `Delete -> loop iters
+        | `Cancel -> Lwt.return ()
       finally
         Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.default_cursor);
         dialog#misc#set_sensitive true;
@@ -332,7 +332,7 @@ let open_cache_explorer config =
   let all_feed_urls = FC.list_all_feeds config in
   all_feed_urls |> StringSet.iter (fun url ->
     try
-      match FC.get_cached_feed config (`remote_feed url) with
+      match FC.get_cached_feed config (`Remote_feed url) with
       | Some feed -> ok_feeds := feed :: !ok_feeds
       | None -> log_warning "Feed listed but now missing! %s" url
     with ex ->
@@ -345,7 +345,7 @@ let open_cache_explorer config =
     (* For each implementation... *)
     feed.F.implementations |> StringMap.iter (fun _id impl ->
       match impl.Impl.impl_type with
-      | `cache_impl info ->
+      | `Cache_impl info ->
           (* For each digest... *)
           info.Impl.digests |> List.iter (fun parsed_digest ->
             let digest = Manifest.format_digest parsed_digest in
@@ -353,7 +353,7 @@ let open_cache_explorer config =
               Hashtbl.add impl_of_digest digest (feed, impl)
             )
           )
-      | `local_impl _ -> assert false
+      | `Local_impl _ -> assert false
     );
   );
 

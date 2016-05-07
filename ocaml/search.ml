@@ -29,9 +29,9 @@ let handle options flags args =
       try
         let result = (tools#download_pool#with_monitor tools#ui#watcher#monitor)#download ~switch url in
         match Lwt_main.run result with
-        | `aborted_by_user -> ()
-        | `network_failure msg -> raise_safe "%s" msg
-        | `tmpfile path ->
+        | `Aborted_by_user -> ()
+        | `Network_failure msg -> raise_safe "%s" msg
+        | `Tmpfile path ->
             let results = U.read_file config.system path in
             Lwt_main.run (Lwt_switch.turn_off switch);
             let root = `String (0, results) |> Xmlm.make_input |> Q.parse_input (Some url) in

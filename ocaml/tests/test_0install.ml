@@ -32,7 +32,7 @@ exception Ok
 let handle_download_impls config pending_digests impls =
   impls |> List.iter (fun impl ->
     match impl.Impl.impl_type with
-    | `cache_impl {Impl.digests;_} ->
+    | `Cache_impl {Impl.digests;_} ->
         if Zeroinstall.Stores.lookup_maybe config.system digests config.stores = None then (
           let digest_str =
             digests |> U.first_match (fun digest ->
@@ -79,7 +79,7 @@ class fake_slave _config =
       ) in
     pending_feed_downloads := StringMap.remove url !pending_feed_downloads;
     output_string ch contents;
-    `success |> Lwt.return in
+    `Success |> Lwt.return in
 
   object
     method install =

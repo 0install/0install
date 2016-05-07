@@ -64,14 +64,14 @@ end
 module Cache = struct
   include Make(struct let paths t = t.dirs.Support.Basedir.cache end)
 
-  let last_check_attempt (`remote_feed url) = prog +/ "last-check-attempt" +/ Escape.pretty url
+  let last_check_attempt (`Remote_feed url) = prog +/ "last-check-attempt" +/ Escape.pretty url
   let icon feed =
-    let (`remote_feed url | `local_feed url) = feed in
+    let (`Remote_feed url | `Local_feed url) = feed in
     "interface_icons" +/ Escape.escape url
   let distro_cache name = prog +/ name
   let named_runner ~hash name = prog +/ "exec-" ^ hash +/ name
   let feeds = "interfaces"
-  let feed (`remote_feed url) = "interfaces" +/ Escape.escape url
+  let feed (`Remote_feed url) = "interfaces" +/ Escape.escape url
   let implementations = "implementations"
 
   let in_user_cache path t =

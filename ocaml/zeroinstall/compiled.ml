@@ -123,5 +123,5 @@ let of_source ~host_arch impl =
     os;
     machine;
     parsed_version = impl.parsed_version;
-    impl_type = `binary_of impl
+    impl_type = `Binary_of impl
   }

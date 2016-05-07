@@ -25,7 +25,7 @@ class type watcher =
     method confirm_keys : Feed_url.remote_feed -> (Support.Gpg.fingerprint * key_vote list Lwt.t) list -> Support.Gpg.fingerprint list Lwt.t
 
     (** Display a confirmation request *)
-    method confirm : string -> [`ok | `cancel] Lwt.t
+    method confirm : string -> [`Ok | `Cancel] Lwt.t
 
     (** Called each time a new implementation is added to the cache.
      * This is used by the GUI to refresh its display. *)

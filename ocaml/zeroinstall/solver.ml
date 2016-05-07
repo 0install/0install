@@ -45,7 +45,7 @@ module CoreModel = struct
   type dependency = Role.t * Impl.dependency
   type dep_info = {
     dep_role : Role.t;
-    dep_importance : [ `essential | `recommended | `restricts ];
+    dep_importance : [ `Essential | `Recommended | `Restricts ];
     dep_required_commands : command_name list;
   }
   type role_information = {
@@ -77,7 +77,7 @@ module CoreModel = struct
         bindings = [];
       };
       parsed_version = Version.parse "0";
-      impl_type = `local_impl "/dummy";
+      impl_type = `Local_impl "/dummy";
     }
 
   let dummy_command = { Impl.
@@ -133,7 +133,7 @@ module CoreModel = struct
 
     let attrs =
       match impl.Impl.impl_type with
-      | `binary_of _ -> AttrMap.add_no_ns "requires-compilation" "true" attrs
+      | `Binary_of _ -> AttrMap.add_no_ns "requires-compilation" "true" attrs
       | _ -> attrs in
 
     let child_nodes = ref [] in
@@ -159,7 +159,7 @@ module CoreModel = struct
         in
         let child_nodes = List.filter want_command_child (Element.as_xml command_elem).Qdom.child_nodes in
         let add_command_dep child_nodes dep =
-          if dep.Impl.dep_importance <> `restricts && impl_provider#is_dep_needed dep then
+          if dep.Impl.dep_importance <> `Restricts && impl_provider#is_dep_needed dep then
             Element.as_xml dep.Impl.dep_qdom :: child_nodes
           else
             child_nodes in
@@ -173,13 +173,13 @@ module CoreModel = struct
 
       Impl.(impl.props.bindings) |> List.iter copy_elem;
       Impl.(impl.props.requires) |> List.iter (fun dep ->
-        if impl_provider#is_dep_needed dep && dep.Impl.dep_importance <> `restricts then
+        if impl_provider#is_dep_needed dep && dep.Impl.dep_importance <> `Restricts then
           copy_elem (dep.Impl.dep_qdom)
       );
 
       begin match impl.Impl.impl_type with
-      | `cache_impl {Impl.digests = []; _} -> ()  (* todo: Shouldn't really happen *)
-      | `cache_impl {Impl.digests; _} ->
+      | `Cache_impl {Impl.digests = []; _} -> ()  (* todo: Shouldn't really happen *)
+      | `Cache_impl {Impl.digests; _} ->
           let rec aux attrs = function
             | [] -> attrs
             | (name, value) :: ds -> aux (Qdom.AttrMap.add_no_ns name value attrs) ds in
@@ -187,7 +187,7 @@ module CoreModel = struct
           let manifest_digest =
             ZI.make ~attrs ~source_hint:(Element.as_xml impl.Impl.qdom) "manifest-digest" in
           child_nodes := manifest_digest :: !child_nodes
-      | `local_impl _ | `package_impl _ | `binary_of _ -> () end
+      | `Local_impl _ | `Package_impl _ | `Binary_of _ -> () end
     );
     ZI.make
       ~attrs

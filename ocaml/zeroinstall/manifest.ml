@@ -169,15 +169,15 @@ type mtime = float
 type size = Int64.t
 
 type inode =
-  [ `dir of mtime option
-  | `symlink of (hash * size)
-  | `file of (bool * hash * mtime * size) ]
+  [ `Dir of mtime option
+  | `Symlink of (hash * size)
+  | `File of (bool * hash * mtime * size) ]
 
 type manifest_dir = (filepath * tree_node) list
 and tree_node =
-  [ `dir of manifest_dir
-  | `symlink of (hash * size)
-  | `file of (bool * hash * mtime * size) ]
+  [ `Dir of manifest_dir
+  | `Symlink of (hash * size)
+  | `File of (bool * hash * mtime * size) ]
 
 let parse_manifest_line ~old line : (string * inode) =
   let n_parts =
@@ -189,11 +189,11 @@ let parse_manifest_line ~old line : (string * inode) =
     | _ -> raise_safe "Malformed manifest line: '%s'" line in
   let parts = Str.bounded_split_delim U.re_space line n_parts in
   match parts with
-  | ["D"; mtime; name] when old -> (name, `dir (Some (float_of_string mtime)))
-  | ["D"; name] -> (name, `dir None)
-  | ["S"; hash; size; name] -> (name, `symlink (hash, Int64.of_string size))
+  | ["D"; mtime; name] when old -> (name, `Dir (Some (float_of_string mtime)))
+  | ["D"; name] -> (name, `Dir None)
+  | ["S"; hash; size; name] -> (name, `Symlink (hash, Int64.of_string size))
   | ["X" | "F" as ty; hash; mtime; size; name] ->
-      (name, `file (ty = "X", hash, float_of_string mtime, Int64.of_string size))
+      (name, `File (ty = "X", hash, float_of_string mtime, Int64.of_string size))
   | _ -> raise_safe "Malformed manifest line: '%s'" line
 
 (* This is really only useful for [diff].
@@ -207,10 +207,10 @@ let index_manifest ~old manifest_data =
     while true do
       let line = Stream.next stream in
       match parse_manifest_line ~old line with
-      | (name, `dir _) ->
+      | (name, `Dir _) ->
           dir := name;
           items := (name, line) :: !items
-      | (name, (`symlink _ | `file _)) ->
+      | (name, (`Symlink _ | `File _)) ->
           items := (!dir ^ "/" ^ name, line) :: !items
     done;
     assert false
@@ -311,13 +311,13 @@ let parse_manifest manifest_data =
     let rec collect_items () =
       Stream.peek stream |> if_some (fun line ->
         match parse_manifest_line ~old:false line with
-        | (name, `dir _) ->
+        | (name, `Dir _) ->
             if U.starts_with name (path ^ "/") then (
               Stream.junk stream;
-              items := (Filename.basename name, `dir (parse_dir name)) :: !items;
+              items := (Filename.basename name, `Dir (parse_dir name)) :: !items;
               collect_items ()
             ) else ()
-        | (_name, (`symlink _ | `file _)) as item ->
+        | (_name, (`Symlink _ | `File _)) as item ->
             items := item :: !items;
             Stream.junk stream;
             collect_items ()
@@ -362,7 +362,7 @@ let rec copy_subtree system hash_name req_tree src_dir dst_dir =
     let src_path = src_dir +/ name in
     let dst_path = dst_dir +/ name in
     match inode with
-    | `symlink (required_hash, size) ->
+    | `Symlink (required_hash, size) ->
         let required_size = Int64.to_int size in
         let target = system#readlink src_path |? lazy (raise_safe "Not a symlink '%s'" src_path) in
         let actual_size = String.length target in
@@ -377,11 +377,11 @@ let rec copy_subtree system hash_name req_tree src_dir dst_dir =
             src_path required_hash
         );
         system#symlink ~target ~newlink:dst_path
-    | `dir items ->
+    | `Dir items ->
         system#mkdir dst_path 0o700;
         copy_subtree system hash_name items src_path dst_path;
         system#chmod dst_path 0o555;
-    | `file (x, required_hash, mtime, size) ->
+    | `File (x, required_hash, mtime, size) ->
         match system#lstat src_path with
         | None -> raise_safe "Required source file '%s' does not exist!" src_path
         | Some info ->

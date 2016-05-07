@@ -149,7 +149,7 @@ let frame ~title ~content (parent:GPack.box) =
 let confirm_keys config trust_db ?parent feed_url valid_sigs =
   assert (valid_sigs <> []);
   let n_sigs = List.length valid_sigs in
-  let `remote_feed url = feed_url in
+  let `Remote_feed url = feed_url in
 
   lwt key_names = valid_sigs |> List.map fst |> G.load_keys config.system in
 

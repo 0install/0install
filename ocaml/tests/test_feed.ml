@@ -52,17 +52,17 @@ let suite = "feed">::: [
     let feed_url = Test_0install.feed_dir +/ "Hello.xml" in
     let digest = "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" in
 
-    let overrides = F.load_feed_overrides config (`local_feed feed_url) in
+    let overrides = F.load_feed_overrides config (`Local_feed feed_url) in
     assert_equal None overrides.F.last_checked;
     assert_equal 0 (StringMap.cardinal overrides.F.user_stability);
 
-    F.save_feed_overrides config (`local_feed feed_url) {
+    F.save_feed_overrides config (`Local_feed feed_url) {
       F.user_stability = StringMap.add digest Developer overrides.F.user_stability;
       F.last_checked = Some 100.0;
     };
 
     (* Rating now visible *)
-    let overrides = F.load_feed_overrides config (`local_feed feed_url) in
+    let overrides = F.load_feed_overrides config (`Local_feed feed_url) in
     assert_equal 1 (StringMap.cardinal overrides.F.user_stability);
     assert_equal Developer (StringMap.find_safe digest overrides.F.user_stability);
     assert_equal (Some 100.0) overrides.F.last_checked;

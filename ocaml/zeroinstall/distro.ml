@@ -36,7 +36,7 @@ let get_matching_package_impls distro feed =
   !best_impls
 
 type query = {
-  elem : [`package_impl] Element.t; (* The <package-element> which generated this query *)
+  elem : [`Package_impl] Element.t; (* The <package-element> which generated this query *)
   package_name : string;            (* The 'package' attribute on the <package-element> *)
   elem_props : Impl.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
   feed : Feed.feed;                 (* The feed containing the <package-element> *)
@@ -91,7 +91,7 @@ let get_quick_test_attrs path =
 
 let make_restricts_distro iface_uri distros = { Impl.
     dep_qdom = Element.dummy_restricts;
-    dep_importance = `restricts;
+    dep_importance = `Restricts;
     dep_iface = iface_uri;
     dep_src = false;
     dep_restrictions = [Impl.make_distribtion_restriction distros];
@@ -126,7 +126,7 @@ class virtual distribution config =
     let (_host_os, host_machine) = Arch.platform system in
     let props = { Impl.
       attrs = get_quick_test_attrs path
-        |> Q.AttrMap.add_no_ns FeedAttr.from_feed (Feed_url.format_url (`distribution_feed from_feed))
+        |> Q.AttrMap.add_no_ns FeedAttr.from_feed (Feed_url.format_url (`Distribution_feed from_feed))
         |> Q.AttrMap.add_no_ns FeedAttr.id id
         |> Q.AttrMap.add_no_ns FeedAttr.stability "packaged"
         |> Q.AttrMap.add_no_ns FeedAttr.version version
@@ -141,14 +141,14 @@ class virtual distribution config =
       os = None;
       machine = Some host_machine;       (* (hopefully) *)
       parsed_version = Version.parse version;
-      impl_type = `package_impl { Impl.
+      impl_type = `Package_impl { Impl.
         package_distro = "host";
-        package_state = `installed;
+        package_state = `Installed;
       }
     } in
 
   let get_host_impls = function
-    | `remote_feed "http://repo.roscidus.com/python/python" as url ->
+    | `Remote_feed "http://repo.roscidus.com/python/python" as url ->
         (* We support Python on platforms with unsupported package managers
            by running it manually and parsing the output. Ideally we would
            cache this information on disk. *)
@@ -158,7 +158,7 @@ class virtual distribution config =
           let commands = StringMap.singleton "run" run in
           (id, make_host_impl ~package:"host-python" path version ~commands url id)
         )
-    | `remote_feed "http://repo.roscidus.com/python/python-gobject" as url ->
+    | `Remote_feed "http://repo.roscidus.com/python/python-gobject" as url ->
         Lazy.force python_info |> U.filter_map (function
           | (_, Some (path, version)) ->
               let id = "package:host:python-gobject:" ^ version in
@@ -236,16 +236,16 @@ class virtual distribution config =
 
       let open Impl in
       let impl = {
-        qdom = (elem :> [ `implementation | `package_impl ] Element.t);
+        qdom = (elem :> [ `Implementation | `Package_impl ] Element.t);
         os = None;
         machine;
         stability = Packaged;
         props = {props with attrs = !new_attrs};
         parsed_version = version;
-        impl_type = `package_impl { package_state; package_distro = distro_name };
+        impl_type = `Package_impl { package_state; package_distro = distro_name };
       } in
 
-      if package_state = `installed then self#fixup_main impl;
+      if package_state = `Installed then self#fixup_main impl;
 
       query.results := StringMap.add id impl !(query.results)
 
@@ -258,8 +258,8 @@ class virtual distribution config =
         | None -> Element.interface elem |> Feed_url.parse_non_distro (* (for very old selections documents) *)
         | Some from_feed ->
             match Feed_url.parse from_feed with
-            | `distribution_feed master_feed -> master_feed
-            | `local_feed _ | `remote_feed _ -> assert false in
+            | `Distribution_feed master_feed -> master_feed
+            | `Local_feed _ | `Remote_feed _ -> assert false in
       match Feed_cache.get_cached_feed config master_feed with
       | None -> false
       | Some master_feed ->
@@ -267,7 +267,7 @@ class virtual distribution config =
           let impls = self#get_impls_for_feed ~problem:ignore master_feed in
           match StringMap.find wanted_id impls with
           | None -> false
-          | Some {Impl.impl_type = `package_impl {Impl.package_state; _}; _} -> package_state = `installed
+          | Some {Impl.impl_type = `Package_impl {Impl.package_state; _}; _} -> package_state = `Installed
 
     method is_installed_quick elem =
       match Element.quick_test_file elem with
@@ -328,7 +328,7 @@ class virtual distribution config =
     method virtual check_for_candidates : 'a. ui:(#Packagekit.ui as 'a) -> Feed.feed -> unit Lwt.t
 
     method install_distro_packages : 'a. (#Packagekit.ui as 'a) -> string ->
-        (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t =
+        (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `Ok | `Cancel ] Lwt.t =
       fun ui typ items ->
         let names = items |> List.map (fun (_impl, rm) -> snd rm.Impl.distro_install_info) in
         ui#confirm (Printf.sprintf
@@ -338,22 +338,22 @@ class virtual distribution config =
            (String.concat "\n- " names))
   end
 
-let install_distro_packages (distro:distribution) ui impls : [ `ok | `cancel ] Lwt.t =
+let install_distro_packages (distro:distribution) ui impls : [ `Ok | `Cancel ] Lwt.t =
   let groups = ref StringMap.empty in
   impls |> List.iter (fun impl ->
-    let `package_impl {Impl.package_state; _} = impl.Impl.impl_type in
+    let `Package_impl {Impl.package_state; _} = impl.Impl.impl_type in
     match package_state with
-    | `installed -> raise_safe "BUG: package %s already installed!" (Impl.get_id impl).Feed_url.id
-    | `uninstalled rm ->
+    | `Installed -> raise_safe "BUG: package %s already installed!" (Impl.get_id impl).Feed_url.id
+    | `Uninstalled rm ->
         let (typ, _info) = rm.Impl.distro_install_info in
         let items = default [] @@ StringMap.find typ !groups in
         groups := StringMap.add typ ((impl, rm) :: items) !groups
   );
 
   let rec loop = function
-    | [] -> Lwt.return `ok
+    | [] -> Lwt.return `Ok
     | (typ, items) :: groups ->
         distro#install_distro_packages ui typ items >>= function
-        | `ok -> loop groups
-        | `cancel -> Lwt.return `cancel in
+        | `Ok -> loop groups
+        | `Cancel -> Lwt.return `Cancel in
   !groups |> StringMap.bindings |> loop

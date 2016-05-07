@@ -13,8 +13,8 @@ module U = Support.Utils
 
 let download_impls fetcher impls =
   match fetcher#download_impls impls |> Lwt_main.run with
-  | `success -> ()
-  | `aborted_by_user -> assert false
+  | `Success -> ()
+  | `Aborted_by_user -> assert false
 
 let impl_template = Impl.({
   qdom = Element.make_impl Q.AttrMap.empty;
@@ -31,7 +31,7 @@ let impl_template = Impl.({
   os = None;
   machine = None;
   parsed_version = Zeroinstall.Version.parse "1.0";
-  impl_type = `cache_impl {
+  impl_type = `Cache_impl {
     digests = [("sha1", "123")];
     retrieval_methods = [];
   };
@@ -64,9 +64,9 @@ let make_dl_tester () =
       let switch = Lwt_switch.create () in
       let result =
         try_lwt
-          match_lwt downloader#download ~switch ~hint:(`remote_feed "testing") url with
-          | `tmpfile _ -> Lwt.return `success
-          | (`aborted_by_user | `network_failure _) as x -> Lwt.return x
+          match_lwt downloader#download ~switch ~hint:(`Remote_feed "testing") url with
+          | `Tmpfile _ -> Lwt.return `Success
+          | (`Aborted_by_user | `Network_failure _) as x -> Lwt.return x
         finally
           Lwt_switch.turn_off switch in
       result
@@ -91,7 +91,7 @@ let suite = "fetch">::: [
 
     let try_with ?(template = impl_template) ?(digest=("sha1new", "123")) xml =
       let recipe = parse_xml xml in
-      let impl_type = Impl.(`cache_impl {
+      let impl_type = Impl.(`Cache_impl {
         digests = [digest];
         retrieval_methods = [recipe];
       }) in
@@ -175,7 +175,7 @@ let suite = "fetch">::: [
         let impl = StringMap.find_safe id feed.F.implementations in
         let digests =
           match impl.Impl.impl_type with
-          | `cache_impl {Impl.digests; _} -> digests
+          | `Cache_impl {Impl.digests; _} -> digests
           | _ -> assert false in
 
         (* Not cached before download... *)
@@ -238,27 +238,27 @@ let suite = "fetch">::: [
       let r5 = tester#download "http://example.com/example5" in
 
       (* r3, r5 are queued as r1, r2 are downloading from the same site. r4 is fine. *)
-      tester#wake "http://example.com:8080/example4" `success;
+      tester#wake "http://example.com:8080/example4" `Success;
       tester#expect ["http://example.com/example1"; "http://example.com/example2"; "http://example.com:8080/example4"];
-      lwt r4 = r4 in assert_equal `success r4;
+      lwt r4 = r4 in assert_equal `Success r4;
 
       (* r1 succeeds, allowing r3 to start *)
-      tester#wake "http://example.com/example1" `success;
-      lwt r1 = r1 in assert_equal `success r1;
+      tester#wake "http://example.com/example1" `Success;
+      lwt r1 = r1 in assert_equal `Success r1;
 
       tester#expect ["http://example.com/example3"];
-      tester#wake "http://example.com/example3" `success;
-      lwt r3 = r3 in assert_equal `success r3;
+      tester#wake "http://example.com/example3" `Success;
+      lwt r3 = r3 in assert_equal `Success r3;
 
       (* r2 gets redirected and goes back on the end of the queue, allowing r5 to run. *)
-      tester#wake "http://example.com/example2" @@ `redirect "http://example.com/redirected";
+      tester#wake "http://example.com/example2" @@ `Redirect "http://example.com/redirected";
       tester#expect ["http://example.com/example5"; "http://example.com/redirected"];
 
       (* r5 fails, allowing r2 to complete *)
-      tester#wake "http://example.com/example5" @@ `network_failure "404";
-      tester#wake "http://example.com/redirected" `success;
-      lwt r5 = r5 in assert_equal (`network_failure "404") r5;
-      lwt r2 = r2 in assert_equal `success r2;
+      tester#wake "http://example.com/example5" @@ `Network_failure "404";
+      tester#wake "http://example.com/redirected" `Success;
+      lwt r5 = r5 in assert_equal (`Network_failure "404") r5;
+      lwt r2 = r2 in assert_equal `Success r2;
 
       Lwt.return ()
     )
@@ -269,7 +269,7 @@ let suite = "fetch">::: [
       let tester = make_dl_tester () in
 
       let r1 = tester#download "http://example.com/example1" in
-      tester#wake "http://example.com/example1" (`redirect "file://localhost/etc/passwd");
+      tester#wake "http://example.com/example1" (`Redirect "file://localhost/etc/passwd");
       try_lwt
         lwt _ = r1 in
         assert false
@@ -295,13 +295,13 @@ let suite = "fetch">::: [
       let switch = Lwt_switch.create () in
       lwt result =
         try_lwt
-          match_lwt downloader#download ~switch ~hint:(`remote_feed "testing") "http://localhost/test.tgz" with
-          | `tmpfile _ -> Lwt.return `success
-          | (`aborted_by_user | `network_failure _) as x -> Lwt.return x
+          match_lwt downloader#download ~switch ~hint:(`Remote_feed "testing") "http://localhost/test.tgz" with
+          | `Tmpfile _ -> Lwt.return `Success
+          | (`Aborted_by_user | `Network_failure _) as x -> Lwt.return x
         finally
           Lwt_switch.turn_off switch in
 
-      assert_equal `aborted_by_user result;
+      assert_equal `Aborted_by_user result;
 
       Lwt.return ()
     )

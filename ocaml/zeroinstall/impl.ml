@@ -11,9 +11,9 @@ module FeedAttr = Constants.FeedAttr
 module AttrMap = Support.Qdom.AttrMap
 
 type importance =
-  [ `essential       (* Must select a version of the dependency *)
-  | `recommended     (* Prefer to select a version, if possible *)
-  | `restricts ]     (* Just adds restrictions without expressing any opinion *)
+  [ `Essential       (* Must select a version of the dependency *)
+  | `Recommended     (* Prefer to select a version, if possible *)
+  | `Restricts ]     (* Just adds restrictions without expressing any opinion *)
 
 type distro_retrieval_method = {
   distro_size : Int64.t option;
@@ -21,8 +21,8 @@ type distro_retrieval_method = {
 }
 
 type package_state =
-  [ `installed
-  | `uninstalled of distro_retrieval_method ]
+  [ `Installed
+  | `Uninstalled of distro_retrieval_method ]
 
 type package_impl = {
   package_distro : string;
@@ -35,13 +35,13 @@ type cache_impl = {
 }
 
 type existing =
-  [ `cache_impl of cache_impl
-  | `local_impl of filepath
-  | `package_impl of package_impl ]
+  [ `Cache_impl of cache_impl
+  | `Local_impl of filepath
+  | `Package_impl of package_impl ]
 
 type impl_type =
   [ existing
-  | `binary_of of existing t ]
+  | `Binary_of of existing t ]
 
 and restriction = < to_string : string; meets_restriction : impl_type t -> bool >
 
@@ -59,7 +59,7 @@ and dependency = {
 }
 
 and command = {
-  mutable command_qdom : [`command] Element.t;
+  mutable command_qdom : [`Command] Element.t;
   command_requires : dependency list;
   command_bindings : binding list;
 }
@@ -72,7 +72,7 @@ and properties = {
 }
 
 and +'a t = {
-  qdom : [ `implementation | `package_impl ] Element.t;
+  qdom : [ `Implementation | `Package_impl ] Element.t;
   props : properties;
   stability : stability_level;
   os : Arch.os option;            (* Required OS; the first part of the 'arch' attribute. None for '*' *)
@@ -82,7 +82,7 @@ and +'a t = {
 }
 
 type generic_implementation = impl_type t
-type distro_implementation = [ `package_impl of package_impl ] t
+type distro_implementation = [ `Package_impl of package_impl ] t
 
 let parse_stability ~from_user s =
   let if_from_user l =
@@ -119,10 +119,10 @@ let make_distribtion_restriction distros =
     method meets_restriction impl =
       ListLabels.exists (Str.split U.re_space distros) ~f:(fun distro ->
         match distro, impl.impl_type with
-        | "0install", `package_impl _ -> false
-        | "0install", `cache_impl _ -> true
-        | "0install", `local_impl _ -> true
-        | distro, `package_impl {package_distro;_} -> package_distro = distro
+        | "0install", `Package_impl _ -> false
+        | "0install", `Cache_impl _ -> true
+        | "0install", `Local_impl _ -> true
+        | distro, `Package_impl {package_distro;_} -> package_distro = distro
         | _ -> false
       )
 
@@ -181,7 +181,7 @@ let make_version_restriction expr =
 
 let local_dir_of impl =
   match impl.impl_type with
-  | `local_impl path -> Some path
+  | `Local_impl path -> Some path
   | _ -> None
 
 let parse_dep local_dir node =
@@ -201,7 +201,7 @@ let parse_dep local_dir node =
 
   let commands = ref StringSet.empty in
 
-  let restrictions = Element.restrictions node |> List.map (fun (`version child) -> parse_version_element child) in
+  let restrictions = Element.restrictions node |> List.map (fun (`Version child) -> parse_version_element child) in
   Element.bindings node |> List.iter (fun child ->
     let binding = Binding.parse_binding child in
     match Binding.get_command binding with
@@ -217,13 +217,13 @@ let parse_dep local_dir node =
   in
 
   begin match dep with
-  | `runner r -> commands := StringSet.add (default "run" @@ Element.command r) !commands
-  | `requires _ | `restricts _ -> () end;
+  | `Runner r -> commands := StringSet.add (default "run" @@ Element.command r) !commands
+  | `Requires _ | `Restricts _ -> () end;
 
   let importance =
     match dep with
-    | `restricts _ -> `restricts
-    | `requires r | `runner r -> Element.importance r in
+    | `Restricts _ -> `Restricts
+    | `Requires r | `Runner r -> Element.importance r in
 
   let restrictions =
     match Element.distribution node with
@@ -262,11 +262,11 @@ let parse_command local_dir elem : command =
 let is_source impl = Arch.is_src impl.machine
 
 let needs_compilation = function
-  | {impl_type = `binary_of _; _} -> true
+  | {impl_type = `Binary_of _; _} -> true
   | {impl_type = #existing; _} -> false
 
 let existing_source = function
-  | {impl_type = `binary_of source; _} -> source
+  | {impl_type = `Binary_of source; _} -> source
   | {impl_type = #existing; _} as existing -> existing
 
 let get_command_opt command_name impl = StringMap.find command_name impl.props.commands

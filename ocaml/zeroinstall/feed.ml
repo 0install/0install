@@ -34,16 +34,16 @@ type feed_import = {
 
 type feed = {
   url : Feed_url.non_distro_feed;
-  root : [`feed] Element.t;
+  root : [`Feed] Element.t;
   name : string;
-  implementations : 'a. ([> `cache_impl of Impl.cache_impl | `local_impl of filepath] as 'a) Impl.t StringMap.t;
+  implementations : 'a. ([> `Cache_impl of Impl.cache_impl | `Local_impl of filepath] as 'a) Impl.t StringMap.t;
   imported_feeds : feed_import list;
 
   (* The URI of the interface that replaced the one with the URI of this feed's URL.
      This is the value of the feed's <replaced-by interface'...'/> element. *)
   replacement : string option;
 
-  package_implementations : ([`package_impl] Element.t * Impl.properties) list;
+  package_implementations : ([`Package_impl] Element.t * Impl.properties) list;
 }
 
 let create_impl system ~local_dir state node =
@@ -100,13 +100,13 @@ let create_impl system ~local_dir state node =
     match AttrMap.get_no_ns FeedAttr.local_path !s.attrs with
     | Some local_path ->
         assert (local_dir <> None);
-        `local_impl local_path
+        `Local_impl local_path
     | None ->
         let retrieval_methods = Element.retrieval_methods node in
-        `cache_impl { digests = Stores.get_digests node; retrieval_methods; } in
+        `Cache_impl { digests = Stores.get_digests node; retrieval_methods; } in
 
   let impl = {
-    qdom = (node :> [ `implementation | `package_impl ] Element.t);
+    qdom = (node :> [ `Implementation | `Package_impl ] Element.t);
     props = {!s with requires = List.rev !s.requires};
     os;
     machine;
@@ -139,10 +139,10 @@ let process_group_properties ~local_dir state item =
   let new_bindings = ref [] in
 
   Element.deps_and_bindings item |> List.iter (function
-    | `requires child  | `restricts child ->
+    | `Requires child  | `Restricts child ->
         let req = Impl.parse_dep local_dir child in
         s := {!s with requires = req :: !s.requires}
-    | `command child ->
+    | `Command child ->
         let command_name = Element.command_name child in
         s := {!s with commands = StringMap.add command_name (Impl.parse_command local_dir child) !s.commands}
     | #Element.binding as child ->
@@ -179,9 +179,9 @@ let parse_implementations (system:system) root_attrs root local_dir =
 
   let rec process_group state group =
     Element.group_children group |> List.iter (function
-      | `group item -> process_group (process_group_properties ~local_dir state item) (item :> [`feed | `group] Element.t)
-      | `implementation item -> process_impl item (process_group_properties ~local_dir state item)
-      | `package_impl item ->
+      | `Group item -> process_group (process_group_properties ~local_dir state item) (item :> [`Feed | `Group] Element.t)
+      | `Implementation item -> process_impl item (process_group_properties ~local_dir state item)
+      | `Package_impl item ->
           package_implementations := (item, (process_group_properties ~local_dir state item)) :: !package_implementations
     )
   in
@@ -201,7 +201,7 @@ let parse_implementations (system:system) root_attrs root local_dir =
     commands = root_commands;
     requires = [];
   } in
-  process_group root_state (root :> [`feed | `group] Element.t);
+  process_group root_state (root :> [`Feed | `Group] Element.t);
 
   (!implementations, !package_implementations)
 
@@ -248,14 +248,14 @@ let parse system root feed_local_path =
   let imported_feeds = ref [] in
 
   Element.feed_metadata root |> List.iter (function
-    | `name node -> name := Some (Element.simple_content node)
-    | `feed_import import -> imported_feeds := parse_feed_import import :: !imported_feeds
-    | `replaced_by node ->
+    | `Name node -> name := Some (Element.simple_content node)
+    | `Feed_import import -> imported_feeds := parse_feed_import import :: !imported_feeds
+    | `Replaced_by node ->
         if !replacement = None then
           replacement := Some (normalise_url (Element.interface node) node)
         else
           Element.raise_elem "Multiple replacements!" node
-    | `feed_for _ | `category _ | `needs_terminal _ | `icon _ | `homepage _ -> ()
+    | `Feed_for _ | `Category _ | `Needs_terminal _ | `Icon _ | `Homepage _ -> ()
   );
 
   let implementations, package_implementations =
@@ -330,7 +330,7 @@ let update_last_checked_time config url =
 
 let get_feed_targets feed =
   Element.feed_metadata feed.root |> U.filter_map (function
-    | `feed_for f -> Some (Element.interface f)
+    | `Feed_for f -> Some (Element.interface f)
     | _ -> None
   )
 
@@ -344,19 +344,19 @@ let make_user_import feed_src = {
 
 let get_category feed =
   Element.feed_metadata feed.root |> U.first_match (function
-    | `category c -> Some (Element.simple_content c)
+    | `Category c -> Some (Element.simple_content c)
     | _ -> None
   )
 
 let needs_terminal feed =
   Element.feed_metadata feed.root |> List.exists (function
-    | `needs_terminal _ -> true
+    | `Needs_terminal _ -> true
     | _ -> false
   )
 
 let icons feed =
   Element.feed_metadata feed.root |> U.filter_map (function
-    | `icon icon -> Some icon
+    | `Icon icon -> Some icon
     | _ -> None
   )
 

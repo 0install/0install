@@ -22,7 +22,7 @@ type query_result = {
 class type ui =
   object
     method monitor : Downloader.download -> unit
-    method confirm : string -> [`ok | `cancel] Lwt.t
+    method confirm : string -> [`Ok | `Cancel] Lwt.t
     method impl_added_to_store : unit
   end
 
@@ -39,7 +39,7 @@ type packagekit = <
   check_for_candidates : 'a. ui:(#ui as 'a) -> hint:string -> string list -> unit Lwt.t;
 
   (* Install packages. Will confirm first with the user. *)
-  install_packages : 'a. (#ui as 'a) -> (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t;
+  install_packages : 'a. (#ui as 'a) -> (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `Ok | `Cancel ] Lwt.t;
 >
 
 (** Create a packagekit object, which can be used to query the PackageKit D-BUS

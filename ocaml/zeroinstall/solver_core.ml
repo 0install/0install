@@ -299,7 +299,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
     dep_required_commands |> List.iter (fun name ->
       let candidates = lookup_command (name, dep_role) in
 
-      if dep_importance = `essential then (
+      if dep_importance = `Essential then (
         S.implies sat ~reason:"dep on command" user_var candidates#get_vars
       ) else (
         (* An optional dependency is selected when any implementation of the target interface
@@ -314,7 +314,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
       );
     );
 
-    if dep_importance = `essential then (
+    if dep_importance = `Essential then (
       S.implies sat ~reason:"essential dep" user_var pass     (* Must choose a suitable candidate *)
     ) else (
       (* If [user_var] is selected, don't select an incompatible version of the optional dependency.
@@ -459,7 +459,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
               (* Self-commands already done; now try the dependencies *)
               let check_dep dep =
                 let { Model.dep_role; dep_importance; dep_required_commands } = Model.dep_info dep in
-                if dep_importance = `restricts then (
+                if dep_importance = `Restricts then (
                   (* Restrictions don't express that we do or don't want the
                      dependency, so skip them here. If someone else needs this,
                      we'll handle it when we get to them.

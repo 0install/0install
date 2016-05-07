@@ -111,17 +111,17 @@ let run_command ?cwd system args =
   )
 
 let re_gnu_tar = Str.regexp ".*(GNU tar)"
-let _tar_flavour = ref `unknown
+let _tar_flavour = ref `Unknown
 let get_tar_flavour system =
   match !_tar_flavour with
-  | `unknown ->
+  | `Unknown ->
       Lwt_process.pread_line (make_command system ["tar"; "--version"]) >>= fun line ->
       let f =
-        if Str.string_match re_gnu_tar line 0 then `gnu_tar
-        else `plain_tar in
+        if Str.string_match re_gnu_tar line 0 then `Gnu_tar
+        else `Plain_tar in
       _tar_flavour := f;
       Lwt.return f
-  | (`gnu_tar | `plain_tar) as x -> Lwt.return x
+  | (`Gnu_tar | `Plain_tar) as x -> Lwt.return x
 
 let extract_tar config ~dstdir ?extract ~compression archive =
   let system = config.system in
@@ -144,8 +144,8 @@ let extract_tar config ~dstdir ?extract ~compression archive =
   let ext_cmd = ["tar"; "-xf"; archive; "-C"; dstdir] @
 
     begin match tar_flavour with
-    | `gnu_tar -> ["--no-same-owner"; "--no-same-permissions"]
-    | `plain_tar -> [] end @
+    | `Gnu_tar -> ["--no-same-owner"; "--no-same-permissions"]
+    | `Plain_tar -> [] end @
 
     begin match compression with
     | Bzip2 -> ["--bzip2"]

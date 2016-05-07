@@ -32,7 +32,7 @@ class feed_provider config (distro:Distro.distribution) =
 
     method get_distro_impls feed =
       let master_feed_url = feed.Feed.url in
-      let url = `distribution_feed master_feed_url in
+      let url = `Distribution_feed master_feed_url in
       try FeedMap.find master_feed_url distro_cache
       with Not_found ->
         let problems = ref [] in
@@ -56,9 +56,9 @@ class feed_provider config (distro:Distro.distribution) =
     method have_stale_feeds =
       let check url info =
         match url, info with
-        | `local_feed _, _ -> false
-        | `remote_feed _ as url, None -> Feed_cache.internal_is_stale config url None
-        | `remote_feed _ as url, Some (_feed, overrides) -> Feed_cache.internal_is_stale config url (Some overrides) in
+        | `Local_feed _, _ -> false
+        | `Remote_feed _ as url, None -> Feed_cache.internal_is_stale config url None
+        | `Remote_feed _ as url, Some (_feed, overrides) -> Feed_cache.internal_is_stale config url (Some overrides) in
       FeedMap.exists check cache
 
     method replace_feed url new_feed =

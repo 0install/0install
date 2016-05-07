@@ -107,10 +107,10 @@ let check_acceptability ~scope_filter ~network_use ~is_available ~want_source ~u
       else (
         let open Impl in
         match (Impl.existing_source impl).impl_type with
-        | `local_impl path -> `Missing_local_impl path
-        | `package_impl _ -> if network_use = Offline then `Not_cached_and_offline else `Acceptable
-        | `cache_impl {retrieval_methods = [];_} -> `No_retrieval_methods
-        | `cache_impl cache_impl ->
+        | `Local_impl path -> `Missing_local_impl path
+        | `Package_impl _ -> if network_use = Offline then `Not_cached_and_offline else `Acceptable
+        | `Cache_impl {retrieval_methods = [];_} -> `No_retrieval_methods
+        | `Cache_impl cache_impl ->
             if network_use <> Offline then `Acceptable   (* Can download it *)
             else if is_retrievable_without_network cache_impl then `Acceptable
             else `Not_cached_and_offline
@@ -161,7 +161,7 @@ let compare_impls_full ~scope_filter ~network_use ~is_available ~stability_polic
 
   let score_requires_root_install i =
     match i.impl_type with
-    | `package_impl {Impl.package_state = `uninstalled _;_} -> 0   (* Bad - needs root install *)
+    | `Package_impl {Impl.package_state = `Uninstalled _;_} -> 0   (* Bad - needs root install *)
     | _ -> 1 in
 
   ignore (
@@ -243,9 +243,9 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
     try
       let open Impl in
       match (Impl.existing_source impl).impl_type with
-      | `package_impl {package_state;_} -> package_state = `installed
-      | `local_impl path -> config.system#file_exists path
-      | `cache_impl {digests;_} -> Stores.check_available cached_digests digests
+      | `Package_impl {package_state;_} -> package_state = `Installed
+      | `Local_impl path -> config.system#file_exists path
+      | `Cache_impl {digests;_} -> Stores.check_available cached_digests digests
     with Safe_exception _ as ex ->
       log_warning ~ex "Can't test whether impl is available: %a" Impl.fmt impl;
       false in

@@ -9,7 +9,7 @@ open Support.Common
 
 (** {2 Types} *)
 
-type selection = [`selection] Element.t
+type selection = [`Selection] Element.t
 type role = {
   iface : Sigs.iface_uri;
   source : bool;

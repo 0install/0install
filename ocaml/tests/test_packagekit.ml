@@ -20,7 +20,7 @@ let expect = Fake_system.expect
 let approve_ui =
   object
     inherit Fake_system.null_ui
-    method! confirm msg = log_info "confirm: %s -> OK" msg; Lwt.return `ok
+    method! confirm msg = log_info "confirm: %s -> OK" msg; Lwt.return `Ok
   end
 
 let matches ~regex msg =
@@ -46,12 +46,12 @@ let test ?(package="gnupg") ?(expected_problems=[]) config fake_system =
   log_info "done check_for_candidates";
   let impls = distro#get_impls_for_feed ~problem feed |> Test_distro.to_impl_list in
   impls |> List.iter (function
-    | {Impl.impl_type = `package_impl {Impl.package_state = `uninstalled rm; _}; _} ->
+    | {Impl.impl_type = `Package_impl {Impl.package_state = `Uninstalled rm; _}; _} ->
         assert_equal (Some (Int64.of_int 100)) rm.Impl.distro_size;
     | _ -> assert false
   );
   !expected_problems |> List.iter (fun msg -> assert_failure (Printf.sprintf "Missing expected error: %s" msg));
-  assert_equal `ok (Distro.install_distro_packages distro approve_ui impls |> Lwt_main.run);
+  assert_equal `Ok (Distro.install_distro_packages distro approve_ui impls |> Lwt_main.run);
   List.length impls
 
 let suite =

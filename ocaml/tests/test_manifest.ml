@@ -142,10 +142,10 @@ let suite = "manifest">::: [
        S 2b37e4457a1a38cfab89391ce1bfbe4dc5473fc3 26 mime-application:x-java-archive.png\n" in
 
     assert_equal [
-      ("README", `file (false, "e3d5983c3dfd415af24772b48276d16122fe5a87", 1172429666., (Int64.of_int 2980)));
-      ("install.sh", `file (true, "8a1f3c5f416f0e63140928102c44cd16ec2c6100", 1172429666., (Int64.of_int 5816)));
-      ("0install", `dir [
-        ("mime-application:x-java-archive.png", `symlink ("2b37e4457a1a38cfab89391ce1bfbe4dc5473fc3", (Int64.of_int 26)));
+      ("README", `File (false, "e3d5983c3dfd415af24772b48276d16122fe5a87", 1172429666., (Int64.of_int 2980)));
+      ("install.sh", `File (true, "8a1f3c5f416f0e63140928102c44cd16ec2c6100", 1172429666., (Int64.of_int 5816)));
+      ("0install", `Dir [
+        ("mime-application:x-java-archive.png", `Symlink ("2b37e4457a1a38cfab89391ce1bfbe4dc5473fc3", (Int64.of_int 26)));
       ]);
     ] parsed;
   );

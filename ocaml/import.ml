@@ -24,8 +24,8 @@ let import_feed options arg =
   let root = `String (0, xml) |> Xmlm.make_input |> Q.parse_input (Some arg) in
   let url = ZI.get_attribute FeedAttr.uri root in
   let parsed_url = match Zeroinstall.Feed_url.parse_non_distro url with
-    | `remote_feed _ as url -> url
-    | `local_feed _ -> raise_safe "Invalid URI '%s' on feed" url in
+    | `Remote_feed _ as url -> url
+    | `Local_feed _ -> raise_safe "Invalid URI '%s' on feed" url in
 
   log_info "Importing feed %s" url;
 

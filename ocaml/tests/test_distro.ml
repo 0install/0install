@@ -17,9 +17,9 @@ module U = Support.Utils
 let is_available_locally config impl =
   let open Impl in
   match impl.impl_type with
-  | `package_impl {package_state;_} -> package_state = `installed
-  | `local_impl path -> config.system#file_exists path
-  | `cache_impl {digests;_} ->
+  | `Package_impl {package_state;_} -> package_state = `Installed
+  | `Local_impl path -> config.system#file_exists path
+  | `Cache_impl {digests;_} ->
       match Zeroinstall.Stores.lookup_maybe config.system digests config.stores with
       | None -> false
       | Some _path -> true
@@ -229,9 +229,9 @@ let suite = "distro">::: [
       with Not_found -> skip_if true "No host python-gobject found"; assert false in
     let () =
       match host_gobject.props.requires with
-      | [ {dep_importance = `restricts; dep_iface = "http://repo.roscidus.com/python/python"; dep_restrictions = [_]; _ } ] -> ()
+      | [ {dep_importance = `Restricts; dep_iface = "http://repo.roscidus.com/python/python"; dep_restrictions = [_]; _ } ] -> ()
       | _ -> assert_failure "No host restriction for host python-gobject" in
-    let from_feed = Zeroinstall.Feed_url.format_url (`distribution_feed feed.F.url) in
+    let from_feed = Zeroinstall.Feed_url.format_url (`Distribution_feed feed.F.url) in
     let attrs = host_gobject.props.attrs
       |> Q.AttrMap.add_no_ns "from-feed" from_feed in
     let sel = ZI.make "selection" ~attrs in
@@ -343,7 +343,7 @@ let suite = "distro">::: [
       object
         inherit Zeroinstall.Feed_provider_impl.feed_provider config deb
         method! get_feed = function
-          | (`remote_feed "http://example.com/bittorrent") as url ->
+          | (`Remote_feed "http://example.com/bittorrent") as url ->
               let result = Some (feed, F.({ last_checked = None; user_stability = StringMap.empty })) in
               cache <- Zeroinstall.Feed_url.FeedMap.add url result cache;
               result
@@ -439,7 +439,7 @@ let suite = "distro">::: [
           | "foo" ->
               self#add_package_implementation
                 ~main:"foo"
-                ~package_state:`installed
+                ~package_state:`Installed
                 ~version:(Version.parse "1")
                 ~machine:None
                 ~quick_test:None

@@ -37,7 +37,7 @@ class impl_provider =
       stability = General.Stable;
       os; machine;
       parsed_version = Version.parse v;
-      impl_type = `local_impl "/"
+      impl_type = `Local_impl "/"
     }) in
 
   object (_ : #I.impl_provider)
@@ -111,7 +111,7 @@ let run_sat_test expected problem =
           end in
         let dep = Impl.({
           dep_qdom = Element.dummy_restricts;
-          dep_importance = `essential;
+          dep_importance = `Essential;
           dep_iface = lib;
           dep_src = false;
           dep_restrictions = [restriction];

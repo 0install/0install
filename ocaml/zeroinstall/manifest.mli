@@ -53,9 +53,9 @@ type size = Int64.t
 
 type manifest_dir = (Support.Common.filepath * tree_node) list
 and tree_node =
-  [ `dir of manifest_dir
-  | `symlink of (hash * size)
-  | `file of (bool * hash * mtime * size) ]
+  [ `Dir of manifest_dir
+  | `Symlink of (hash * size)
+  | `File of (bool * hash * mtime * size) ]
 
 (* Parse a manifest into a tree structure.
    Note: must be a new-style manifest (not "sha1") *)

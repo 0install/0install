@@ -30,25 +30,25 @@ type feed_import = {
 
 type feed = {
   url : Feed_url.non_distro_feed;
-  root : [`feed] Element.t;
+  root : [`Feed] Element.t;
   name : string;
-  implementations : 'a. ([> `cache_impl of Impl.cache_impl | `local_impl of filepath] as 'a) Impl.t StringMap.t;
+  implementations : 'a. ([> `Cache_impl of Impl.cache_impl | `Local_impl of filepath] as 'a) Impl.t StringMap.t;
   imported_feeds : feed_import list;    (* Always of type Feed_import here *)
 
   (* The URI of the interface that replaced the one with the URI of this feed's URL.
      This is the value of the feed's <replaced-by interface'...'/> element. *)
   replacement : Sigs.iface_uri option;
 
-  package_implementations : ([`package_impl] Element.t * Impl.properties) list;
+  package_implementations : ([`Package_impl] Element.t * Impl.properties) list;
 }
 
 (** {2 Parsing} *)
-val parse : system -> [`feed] Element.t -> filepath option -> feed
+val parse : system -> [`Feed] Element.t -> filepath option -> feed
 
 val get_implementations : feed -> Impl.existing Impl.t list
 val default_attrs : url:string -> Support.Qdom.AttrMap.t
 val process_group_properties : local_dir:filepath option -> Impl.properties ->
-  [<`group | `implementation | `package_impl] Element.t -> Impl.properties
+  [<`Group | `Implementation | `Package_impl] Element.t -> Impl.properties
 val load_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides
 val save_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides -> unit
 val update_last_checked_time : General.config -> [< Feed_url.remote_feed] -> unit
@@ -61,4 +61,4 @@ val make_user_import : [< Feed_url.non_distro_feed] -> feed_import
 
 val get_category : feed -> string option
 val needs_terminal : feed -> bool
-val icons : feed -> [`icon] Element.t list
+val icons : feed -> [`Icon] Element.t list

@@ -9,9 +9,9 @@
 (** {2 Types} **)
 
 type importance =
-  [ `essential       (* Must select a version of the dependency *)
-  | `recommended     (* Prefer to select a version, if possible *)
-  | `restricts ]     (* Just adds restrictions without expressing any opinion *)
+  [ `Essential       (* Must select a version of the dependency *)
+  | `Recommended     (* Prefer to select a version, if possible *)
+  | `Restricts ]     (* Just adds restrictions without expressing any opinion *)
 
 type distro_retrieval_method = {
   distro_size : Int64.t option;
@@ -19,8 +19,8 @@ type distro_retrieval_method = {
 }
 
 type package_state =
-  [ `installed
-  | `uninstalled of distro_retrieval_method ]
+  [ `Installed
+  | `Uninstalled of distro_retrieval_method ]
 
 type package_impl = {
   package_distro : string;
@@ -33,13 +33,13 @@ type cache_impl = {
 }
 
 type existing =
-  [ `cache_impl of cache_impl
-  | `local_impl of Support.Common.filepath
-  | `package_impl of package_impl ]
+  [ `Cache_impl of cache_impl
+  | `Local_impl of Support.Common.filepath
+  | `Package_impl of package_impl ]
 
 type impl_type =
   [ existing
-  | `binary_of of existing t ]
+  | `Binary_of of existing t ]
 
 and restriction = < meets_restriction : impl_type t -> bool; to_string : string >
 and dependency = {
@@ -53,7 +53,7 @@ and dependency = {
   dep_use : string option;                  (* Deprecated 'use' attribute *)
 }
 and command = {
-  mutable command_qdom : [`command] Element.t;  (* Mutable because of distro's [fixup_main] *)
+  mutable command_qdom : [`Command] Element.t;  (* Mutable because of distro's [fixup_main] *)
   command_requires : dependency list;
   command_bindings : Element.binding_node Element.t list;
 }
@@ -64,7 +64,7 @@ and properties = {
   commands : command Support.Common.StringMap.t;
 }
 and +'a t = {
-  qdom : [`implementation | `package_impl] Element.t;
+  qdom : [`Implementation | `Package_impl] Element.t;
   props : properties;
   stability : General.stability_level;
   os : Arch.os option;                (* Required OS; the first part of the 'arch' attribute. None for '*' *)
@@ -74,7 +74,7 @@ and +'a t = {
 }
 
 type generic_implementation = impl_type t
-type distro_implementation = [ `package_impl of package_impl ] t
+type distro_implementation = [ `Package_impl of package_impl ] t
 
 (** {2 Utility functions} *)
 val parse_stability : from_user:bool -> string -> General.stability_level
@@ -87,7 +87,7 @@ val make_command :
 val make_distribtion_restriction : string -> restriction
 val make_version_restriction : string -> restriction
 
-val local_dir_of : [> `local_impl of Support.Common.filepath ] t -> Support.Common.filepath option
+val local_dir_of : [> `Local_impl of Support.Common.filepath ] t -> Support.Common.filepath option
 
 (** [parse_dep local_dir elem] parses the <requires>/<restricts> element.
  * [local_dir] is used to resolve relative interface names in local feeds
@@ -96,7 +96,7 @@ val parse_dep : Support.Common.filepath option -> [< Element.dependency_node] El
 
 (** [parse_command local_dir elem] parses the <command> element.
  * [local_dir] is used to process dependencies (see [parse_dep]). *)
-val parse_command : Support.Common.filepath option -> [`command] Element.t -> command
+val parse_command : Support.Common.filepath option -> [`Command] Element.t -> command
 
 val get_attr_ex : string -> _ t -> string
 

@@ -23,7 +23,7 @@ type query_result = {
 class type ui =
   object
     method monitor : Downloader.download -> unit
-    method confirm : string -> [`ok | `cancel] Lwt.t
+    method confirm : string -> [`Ok | `Cancel] Lwt.t
     method impl_added_to_store : unit
   end
 
@@ -32,7 +32,7 @@ class type packagekit =
     method status : [`Ok | `Unavailable of string] Lwt.t
     method get_impls : string -> query_result
     method check_for_candidates : 'a. ui:(#ui as 'a) -> hint:string -> string list -> unit Lwt.t
-    method install_packages : 'a. (#ui as 'a) -> (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
+    method install_packages : 'a. (#ui as 'a) -> (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `Ok | `Cancel ] Lwt.t
   end
 
 (** PackageKit refuses to process more than 100 requests per transaction, so never ask for more than this in a single request. *)
@@ -140,19 +140,19 @@ let install (ui:#ui) proxy items =
       items |> List.iter (fun (impl, _rm) ->
         let main_feed =
           match Impl.get_attr_ex Constants.FeedAttr.from_feed impl |> Feed_url.parse with
-          | `distribution_feed main_feed -> main_feed
-          | (`local_feed x | `remote_feed x) as main_feed -> log_warning "Not a distribution feed: %s" x; main_feed in
+          | `Distribution_feed main_feed -> main_feed
+          | (`Local_feed x | `Remote_feed x) as main_feed -> log_warning "Not a distribution feed: %s" x; main_feed in
         ui#monitor Downloader.({cancel; url = "(packagekit)"; progress; hint = Some (Feed_url.format_url main_feed)})
       );
       Packagekit_stubs.Transaction.install_packages proxy packagekit_ids
     ) >>= fun () ->
     (* Mark each package as now installed (possibly we should do this individually in a signal callback instead). *)
     items |> List.iter (fun (impl, _rm) ->
-      let `package_impl info = impl.Impl.impl_type in
-      info.Impl.package_state <- `installed
+      let `Package_impl info = impl.Impl.impl_type in
+      info.Impl.package_state <- `Installed
     );
     ui#impl_added_to_store;
-    Lwt.return (if !cancelled then `cancel else `ok)
+    Lwt.return (if !cancelled then `Cancel else `Ok)
 
 let fail_on_exn queries fn =
   Lwt.catch fn
@@ -325,7 +325,7 @@ let make lang_spec =
               Lwt.return ()
           )
 
-    method install_packages (ui:#ui) items : [ `ok | `cancel ] Lwt.t =
+    method install_packages (ui:#ui) items : [ `Ok | `Cancel ] Lwt.t =
       let packagekit_ids = items |> List.map (fun (_impl, rm) -> get_packagekit_id rm) in
       ui#confirm (
         "The following components need to be installed using native packages. \
@@ -334,8 +334,8 @@ let make lang_spec =
          computer or affect other users. You may be asked to enter a password to confirm. The \
          packages are:\n\n- " ^ (String.concat "\n- " packagekit_ids)
       ) >>= function
-      | `cancel -> Lwt.return `cancel
-      | `ok ->
+      | `Cancel -> Lwt.return `Cancel
+      | `Ok ->
           Lazy.force proxy >>= function
           | `Ok pk -> install ui pk items
           | `Unavailable _ -> failwith "BUG: PackageKit has disappeared!"

@@ -263,8 +263,8 @@ let handle_bg options flags args =
                 ) else (
                   log_info "Background update: GUI unavailable; downloading with no UI";
                   match Zeroinstall.Driver.download_selections ~include_packages:true ~feed_provider config distro (lazy fetcher) new_sels |> Lwt_main.run with
-                  | `success -> new_sels
-                  | `aborted_by_user -> raise_safe "Aborted by user"
+                  | `Success -> new_sels
+                  | `Aborted_by_user -> raise_safe "Aborted by user"
                 )
           ) else new_sels in
 

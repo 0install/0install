@@ -59,7 +59,7 @@ let test_portable_base () =
   equal_str_lists ~msg:"XDG-3"
     ["/home/bob/.cache/0install.net/interface_icons/%2fmy%20prog";
      "/var/cache/0install.net/interface_icons/%2fmy%20prog"]
-    (Paths.Cache.(all_paths (icon (`local_feed "/my prog"))) paths);
+    (Paths.Cache.(all_paths (icon (`Local_feed "/my prog"))) paths);
   (* Now try with portable base... *)
   system#putenv "ZEROINSTALL_PORTABLE_BASE" "/mnt/0install";
   let paths = Paths.get_default (system :> system) in
@@ -71,7 +71,7 @@ let test_portable_base () =
     (Paths.Data.(all_paths (site_packages "http://example.com/hello")) paths);
   equal_str_lists ~msg:"PORT-3"
     ["/mnt/0install/cache/interface_icons/%2fmy%20prog"]
-    (Paths.Cache.(all_paths (icon (`local_feed "/my prog"))) paths)
+    (Paths.Cache.(all_paths (icon (`Local_feed "/my prog"))) paths)
 
 let as_list flags =
   let lst = ref [] in

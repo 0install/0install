@@ -232,8 +232,8 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
         | None ->
             let name =
               match master_feed with
-              | `remote_feed url -> U.string_tail url (String.rindex url '/' + 1)
-              | `local_feed path -> path in
+              | `Remote_feed url -> U.string_tail url (String.rindex url '/' + 1)
+              | `Local_feed path -> path in
             (name, "", []) in
 
       let user_feeds = (feed_provider#get_iface_config uri).FC.extra_feeds in

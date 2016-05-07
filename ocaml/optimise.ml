@@ -74,9 +74,9 @@ let optimise_impl system stats first_copy ~tmpfile impl_dir impl =
     let rec scan dir_path dir_items =
       dir_items |> List.iter (fun (name, item) ->
         match item with
-        | `dir items -> scan (dir_path +/ name) items
-        | `symlink (_, size) -> stats.uniq_size <- Int64.add stats.uniq_size size
-        | `file info ->
+        | `Dir items -> scan (dir_path +/ name) items
+        | `Symlink (_, size) -> stats.uniq_size <- Int64.add stats.uniq_size size
+        | `File info ->
             let (_x, _hash, _mtime, size) = info in
             let new_full = dir_path +/ name in
             let prev =
@@ -100,7 +100,7 @@ let optimise_impl system stats first_copy ~tmpfile impl_dir impl =
 (** Scan an implementation cache directory for duplicate files, and
     hard-link any duplicates together to save space. *)
 let optimise system impl_dir =
-  let first_copy = Hashtbl.create 1024 in		(* `file tuple -> path *)
+  let first_copy = Hashtbl.create 1024 in		(* `File tuple -> path *)
   let stats = {
     uniq_size = Int64.zero;
     dup_size = Int64.zero;

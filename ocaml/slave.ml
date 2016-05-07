@@ -57,8 +57,8 @@ let make_no_gui connection : Ui.ui_handler =
 
       method! confirm message =
         JC.invoke connection "confirm" [`String message] >>= function
-        | `String "ok" -> Lwt.return `ok
-        | `String "cancel" -> Lwt.return `cancel
+        | `String "ok" -> Lwt.return `Ok
+        | `String "cancel" -> Lwt.return `Cancel
         | json -> raise_safe "Invalid response '%a'" JC.pp_opt_xml json
     end in
 

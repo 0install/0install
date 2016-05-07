@@ -7,7 +7,7 @@ open Support.Common
 module U = Support.Utils
 module Q = Support.Qdom
 
-type selection = [`selection] Element.t
+type selection = [`Selection] Element.t
 
 type impl_source =
   | CacheSelection of Manifest.digest list
@@ -42,7 +42,7 @@ module RoleMap = struct
 end
 
 type t = {
-  root : [`selections] Element.t;
+  root : [`Selections] Element.t;
   index : selection RoleMap.t;
 }
 
@@ -51,13 +51,13 @@ type requirements = {
   command : command_name option;
 }
 
-type command = [`command] Element.t
+type command = [`Command] Element.t
 
-type dependency = [`requires | `runner] Element.t
+type dependency = [`Requires | `Runner] Element.t
 
 type dep_info = {
   dep_role : Role.t;
-  dep_importance : [ `essential | `recommended | `restricts ];
+  dep_importance : [ `Essential | `Recommended | `Restricts ];
   dep_required_commands : command_name list;
 }
 
@@ -162,16 +162,16 @@ let collect_bindings t =
     ) in
   let process_command role command =
     Element.command_children command |> List.iter (function
-      | `requires r -> process_dep r
-      | `runner r -> process_dep r
-      | `restricts r -> process_dep r
+      | `Requires r -> process_dep r
+      | `Runner r -> process_dep r
+      | `Restricts r -> process_dep r
       | #Element.binding as binding -> bindings := (role, binding) :: !bindings
     ) in
   let process_impl role parent =
     Element.deps_and_bindings parent |> List.iter (function
-      | `requires r -> process_dep r
-      | `restricts r -> process_dep r
-      | `command c -> process_command role c
+      | `Requires r -> process_dep r
+      | `Restricts r -> process_dep r
+      | `Command c -> process_command role c
       | #Element.binding as binding -> bindings := (role, binding) :: !bindings
     ) in
 
@@ -188,20 +188,20 @@ let get_required_commands dep =
       Binding.parse_binding node |> Binding.get_command
     ) in
   match Element.classify_dep dep with
-  | `runner runner -> (default "run" @@ Element.command runner) :: commands
-  | `requires _ | `restricts _ -> commands
+  | `Runner runner -> (default "run" @@ Element.command runner) :: commands
+  | `Requires _ | `Restricts _ -> commands
 
 let make_deps children =
   let self_commands = ref [] in
   let deps = children |> U.filter_map (function
-    | `requires r -> Some (r :> dependency)
-    | `runner r -> Some (r :> dependency)
+    | `Requires r -> Some (r :> dependency)
+    | `Runner r -> Some (r :> dependency)
     | #Element.binding as b ->
         Binding.parse_binding b |> Binding.get_command |> if_some (fun name ->
           self_commands := name :: !self_commands
         );
         None
-    | `restricts _ | `command _ -> None
+    | `Restricts _ | `Command _ -> None
   ) in
   (deps, !self_commands)
 
@@ -220,6 +220,6 @@ let selected_commands sels role =
   | None -> []
   | Some sel ->
       Element.deps_and_bindings sel |> U.filter_map (function
-        | `command c -> Some (Element.command_name c)
+        | `Command c -> Some (Element.command_name c)
         | _ -> None
       )

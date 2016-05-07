@@ -52,10 +52,10 @@ let add_description_text ~heading_style ~link_style (buffer:GText.buffer) feed d
   );
 
   match feed.F.url, description.signatures with
-  | `local_feed _, _ -> ()
-  | `remote_feed _, [] ->
+  | `Local_feed _, _ -> ()
+  | `Remote_feed _, [] ->
       buffer#insert ~iter "No signature information (old style feed or out-of-date cache)\n"
-  | `remote_feed _, sigs ->
+  | `Remote_feed _, sigs ->
       buffer#insert ~iter ~tags:[heading_style] "\nSignatures\n";
       sigs |> List.iter (function
         | `Valid (fingerprint, timestamp, name, is_trusted) ->
@@ -172,8 +172,8 @@ let add_remote_feed ~parent ~watcher ~recalculate tools iface () =
             let url = entry#text in
             if url = "" then raise_safe "Enter a URL";
             begin match Feed_url.parse_non_distro url with
-            | `local_feed _ -> raise_safe "Not a remote feed!"
-            | `remote_feed _ as feed_url ->
+            | `Local_feed _ -> raise_safe "Not a remote feed!"
+            | `Remote_feed _ as feed_url ->
                 let config = tools#config in
                 let fetcher = tools#make_fetcher (watcher :> Progress.watcher) in
                 lwt () = Gui.add_remote_feed config fetcher iface feed_url in
@@ -209,8 +209,8 @@ let add_local_feed ~parent ~recalculate config iface () =
         try
           let path = box#filename |? lazy (raise_safe "No filename!") in
           match Feed_url.parse_non_distro path with
-          | `remote_feed _ -> raise_safe "Not a local feed!"
-          | `local_feed _ as feed_url ->
+          | `Remote_feed _ -> raise_safe "Not a local feed!"
+          | `Local_feed _ as feed_url ->
               Gui.add_feed config iface feed_url;
               box#destroy ();
               recalculate ~force:false
@@ -533,11 +533,11 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
                 U.xdg_open_dir config.system path
               ) in
             begin match (Impl.existing_source impl).Impl.impl_type with
-            | `local_impl path -> add_open_item path
-            | `cache_impl info ->
+            | `Local_impl path -> add_open_item path
+            | `Cache_impl info ->
                 let path = Stores.lookup_maybe config.system info.Impl.digests config.stores in
                 path |> if_some add_open_item
-            | `package_impl _ -> () end;
+            | `Package_impl _ -> () end;
 
             let explain = GMenu.menu_item ~packing:menu#add ~label:"Explain this decision" () in
             explain#connect#activate ==> (fun () ->

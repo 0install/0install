@@ -26,15 +26,15 @@ let expand_arg arg env =
   | m -> Env.get_exn env (remove_braces m) in
   Str.global_substitute re_template expand template
 
-type arg_parent = [`command | `runner | `for_each] Element.t
+type arg_parent = [`Command | `Runner | `For_each] Element.t
 
 (* Return a list of string arguments by expanding <arg> and <for-each> children of [elem] *)
 let get_args elem env =
   let rec get_args_loop elem =
     List.fold_right (fun child args ->
       match child with
-      | `arg child -> (expand_arg child env) :: args
-      | `for_each child -> (expand_foreach child env) @ args
+      | `Arg child -> (expand_arg child env) :: args
+      | `For_each child -> (expand_foreach child env) @ args
     ) (Element.arg_children elem) []
   and expand_foreach node env =
     let item_from = Element.item_from node in

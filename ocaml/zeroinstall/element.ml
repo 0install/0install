@@ -22,26 +22,26 @@ let simple_content elem =
   elem.Q.last_text_inside
 
 type binding_node =
-  [ `environment | `executable_in_path | `executable_in_var | `binding]
+  [ `Environment | `Executable_in_path | `Executable_in_var | `Binding]
 
 type binding =
-  [ `environment of [`environment] t
-  | `executable_in_path of [`executable_in_path] t
-  | `executable_in_var of [`executable_in_var] t
-  | `binding of [`binding] t ]
+  [ `Environment of [`Environment] t
+  | `Executable_in_path of [`Executable_in_path] t
+  | `Executable_in_var of [`Executable_in_var] t
+  | `Binding of [`Binding] t ]
 
-type dependency_node = [ `requires | `restricts | `runner ]
+type dependency_node = [ `Requires | `Restricts | `Runner ]
 
 type dependency =
-  [ `requires of [`requires] t
-  | `restricts of [`restricts] t
-  | `runner of [`runner] t]
+  [ `Requires of [`Requires] t
+  | `Restricts of [`Restricts] t
+  | `Runner of [`Runner] t]
 
 type attr_node =
-  [ `group
-  | `implementation
-  | `compile_impl
-  | `package_impl ]
+  [ `Group
+  | `Implementation
+  | `Compile_impl
+  | `Package_impl ]
 
 (** Create a map from interface URI to <selection> elements. *)
 let make_selection_map sels =
@@ -146,8 +146,8 @@ let binding_name = command_name
 let arg_children parent =
   parent |> ZI.filter_map (fun child ->
     match ZI.tag child with
-    | Some "arg" -> Some (`arg child)
-    | Some "for-each" -> Some (`for_each child)
+    | Some "arg" -> Some (`Arg child)
+    | Some "for-each" -> Some (`For_each child)
     | _ -> None
   )
 
@@ -193,23 +193,23 @@ let default = ZI.get_attribute_opt "default"
 let feed_metadata root =
   root.Q.child_nodes |> Support.Utils.filter_map (fun node ->
     match ZI.tag node with
-    | Some "name" -> Some (`name node)
-    | Some "feed" -> Some (`feed_import node)
-    | Some "feed-for" -> Some (`feed_for node)
-    | Some "category" -> Some (`category node)
-    | Some "needs-terminal" -> Some (`needs_terminal node)
-    | Some "homepage" -> Some (`homepage node)
-    | Some "icon" -> Some (`icon node)
-    | Some "replaced-by" -> Some (`replaced_by node)
+    | Some "name" -> Some (`Name node)
+    | Some "feed" -> Some (`Feed_import node)
+    | Some "feed-for" -> Some (`Feed_for node)
+    | Some "category" -> Some (`Category node)
+    | Some "needs-terminal" -> Some (`Needs_terminal node)
+    | Some "homepage" -> Some (`Homepage node)
+    | Some "icon" -> Some (`Icon node)
+    | Some "replaced-by" -> Some (`Replaced_by node)
     | _ -> None
   )
 
 let group_children group =
   group.Q.child_nodes |> Support.Utils.filter_map (fun node ->
     match ZI.tag node with
-    | Some "group" -> Some (`group node)
-    | Some "implementation" -> Some (`implementation node)
-    | Some "package-implementation" -> Some (`package_impl node)
+    | Some "group" -> Some (`Group node)
+    | Some "implementation" -> Some (`Implementation node)
+    | Some "package-implementation" -> Some (`Package_impl node)
     | _ -> None
   )
 
@@ -226,22 +226,22 @@ let retrieval_methods impl =
 
 let importance dep =
   match ZI.get_attribute_opt FeedAttr.importance dep with
-  | None | Some "essential" -> `essential
-  | _ -> `recommended
+  | None | Some "essential" -> `Essential
+  | _ -> `Recommended
 
 let classify_dep elem =
   match ZI.tag elem with
-  | Some "runner" -> `runner elem
-  | Some "requires" -> `requires elem
-  | Some "restricts" -> `restricts elem
+  | Some "runner" -> `Runner elem
+  | Some "requires" -> `Requires elem
+  | Some "restricts" -> `Restricts elem
   | _ -> assert false
 
 let classify_binding_opt child =
   match ZI.tag child with
-  | Some "environment" -> Some (`environment child)
-  | Some "executable-in-path" -> Some (`executable_in_path child)
-  | Some "executable-in-var" -> Some (`executable_in_var child)
-  | Some "binding" | Some "overlay" -> Some (`binding child)
+  | Some "environment" -> Some (`Environment child)
+  | Some "executable-in-path" -> Some (`Executable_in_path child)
+  | Some "executable-in-var" -> Some (`Executable_in_var child)
+  | Some "binding" | Some "overlay" -> Some (`Binding child)
   | _ -> None
 
 let classify_binding elem =
@@ -253,20 +253,20 @@ let bindings parent =
   ZI.filter_map classify_binding_opt parent
 
 let element_of_dependency = function
-  | `requires d -> d
-  | `runner d -> d
-  | `restricts d -> d
+  | `Requires d -> d
+  | `Runner d -> d
+  | `Restricts d -> d
 
 let element_of_binding = function
-  | `environment b -> b
-  | `executable_in_path b -> b
-  | `executable_in_var b -> b
-  | `binding b -> b
+  | `Environment b -> b
+  | `Executable_in_path b -> b
+  | `Executable_in_var b -> b
+  | `Binding b -> b
 
 let restrictions parent =
   parent |> ZI.filter_map (fun child ->
     match ZI.tag child with
-    | Some "version" -> Some (`version child)
+    | Some "version" -> Some (`Version child)
     | _ -> None
   )
 
@@ -279,18 +279,18 @@ let fmt f q = Format.pp_print_string f (Q.show_with_loc q)
 let deps_and_bindings sel =
   sel |> ZI.filter_map (fun child ->
     match ZI.tag child with
-    | Some "requires" -> Some (`requires child)
-    | Some "restricts" -> Some (`restricts child)
-    | Some "command" -> Some (`command child)
+    | Some "requires" -> Some (`Requires child)
+    | Some "restricts" -> Some (`Restricts child)
+    | Some "command" -> Some (`Command child)
     | _ -> classify_binding_opt child
   )
 
 let command_children sel =
   sel |> ZI.filter_map (fun child ->
     match ZI.tag child with
-    | Some "requires" -> Some (`requires child)
-    | Some "restricts" -> Some (`restricts child)
-    | Some "runner" -> Some (`runner child)
+    | Some "requires" -> Some (`Requires child)
+    | Some "restricts" -> Some (`Restricts child)
+    | Some "runner" -> Some (`Runner child)
     | _ -> classify_binding_opt child
   )
 

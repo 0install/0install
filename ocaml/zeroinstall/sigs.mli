@@ -46,11 +46,11 @@ module type CORE_MODEL = sig
   type dep_info = {
     dep_role : Role.t;
 
-    (* If the dependency is [`essential] then its role must be filled.
+    (* If the dependency is [`Essential] then its role must be filled.
      * Otherwise, we just prefer to fill it if possible.
-     * A [`restricts] dependency does not cause the solver to try to fill a role, it just
+     * A [`Restricts] dependency does not cause the solver to try to fill a role, it just
      * adds restrictions if it is used for some other reason. *)
-    dep_importance : [ `essential | `recommended | `restricts ];
+    dep_importance : [ `Essential | `Recommended | `Restricts ];
 
     (* Any commands on [dep_role] required by this dependency. *)
     dep_required_commands : command_name list;

@@ -31,7 +31,7 @@ end
 
 module ListString = OUnitDiff.ListSimpleMake(EString)
 
-let cache_path_for config url = Feed_cache.get_save_cache_path config (`remote_feed url)
+let cache_path_for config url = Feed_cache.get_save_cache_path config (`Remote_feed url)
 
 let binary iface = {Selections.iface; source = false}
 
@@ -358,7 +358,7 @@ let suite = "solver">::: [
     let iface_config = feed_provider#get_iface_config uri in
     assert (iface_config.stability_policy = None);
     match iface_config.extra_feeds with
-    | [ { Feed.feed_src = `local_feed "/usr/share/0install.net/native_feeds/http:##example.com#prog";
+    | [ { Feed.feed_src = `Local_feed "/usr/share/0install.net/native_feeds/http:##example.com#prog";
           Feed.feed_type = Feed.Distro_packages; _ } ] -> ()
     | _ -> assert_failure "Didn't find native feed"
   );
@@ -388,7 +388,7 @@ let suite = "solver">::: [
         method private get_package_impls query =
           let machine = Some Arch.x86_64 in
           self#add_package_implementation
-            ~package_state:`installed
+            ~package_state:`Installed
             ~id:"package:is_distro_v1-1"
             ~machine
             ~version:(Version.parse "1-1")
@@ -396,7 +396,7 @@ let suite = "solver">::: [
             ~distro_name
             query;
           self#add_package_implementation
-            ~package_state:(`uninstalled Impl.({distro_size = None; distro_install_info = ("dummy", "root_install_needed_2")}))
+            ~package_state:(`Uninstalled Impl.({distro_size = None; distro_install_info = ("dummy", "root_install_needed_2")}))
             ~id:"package:root_install_needed_2"
             ~machine
             ~version:(Version.parse "1-1")
@@ -404,7 +404,7 @@ let suite = "solver">::: [
             ~distro_name
             query;
           self#add_package_implementation
-            ~package_state:(`uninstalled Impl.({distro_size = None; distro_install_info = ("dummy", "root_install_needed_1")}))
+            ~package_state:(`Uninstalled Impl.({distro_size = None; distro_install_info = ("dummy", "root_install_needed_1")}))
             ~id:"package:root_install_needed_1"
             ~machine
             ~version:(Version.parse "1-1")
@@ -412,7 +412,7 @@ let suite = "solver">::: [
             ~distro_name
             query;
           self#add_package_implementation
-            ~package_state:`installed
+            ~package_state:`Installed
             ~id:"package:buggy"
             ~machine
             ~version:(Version.parse "1-1")
@@ -555,10 +555,10 @@ let suite = "solver">::: [
       iface ~source:true (Feed_url.master_feed_of_iface iface) "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
     justify
       "http://foo/Binary.xml 1.0 was selected as the preferred version."
-      iface ~source:true (`remote_feed "http://foo/Source.xml") "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
+      iface ~source:true (`Remote_feed "http://foo/Source.xml") "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a";
     justify
       "0.1 is ranked lower than 1.0: newer versions are preferred"
-      iface ~source:true (`remote_feed "http://foo/Source.xml") "old";
+      iface ~source:true (`Remote_feed "http://foo/Source.xml") "old";
     justify
       ("There is no possible selection using http://foo/Binary.xml 3.\n" ^
       "Can't find all required implementations:\n" ^
@@ -569,11 +569,11 @@ let suite = "solver">::: [
       "      sha1=999 (5): Incompatible with restriction: version ..!1.0\n" ^
       "      sha1=345 (1.0): Incompatible with restriction: version ..!1.0\n" ^
       "      sha1=678 (0.1): Incompatible with restriction: version 1.0..")
-      iface ~source:true (`remote_feed "http://foo/Source.xml") "impossible";
+      iface ~source:true (`Remote_feed "http://foo/Source.xml") "impossible";
     justify
       ("http://foo/Compiler.xml 5 is selectable, but using it would produce a less optimal solution overall.\n\n" ^
       "The changes would be:\n\nhttp://foo/Binary.xml#source: 1.0 to 0.1")
-      "http://foo/Compiler.xml" ~source:false (`remote_feed "http://foo/Compiler.xml") "sha1=999";
+      "http://foo/Compiler.xml" ~source:false (`Remote_feed "http://foo/Compiler.xml") "sha1=999";
 
     import "Recursive.xml";
     let rec_impls = impl_provider#get_implementations "http://foo/Recursive.xml" ~source:false in
@@ -594,7 +594,7 @@ let suite = "solver">::: [
         let sel = Zeroinstall.Selections.get_selected_ex (Selections.root_role sels) sels in
         let command = Element.get_command_ex "run" sel in
         match Element.command_children command with
-        | [`requires dep] ->
+        | [`Requires dep] ->
             let dep_impl = Zeroinstall.Selections.get_selected_ex (binary (Element.interface dep)) sels in
             let command = Element.get_command_ex "run" dep_impl in
             Fake_system.assert_str_equal "test-gui" (Element.path command |> default "missing")

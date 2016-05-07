@@ -118,8 +118,8 @@ class console_ui =
             | `Select_only -> Lwt.return (`Success sels)
             | `Download_only | `Select_for_run ->
                 Driver.download_selections config tools#distro (lazy fetcher) ~feed_provider ~include_packages:true sels >>= function
-                | `success -> Lwt.return (`Success sels)
-                | `aborted_by_user -> Lwt.return `Aborted_by_user
+                | `Success -> Lwt.return (`Success sels)
+                | `Aborted_by_user -> Lwt.return `Aborted_by_user
       finally
         if find_most_progress () = None then clear ();
         Lwt.return ()
@@ -153,8 +153,8 @@ class console_ui =
           prerr_string "[Y/N] ";
           flush stderr;
           match trim (input_line stdin) with
-          | "N" | "n" -> `cancel
-          | "Y" | "y" -> `ok
+          | "N" | "n" -> `Cancel
+          | "Y" | "y" -> `Ok
           | _ -> loop () in
         loop () |> Lwt.return
       )
@@ -205,8 +205,8 @@ class console_ui =
             Printf.sprintf "Do you want to trust this key to sign feeds from '%s'?" domain in
 
         self#confirm prompt >>= function
-        | `ok -> key_infos |> List.map fst |> Lwt.return
-        | `cancel -> Lwt.return []
+        | `Ok -> key_infos |> List.map fst |> Lwt.return
+        | `Cancel -> Lwt.return []
       )
 
     method impl_added_to_store = ()

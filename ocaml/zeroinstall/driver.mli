@@ -39,7 +39,7 @@ val solve_with_downloads :
 val download_and_import_feed :
   Fetch.fetcher ->
   Feed_url.remote_feed ->
-  [ `aborted_by_user | `no_update | `success of [`feed] Element.t ] Lwt.t
+  [ `Aborted_by_user | `No_update | `Success of [`Feed] Element.t ] Lwt.t
 
 (** Download any missing implementations needed for a set of selections.
  * @param include_packages whether to include distribution packages
@@ -50,7 +50,7 @@ val download_selections :
   Fetch.fetcher Lazy.t ->
   include_packages:bool ->
   feed_provider:Feed_provider.feed_provider ->
-  Selections.t -> [ `aborted_by_user | `success ] Lwt.t
+  Selections.t -> [ `Aborted_by_user | `Success ] Lwt.t
 
 (** If [distro] is set then <package-implementation>s are included. Otherwise, they are ignored. *)
 val get_unavailable_selections : General.config -> ?distro:Distro.distribution -> Selections.t -> Selections.selection list

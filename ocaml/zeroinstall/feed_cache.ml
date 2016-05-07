@@ -59,7 +59,7 @@ let load_iface_config config uri : interface_config =
               ) else  (
                 log_debug "Adding site-local feed '%s'" feed;
                 let open Feed in
-                Some { feed_src = `local_feed feed; feed_os = None; feed_machine = None; feed_langs = None; feed_type = Site_packages }
+                Some { feed_src = `Local_feed feed; feed_os = None; feed_machine = None; feed_langs = None; feed_type = Site_packages }
               )
             )
           )
@@ -78,7 +78,7 @@ let load_iface_config config uri : interface_config =
           log_info "Adding native packager feed '%s'" path;
           (* Resolve any symlinks *)
           let open Feed in [{
-            feed_src = `local_feed (U.realpath config.system path);
+            feed_src = `Local_feed (U.realpath config.system path);
             feed_os = None; feed_machine = None; feed_langs = None; feed_type = Distro_packages
           }]
       in
@@ -167,7 +167,7 @@ let save_iface_config config uri iface_config =
   )
 
 let get_cached_feed config = function
-  | `local_feed path -> (
+  | `Local_feed path -> (
       try
         let root = Q.parse_file config.system path |> Element.parse_feed in
         Some (Feed.parse config.system root (Some path))
@@ -175,7 +175,7 @@ let get_cached_feed config = function
         log_warning ~ex "Can't read local file '%s'" path;
         None
   )
-  | `remote_feed url as remote_feed ->
+  | `Remote_feed url as remote_feed ->
       match get_cached_feed_path config remote_feed with
       | None -> None
       | Some path ->
@@ -192,7 +192,7 @@ let get_last_check_attempt config url =
       | None -> None
       | Some info -> Some info.Unix.st_mtime
 
-let internal_is_stale config (`remote_feed url as feed_url) overrides =
+let internal_is_stale config (`Remote_feed url as feed_url) overrides =
   let now = config.system#time in
 
   let is_stale () =

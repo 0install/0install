@@ -24,7 +24,7 @@ type exec_binding = {exec_type: exec_type; name: string; command: string}
 type binding =
 | EnvironmentBinding of env_binding
 | ExecutableBinding of exec_binding
-| GenericBinding of [`binding] Element.t
+| GenericBinding of [`Binding] Element.t
 
 let get_source b =
   match (Element.insert b, Element.value b) with
@@ -45,10 +45,10 @@ let is_binding = function
   | _ -> false
 
 let parse_binding = function
-  | `environment b -> EnvironmentBinding {var_name = Element.binding_name b; mode = get_mode b; source = get_source b}
-  | `executable_in_path b -> ExecutableBinding {exec_type = InPath; name = Element.binding_name b; command = default "run" (Element.command b)}
-  | `executable_in_var b -> ExecutableBinding {exec_type = InVar; name = Element.binding_name b; command = default "run" (Element.command b)}
-  | `binding b -> GenericBinding b
+  | `Environment b -> EnvironmentBinding {var_name = Element.binding_name b; mode = get_mode b; source = get_source b}
+  | `Executable_in_path b -> ExecutableBinding {exec_type = InPath; name = Element.binding_name b; command = default "run" (Element.command b)}
+  | `Executable_in_var b -> ExecutableBinding {exec_type = InVar; name = Element.binding_name b; command = default "run" (Element.command b)}
+  | `Binding b -> GenericBinding b
 
 (** Return the name of the command needed by this binding, if any. *)
 let get_command = function

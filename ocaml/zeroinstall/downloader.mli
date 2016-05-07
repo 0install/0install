@@ -5,9 +5,9 @@
 (** Low-level download interface *)
 
 type download_result =
- [ `aborted_by_user
- | `network_failure of string
- | `tmpfile of Support.Common.filepath ]
+ [ `Aborted_by_user
+ | `Network_failure of string
+ | `Tmpfile of Support.Common.filepath ]
 
 exception Unmodified
 
@@ -30,7 +30,7 @@ val interceptor :
    ?modification_time:float ->
    out_channel ->
    string ->
-   [ `network_failure of string | `redirect of string | `success | `aborted_by_user ] Lwt.t)
+   [ `Network_failure of string | `Redirect of string | `Success | `Aborted_by_user ] Lwt.t)
   option ref
 
 type monitor = download -> unit

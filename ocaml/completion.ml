@@ -37,10 +37,10 @@ class virtual completer command config =
     method get_cword =
       let cword = int_of_string (Support.Utils.getenv_ex config.system "COMP_CWORD") - 1 in
       match command with
-      | `install -> cword
-      | `launch -> cword + 1    (* we added "run" at the start *)
-      | `store -> cword + 1    (* we added "store" at the start *)
-      | `desktop -> cword + 1    (* we added "_desktop" at the start *)
+      | `Install -> cword
+      | `Launch -> cword + 1    (* we added "run" at the start *)
+      | `Store -> cword + 1    (* we added "store" at the start *)
+      | `Desktop -> cword + 1    (* we added "_desktop" at the start *)
 
     method get_config = config
 
@@ -274,8 +274,8 @@ let complete_version completer ~range ~maybe_app target pre =
     ) else target in
 
   match Zeroinstall.Feed_url.parse uri with
-  | `distribution_feed _ -> ()
-  | (`local_feed _ | `remote_feed _) as feed ->
+  | `Distribution_feed _ -> ()
+  | (`Local_feed _ | `Remote_feed _) as feed ->
       match Feed_cache.get_cached_feed config feed with
       | None -> ()
       | Some feed ->
@@ -343,10 +343,10 @@ let handle_complete config = function
   | (shell :: prog :: raw_args) -> (
       let command =
         let prog = Filename.basename prog in
-        if Support.Utils.starts_with prog "0launch" then `launch
-        else if Support.Utils.starts_with prog "0store" then `store
-        else if Support.Utils.starts_with prog "0desktop" then `desktop
-        else `install in
+        if Support.Utils.starts_with prog "0launch" then `Launch
+        else if Support.Utils.starts_with prog "0store" then `Store
+        else if Support.Utils.starts_with prog "0desktop" then `Desktop
+        else `Install in
       let completer = match shell with
       | "bash" -> new bash_completer command config
       | "fish" -> new fish_completer command config
@@ -355,10 +355,10 @@ let handle_complete config = function
 
       let raw_args =
         match command with
-        | `install -> raw_args
-        | `store -> "store" :: raw_args
-        | `desktop -> "_desktop" :: raw_args
-        | `launch -> "run" :: raw_args in
+        | `Install -> raw_args
+        | `Store -> "store" :: raw_args
+        | `Desktop -> "_desktop" :: raw_args
+        | `Launch -> "run" :: raw_args in
 
       let open Cli in
       let (cword, args) = completer#normalise raw_args in

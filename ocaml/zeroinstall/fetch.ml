@@ -10,18 +10,18 @@ module Q = Support.Qdom
 module G = Support.Gpg
 module FeedAttr = Constants.FeedAttr
 
-type non_mirror_case = [ `ok of [`feed] Element.t | `no_trusted_keys | `replay_attack of (Sigs.feed_url * float * float) | `aborted_by_user ]
+type non_mirror_case = [ `Ok of [`Feed] Element.t | `No_trusted_keys | `Replay_attack of (Sigs.feed_url * float * float) | `Aborted_by_user ]
 
 type fetch_feed_response =
-  [ `update of ([`feed] Element.t * fetch_feed_response Lwt.t option)  (* Use this version (but a better version may come soon) *)
-  | `aborted_by_user        (* Abort silently (no need to notify the user) *)
-  | `problem of (string * fetch_feed_response Lwt.t option)    (* Report a problem (but may still succeed later) *)
-  | `no_update ]            (* Use the previous version *)
+  [ `Update of ([`Feed] Element.t * fetch_feed_response Lwt.t option)  (* Use this version (but a better version may come soon) *)
+  | `Aborted_by_user        (* Abort silently (no need to notify the user) *)
+  | `Problem of (string * fetch_feed_response Lwt.t option)    (* Report a problem (but may still succeed later) *)
+  | `No_update ]            (* Use the previous version *)
 
 let string_of_result = function
-  | `aborted_by_user -> "Aborted by user"
-  | `no_trusted_keys -> "Not signed with a trusted key"
-  | `replay_attack (url, old_time, new_time) ->
+  | `Aborted_by_user -> "Aborted by user"
+  | `No_trusted_keys -> "Not signed with a trusted key"
+  | `Replay_attack (url, old_time, new_time) ->
       let old_time = old_time |> Unix.localtime |> U.format_time in
       let new_time = new_time |> Unix.localtime |> U.format_time in
       Printf.sprintf (
@@ -31,12 +31,12 @@ let string_of_result = function
 
 (** Convert the status from the primary to our public return value. *)
 let get_final_response = function
-  | `ok result -> `update (result, None)
-  | `aborted_by_user -> `aborted_by_user
-  | `no_trusted_keys as r -> `problem (string_of_result r, None)
-  | `replay_attack _ as r ->
+  | `Ok result -> `Update (result, None)
+  | `Aborted_by_user -> `Aborted_by_user
+  | `No_trusted_keys as r -> `Problem (string_of_result r, None)
+  | `Replay_attack _ as r ->
       (* Don't bother trying the mirror if we have a replay attack *)
-      `problem (string_of_result r, None)
+      `Problem (string_of_result r, None)
 
 (** Wait for a set of tasks to complete. Return the exceptions produced by each, if any. *)
 let rec join_errors = function
@@ -66,7 +66,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
    * @param xml the new XML we are trying to verify
    *)
   let download_missing_keys ~use_mirror feed_url xml =
-    let `remote_feed feed = feed_url in
+    let `Remote_feed feed = feed_url in
     G.verify system xml >>= fun (sigs, messages) ->
 
     if sigs = [] then (
@@ -88,9 +88,9 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
 
       U.with_switch (fun switch ->
         downloader#download ~switch ~hint:feed_url key_url >>= function
-        | `network_failure msg -> raise_safe "%s" msg
-        | `aborted_by_user -> raise Aborted
-        | `tmpfile tmpfile ->
+        | `Network_failure msg -> raise_safe "%s" msg
+        | `Aborted_by_user -> raise Aborted
+        | `Tmpfile tmpfile ->
             let contents = U.read_file system tmpfile in
             log_info "Importing key for feed '%s" feed;
             G.import_key system contents >|= fun () ->
@@ -106,7 +106,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
 
     join_errors missing_keys >>= fun errors ->
 
-    if List.mem Aborted errors then Lwt.return `aborted_by_user
+    if List.mem Aborted errors then Lwt.return `Aborted_by_user
     else (
       (* Recalculate signatures if we imported any new keys. *)
       lwt sigs, messages =
@@ -120,13 +120,13 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
 
       if have_valid then (
         errors |> List.iter (fun ex -> log_warning ~ex "Error checking signature for %s" feed);
-        `success (sigs, messages) |> Lwt.return
+        `Success (sigs, messages) |> Lwt.return
       ) else (
         let msg = errors |> List.map Printexc.to_string |> String.concat ";" in
         let msg =
           if messages <> "" then msg ^ "\n" ^ messages
           else msg in
-        `problem (Printf.sprintf "Error checking signature for '%s': %s" feed msg) |> Lwt.return
+        `Problem (Printf.sprintf "Error checking signature for '%s': %s" feed msg) |> Lwt.return
       )
     ) in
 
@@ -134,7 +134,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
    * signature by this point. *)
   let update_feed_from_network feed new_xml timestamp =
     let pretty_time = timestamp |> Unix.localtime |> U.format_time_pretty in
-    let `remote_feed feed_url = feed in
+    let `Remote_feed feed_url = feed in
     log_debug "Updating '%s' from network; modified at %s" feed_url pretty_time;
 
     (* Check the new XML is valid before adding it *)
@@ -157,7 +157,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
         Feed.update_last_checked_time config feed;
         log_info "Updated feed cache checked time for %s (modified %s)" feed_url pretty_time
       );
-      `ok new_root |> Lwt.return in
+      `Ok new_root |> Lwt.return in
 
     if old_xml = Some new_xml then (
       log_debug "No change";
@@ -182,14 +182,14 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
           match trust_db#oldest_trusted_sig (Trust.domain_from_url feed) old_sigs with
           | None -> raise_safe "Can't check signatures of currently cached feed %s" warnings
           | Some old_modified when old_modified > timestamp ->
-              `replay_attack (feed_url, old_modified, timestamp) |> Lwt.return
+              `Replay_attack (feed_url, old_modified, timestamp) |> Lwt.return
           | Some _ -> save_new_xml ()
     ) in
 
   (* We don't trust any of the signatures yet. Collect information about them and add the keys to the
      trust_db, possibly after confirming with the user. *)
   let confirm_keys feed sigs messages =
-    let `remote_feed feed_url = feed in
+    let `Remote_feed feed_url = feed in
     let valid_sigs = sigs |> U.filter_map (function
       | G.ValidSig info -> Some info
       | G.BadSig _ | G.ErrSig _ -> None
@@ -261,16 +261,16 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
   (* We've just downloaded the new version of the feed to a temporary file. Check signature and import it into the cache. *)
   let import_feed ~mirror_used feed xml =
     download_missing_keys ~use_mirror:mirror_used feed xml >>= function
-    | `problem msg -> raise_safe "Failed to check feed signature: %s" msg
-    | `aborted_by_user -> Lwt.return `aborted_by_user
-    | `success (sigs, messages) ->
+    | `Problem msg -> raise_safe "Failed to check feed signature: %s" msg
+    | `Aborted_by_user -> Lwt.return `Aborted_by_user
+    | `Success (sigs, messages) ->
         match trust_db#oldest_trusted_sig (Trust.domain_from_url feed) sigs with
         | Some timestamp -> update_feed_from_network feed xml timestamp   (* We already trust a signing key *)
         | None ->
             confirm_keys feed sigs messages >>= fun () ->                 (* Confirm keys with user *)
             match trust_db#oldest_trusted_sig (Trust.domain_from_url feed) sigs with
             | Some timestamp -> update_feed_from_network feed xml timestamp
-            | None -> Lwt.return `no_trusted_keys
+            | None -> Lwt.return `No_trusted_keys
     in
 
   (* Try to download the feed [feed] from URL [url] (which is typically the same, unless we're
@@ -282,9 +282,9 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
 
     U.with_switch (fun switch ->
       downloader#download ~switch ?if_slow ~hint:feed url >>= function
-      | `network_failure msg -> `problem msg |> Lwt.return
-      | `aborted_by_user -> Lwt.return `aborted_by_user
-      | `tmpfile tmpfile ->
+      | `Network_failure msg -> `Problem msg |> Lwt.return
+      | `Aborted_by_user -> Lwt.return `Aborted_by_user
+      | `Tmpfile tmpfile ->
           let xml = U.read_file system tmpfile in
           Lwt_switch.turn_off switch >>= fun () ->
           import_feed ~mirror_used feed xml
@@ -294,30 +294,30 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
   let wait_for_mirror mirror =
     mirror >>= function
     (* We already warned; no need to raise an exception too, as the mirror download succeeded. *)
-    | `ok result -> `update (result, None) |> Lwt.return
-    | `aborted_by_user -> `aborted_by_user |> Lwt.return
-    | `replay_attack _ ->
+    | `Ok result -> `Update (result, None) |> Lwt.return
+    | `Aborted_by_user -> `Aborted_by_user |> Lwt.return
+    | `Replay_attack _ ->
         log_info "Version from mirror is older than cached version; ignoring it";
-        Lwt.return `no_update
-    | `no_trusted_keys ->
-        Lwt.return `no_update
-    | `problem msg ->
+        Lwt.return `No_update
+    | `No_trusted_keys ->
+        Lwt.return `No_update
+    | `Problem msg ->
         log_info "Mirror download failed: %s" msg;
-        Lwt.return `no_update in
+        Lwt.return `No_update in
 
   let wait_for_primary primary : _ Lwt.t =
     (* Wait for the primary (we're already got a response or failure from the mirror) *)
     primary >>= function
     | #non_mirror_case as result -> get_final_response result |> Lwt.return
-    | `problem msg -> `problem (msg, None) |> Lwt.return in
+    | `Problem msg -> `Problem (msg, None) |> Lwt.return in
 
   let download_local_file feed size fn url =
     let size = size |? lazy (raise_safe "Missing size (BUG)!") in   (* Only missing for mirror downloads, which are never local *)
     match feed with
-    | `distribution_feed _ -> assert false
-    | `remote_feed feed_url ->
+    | `Distribution_feed _ -> assert false
+    | `Remote_feed feed_url ->
         raise_safe "Relative URL '%s' in non-local feed '%s'" url feed_url
-    | `local_feed feed_path ->
+    | `Local_feed feed_path ->
         let path = Filename.dirname feed_path +/ url in
         match system#stat path with
         | Some info ->
@@ -336,17 +336,17 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
         Dry_run.log "downloading %s" url;
       let mirror_url = if may_use_mirror then Mirror.for_archive config url else None in
       downloader#download ~switch ?size ~start_offset ~hint:feed url >>= function
-      | `aborted_by_user -> raise Aborted
-      | `tmpfile tmpfile -> lazy (fn tmpfile) |> Lwt.return
-      | `network_failure primary_msg ->
+      | `Aborted_by_user -> raise Aborted
+      | `Tmpfile tmpfile -> lazy (fn tmpfile) |> Lwt.return
+      | `Network_failure primary_msg ->
           (* There are two mirror systems in use here. First, we try our [mirror_url]. If that fails too,
            * we raise [Try_mirror] to try the other strategy. *)
           let mirror_url = mirror_url |? lazy (raise (Try_mirror primary_msg)) in
           log_warning "Primary download failed; trying mirror URL '%s'..." mirror_url;
           downloader#download ~switch ?size ~hint:feed mirror_url >>= function
-          | `aborted_by_user -> raise Aborted
-          | `tmpfile tmpfile -> lazy (fn tmpfile) |> Lwt.return
-          | `network_failure mirror_msg ->
+          | `Aborted_by_user -> raise Aborted
+          | `Tmpfile tmpfile -> lazy (fn tmpfile) |> Lwt.return
+          | `Network_failure mirror_msg ->
               log_debug "Mirror failed too: %s" mirror_msg;
               raise (Try_mirror primary_msg)
     ) else (
@@ -371,7 +371,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
    * (this was called "cook" in the Python version)
    * @param may_use_mirror if failed archives should be retried with the mirror
    *        ([true] normally, [false] if this is a mirror download itself)
-   * @return `network_failure for problems which can be tried with the mirror
+   * @return `Network_failure for problems which can be tried with the mirror
    *)
   let download_impl_internal ~may_use_mirror impl required_digest retrieval_method =
     let need_rm_tmpdir = ref true in
@@ -379,7 +379,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
 
     (* Takes a cross-platform relative path (i.e using forward slashes, even on windows)
        and returns the absolute, platform-native version of the path.
-       If the path does not resolve to a location within `base`, Safe_exception is raised.
+       If the path does not resolve to a location within `Base`, Safe_exception is raised.
        Resolving to base itself is also an error. *)
     let native_path_within_base crossplatform_path =
       if U.starts_with crossplatform_path "/" then (
@@ -466,11 +466,11 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
         Stores.check_manifest_and_rename {config with system = system#bypass_dryrun} required_digest tmpdir >>= fun () ->
         ui#impl_added_to_store; (* Notify the GUI *)
         need_rm_tmpdir := false;
-        Lwt.return `success
+        Lwt.return `Success
       with ex ->
         match ex with
-        | Aborted -> `aborted_by_user |> Lwt.return
-        | Try_mirror msg -> `network_failure msg |> Lwt.return
+        | Aborted -> `Aborted_by_user |> Lwt.return
+        | Try_mirror msg -> `Network_failure msg |> Lwt.return
         | _ -> raise ex
     finally
       Lwt_switch.turn_off switch >>
@@ -490,15 +490,15 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
     let download ~may_use_mirror recipe = download_impl_internal ~may_use_mirror impl required_digest recipe in
     try_lwt
       download ~may_use_mirror:true retrieval_method >>= function
-      | `success -> Lwt.return ()
-      | `aborted_by_user -> raise Aborted
-      | `network_failure orig_msg ->
+      | `Success -> Lwt.return ()
+      | `Aborted_by_user -> raise Aborted
+      | `Network_failure orig_msg ->
           let mirror_download = Mirror.for_impl config impl |? lazy (raise_safe "%s" orig_msg) in
           log_info "%s: trying implementation mirror at %s" orig_msg (config.mirror |> default "-");
           download ~may_use_mirror:false mirror_download >>= function
-          | `aborted_by_user -> raise Aborted
-          | `success -> Lwt.return ()
-          | `network_failure mirror_msg ->
+          | `Aborted_by_user -> raise Aborted
+          | `Success -> Lwt.return ()
+          | `Network_failure mirror_msg ->
               log_info "Error from mirror: %s" mirror_msg;
               raise_safe "%s" orig_msg
     with Safe_exception _ as ex ->
@@ -507,8 +507,8 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
       reraise_with_context ex "... downloading implementation %s %s (id=%s)" (Feed_url.format_url feed) version id in
 
   object
-    method download_and_import_feed (feed : [`remote_feed of Sigs.feed_url]) : fetch_feed_response Lwt.t =
-      let `remote_feed feed_url = feed in
+    method download_and_import_feed (feed : [`Remote_feed of Sigs.feed_url]) : fetch_feed_response Lwt.t =
+      let `Remote_feed feed_url = feed in
       log_debug "download_and_import_feed %s" feed_url;
 
       if not config.dry_run then (
@@ -516,7 +516,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
       );
 
       let timeout_task, timeout_waker = Lwt.wait () in
-      let if_slow = lazy (Lwt.wakeup timeout_waker `timeout) in
+      let if_slow = lazy (Lwt.wakeup timeout_waker `Timeout) in
 
       let primary = download_and_import_feed_internal ~mirror_used:None feed ~if_slow ~url:feed_url in
       let do_mirror_download () =
@@ -532,12 +532,12 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
       Lwt.choose [primary; timeout_task] >>= function
       (* Downloaded feed within 5 seconds *)
       | #non_mirror_case as result -> get_final_response result |> Lwt.return
-      | `problem msg -> (
+      | `Problem msg -> (
           match do_mirror_download () with
-          | None -> `problem (msg, None) |> Lwt.return
-          | Some mirror -> `problem (msg, Some (wait_for_mirror mirror)) |> Lwt.return
+          | None -> `Problem (msg, None) |> Lwt.return
+          | Some mirror -> `Problem (msg, Some (wait_for_mirror mirror)) |> Lwt.return
       )
-      | `timeout ->
+      | `Timeout ->
           (* OK, maybe it's just being slow... *)
           log_info "Feed download from %s is taking a long time." feed_url;
 
@@ -553,17 +553,17 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
               | Lwt.Sleep -> (
                   (* The mirror finished first *)
                   mirror >>= function
-                  | `aborted_by_user ->
+                  | `Aborted_by_user ->
                       wait_for_primary primary
-                  | `ok result ->
+                  | `Ok result ->
                       log_info "Mirror succeeded, but will continue to wait for primary";
-                      `update (result, Some (wait_for_primary primary)) |> Lwt.return
-                  | `replay_attack _ ->
+                      `Update (result, Some (wait_for_primary primary)) |> Lwt.return
+                  | `Replay_attack _ ->
                       log_info "Version from mirror is older than cached version; ignoring it";
                       wait_for_primary primary
-                  | `no_trusted_keys ->
+                  | `No_trusted_keys ->
                       wait_for_primary primary
-                  | `problem msg ->
+                  | `Problem msg ->
                       log_info "Mirror download failed: %s" msg;
                       wait_for_primary primary
               )
@@ -573,11 +573,11 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
                   | #non_mirror_case as result ->
                       Lwt.cancel mirror;
                       get_final_response result |> Lwt.return
-                  | `problem msg ->
-                      `problem (msg, Some (wait_for_mirror mirror)) |> Lwt.return
+                  | `Problem msg ->
+                      `Problem (msg, Some (wait_for_mirror mirror)) |> Lwt.return
               )
 
-    method download_impls (impls:Impl.existing Impl.t list) : [ `success | `aborted_by_user ] Lwt.t =
+    method download_impls (impls:Impl.existing Impl.t list) : [ `Success | `Aborted_by_user ] Lwt.t =
       (* todo: external fetcher on Windows? *)
 
       let zi_impls = ref [] in
@@ -590,13 +590,13 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
         log_debug "download_impls: for %s get %s" (Feed_url.format_url feed) version;
 
         match impl with
-        | {Impl.impl_type = `package_impl info; _} as impl ->
-            if info.Impl.package_state = `installed then
+        | {Impl.impl_type = `Package_impl info; _} as impl ->
+            if info.Impl.package_state = `Installed then
               log_warning "Package '%s' already installed; skipping" (Impl.get_id impl).Feed_url.id
             else
               package_impls := impl :: !package_impls
-        | {Impl.impl_type = `local_impl path; _} -> raise_safe "Can't fetch a missing local impl (%s from %s)!" path (Feed_url.format_url feed)
-        | {Impl.impl_type = `cache_impl info; _} ->
+        | {Impl.impl_type = `Local_impl path; _} -> raise_safe "Can't fetch a missing local impl (%s from %s)!" path (Feed_url.format_url feed)
+        | {Impl.impl_type = `Cache_impl info; _} ->
             (* Choose the best digest algorithm we support *)
             if info.Impl.digests = [] then (
               raise_safe "No digests at all! (so can't choose best) on %a" Impl.fmt impl
@@ -613,8 +613,8 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
     let packages_task =
       if !package_impls <> [] then (
         Distro.install_distro_packages distro ui !package_impls >>= function
-        | `cancel -> Lwt.fail Aborted
-        | `ok -> Lwt.return ()
+        | `Cancel -> Lwt.fail Aborted
+        | `Ok -> Lwt.return ()
       ) else Lwt.return () in
 
     let zi_tasks = !zi_impls |> List.map download_impl in
@@ -622,19 +622,19 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
     (* Wait for all downloads *)
     join_errors (packages_task :: zi_tasks) >>= fun errors ->
 
-    if List.mem Aborted errors then Lwt.return `aborted_by_user
+    if List.mem Aborted errors then Lwt.return `Aborted_by_user
     else (
       match errors with
-      | [] -> Lwt.return `success
+      | [] -> Lwt.return `Success
       | first :: rest ->
           rest |> List.iter (fun ex -> log_warning ~ex "Download failed");
           raise first
     )
 
-    method import_feed (feed_url:[`remote_feed of Sigs.feed_url]) xml =
+    method import_feed (feed_url:[`Remote_feed of Sigs.feed_url]) xml =
       import_feed ~mirror_used:None feed_url xml >>= function
-      | `ok _ -> Lwt.return ()
-      | (`aborted_by_user | `no_trusted_keys | `replay_attack _) as r -> raise_safe "%s" (string_of_result r)
+      | `Ok _ -> Lwt.return ()
+      | (`Aborted_by_user | `No_trusted_keys | `Replay_attack _) as r -> raise_safe "%s" (string_of_result r)
 
     method download_icon (feed_url:Feed_url.non_distro_feed) icon_url =
       let modification_time =
@@ -645,9 +645,9 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
       let switch = Lwt_switch.create () in
       try_lwt
         downloader#download ~switch ?modification_time ~hint:feed_url icon_url >>= function
-        | `network_failure msg -> raise_safe "%s" msg
-        | `aborted_by_user -> Lwt.return ()
-        | `tmpfile tmpfile ->
+        | `Network_failure msg -> raise_safe "%s" msg
+        | `Aborted_by_user -> Lwt.return ()
+        | `Tmpfile tmpfile ->
             let icon_file = Paths.Cache.(save_path (icon feed_url)) config.paths in
             tmpfile |> system#with_open_in [Open_rdonly;Open_binary] (fun ic ->
               icon_file |> system#atomic_write [Open_wronly;Open_binary] ~mode:0o644 (U.copy_channel ic)
@@ -681,7 +681,7 @@ class external_fetcher command underlying =
     method download_impls impls =
       try_lwt
         let child_nodes = impls |> List.map (function
-          | { qdom; Impl.impl_type = `cache_impl { Impl.digests; _}; _} ->
+          | { qdom; Impl.impl_type = `Cache_impl { Impl.digests; _}; _} ->
               let qdom = Element.as_xml qdom in
               let attrs = ref Q.AttrMap.empty in
               digests |> List.iter (fun (name, value) ->
@@ -715,7 +715,7 @@ class external_fetcher command underlying =
         try_lwt
           lwt status = child#close in
           Support.System.check_exit_status status;
-          Lwt.return `success
+          Lwt.return `Success
         with Safe_exception _ as ex ->
           reraise_with_context ex "stdout: %s\nstderr: %s" output errors
       with Safe_exception _ as ex ->

@@ -18,9 +18,9 @@ type download = {
 }
 
 type download_result =
- [ `aborted_by_user
- | `network_failure of string
- | `tmpfile of Support.Common.filepath ]
+ [ `Aborted_by_user
+ | `Network_failure of string
+ | `Tmpfile of Support.Common.filepath ]
 
 exception Unmodified
 
@@ -107,7 +107,7 @@ let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.
           (* ocurl is missing CURLINFO_REDIRECT_URL, so we have to do this manually *)
           let target = Support.Urlparse.join_url url target in
           log_info "Redirect from '%s' to '%s'" url target;
-          `redirect target
+          `Redirect target
       | None ->
           if modification_time <> None && actual_size = 0.0 then (
             raise Unmodified  (* ocurl is missing CURLINFO_CONDITION_UNMET *)
@@ -121,17 +121,17 @@ let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.
                             Received: %.0f bytes" url expected actual_size
             );
             log_info "Download '%s' completed successfully (%.0f bytes)" url actual_size;
-            `success
+            `Success
           )
     )
   )
   (function
   | Curl.CurlException _ as ex ->
-      if !cancelled then `aborted_by_user
+      if !cancelled then `Aborted_by_user
       else (
         log_info ~ex "Curl error: %s" !error_buffer;
         let msg = Printf.sprintf "Error downloading '%s': %s" url !error_buffer in
-        `network_failure msg
+        `Network_failure msg
       )
   | ex -> raise ex
   )
@@ -277,13 +277,13 @@ let make_pool ~max_downloads_per_site : download_pool =
                   Hashtbl.add sites domain site;
                   site in
               site#schedule_download ~cancelled ?if_slow ?size ?modification_time ?start_offset ~progress:set_progress !ch url >>= function
-              | `success ->
+              | `Success ->
                   close_out !ch;
-                  `tmpfile tmpfile |> Lwt.return
-              | (`network_failure _ | `aborted_by_user) as result ->
+                  `Tmpfile tmpfile |> Lwt.return
+              | (`Network_failure _ | `Aborted_by_user) as result ->
                   close_out !ch;
                   Lwt.return result
-              | `redirect target ->
+              | `Redirect target ->
                   truncate_to_empty tmpfile ch;
                   if target = url then raise_safe "Redirection loop getting '%s'" url
                   else if redirs_left > 0 then loop (redirs_left - 1) target
@@ -313,7 +313,7 @@ let make_pool ~max_downloads_per_site : download_pool =
             );
 
             try_lwt task
-            with Lwt.Canceled -> `aborted_by_user |> Lwt.return
+            with Lwt.Canceled -> `Aborted_by_user |> Lwt.return
             finally
               let (sofar, total, _) = Lwt_react.S.value progress in
               set_progress (sofar, total, true);

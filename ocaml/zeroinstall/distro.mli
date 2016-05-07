@@ -6,7 +6,7 @@
 
 (** Passed to [distribution#get_package_impls]. It provides details of the query and a place to collect the results. *)
 type query = {
-  elem : [`package_impl] Element.t; (* The <package-element> which generated this query *)
+  elem : [`Package_impl] Element.t; (* The <package-element> which generated this query *)
   package_name : string;            (* The 'package' attribute on the <package-element> *)
   elem_props : Impl.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
   feed : Feed.feed;                 (* The feed containing the <package-element> *)
@@ -76,7 +76,7 @@ class virtual distribution : General.config ->
     (** Install a set of packages of a given type (as set previously by [check_for_candidates]).
      * Normally called only by the [Distro.install_distro_packages] function.
      * The default implementation tells the user to install them manually using [Impl.distro_retrieval_method]. *)
-    method install_distro_packages : 'a. (#Packagekit.ui as 'a) -> string -> (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `ok | `cancel ] Lwt.t
+    method install_distro_packages : 'a. (#Packagekit.ui as 'a) -> string -> (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `Ok | `Cancel ] Lwt.t
 
     (** Check whether this name is possible for this distribution. The default implementation filters using [valid_package_name]. *)
     method is_valid_package_name : string -> bool
@@ -102,7 +102,7 @@ class virtual distribution : General.config ->
 
 (** Install these packages using the distribution's package manager.
  * Sorts the implementations into groups by their type and then calls [distribution#install_distro_packages] once for each group. *)
-val install_distro_packages : distribution -> #Packagekit.ui -> Impl.distro_implementation list -> [ `ok | `cancel ] Lwt.t
+val install_distro_packages : distribution -> #Packagekit.ui -> Impl.distro_implementation list -> [ `Ok | `Cancel ] Lwt.t
 
 (** Return the <package-implementation> elements that best match this distribution. *)
-val get_matching_package_impls : #distribution -> Feed.feed -> ([`package_impl] Element.t * Impl.properties) list
+val get_matching_package_impls : #distribution -> Feed.feed -> ([`Package_impl] Element.t * Impl.properties) list

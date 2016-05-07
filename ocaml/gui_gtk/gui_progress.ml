@@ -113,8 +113,8 @@ let make_watcher solver_box tools ~trust_db reqs =
         box#destroy ();
         Lwt.wakeup set_result (
           match response with
-          | `OK -> `ok
-          | `CANCEL | `DELETE_EVENT -> `cancel
+          | `OK -> `Ok
+          | `CANCEL | `DELETE_EVENT -> `Cancel
         )
       );
       box#show ();

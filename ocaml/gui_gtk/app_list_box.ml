@@ -129,8 +129,8 @@ let confirm_deletion ~parent name =
     box#destroy ();
     Lwt.wakeup set_result (
       match response with
-      | `DELETE -> `delete
-      | `CANCEL | `DELETE_EVENT -> `cancel
+      | `DELETE -> `Delete
+      | `CANCEL | `DELETE_EVENT -> `Cancel
     )
   );
   box#show ();
@@ -256,7 +256,7 @@ let create config ~gui ~tools ~add_app =
         Gtk_utils.async ~parent:dialog (fun () ->
           try_lwt
             confirm_deletion ~parent:dialog name >|= function
-            | `delete ->
+            | `Delete ->
                 log_info "rm %s" path;
                 begin
                   try config.system#unlink path
@@ -265,7 +265,7 @@ let create config ~gui ~tools ~add_app =
                                 sudo rm '%s'" path
                 end;
                 model#remove row |> ignore
-            | `cancel -> ()
+            | `Cancel -> ()
           finally
             dialog#misc#set_sensitive true;
             Lwt.return ()

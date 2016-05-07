@@ -18,8 +18,8 @@ let edit_feeds config iface mode new_import =
   let iface_config = FC.load_iface_config config iface in
   let extra_feeds =
     match mode with
-    | `add -> new_import :: iface_config.FC.extra_feeds
-    | `remove -> List.filter ((<>) new_import) iface_config.FC.extra_feeds in
+    | `Add -> new_import :: iface_config.FC.extra_feeds
+    | `Remove -> List.filter ((<>) new_import) iface_config.FC.extra_feeds in
 
   FC.save_iface_config config iface {iface_config with FC.extra_feeds};
   print "";
@@ -29,8 +29,8 @@ let edit_feeds config iface mode new_import =
   else
     print "(no feeds)"
 
-let edit_feeds_interactive config (mode:[`add | `remove]) feed_url =
-  let (`remote_feed url | `local_feed url) = feed_url in
+let edit_feeds_interactive config (mode:[`Add | `Remove]) feed_url =
+  let (`Remote_feed url | `Local_feed url) = feed_url in
   let print fmt = Support.Utils.print config.system fmt in
   let feed = FC.get_cached_feed config feed_url |? lazy (failwith "Feed still not cached!") in
   let new_import = F.make_user_import feed_url in
@@ -45,10 +45,10 @@ let edit_feeds_interactive config (mode:[`add | `remove]) feed_url =
         incr i;
 
         match List.mem new_import iface_config.FC.extra_feeds, mode with
-        | true, `remove ->
+        | true, `Remove ->
             print "%d) Remove as feed for '%s'" !i iface;
             interfaces := iface :: !interfaces
-        | false, `add ->
+        | false, `Add ->
             print "%d) Add as feed for '%s'" !i iface;
             interfaces := iface :: !interfaces
         | _ -> ()
@@ -56,8 +56,8 @@ let edit_feeds_interactive config (mode:[`add | `remove]) feed_url =
 
       if !interfaces = [] then (
         match mode with
-        | `remove -> raise_safe "%s is not registered as a feed for %s" url (List.hd candidate_interfaces)
-        | `add -> raise_safe "%s already registered as a feed for %s" url (List.hd candidate_interfaces)
+        | `Remove -> raise_safe "%s is not registered as a feed for %s" url (List.hd candidate_interfaces)
+        | `Add -> raise_safe "%s already registered as a feed for %s" url (List.hd candidate_interfaces)
       );
 
       print "";
@@ -94,7 +94,7 @@ let handle options flags args =
       (* If the feed is remote and missing, download it. *)
       let feed =
         match new_feed with
-        | `remote_feed _ as feed ->
+        | `Remote_feed _ as feed ->
             let missing = FC.get_cached_feed config feed = None in
             if missing || (config.network_use <> Offline && FC.is_stale config feed) then (
               print "Downloading feed; please wait...";
@@ -102,21 +102,21 @@ let handle options flags args =
               try
                 let fetcher = tools#make_fetcher tools#ui#watcher in
                 match Zeroinstall.Driver.download_and_import_feed fetcher feed |> Lwt_main.run with
-                | `success _ -> print "Done"
-                | `aborted_by_user -> raise (System_exit 1)
-                | `no_update ->
+                | `Success _ -> print "Done"
+                | `Aborted_by_user -> raise (System_exit 1)
+                | `No_update ->
                     if missing then raise_safe "Failed to download missing feed"  (* Shouldn't happen *)
                     else print "No update"
               with Safe_exception (msg, _) when not missing ->
                 log_warning "Update failed: %s" msg
             );
             feed
-        | `local_feed path as feed ->
+        | `Local_feed path as feed ->
             if not (config.system#file_exists path) then
               raise_safe "Local feed file '%s' does not exist" path;
             feed in
 
-      edit_feeds_interactive config `add feed
+      edit_feeds_interactive config `Add feed
   | [iface; feed_src] ->
       let iface = G.canonical_iface_uri config.system iface in
       let feed_src = G.canonical_feed_url config.system feed_src in

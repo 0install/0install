@@ -14,7 +14,7 @@ let re_scheme_sep = Str.regexp_string "://"
 let re_remote_feed = Str.regexp "^\\(https?\\)://\\([^/]*@\\)?\\([^/:]+\\)\\(:[^/]*\\)?/"
 
 (* The algorithm from 0mirror. *)
-let get_feed_dir (`remote_feed feed) =
+let get_feed_dir (`Remote_feed feed) =
   if String.contains feed '#' then (
     raise_safe "Invalid URL '%s'" feed
   ) else (
@@ -44,8 +44,8 @@ let can_try_mirror url =
 
 let get_mirror_url mirror feed_url resource =
   match feed_url with
-  | `local_feed _ | `distribution_feed _ -> None
-  | `remote_feed url as feed_url ->
+  | `Local_feed _ | `Distribution_feed _ -> None
+  | `Remote_feed url as feed_url ->
       if can_try_mirror url then
         Some (mirror ^ "/" ^ (get_feed_dir feed_url) ^ "/" ^ resource)
       else None

@@ -3,15 +3,15 @@
  *)
 
 type fetch_feed_response =
-  [ `update of ([`feed] Element.t * fetch_feed_response Lwt.t option)  (* Use this version (but a better version may come soon) *)
-  | `aborted_by_user        (* Abort silently (no need to notify the user) *)
-  | `problem of (string * fetch_feed_response Lwt.t option)    (* Report a problem (but may still succeed later) *)
-  | `no_update ]            (* Use the previous version *)
+  [ `Update of ([`Feed] Element.t * fetch_feed_response Lwt.t option)  (* Use this version (but a better version may come soon) *)
+  | `Aborted_by_user        (* Abort silently (no need to notify the user) *)
+  | `Problem of (string * fetch_feed_response Lwt.t option)    (* Report a problem (but may still succeed later) *)
+  | `No_update ]            (* Use the previous version *)
 
 class type fetcher =
   object
     method download_and_import_feed : Feed_url.remote_feed -> fetch_feed_response Lwt.t
-    method download_impls : Impl.existing Impl.t list -> [ `success | `aborted_by_user ] Lwt.t
+    method download_impls : Impl.existing Impl.t list -> [ `Success | `Aborted_by_user ] Lwt.t
 
     (** [import_feed url xml] checks the signature on [xml] and imports it into the cache if trusted.
      * If not trusted, it confirms with the user first, downloading any missing keys first. *)

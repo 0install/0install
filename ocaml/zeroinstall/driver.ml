@@ -99,19 +99,19 @@ let solve_with_downloads config distro fetcher ~(watcher:#Progress.watcher) requ
     add_download f (dl >|= fun result () ->
       (* (we are now running in the main thread) *)
       match result with
-      | `problem (msg, next_update) -> (
+      | `Problem (msg, next_update) -> (
           watcher#report f msg;
           match next_update with
           | None -> ()
           | Some next -> handle_download f next
       )
-      | `aborted_by_user -> ()    (* No need to report this *)
-      | `no_update -> ()
-      | `update (new_xml, next_update) ->
+      | `Aborted_by_user -> ()    (* No need to report this *)
+      | `No_update -> ()
+      | `Update (new_xml, next_update) ->
           feed_provider#replace_feed f (Feed.parse config.system new_xml None);
           (* On success, we also need to refetch any "distribution" feed that depends on this one *)
           feed_provider#forget_distro f;
-          forget_feed (`distribution_feed f);
+          forget_feed (`Distribution_feed f);
           (* (we will now refresh, which will trigger distro#check_for_candidates *)
           match next_update with
           | None -> ()    (* This is the final update *)
@@ -138,8 +138,8 @@ let solve_with_downloads config distro fetcher ~(watcher:#Progress.watcher) requ
           ListLabels.iter feed_provider#get_feeds_used ~f:(fun f ->
             if not (already_seen f) then (
               match f with
-              | `local_feed _ -> ()
-              | `remote_feed _ as feed ->
+              | `Local_feed _ -> ()
+              | `Remote_feed _ as feed ->
                   log_info "Starting download of feed '%s'" (Feed_url.format_url f);
                   fetcher#download_and_import_feed feed |> handle_download f
             )
@@ -152,7 +152,7 @@ let solve_with_downloads config distro fetcher ~(watcher:#Progress.watcher) requ
             match feed_provider#get_feed f with
             | None -> ()
             | Some (master_feed, _) ->
-                let distro_f = `distribution_feed f in
+                let distro_f = `Distribution_feed f in
                 if not (already_seen distro_f) then (
                     add_download distro_f (distro#check_for_candidates ~ui:watcher master_feed >|= fun () () ->
                       feed_provider#forget_distro f
@@ -191,29 +191,29 @@ let quick_solve tools reqs =
       None          (* Need to refresh before we can solve *)
 
 let download_and_import_feed fetcher url =
-  let `remote_feed feed_url = url in
+  let `Remote_feed feed_url = url in
   let update = ref None in
   let rec wait_for (result:Fetch.fetch_feed_response Lwt.t) =
     result >>= function
-    | `update (feed, None) -> `success feed |> Lwt.return
-    | `update (feed, Some next) ->
+    | `Update (feed, None) -> `Success feed |> Lwt.return
+    | `Update (feed, Some next) ->
         update := Some feed;
         wait_for next
-    | `aborted_by_user -> Lwt.return `aborted_by_user
-    | `no_update -> (
+    | `Aborted_by_user -> Lwt.return `Aborted_by_user
+    | `No_update -> (
         match !update with
-        | None -> Lwt.return `no_update
-        | Some update -> Lwt.return (`success update)  (* Use the previous partial update *)
+        | None -> Lwt.return `No_update
+        | Some update -> Lwt.return (`Success update)  (* Use the previous partial update *)
     )
-    | `problem (msg, None) -> (
+    | `Problem (msg, None) -> (
         match !update with
         | None -> raise_safe "%s" msg
         | Some update ->
             (* Primary failed but we got an update from the mirror *)
             log_warning "Feed %s: %s" feed_url msg;
-            Lwt.return (`success update)  (* Use the previous partial update *)
+            Lwt.return (`Success update)  (* Use the previous partial update *)
     )
-    | `problem (msg, Some next) ->
+    | `Problem (msg, Some next) ->
         (* Problem with mirror, but primary might still succeeed *)
         log_warning "Feed '%s': %s" feed_url msg;
         wait_for next in
@@ -223,12 +223,12 @@ let download_and_import_feed fetcher url =
 (** Ensure all selections are cached, downloading any that are missing.
     If [include_packages] is given then distribution packages are also installed, otherwise
     they are ignored. *)
-let download_selections config distro fetcher ~include_packages ~(feed_provider:Feed_provider.feed_provider) sels : [ `success | `aborted_by_user ] Lwt.t =
+let download_selections config distro fetcher ~include_packages ~(feed_provider:Feed_provider.feed_provider) sels : [ `Success | `Aborted_by_user ] Lwt.t =
   let missing =
     let maybe_distro = if include_packages then Some distro else None in
     get_unavailable_selections config ?distro:maybe_distro sels in
   if missing = [] then (
-    Lwt.return `success
+    Lwt.return `Success
   ) else if config.network_use = Offline then (
     let format_sel sel =
       Element.interface sel ^ " " ^ Element.version sel in
@@ -246,16 +246,16 @@ let download_selections config distro fetcher ~include_packages ~(feed_provider:
 
     (* Return the latest version of this feed, refreshing if possible. *)
     let get_latest_feed = function
-      | `local_feed path as parsed_feed_url ->
+      | `Local_feed path as parsed_feed_url ->
         let (feed, _) = feed_provider#get_feed parsed_feed_url |? lazy (raise_safe "Missing local feed '%s'" path) in
         Lwt.return feed
-      | `remote_feed feed_url as parsed_feed_url ->
+      | `Remote_feed feed_url as parsed_feed_url ->
           download_and_import_feed fetcher parsed_feed_url >>= function
-          | `aborted_by_user -> raise Aborted_by_user
-          | `no_update ->
+          | `Aborted_by_user -> raise Aborted_by_user
+          | `No_update ->
               let (feed, _) = feed_provider#get_feed parsed_feed_url |? lazy (raise_safe "Missing feed '%s'" feed_url) in
               Lwt.return feed
-          | `success new_root ->
+          | `Success new_root ->
               let feed = Feed.parse config.system new_root None in
               feed_provider#replace_feed parsed_feed_url feed;
               Lwt.return feed in
@@ -266,19 +266,19 @@ let download_selections config distro fetcher ~include_packages ~(feed_provider:
 
       let get_impl () =
         match feed_url with
-        | `remote_feed _ | `local_feed _ as feed_url ->
+        | `Remote_feed _ | `Local_feed _ as feed_url ->
             find_zi_impl feed_provider id feed_url
-        | `distribution_feed master_url ->
+        | `Distribution_feed master_url ->
             match feed_provider#get_feed master_url with
             | None -> raise Not_found
             | Some (master_feed, _) -> (find_distro_impl feed_provider id master_feed :> Impl.existing Impl.t) in
 
       let refresh_feeds () =
         match feed_url with
-        | `local_feed _ -> Lwt.return ()
-        | `distribution_feed master_feed_url ->
+        | `Local_feed _ -> Lwt.return ()
+        | `Distribution_feed master_feed_url ->
             get_latest_feed master_feed_url >>= distro#check_for_candidates ~ui:fetcher#ui
-        | `remote_feed _ as feed_url ->
+        | `Remote_feed _ as feed_url ->
             get_latest_feed feed_url >|= ignore in
 
       try
@@ -294,6 +294,6 @@ let download_selections config distro fetcher ~include_packages ~(feed_provider:
     try_lwt
       lwt impls = missing |> List.map impl_of_sel |> collect_ex in
       fetcher#download_impls impls
-    with Aborted_by_user -> Lwt.return `aborted_by_user
+    with Aborted_by_user -> Lwt.return `Aborted_by_user
   )
 

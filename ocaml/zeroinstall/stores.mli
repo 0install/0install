@@ -21,7 +21,7 @@ val get_available_digests : system -> stores -> available_digests
 val check_available : available_digests -> Manifest.digest list -> bool
 
 (* (for parsing <implementation> and <selection> elements) *)
-val get_digests : [< `implementation | `selection] Element.t -> Manifest.digest list
+val get_digests : [< `Implementation | `Selection] Element.t -> Manifest.digest list
 
 (* Raises an exception if no digest is supported *)
 val best_digest : Manifest.digest list -> Manifest.digest

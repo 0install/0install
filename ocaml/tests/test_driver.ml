@@ -40,16 +40,16 @@ let make_packagekit get_distro_candidates =
 let fake_fetcher config handler (distro:Zeroinstall.Distro.distribution) =
   let fetcher =
     object
-      method download_and_import_feed (`remote_feed url) =
+      method download_and_import_feed (`Remote_feed url) =
         match handler#get_feed url with
-        | `file path ->
+        | `File path ->
             let xml = U.read_file config.system path in
             let root = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None |> Element.parse_feed in
-            `update (root, None) |> Lwt.return
-        | `xml root -> `update (root, None) |> Lwt.return
-        | `problem msg -> `problem (msg, None) |> Lwt.return
+            `Update (root, None) |> Lwt.return
+        | `Xml root -> `Update (root, None) |> Lwt.return
+        | `Problem msg -> `Problem (msg, None) |> Lwt.return
 
-      method download_impls impls : [ `success | `aborted_by_user ] Lwt.t =
+      method download_impls impls : [ `Success | `Aborted_by_user ] Lwt.t =
         handler#download_impls impls |> Lwt.return
 
       method import_feed = failwith "import_feed"
@@ -133,11 +133,11 @@ let make_driver_test test_elem =
       object
         method download_impls impls =
           ignore @@ Test_0install.handle_download_impls config expected_digests impls;
-          `success
+          `Success
 
         method get_feed url =
-          try `xml (StringMap.find_nf url !downloadable_feeds)
-          with Not_found -> `problem "Unexpected feed requested"
+          try `Xml (StringMap.find_nf url !downloadable_feeds)
+          with Not_found -> `Problem "Unexpected feed requested"
       end in
 
     let distro = Fake_distro.make config in
@@ -190,7 +190,7 @@ let suite = "driver">::: [
         method download_impls = failwith "download_impls"
 
         method get_feed = function
-          | "http://example.com/prog.xml" -> `file (Fake_system.tests_dir +/ "prog.xml")
+          | "http://example.com/prog.xml" -> `File (Fake_system.tests_dir +/ "prog.xml")
           | url -> failwith url
       end in
     let get_distro_candidates = function
@@ -233,7 +233,7 @@ let suite = "driver">::: [
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let config = {config with network_use = Full_network} in
     let import name =
-      U.copy_file config.system (Test_0install.feed_dir +/ name) (cache_path_for config @@ `remote_feed ("http://foo/" ^ name)) 0o644 in
+      U.copy_file config.system (Test_0install.feed_dir +/ name) (cache_path_for config @@ `Remote_feed ("http://foo/" ^ name)) 0o644 in
     import "Binary.xml";
     let distro =
       object (_ : Distro.distribution)
@@ -247,7 +247,7 @@ let suite = "driver">::: [
     let reqs = Requirements.default_requirements "http://foo/Binary.xml" in
     let fetcher =
       object
-        method download_and_import_feed (`remote_feed url) = raise_safe "download_and_import_feed: %s" url
+        method download_and_import_feed (`Remote_feed url) = raise_safe "download_and_import_feed: %s" url
         method download_impls = failwith "download_impls"
         method import_feed = failwith "import_feed"
         method download_icon = failwith "download_icon"

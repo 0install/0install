@@ -56,9 +56,9 @@ let iter_inputs config cb sels =
 
     match feed_url with
       (* If the package has changed version, we'll detect that below with get_unavailable_selections. *)
-    | `distribution_feed _ -> ()
-    | `local_feed path -> cb path   (* Check the timestamp of this local feed hasn't changed *)
-    | `remote_feed _ as remote_feed ->
+    | `Distribution_feed _ -> ()
+    | `Local_feed path -> cb path   (* Check the timestamp of this local feed hasn't changed *)
+    | `Remote_feed _ as remote_feed ->
       match Feed_cache.get_cached_feed_path config remote_feed with
       | None -> need_solve @@ "Source feed no longer cached: " ^ (Feed_url.format_url feed_url)
       | Some path -> cb path              (* Check feed hasn't changed *)
