@@ -193,22 +193,23 @@ let set_impl_stability config {Feed_url.feed; Feed_url.id} rating =
  * On error, report both stdout and stderr. *)
 let run_subprocess argv =
   log_info "Running %s" (Support.Logging.format_argv_for_logging (Array.to_list argv));
-  try_lwt
-    let command = (argv.(0), argv) in
-    let child = Lwt_process.open_process_full command in
-    Lwt_io.close child#stdin >>= fun () ->
-    let stdout = Lwt_io.read child#stdout
-    and stderr = Lwt_io.read child#stderr in
-    stdout >>= fun stdout ->
-    stderr >>= fun stderr ->
-    child#close >>= function
-    | Unix.WEXITED 0 -> Lwt.return stdout
-    | status ->
-        let output = stdout ^ stderr in
-        if output = "" then Support.System.check_exit_status status;
-        raise_safe "Compile failed: %s" output
-  with Safe_exception _ as ex ->
-    reraise_with_context ex "... executing %s" (Support.Logging.format_argv_for_logging (Array.to_list argv))
+  with_error_info
+    (fun f -> f "... executing %s" (Support.Logging.format_argv_for_logging (Array.to_list argv)))
+    (fun () ->
+      let command = (argv.(0), argv) in
+      let child = Lwt_process.open_process_full command in
+      Lwt_io.close child#stdin >>= fun () ->
+      let stdout = Lwt_io.read child#stdout
+      and stderr = Lwt_io.read child#stderr in
+      stdout >>= fun stdout ->
+      stderr >>= fun stderr ->
+      child#close >>= function
+      | Unix.WEXITED 0 -> Lwt.return stdout
+      | status ->
+          let output = stdout ^ stderr in
+          if output = "" then Support.System.check_exit_status status;
+          raise_safe "Compile failed: %s" output
+    )
 
 let build_and_register config iface min_0compile_version =
   run_subprocess [|
@@ -299,23 +300,24 @@ let get_bug_report_details config ~role (ready, results) =
   Buffer.contents b
 
 let run_test config distro test_callback (ready, results) =
-  try_lwt
-    if ready then (
-      let sels = Solver.selections results in
-      match Driver.get_unavailable_selections config ~distro sels with
-      | [] -> test_callback sels
-      | missing ->
-          let details =
-            missing |> List.map (fun sel ->
-              Printf.sprintf "%s version %s\n  (%s)"
-                (Element.interface sel)
-                (Element.version sel)
-                (Element.id sel)
-            ) |> String.concat "\n\n- " in
-          raise_safe "Can't run: the chosen versions have not been downloaded yet. I need:\n\n- %s" details
-    ) else raise_safe "Can't do a test run - solve failed"
-  with Safe_exception _ as ex ->
-    Lwt.return (Printexc.to_string ex)
+  Lwt.catch
+    (fun () ->
+      if ready then (
+        let sels = Solver.selections results in
+        match Driver.get_unavailable_selections config ~distro sels with
+        | [] -> test_callback sels
+        | missing ->
+            let details =
+              missing |> List.map (fun sel ->
+                Printf.sprintf "%s version %s\n  (%s)"
+                  (Element.interface sel)
+                  (Element.version sel)
+                  (Element.id sel)
+              ) |> String.concat "\n\n- " in
+            raise_safe "Can't run: the chosen versions have not been downloaded yet. I need:\n\n- %s" details
+      ) else raise_safe "Can't do a test run - solve failed"
+    )
+    (fun ex -> Lwt.return (Printexc.to_string ex))
 
 let try_get_gui config ~use_gui =
   let system = config.system in
