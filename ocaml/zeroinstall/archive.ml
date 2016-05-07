@@ -64,37 +64,41 @@ type compression = Bzip2 | Gzip | Lzma | Xz | Uncompressed
 
 let make_command = U.make_command
 
-(** Run a command in a subprocess. If it returns an error code, generate an exception containing its stdout and stderr. *)
-let run_command ?cwd system args =
-  (* Some zip archives are missing timezone information; force consistent results *)
-  let child_env = Array.append system#environment [|
-    (* Some zip archives lack time-zone information. Make sure all systems see the same time. *)
-    "TZ=GMT";
-
-    (* Stop OS X extracting extended attributes: *)
-    "COPYFILE_DISABLE=true";                    (* Leopard *)
-    "COPY_EXTENDED_ATTRIBUTES_DISABLE=true";    (* Tiger *)
-  |] in
-
-  (* todo: use pola-run if available, once it supports fchmod *)
-  let command = make_command system args in
+let with_child (system:system) ?cwd ~env command fn =
   let child =
     match cwd with
-    | None -> Lwt_process.open_process_full ~env:child_env command
+    | None -> Lwt_process.open_process_full ~env command
     | Some cwd ->
         U.finally_do
           (fun old_cwd -> system#chdir old_cwd)
           system#getcwd
           (fun _ ->
             system#chdir cwd;
-            Lwt_process.open_process_full ~env:child_env command) in
-  try_lwt
-    lwt stdout = Lwt_io.read child#stdout
-    and stderr = Lwt_io.read child#stderr
-    and () = Lwt_io.close child#stdin in
+            Lwt_process.open_process_full ~env command) in
+  Lwt.finalize
+    (fun () -> fn child)
+    (fun () -> child#close >|= ignore)
 
-    lwt status = child#close in
-
+(** Run a command in a subprocess. If it returns an error code, generate an exception containing its stdout and stderr. *)
+let run_command ?cwd system args =
+  (* Some zip archives are missing timezone information; force consistent results *)
+  let child_env = Array.append system#environment [|
+    (* Some zip archives lack time-zone information. Make sure all systems see the same time. *)
+    "TZ=GMT";
+    (* Stop OS X extracting extended attributes: *)
+    "COPYFILE_DISABLE=true";                    (* Leopard *)
+    "COPY_EXTENDED_ATTRIBUTES_DISABLE=true";    (* Tiger *)
+  |] in
+  (* todo: use pola-run if available, once it supports fchmod *)
+  let command = make_command system args in
+  with_child system ?cwd ~env:child_env command (fun child ->
+    let stdout = Lwt_io.read child#stdout in
+    let stderr = Lwt_io.read child#stderr in
+    let stdin = Lwt_io.close child#stdin in
+    stdout >>= fun stdout ->
+    stderr >>= fun stderr ->
+    stdin >>= fun () ->
+    child#close >>= fun status ->
     try
       match status with
       | Unix.WEXITED 0 -> Lwt.return ()
@@ -104,16 +108,14 @@ let run_command ?cwd system args =
           raise_safe "Command failed: %s" messages
     with Safe_exception _ as ex ->
       reraise_with_context ex "... extracting archive with: %s" (Support.Logging.format_argv_for_logging args)
-  finally
-    lwt _ = child#close in
-    Lwt.return ()
+  )
 
 let re_gnu_tar = Str.regexp ".*(GNU tar)"
 let _tar_flavour = ref `unknown
 let get_tar_flavour system =
   match !_tar_flavour with
   | `unknown ->
-      lwt line = Lwt_process.pread_line (make_command system ["tar"; "--version"]) in
+      Lwt_process.pread_line (make_command system ["tar"; "--version"]) >>= fun line ->
       let f =
         if Str.string_match re_gnu_tar line 0 then `gnu_tar
         else `plain_tar in
@@ -164,15 +166,21 @@ let extract_tar config ~dstdir ?extract ~compression archive =
 
   run_command system ext_cmd
 
+let with_tmpdir system ~prefix ~parent fn =
+  let tmpdir = U.make_tmp_dir system ~prefix parent in
+  Lwt.finalize
+    (fun () -> fn tmpdir)
+    (fun () ->
+      U.rmtree ~even_if_locked:true system tmpdir;
+      Lwt.return ()
+    )
+
 let extract_gem config ~dstdir ?extract archive =
   let payload = "data.tar.gz" in
-  let tmpdir = U.make_tmp_dir config.system ~prefix:"extract-gem-" dstdir in
-  try_lwt
-    (archive |> extract_tar config ~dstdir:tmpdir ~extract:payload ~compression:Uncompressed) >>
-    (tmpdir +/ payload |> extract_tar config ~dstdir ?extract ~compression:Gzip);
-  finally
-    U.rmtree ~even_if_locked:true config.system tmpdir;
-    Lwt.return ()
+  with_tmpdir config.system ~prefix:"extract-gem-" ~parent:dstdir (fun tmpdir ->
+    archive |> extract_tar config ~dstdir:tmpdir ~extract:payload ~compression:Uncompressed >>= fun () ->
+    tmpdir +/ payload |> extract_tar config ~dstdir ?extract ~compression:Gzip
+  )
 
 let extract_cab config ~dstdir ?extract archive =
   extract |> if_some (fun _ -> raise_safe "Sorry, but the 'extract' attribute is not yet supported for Cabinet files");
@@ -180,13 +188,9 @@ let extract_cab config ~dstdir ?extract archive =
 
 let extract_dmg config ~dstdir ?extract archive =
   extract |> if_some (fun _ -> raise_safe "Sorry, but the 'extract' attribute is not yet supported for DMGs");
-
   let system = config.system in
-
-  let mountpoint = U.make_tmp_dir system ~prefix:"archive-" dstdir in
-
-  lwt () = run_command system ["hdiutil"; "attach"; "-quiet"; "-readonly"; "-mountpoint"; mountpoint; "-nobrowse"; archive] in
-  lwt () =
+  with_tmpdir system ~prefix:"archive-" ~parent:dstdir (fun mountpoint ->
+    run_command system ["hdiutil"; "attach"; "-quiet"; "-readonly"; "-mountpoint"; mountpoint; "-nobrowse"; archive] >>= fun () ->
     Lwt.finalize (fun () ->
       let files =
         match system#readdir mountpoint with
@@ -198,9 +202,8 @@ let extract_dmg config ~dstdir ?extract archive =
       run_command system @@ ["cp"; "-pR"] @ files @ [dstdir]
     ) (fun () ->
       run_command system @@ ["hdiutil"; "detach"; "-quiet"; mountpoint]
-    ) in
-  U.rmtree ~even_if_locked:true system mountpoint;
-  Lwt.return ()
+    )
+  )
 
 let extract_deb config ~dstdir ?extract archive =
   extract |> if_some (fun _ -> raise_safe "Sorry, but the 'extract' attribute is not yet supported for Debs");
@@ -324,10 +327,8 @@ let unpack_over ?extract config ~archive ~tmpdir ~destdir ~mime_type =
     if Str.string_match (Str.regexp ".*[/\\]") extract 0 then
       raise_safe "Extract attribute may not contain / or \\ (got '%s')" extract
   );
-  let tmp = U.make_tmp_dir system ~prefix:"0install-unpack-" tmpdir in
-  try_lwt
-    lwt () = unpack config ?extract ~mime_type archive tmp in
-
+  with_tmpdir system ~prefix:"0install-unpack-" ~parent:tmpdir (fun tmp ->
+    unpack config ?extract ~mime_type archive tmp >>= fun () ->
     let srcdir =
       match extract with
       | None -> tmp
@@ -335,9 +336,6 @@ let unpack_over ?extract config ~archive ~tmpdir ~destdir ~mime_type =
           let srcdir = tmp +/ extract in
           if U.is_dir system srcdir then srcdir
           else raise_safe "Top-level directory '%s' not found in archive" extract in
-
     move_no_follow system srcdir destdir;
     Lwt.return ()
-  finally
-    U.rmtree ~even_if_locked:true system tmp;
-    Lwt.return ()
+  )
