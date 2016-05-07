@@ -155,6 +155,16 @@ let log_debug = Logging.log_debug
 let log_info = Logging.log_info
 let log_warning = Logging.log_warning
 
+(** [with_errors_logged note f] is [f ()], except that if it raises any exception, the
+    exception is logged at warning level with the message provided by [note]. The exception
+    is not re-raised. *)
+let with_errors_logged note f =
+  Lwt.catch f
+    (fun ex ->
+       note (log_warning ~ex);
+       Lwt.return ()
+    )
+
 (** [default d opt] unwraps option [opt], returning [d] if it was [None]. *)
 let default d = function
   | None -> d

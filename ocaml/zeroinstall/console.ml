@@ -33,10 +33,11 @@ class console_ui =
   let with_disabled_progress fn =
     clear ();
     incr disable_progress;
-    try_lwt fn ()
-    finally
-      disable_progress := !disable_progress - 1;
-      Lwt.return () in
+    Lwt.finalize fn
+      (fun () ->
+         decr disable_progress;
+         Lwt.return ()
+      ) in
 
   (* Select the most interesting download in [downloads] and return its ID.
    * Also, removes any finished downloads from the list. *)
@@ -55,57 +56,61 @@ class console_ui =
     );
     !best |> pipe_some (fun x -> Some (snd x)) in
 
+  let with_autoclear fn =
+    Lwt.finalize fn
+      (fun () ->
+        if find_most_progress () = None then clear ();
+        Lwt.return ()
+      ) in
+
   (* Interact with the user on stderr because we may be writing XML to stdout *)
   let print fmt =
     let do_print msg = prerr_string (msg ^ "\n"); flush stderr in
     Printf.ksprintf do_print fmt in
 
   let run_display_thread () =
-    try_lwt
-      let next_switch_time = ref 0. in
-      let current_favourite = ref None in
-      let rec loop () =
-        let now = Unix.time () in
-        let best =
-          if !disable_progress > 0 then None
-          else if now < !next_switch_time && is_in_progress !current_favourite then !current_favourite
-          else if is_in_progress !last_updated then !last_updated
-          else find_most_progress () in
-        begin match best with
-        | None -> clear ()
-        | Some dl as best ->
-            let n_downloads = List.length !downloads in
-            if best != !current_favourite then (
-              current_favourite := best;
-              next_switch_time := now +. 1.0;
-            );
-            let (sofar, total, _finished) = Lwt_react.S.value dl.Downloader.progress in
-            let progress_str =
-              match total with
-              | None -> Printf.sprintf "%6s / unknown" (Int64.to_string sofar)  (* (could be bytes or percent) *)
-              | Some total -> Printf.sprintf "%s / %s" (Int64.to_string sofar) (U.format_size total) in
-            clear ();
-            Support.Logging.clear_fn := Some clear;
-            if n_downloads = 1 then
-              msg := Printf.sprintf "[one download] %16s (%s)" progress_str dl.Downloader.url
-            else
-              msg := Printf.sprintf "[%d downloads] %16s (%s)" n_downloads progress_str dl.Downloader.url;
-            let max_width = get_terminal_width () in
-            if max_width > 0 && String.length !msg > max_width then msg := String.sub !msg 0 max_width;
-            prerr_string !msg;
-            flush stderr end;
-        Lwt_unix.sleep 0.1 >>= fun () ->
-        loop () in
-      loop ()
-    with ex ->
-      log_warning ~ex "Progress thread error";
-      Lwt.return () in
+    with_errors_logged (fun f -> f "Progress thread error") @@ fun () ->
+    let next_switch_time = ref 0. in
+    let current_favourite = ref None in
+    let rec loop () =
+      let now = Unix.time () in
+      let best =
+        if !disable_progress > 0 then None
+        else if now < !next_switch_time && is_in_progress !current_favourite then !current_favourite
+        else if is_in_progress !last_updated then !last_updated
+        else find_most_progress () in
+      begin match best with
+      | None -> clear ()
+      | Some dl as best ->
+          let n_downloads = List.length !downloads in
+          if best != !current_favourite then (
+            current_favourite := best;
+            next_switch_time := now +. 1.0;
+          );
+          let (sofar, total, _finished) = Lwt_react.S.value dl.Downloader.progress in
+          let progress_str =
+            match total with
+            | None -> Printf.sprintf "%6s / unknown" (Int64.to_string sofar)  (* (could be bytes or percent) *)
+            | Some total -> Printf.sprintf "%s / %s" (Int64.to_string sofar) (U.format_size total) in
+          clear ();
+          Support.Logging.clear_fn := Some clear;
+          if n_downloads = 1 then
+            msg := Printf.sprintf "[one download] %16s (%s)" progress_str dl.Downloader.url
+          else
+            msg := Printf.sprintf "[%d downloads] %16s (%s)" n_downloads progress_str dl.Downloader.url;
+          let max_width = get_terminal_width () in
+          if max_width > 0 && String.length !msg > max_width then msg := String.sub !msg 0 max_width;
+          prerr_string !msg;
+          flush stderr end;
+      Lwt_unix.sleep 0.1 >>= fun () ->
+      loop () in
+    loop () in
 
   object (self : #Ui.ui_handler as 'a)
     constraint 'a = #Progress.watcher
 
     method run_solver tools ?test_callback ?systray mode reqs ~refresh =
-      try_lwt
+      with_autoclear begin fun () ->
         let config = tools#config in
         ignore test_callback;
         ignore systray;
@@ -120,9 +125,7 @@ class console_ui =
                 Driver.download_selections config tools#distro (lazy fetcher) ~feed_provider ~include_packages:true sels >>= function
                 | `Success -> Lwt.return (`Success sels)
                 | `Aborted_by_user -> Lwt.return `Aborted_by_user
-      finally
-        if find_most_progress () = None then clear ();
-        Lwt.return ()
+      end
 
     method update _ = ()
 
@@ -162,7 +165,6 @@ class console_ui =
     method confirm_keys feed_url key_infos =
       with_disabled_progress (fun () ->
         print "Feed: %s" (Feed_url.format_url feed_url);
-
         print "The feed is correctly signed with the following keys:";
         key_infos |> List.iter (fun (fingerprint, _) ->
           print "- %s" fingerprint
@@ -172,8 +174,8 @@ class console_ui =
         let have_multiple_keys = List.length key_infos > 1 in
         let shown = ref false in
         let printers = key_infos |> Lwt_list.iter_p (fun (fingerprint, votes) ->
-          try_lwt
-            lwt votes = votes in
+          with_errors_logged (fun f -> f "Failed to get key info") (fun () ->
+            votes >>= fun votes ->
             if have_multiple_keys then print "%s:" fingerprint;
             votes |> List.iter (function
               | Progress.Good, msg -> print "- %s" msg
@@ -181,9 +183,7 @@ class console_ui =
             );
             if List.length votes > 0 then shown := true;
             Lwt.return ()
-          with ex ->
-            log_warning ~ex "Failed to get key info";
-            Lwt.return ()
+          )
         ) in
 
         (* Only wait for a key if something is pending. This is useful for the unit-tests. *)
@@ -225,11 +225,11 @@ class batch_ui =
 
     method! monitor _dl = ()
 
-(* For now, for the unit-tests, fall back to Python.
+    (* For now, for the unit-tests, use console UI.
     method! confirm_keys _feed _infos =
       raise_safe "Can't confirm keys as in batch mode."
 
     method! confirm message =
       raise_safe "Can't confirm in batch mode (%s)" message
-*)
+    *)
   end
