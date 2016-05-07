@@ -50,6 +50,53 @@ let rec join_errors = function
            ex :: exs
         )
 
+let with_stores_tmpdir config fn =
+  let need_rm_tmpdir = ref true in
+  let switch = Lwt_switch.create () in
+  let tmpdir = Stores.make_tmp_dir config.system#bypass_dryrun config.stores in
+  Lwt.finalize
+    (fun () -> fn ~switch ~need_rm_tmpdir tmpdir)
+    (fun () ->
+      Lwt_switch.turn_off switch >>= fun () ->
+      try
+        if !need_rm_tmpdir then (
+          log_info "Removing temporary directory '%s'" tmpdir;
+          U.rmtree ~even_if_locked:true config.system#bypass_dryrun tmpdir
+        );
+        Lwt.return ()
+      with ex ->
+        (* Don't mask the underlying error *)
+        log_warning ~ex "Problem removing temporary directory";
+        Lwt.return ()
+    )
+
+(* Takes a cross-platform relative path (i.e using forward slashes, even on windows)
+   and returns the absolute, platform-native version of the path.
+   If the path does not resolve to a location within [tmpdir], Safe_exception is raised.
+   Resolving to base itself is also an error. *)
+let native_path_within_base (system:system) ~tmpdir crossplatform_path =
+  if U.starts_with crossplatform_path "/" then (
+    raise_safe "Path %s is absolute!" crossplatform_path
+  );
+  let rec loop base = function
+    | [] -> base
+    | (""::xs) -> loop base xs
+    | ("."::xs) -> loop base xs
+    | (".."::_) -> raise_safe "Found '..' in path '%s' - disallowed" crossplatform_path
+    | (x::xs) ->
+        if String.contains x '\\' then
+          raise_safe "Illegal character '\\' in path '%s' - disallowed" crossplatform_path;
+        let new_base = base +/ x in
+        match system#lstat new_base with
+        | Some {Unix.st_kind = (Unix.S_DIR | Unix.S_REG); _} -> loop new_base xs
+        | Some _ -> raise_safe "Refusing to follow non-file non-dir item '%s'" new_base
+        | None -> loop new_base xs in
+  let resolved = Str.split_delim U.re_slash crossplatform_path |> loop tmpdir in
+  if resolved = tmpdir then
+    raise_safe "Illegal path '%s'" crossplatform_path
+  else
+    resolved
+
 exception Aborted
 exception Try_mirror of string  (* An error where we should try the mirror (i.e. a network problem) *)
 
@@ -380,115 +427,75 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
    * @return `Network_failure for problems which can be tried with the mirror
    *)
   let download_impl_internal ~may_use_mirror impl required_digest retrieval_method =
-    let need_rm_tmpdir = ref true in
-    let tmpdir = Stores.make_tmp_dir config.system#bypass_dryrun config.stores in
-
-    (* Takes a cross-platform relative path (i.e using forward slashes, even on windows)
-       and returns the absolute, platform-native version of the path.
-       If the path does not resolve to a location within `Base`, Safe_exception is raised.
-       Resolving to base itself is also an error. *)
-    let native_path_within_base crossplatform_path =
-      if U.starts_with crossplatform_path "/" then (
-        raise_safe "Path %s is absolute!" crossplatform_path
-      );
-      let rec loop base = function
-        | [] -> base
-        | (""::xs) -> loop base xs
-        | ("."::xs) -> loop base xs
-        | (".."::_) -> raise_safe "Found '..' in path '%s' - disallowed" crossplatform_path
-        | (x::xs) ->
-            if String.contains x '\\' then
-              raise_safe "Illegal character '\\' in path '%s' - disallowed" crossplatform_path;
-            let new_base = base +/ x in
-            match system#lstat new_base with
-            | Some {Unix.st_kind = (Unix.S_DIR | Unix.S_REG); _} -> loop new_base xs
-            | Some _ -> raise_safe "Refusing to follow non-file non-dir item '%s'" new_base
-            | None -> loop new_base xs in
-
-      let resolved = Str.split_delim U.re_slash crossplatform_path |> loop tmpdir in
-      if resolved = tmpdir then
-        raise_safe "Illegal path '%s'" crossplatform_path
-      else
-        resolved in
-
-    try_lwt
-      let {Feed_url.feed; Feed_url.id = _} = Impl.get_id impl in
-      let open Recipe in
-      (* Start all the downloads. The downloads happen in parallel, each returning
-       * a future that will perform the extraction step. These futures are evaluated in sequence. *)
-      let switch = Lwt_switch.create () in
-      try_lwt
-        let real_system = system#bypass_dryrun in    (* We really do extract to the temporary directory *)
-        let downloads = retrieval_method |> List.map (function
-          | DownloadStep {url; size; download_type = ArchiveDownload archive_info} ->
-              (url, archive_info) |> download_archive ~switch ~may_use_mirror ?size ~feed (fun tmpfile ->
-                let {extract; start_offset = _; mime_type; dest} = archive_info in
-                let basedir =
-                  match dest with
-                  | None -> tmpdir
-                  | Some dest ->
-                      let basedir = native_path_within_base dest in
-                      U.makedirs real_system basedir 0o755;
-                      basedir in
-                let mime_type = mime_type |? lazy (Archive.type_from_url url) in
-                with_error_info (fun f -> f "... unpacking archive '%s'" url) (fun () ->
-                    Archive.unpack_over {config with system = system#bypass_dryrun}
-                      ~archive:tmpfile ~tmpdir:(Filename.dirname tmpdir)
-                      ~destdir:basedir ?extract ~mime_type
+    let {Feed_url.feed; Feed_url.id = _} = Impl.get_id impl in
+    (* Start all the downloads. The downloads happen in parallel, each returning
+     * a future that will perform the extraction step. These futures are evaluated in sequence. *)
+    with_stores_tmpdir config (fun ~switch ~need_rm_tmpdir tmpdir ->
+        let native_path_within_base = native_path_within_base config.system ~tmpdir in
+        Lwt.catch
+          (fun () ->
+            let open Recipe in
+            let real_system = system#bypass_dryrun in    (* We really do extract to the temporary directory *)
+            let downloads = retrieval_method |> List.map (function
+              | DownloadStep {url; size; download_type = ArchiveDownload archive_info} ->
+                  (url, archive_info) |> download_archive ~switch ~may_use_mirror ?size ~feed (fun tmpfile ->
+                    let {extract; start_offset = _; mime_type; dest} = archive_info in
+                    let basedir =
+                      match dest with
+                      | None -> tmpdir
+                      | Some dest ->
+                          let basedir = native_path_within_base dest in
+                          U.makedirs real_system basedir 0o755;
+                          basedir in
+                    let mime_type = mime_type |? lazy (Archive.type_from_url url) in
+                    with_error_info (fun f -> f "... unpacking archive '%s'" url) (fun () ->
+                        Archive.unpack_over {config with system = system#bypass_dryrun}
+                          ~archive:tmpfile ~tmpdir:(Filename.dirname tmpdir)
+                          ~destdir:basedir ?extract ~mime_type
+                      )
                   )
-              )
-          | DownloadStep {url; size; download_type = FileDownload dest} ->
-              url |> download_file ~switch ?size ~start_offset:Int64.zero ~feed ~may_use_mirror:false (fun tmpfile ->
-                let dest = native_path_within_base dest in
-                U.makedirs real_system (Filename.dirname dest) 0o755;
-                U.copy_file real_system tmpfile dest 0o644;
-                system#bypass_dryrun#set_mtime dest 0.0;
-                Lwt.return ()
-              )
-          | RenameStep {rename_source; rename_dest} -> lazy (
-              let source = native_path_within_base rename_source in
-              let dest = native_path_within_base rename_dest in
-              try
-                U.makedirs real_system (Filename.dirname dest) 0o755;
-                real_system#rename source dest;
-                Lwt.return ()
-              with Unix.Unix_error (Unix.ENOENT, _, _) as ex ->
-                log_info ~ex "Failed to rename %s -> %s" source dest;
-                raise_safe "<rename> source '%s' does not exist" source
-          ) |> Lwt.return
-          | RemoveStep {remove} -> lazy (
-              let path = native_path_within_base remove in
-              U.rmtree ~even_if_locked:true real_system path;
-              Lwt.return ()
-          ) |> Lwt.return
-        ) in
+              | DownloadStep {url; size; download_type = FileDownload dest} ->
+                  url |> download_file ~switch ?size ~start_offset:Int64.zero ~feed ~may_use_mirror:false (fun tmpfile ->
+                    let dest = native_path_within_base dest in
+                    U.makedirs real_system (Filename.dirname dest) 0o755;
+                    U.copy_file real_system tmpfile dest 0o644;
+                    system#bypass_dryrun#set_mtime dest 0.0;
+                    Lwt.return ()
+                  )
+              | RenameStep {rename_source; rename_dest} -> lazy (
+                  let source = native_path_within_base rename_source in
+                  let dest = native_path_within_base rename_dest in
+                  try
+                    U.makedirs real_system (Filename.dirname dest) 0o755;
+                    real_system#rename source dest;
+                    Lwt.return ()
+                  with Unix.Unix_error (Unix.ENOENT, _, _) as ex ->
+                    log_info ~ex "Failed to rename %s -> %s" source dest;
+                    raise_safe "<rename> source '%s' does not exist" source
+              ) |> Lwt.return
+              | RemoveStep {remove} -> lazy (
+                  let path = native_path_within_base remove in
+                  U.rmtree ~even_if_locked:true real_system path;
+                  Lwt.return ()
+              ) |> Lwt.return
+            ) in
 
-        (* Now do all the steps in series. *)
-        downloads |> Lwt_list.iter_s (fun fn ->
-          fn >>= Lazy.force
-        ) >>= fun () ->
+            (* Now do all the steps in series. *)
+            downloads |> Lwt_list.iter_s (fun fn ->
+              fn >>= Lazy.force
+            ) >>= fun () ->
 
-        Stores.check_manifest_and_rename {config with system = system#bypass_dryrun} required_digest tmpdir >>= fun () ->
-        ui#impl_added_to_store; (* Notify the GUI *)
-        need_rm_tmpdir := false;
-        Lwt.return `Success
-      with ex ->
-        match ex with
-        | Aborted -> `Aborted_by_user |> Lwt.return
-        | Try_mirror msg -> `Network_failure msg |> Lwt.return
-        | _ -> raise ex
-    finally
-      Lwt_switch.turn_off switch >>
-      try
-        if !need_rm_tmpdir then (
-          log_info "Removing temporary directory '%s'" tmpdir;
-          U.rmtree ~even_if_locked:true config.system#bypass_dryrun tmpdir
-        );
-        Lwt.return ()
-      with ex ->
-        (* Don't mask the underlying error *)
-        log_warning ~ex "Problem removing temporary directory";
-        Lwt.return () in
+            Stores.check_manifest_and_rename {config with system = system#bypass_dryrun} required_digest tmpdir >>= fun () ->
+            ui#impl_added_to_store; (* Notify the GUI *)
+            need_rm_tmpdir := false;
+            Lwt.return `Success
+          )
+          (function
+            | Aborted -> `Aborted_by_user |> Lwt.return
+            | Try_mirror msg -> `Network_failure msg |> Lwt.return
+            | ex -> Lwt.fail ex
+          )
+      ) in
 
   (* Download a 0install implementation and add it to a store *)
   let download_impl (impl, required_digest, retrieval_method) : unit Lwt.t =
