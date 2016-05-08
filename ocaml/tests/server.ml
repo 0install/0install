@@ -20,7 +20,7 @@ let end_headers ch =
 
 let send_error ch code msg =
   log_info "sending error: %d: %s" code msg;
-  Lwt_io.write ch (Printf.sprintf "HTTP/1.1 %d %s\r\n" code msg) >> end_headers ch
+  Lwt_io.write ch (Printf.sprintf "HTTP/1.1 %d %s\r\n" code msg) >>= fun () -> end_headers ch
 
 let send_body ch data =
   Lwt_io.write ch data
@@ -37,6 +37,18 @@ type response =
 
 (* Old versions of Curl escape dots *)
 let re_escaped_dot = Str.regexp_string "%2E"
+
+let ignore_cancelled f =
+  Lwt.catch f
+    (function
+      | Lwt.Canceled -> Lwt.return ()
+      | ex -> Lwt.fail ex
+    )
+
+let rec skip_headers from_client =
+  Lwt_io.read_line from_client >>= fun line ->
+  if trim line = "" then Lwt.return ()
+  else skip_headers from_client
 
 let start_server system =
   let () = log_info "start_server" in
@@ -82,18 +94,18 @@ let start_server system =
 
         match response with
         | `AcceptKey ->
-            send_response to_client 200 >>
-            end_headers to_client >>
+            send_response to_client 200 >>= fun () ->
+            end_headers to_client >>= fun () ->
             send_body to_client "<key-lookup><item vote='good'>Approved for testing</item></key-lookup>"
         | `UnknownKey ->
-            send_response to_client 200 >>
-            end_headers to_client >>
+            send_response to_client 200 >>= fun () ->
+            end_headers to_client >>= fun () ->
             send_body to_client "<key-lookup/>"
         | `Give404 -> send_error to_client 404 ("Missing: " ^ leaf)
         | `Redirect redirect_target ->
-            send_response to_client 302 >>
-            send_header to_client "Location" redirect_target >>
-            end_headers to_client >>
+            send_response to_client 302 >>= fun () ->
+            send_header to_client "Location" redirect_target >>= fun () ->
+            end_headers to_client >>= fun () ->
             send_body to_client "\
               <html>\n\
                <head>\n\
@@ -104,17 +116,19 @@ let start_server system =
               </body>\n\
             </html>"
         | `ServeFile relpath ->
-            lwt () = send_response to_client 200 >> end_headers to_client in
+            send_response to_client 200 >>= fun () ->
+            end_headers to_client >>= fun () ->
             let data = U.read_file system (Test_0install.feed_dir +/ relpath) in
             send_body to_client data;
         | `Serve ->
-            lwt () = send_response to_client 200 >> end_headers to_client in
+            send_response to_client 200 >>= fun () ->
+            end_headers to_client >>= fun () ->
             let data = U.read_file system (Test_0install.feed_dir +/ leaf) in
             send_body to_client data;
         | `Chunked ->
-            send_response to_client 200 >>
-            send_header to_client "Transfer-Encoding" "chunked" >>
-            end_headers to_client >>
+            send_response to_client 200 >>= fun () ->
+            send_header to_client "Transfer-Encoding" "chunked" >>= fun () ->
+            end_headers to_client >>= fun () ->
             send_body to_client "a\r\n\
                                  hello worl\r\n\
                                  1\r\n\
@@ -126,40 +140,41 @@ let start_server system =
 
   let cancelled = ref false in (* If we're unlucky (race), Lwt.cancel might not work; this is a backup system *)
   let handler_thread =
-    try_lwt
-      while_lwt not !cancelled do
-        lwt (connection, _client_addr) = Lwt_unix.accept server_socket in
+    let rec loop () =
+      if !cancelled then Lwt.return ()
+      else (
+        Lwt_unix.accept server_socket >>= fun (connection, _client_addr) ->
         Lwt_unix.set_close_on_exec connection;
-        try_lwt
-          log_info "Got a connection!";
-          let from_client = Lwt_io.of_fd ~mode:Lwt_io.input connection in
-          lwt request = Lwt_io.read_line from_client in
-          log_info "Got: %s" request;
+        Lwt.finalize
+          (fun () ->
+             log_info "Got a connection!";
+             let from_client = Lwt_io.of_fd ~mode:Lwt_io.input connection in
+             Lwt_io.read_line from_client >>= fun request ->
+             log_info "Got: %s" request;
 
-          let done_headers = ref false in
-          lwt () = while_lwt not !done_headers do
-            lwt line = Lwt_io.read_line from_client in
-            if trim line = "" then done_headers := true;
-            Lwt.return ()
-          done in
+             skip_headers from_client >>= fun () ->
 
-          if Str.string_match re_http_get request 0 then (
-            let resource = Str.matched_group 1 request in
-            let _host, path = Support.Urlparse.split_path resource in
-            let to_client = Lwt_io.of_fd ~mode:Lwt_io.output connection in
-            begin try_lwt handle_request path to_client
-            with ex -> send_error to_client 501 (Printexc.to_string ex)
-            end >> Lwt_io.flush to_client
-          ) else (
-            log_warning "Bad HTTP request '%s'" request;
-            Lwt.return ();
+             if Str.string_match re_http_get request 0 then (
+               let resource = Str.matched_group 1 request in
+               let _host, path = Support.Urlparse.split_path resource in
+               let to_client = Lwt_io.of_fd ~mode:Lwt_io.output connection in
+               Lwt.catch
+                 (fun () -> handle_request path to_client)
+                 (fun ex -> send_error to_client 501 (Printexc.to_string ex))
+               >>= fun () ->
+               Lwt_io.flush to_client
+             ) else (
+               log_warning "Bad HTTP request '%s'" request;
+               Lwt.return ();
+             )
           )
-        finally
-          log_info "Closing connection";
-          Lwt_unix.close connection
-      done
-    with Lwt.Canceled -> Lwt.return ()
-  in
+          (fun () ->
+             log_info "Closing connection";
+             Lwt_unix.close connection
+          ) >>= loop
+      ) in
+      ignore_cancelled loop
+    in
   object
     method expect (requests:(string * response) list list) =
       if !expected = [] then
@@ -173,7 +188,7 @@ let start_server system =
       log_info "Shutting down server...";
       cancelled := true;
       Lwt.cancel handler_thread;
-      handler_thread >> Lwt_unix.close server_socket
+      handler_thread >>= fun () -> Lwt_unix.close server_socket
   end
 
 let with_server ?portable_base (fn:_ -> _ -> unit) =

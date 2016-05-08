@@ -12,9 +12,9 @@ module D = Zeroinstall.Dbus
 open D.OBus_object
 
 let start version : (unit -> unit) Lwt.t =
-  lwt bus = D.OBus_bus.system () in
+  D.OBus_bus.system () >>= fun bus ->
 
-  lwt _ = D.OBus_bus.request_name bus "org.freedesktop.PackageKit" in
+  D.OBus_bus.request_name bus "org.freedesktop.PackageKit" >>= fun _ ->
 
   let impl_m_CreateTransaction _obj () = Lwt.return (D.OBus_path.of_string "/100") in
   let impl_m_GetTid _obj () = Lwt.return "/100" in
@@ -53,22 +53,23 @@ let start version : (unit -> unit) Lwt.t =
     let impl_m_InstallPackages obj ((_:bool), x) = match x with
       | ["gnupg;2.0.22;x86_64;arch"] ->
           log_info "Installing package...";
-          lwt () =
+          begin
             if version >= [| 0; 8; 1 |] then
               D.OBus_signal.emit s_Package2 obj (Int32.of_int 12, "gnupg;2.0.22;x86_64;arch", "summary")
             else
-              D.OBus_signal.emit s_Package1 obj ("installing", "gnupg;2.0.22;x86_64;arch", "summary") in
+              D.OBus_signal.emit s_Package1 obj ("installing", "gnupg;2.0.22;x86_64;arch", "summary")
+          end >>= fun () ->
           set_percentage (Int32.of_int 1);
-          lwt () = Lwt_main.yield () in
+          Lwt_main.yield () >>= fun () ->
           set_percentage (Int32.of_int 50);
-          lwt () = Lwt_main.yield () in
+          Lwt_main.yield () >>= fun () ->
           set_percentage (Int32.of_int 100);
-          lwt () = Lwt_main.yield () in
+          Lwt_main.yield () >>= fun () ->
           if version >= [| 0; 8; 1 |] then (
-            D.OBus_signal.emit s_Package2 obj (Int32.of_int 18, "gnupg;2.0.22;x86_64;arch", "summary") >>
+            D.OBus_signal.emit s_Package2 obj (Int32.of_int 18, "gnupg;2.0.22;x86_64;arch", "summary") >>= fun () ->
             D.OBus_signal.emit s_Finished2 obj (Int32.of_int 1, Int32.of_int 5)
           ) else (
-            D.OBus_signal.emit s_Package1 obj ("finished", "gnupg;2.0.22;x86_64;arch", "summary") >>
+            D.OBus_signal.emit s_Package1 obj ("finished", "gnupg;2.0.22;x86_64;arch", "summary") >>= fun () ->
             D.OBus_signal.emit s_Finished1 obj ("success", Int32.of_int 5)
           )
       | _-> assert false in
@@ -78,7 +79,7 @@ let start version : (unit -> unit) Lwt.t =
     let impl_m_Resolve obj (flags, package_names) =
       assert (flags = "none");
       let status = ref "success" in
-      lwt () = package_names |> Lwt_list.iter_s (function
+      package_names |> Lwt_list.iter_s (function
         | "gnupg" ->
             if version >= [| 0;8;1 |] then
               D.OBus_signal.emit s_Package2 obj (Int32.of_int 2, "gnupg;2.0.22;x86_64;arch", "my summary")
@@ -90,7 +91,7 @@ let start version : (unit -> unit) Lwt.t =
               D.OBus_signal.emit s_ErrorCode2 obj (Int32.of_int 11, Printf.sprintf "Package name %s could not be resolved" id)
             else
               D.OBus_signal.emit s_ErrorCode obj ("package-not-found", Printf.sprintf "Package name %s could not be resolved" id)
-      ) in
+      ) >>= fun () ->
       let runtime = Int32.of_int 5 in
       if version >= [| 0;8;1 |] then (
         let status =
@@ -108,14 +109,14 @@ let start version : (unit -> unit) Lwt.t =
       impl_m_Resolve obj ("none", package_names) in
 
     let impl_m_GetDetails obj package_ids =
-      lwt () = package_ids |> Lwt_list.iter_s (function
+      package_ids |> Lwt_list.iter_s (function
         | "gnupg;2.0.22;x86_64;arch" ->
             if version >= [| 0;8;1 |] then
               D.OBus_signal.emit s_Details2 obj ("gnupg;2.0.22;x86_64;arch", "License", Int32.zero, "detail", "http://foo", Int64.of_int 100)
             else
               D.OBus_signal.emit s_Details1 obj ("gnupg;2.0.22;x86_64;arch", "License", "Category", "detail", "http://foo", Int64.of_int 100)
         | id -> raise_safe "Bad ID '%s'" id
-      ) in
+      ) >>= fun () ->
       let runtime = Int32.of_int 5 in
       if version >= [| 0;8;1 |] then (
         D.OBus_signal.emit s_Finished2 obj (Int32.one, runtime)

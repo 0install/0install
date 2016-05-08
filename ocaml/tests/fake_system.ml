@@ -86,24 +86,30 @@ let capture_stdout_lwt ?(include_stderr=false) fn =
   let open Unix in
   let old_stdout = dup Unix.stdout in
   let old_stderr = dup Unix.stderr in
-  try_lwt
-    let tmp = Filename.temp_file "0install-" "-test-output" in
-    let tmpfd = openfile tmp [O_RDWR] 0o600 in
-    try_lwt
-      dup2 tmpfd Unix.stdout;
-      if include_stderr then dup2 tmpfd Unix.stderr;
-      lwt () = fn () in
-      flush_all ();
-      U.read_file real_system tmp |> Lwt.return
-    finally
-      flush_all ();
-      close tmpfd;
-      unlink tmp;
-      Lwt.return ()
-  finally
-    dup2 old_stdout Unix.stdout; close old_stdout;
-    dup2 old_stderr Unix.stderr; close old_stderr;
-    Lwt.return ()
+  Lwt.finalize
+    (fun () ->
+      let tmp = Filename.temp_file "0install-" "-test-output" in
+      let tmpfd = openfile tmp [O_RDWR] 0o600 in
+      Lwt.finalize
+        (fun () ->
+           dup2 tmpfd Unix.stdout;
+           if include_stderr then dup2 tmpfd Unix.stderr;
+           fn () >|= fun () ->
+           flush_all ();
+           U.read_file real_system tmp
+        )
+        (fun () ->
+           flush_all ();
+           close tmpfd;
+           unlink tmp;
+           Lwt.return ()
+        )
+    )
+    (fun () ->
+       dup2 old_stdout Unix.stdout; close old_stdout;
+       dup2 old_stderr Unix.stderr; close old_stderr;
+       Lwt.return ()
+    )
 
 exception Did_exec
 exception Would_exec of (bool * string array option * string list)
@@ -486,11 +492,11 @@ let collect_logging fn =
 
 let collect_logging_lwt fn =
   forward_to_real_log := false;
-  try_lwt
-    fn ()
-  finally
-    forward_to_real_log := true;
-    Lwt.return ()
+  Lwt.finalize fn
+    (fun () ->
+       forward_to_real_log := true;
+       Lwt.return ()
+    )
 
 let format_list l = "[" ^ (String.concat "; " l) ^ "]"
 let equal_str_lists = assert_equal ~printer:format_list
@@ -503,14 +509,19 @@ let assert_raises_safe expected_msg (fn:unit Lazy.t) =
       raise_safe "Error '%s' does not match regexp '%s'" msg expected_msg
 
 let assert_raises_safe_lwt expected_msg fn =
-  try_lwt
-    lwt () = fn () in
-    assert_failure ("Expected Safe_exception " ^ expected_msg)
-  with Safe_exception (msg, _) ->
-    if Str.string_match (Str.regexp expected_msg) msg 0 then
-      Lwt.return ()
-    else
-      raise_safe "Error '%s' does not match regexp '%s'" msg expected_msg
+  Lwt.catch
+    (fun () ->
+       fn () >|= fun () ->
+       assert_failure ("Expected Safe_exception " ^ expected_msg)
+    )
+    (function
+      | Safe_exception (msg, _) ->
+        if Str.string_match (Str.regexp expected_msg) msg 0 then
+          Lwt.return ()
+        else
+          raise_safe "Error '%s' does not match regexp '%s'" msg expected_msg
+      | ex -> Lwt.fail ex
+    )
 
 let temp_dir_name =
   (* Filename.get_temp_dir_name doesn't exist under 3.12 *)

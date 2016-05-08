@@ -752,7 +752,7 @@ let suite = "0install">::: [
     assert_contains "Usage:" out;
     assert_contains "FEED" out;
 
-    lwt () = Support.Gpg.import_key config.system (U.read_file config.system (feed_dir +/ "6FCF121BE2390E0B.gpg")) in
+    Support.Gpg.import_key config.system (U.read_file config.system (feed_dir +/ "6FCF121BE2390E0B.gpg")) >>= fun () ->
     let out = run_0install fake_system ~include_stderr:true ["import"; feed_dir +/ "Hello.xml"] ~stdin:"Y\n" in
     assert_contains "Do you want to trust this key to sign feeds from 'example.com:8000'?" out;
     Fake_system.fake_log#assert_contains "Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000";
@@ -772,7 +772,7 @@ let suite = "0install">::: [
     let out = run_0install fake_system ["list"] in
     assert_str_equal "" out;
 
-    lwt () = Support.Gpg.import_key config.system (U.read_file config.system (feed_dir +/ "6FCF121BE2390E0B.gpg")) in
+    Support.Gpg.import_key config.system (U.read_file config.system (feed_dir +/ "6FCF121BE2390E0B.gpg")) >>= fun () ->
     ignore @@ run_0install fake_system ~include_stderr:true ["import"; feed_dir +/ "Hello.xml"] ~stdin:"Y\n";
 
     let out = run_0install fake_system ["list"] in

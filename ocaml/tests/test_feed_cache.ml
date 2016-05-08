@@ -64,27 +64,29 @@ let suite = "feed-cache">::: [
     let foo_signed_xml = U.read_file config.system (Fake_system.tests_dir +/ "foo.xml") in
 
     (* Unsigned *)
-    lwt () = Fake_system.assert_raises_safe_lwt
+    Fake_system.assert_raises_safe_lwt
       "This is not a Zero Install feed! It should be an XML document, but it starts:\nhello"
-      (fun () -> G.verify config.system "hello" >|= ignore) in
+      (fun () -> G.verify config.system "hello" >|= ignore)
+    >>= fun () ->
 
-    lwt () = G.import_key config.system Test_gpg.thomas_key in
+    G.import_key config.system Test_gpg.thomas_key >>= fun () ->
 
     (* Signed, wrong URL *)
-    lwt () = Fake_system.assert_raises_safe_lwt
+    Fake_system.assert_raises_safe_lwt
       ("URL mismatch in feed:\n\
         http://foo/wrong expected\n\
         http://foo/ given in 'uri' attribute on <interface> at http://foo/wrong:3:97")
-      (fun () -> fetcher#import_feed (`Remote_feed "http://foo/wrong") foo_signed_xml) in
+      (fun () -> fetcher#import_feed (`Remote_feed "http://foo/wrong") foo_signed_xml)
+    >>= fun () ->
 
     (* Signed *)
     let feed_url = `Remote_feed "http://foo/" in
-    lwt () = fetcher#import_feed feed_url foo_signed_xml in
+    fetcher#import_feed feed_url foo_signed_xml >>= fun () ->
 
     assert_equal ["http://foo/"] @@ StringSet.elements @@ Feed_cache.list_all_feeds config;
 
     let new_xml = Feed_cache.get_cached_feed_path config feed_url |> Fake_system.expect |> U.read_file config.system in
-    lwt (sigs, _) = G.verify config.system new_xml in
+    G.verify config.system new_xml >>= fun (sigs, _) ->
     let last_modified = trust_db#oldest_trusted_sig "foo" sigs in
     assert_equal (Some 1380109390.) last_modified;
 
@@ -92,12 +94,12 @@ let suite = "feed-cache">::: [
     let foo_signed_xml_new = U.read_file config.system (Fake_system.tests_dir +/ "foo-new.xml") in
 
     let dryrun_fetcher = Zeroinstall.Fetch.make {config with dry_run = true} trust_db distro download_pool Fake_system.null_ui in
-    lwt out = Fake_system.capture_stdout_lwt (fun () ->
+    Fake_system.capture_stdout_lwt (fun () ->
       dryrun_fetcher#import_feed feed_url foo_signed_xml_new
-    ) in
+    ) >>= fun out ->
     assert (U.starts_with out "[dry-run] would cache feed http://foo/ as");
 
-    lwt () = fetcher#import_feed feed_url foo_signed_xml_new in
+    fetcher#import_feed feed_url foo_signed_xml_new >>= fun () ->
 
     (* Can't 'update' to an older copy *)
     Fake_system.assert_raises_safe_lwt

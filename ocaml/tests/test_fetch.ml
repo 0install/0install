@@ -61,15 +61,12 @@ let make_dl_tester () =
     method download url =
       D.interceptor := Some handle_download;
       (* Request the download *)
-      let switch = Lwt_switch.create () in
-      let result =
-        try_lwt
-          match_lwt Downloader.download downloader ~switch ~hint:(`Remote_feed "testing") url with
-          | `Tmpfile _ -> Lwt.return `Success
-          | (`Aborted_by_user | `Network_failure _) as x -> Lwt.return x
-        finally
-          Lwt_switch.turn_off switch in
-      result
+      U.with_switch
+        (fun switch ->
+           Downloader.download downloader ~switch ~hint:(`Remote_feed "testing") url >|= function
+           | `Tmpfile _ -> `Success
+           | (`Aborted_by_user | `Network_failure _) as x -> x
+        )
 
     method wake url result =
       let waker = Hashtbl.find waiting url in
@@ -240,15 +237,15 @@ let suite = "fetch">::: [
       (* r3, r5 are queued as r1, r2 are downloading from the same site. r4 is fine. *)
       tester#wake "http://example.com:8080/example4" `Success;
       tester#expect ["http://example.com/example1"; "http://example.com/example2"; "http://example.com:8080/example4"];
-      lwt r4 = r4 in assert_equal `Success r4;
+      r4 >>= fun r4 -> assert_equal `Success r4;
 
       (* r1 succeeds, allowing r3 to start *)
       tester#wake "http://example.com/example1" `Success;
-      lwt r1 = r1 in assert_equal `Success r1;
+      r1 >>= fun r1 -> assert_equal `Success r1;
 
       tester#expect ["http://example.com/example3"];
       tester#wake "http://example.com/example3" `Success;
-      lwt r3 = r3 in assert_equal `Success r3;
+      r3 >>= fun r3 -> assert_equal `Success r3;
 
       (* r2 gets redirected and goes back on the end of the queue, allowing r5 to run. *)
       tester#wake "http://example.com/example2" @@ `Redirect "http://example.com/redirected";
@@ -257,8 +254,8 @@ let suite = "fetch">::: [
       (* r5 fails, allowing r2 to complete *)
       tester#wake "http://example.com/example5" @@ `Network_failure "404";
       tester#wake "http://example.com/redirected" `Success;
-      lwt r5 = r5 in assert_equal (`Network_failure "404") r5;
-      lwt r2 = r2 in assert_equal `Success r2;
+      r5 >>= fun r5 -> assert_equal (`Network_failure "404") r5;
+      r2 >>= fun r2 -> assert_equal `Success r2;
 
       Lwt.return ()
     )
@@ -270,12 +267,8 @@ let suite = "fetch">::: [
 
       let r1 = tester#download "http://example.com/example1" in
       tester#wake "http://example.com/example1" (`Redirect "file://localhost/etc/passwd");
-      try_lwt
-        lwt _ = r1 in
-        assert false
-      with Safe_exception (msg, _) ->
-        Fake_system.assert_str_equal "Invalid scheme in URL 'file://localhost/etc/passwd'" msg;
-        Lwt.return ()
+      Fake_system.assert_raises_safe_lwt "Invalid scheme in URL 'file://localhost/etc/passwd'"
+        (fun () -> r1 >|= ignore)
     )
   );
 
@@ -292,18 +285,12 @@ let suite = "fetch">::: [
         blocker in
       D.interceptor := Some handle_download;
 
-      let switch = Lwt_switch.create () in
-      lwt result =
-        try_lwt
-          match_lwt Downloader.download downloader ~switch ~hint:(`Remote_feed "testing") "http://localhost/test.tgz" with
-          | `Tmpfile _ -> Lwt.return `Success
-          | (`Aborted_by_user | `Network_failure _) as x -> Lwt.return x
-        finally
-          Lwt_switch.turn_off switch in
-
-      assert_equal `Aborted_by_user result;
-
-      Lwt.return ()
+      U.with_switch
+        (fun switch ->
+           Downloader.download downloader ~switch ~hint:(`Remote_feed "testing") "http://localhost/test.tgz" >|= function
+           | `Tmpfile _ -> `Success
+           | (`Aborted_by_user | `Network_failure _) as x -> x
+        ) >|= assert_equal `Aborted_by_user
     )
   );
 ]

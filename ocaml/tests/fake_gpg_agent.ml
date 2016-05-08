@@ -6,16 +6,16 @@ open Support.Common
 module U = Support.Utils
 
 let write fd msg =
-  lwt wrote = Lwt_unix.write fd msg 0 (String.length msg) in
+  Lwt_unix.write fd msg 0 (String.length msg) >>= fun wrote ->
   assert (wrote = String.length msg);
   Lwt.return ()
 
 let handle_connection client =
   log_info "connection to fake gpg-agent";
   let from_client = Lwt_io.of_fd ~mode:Lwt_io.input client in
-  lwt () = write client "OK Pleased to meet you\n" in
+  write client "OK Pleased to meet you\n" >>= fun () ->
   let rec aux () =
-    lwt got = Lwt_io.read_line from_client in
+    Lwt_io.read_line from_client >>= fun got ->
     log_info "[fake-gpg-agent]: got '%s'" got;
     let resp =
       if U.starts_with got "HAVEKEY" then
@@ -23,12 +23,13 @@ let handle_connection client =
       else if U.starts_with got "AGENT_ID" then
         "ERR 67109139 Unknown IPC command <GPG Agent>\n"
       else "OK\n" in
-    lwt () = write client resp in
+    write client resp >>= fun () ->
     aux () in
-  try_lwt
-    aux ()
-  with End_of_file ->
-    Lwt_io.close from_client
+  Lwt.catch aux
+    (function
+      | End_of_file -> Lwt_io.close from_client
+      | ex -> Lwt.fail ex
+    )
 
 let run gpg_dir =
   let socket = Lwt_unix.(socket PF_UNIX SOCK_STREAM 0) in
@@ -36,7 +37,7 @@ let run gpg_dir =
   Lwt_unix.set_close_on_exec socket;
   Lwt_unix.listen socket 5;
   let rec aux () =
-    lwt client, _addr = Lwt_unix.accept socket in
+    Lwt_unix.accept socket >>= fun (client, _addr) ->
     Lwt.async (fun () -> handle_connection client);
     aux () in
   let thread = aux () in
