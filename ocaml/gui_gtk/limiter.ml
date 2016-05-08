@@ -19,13 +19,13 @@ let make_limiter ~parent =
     | `Idle ->
         state := `Running;
         Gtk_utils.async ~parent (fun () ->
-          try_lwt
-            fn ()
-          finally
-            begin match !state with
-            | `Idle -> assert false
-            | `Running -> state := `Idle
-            | `Running_with_queued fn -> state := `Idle; run fn end;
-            Lwt.return ()
+          Lwt.finalize fn
+            (fun () ->
+              begin match !state with
+              | `Idle -> assert false
+              | `Running -> state := `Idle
+              | `Running_with_queued fn -> state := `Idle; run fn end;
+              Lwt.return ()
+            )
         ) in
   run

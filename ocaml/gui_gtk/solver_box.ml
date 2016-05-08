@@ -20,7 +20,7 @@ let main_window_help = Help_box.create "0install Help" [
 "A program is made up of many different components, typically written by different \
 groups of people. Each component is available in multiple versions. 0install is \
 used when starting a program. Its job is to decide which version of each required \
-component to use.
+component to use.\n\
 \n\
 0install starts with the program you want to run (e.g. 'The Gimp') and chooses an \
 implementation (e.g. 'The Gimp 2.2.0'). However, this implementation \
@@ -32,7 +32,7 @@ each dependency (each of which may require further components, and so on).");
 "The main window displays all these components, and the version of each chosen \
 implementation. The top-most one represents the program you tried to run, and each direct \
 child is a dependency. The 'Fetch' column shows the amount of data that needs to be \
-downloaded, or '(cached)' if it is already on this computer.
+downloaded, or '(cached)' if it is already on this computer.\n\
 \n\
 If you are happy with the choices shown, click on the Download (or Run) button to \
 download (and run) the program.");
@@ -40,7 +40,7 @@ download (and run) the program.");
 ("Choosing different versions",
 "To control which implementations (versions) are chosen you can click on Preferences \
 and adjust the network policy and the overall stability policy. These settings affect \
-all programs run using 0install.
+all programs run using 0install.\n\
 \n\
 Alternatively, you can edit the policy of an individual component by clicking on the \
 button at the end of its line in the table and choosing \"Show Versions\" from the menu. \
@@ -185,7 +185,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
   (* If you need to show a dialog box after the main window is open, wait for this. *)
   let main_window_open =
     if systray then (
-      lwt () = widgets.systray_icon#clicked in
+      widgets.systray_icon#clicked >>= fun () ->
       widgets.dialog#show ();
       widgets.ok_button#set_active false;
       Lwt_unix.sleep 0.5
@@ -195,9 +195,8 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
     log_info ~ex "Reporting error to user";
     Gtk_utils.async (fun () ->
       widgets.systray_icon#set_blinking (Some (Printf.sprintf "%s\n(click for details)" (Printexc.to_string ex)));
-      lwt () = main_window_open in
-      Alert_box.report_error ~parent:dialog ex;
-      Lwt.return ()
+      main_window_open >|= fun () ->
+      Alert_box.report_error ~parent:dialog ex
     ) in
 
   (* Connect up the component tree view *)
@@ -230,18 +229,23 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
       (* Start the downloads; run when complete *)
       watcher#abort_all_downloads;
       Gtk_utils.async ~parent:dialog (fun () ->
-        try_lwt
-          match mode with
-          | `Select_only -> on_success ()
-          | `Download_only | `Select_for_run ->
-              let sels = Zeroinstall.Solver.selections results in
-              Driver.download_selections config tools#distro (lazy fetcher) ~include_packages:true ~feed_provider:watcher#feed_provider sels >>= function
-              | `Aborted_by_user -> widgets.ok_button#set_active false; Lwt.return ()
-              | `Success -> on_success ()
-        with Safe_exception _ as ex ->
-          widgets.ok_button#set_active false;
-          report_error ex;
-          Lwt.return ()
+        Lwt.catch
+          (fun () ->
+             match mode with
+             | `Select_only -> on_success ()
+             | `Download_only | `Select_for_run ->
+               let sels = Zeroinstall.Solver.selections results in
+               Driver.download_selections config tools#distro (lazy fetcher) ~include_packages:true ~feed_provider:watcher#feed_provider sels >>= function
+               | `Aborted_by_user -> widgets.ok_button#set_active false; Lwt.return ()
+               | `Success -> on_success ()
+          )
+          (function
+            | Safe_exception _ as ex ->
+              widgets.ok_button#set_active false;
+              report_error ex;
+              Lwt.return ()
+            | ex -> Lwt.fail ex
+          )
       )
     )
   );
@@ -250,13 +254,15 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
 
   let result = lazy (
     (* Run a solve-with-downloads immediately, and every time the user clicks Refresh. *)
-    let refresh_loop =
-      while_lwt Lwt.state user_response = Lwt.Sleep do
+    let rec refresh_loop () =
+      match Lwt.state user_response with
+      | Lwt.Sleep ->
         need_recalculate := Lwt.wait ();
         widgets.refresh_button#misc#set_sensitive false;
         let force = !refresh in
         refresh := false;
-        lwt (ready, _, _) = Driver.solve_with_downloads config tools#distro fetcher ~watcher reqs ~force ~update_local:true in
+        Driver.solve_with_downloads config tools#distro fetcher ~watcher reqs ~force ~update_local:true
+        >>= fun (ready, _, _) ->
         if Unix.gettimeofday () < box_open_time +. 1. then widgets.ok_button#grab_default ();
         component_tree#highlight_problems;
 
@@ -273,16 +279,16 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
         (* Wait for user choice or refresh request *)
         widgets.refresh_button#misc#set_sensitive true;
         component_tree#set_update_icons true;
-        fst !need_recalculate
-      done in
+        fst !need_recalculate >>= fun () ->
+        refresh_loop ()
+      | _ -> Lwt.return () in
+    let refresh_thread = refresh_loop () in
 
     (* Wait for user to click Cancel or Run *)
-    lwt response = user_response in
+    user_response >>= fun response ->
     watcher#abort_all_downloads;
-    Lwt.cancel refresh_loop;
-
+    Lwt.cancel refresh_thread;
     dialog#destroy ();
-
     match response with
     | `Ok ->
         let (ready, results) = watcher#results in
@@ -299,7 +305,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
      * to click on it first. *)
     method ensure_main_window =
       widgets.systray_icon#set_blinking (Some "Interaction needed - click to open main window");
-      main_window_open >> Lwt.return (dialog :> GWindow.window_skel)
+      main_window_open >|= fun () -> (dialog :> GWindow.window_skel)
 
     (* Called at regular intervals while there are downloads in progress, and once at the end.
      * Update the display. *)

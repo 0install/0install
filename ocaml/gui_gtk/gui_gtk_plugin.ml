@@ -39,7 +39,7 @@ let make_gtk_ui config =
           let dialog, result = Preferences_box.show_preferences config trust_db ~recalculate:self#recalculate in
           preferences_dialog <- Some (dialog, result);
           dialog#show ();
-          Gtk_utils.async (fun () -> result >> (preferences_dialog <- None; Lwt.return ()));
+          Gtk_utils.async (fun () -> result >|= fun () -> preferences_dialog <- None);
           result
 
     method show_preferences = Some (self#show_preferences_internal)
@@ -51,11 +51,12 @@ let make_gtk_ui config =
       let box = Solver_box.run_solver ~show_preferences ~trust_db tools ?test_callback ?systray mode reqs ~refresh watcher in
       Lwt.wakeup set_solver box;
       solver_boxes <- box :: solver_boxes;
-      try_lwt
-        box#result
-      finally
-        solver_boxes <- solver_boxes |> List.filter ((<>) box);
-        Lwt.return ()
+      Lwt.finalize
+        (fun () -> box#result)
+        (fun () ->
+          solver_boxes <- solver_boxes |> List.filter ((<>) box);
+          Lwt.return ()
+        )
 
     method open_app_list_box =
       App_list_box.create config ~gui:self ~tools ~add_app:self#open_add_box

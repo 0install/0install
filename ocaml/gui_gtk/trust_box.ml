@@ -57,10 +57,9 @@ let make_hints_area result hints =
       let label = left "Waiting for response from key information server..." () in
       box#pack ~expand:false ~fill:true (label :> GObj.widget);
       Gtk_utils.async (fun () ->
-        lwt hints = hints in
+        hints >|= fun hints ->
         label#destroy ();
-        add_hints hints;
-        Lwt.return ()
+        add_hints hints
       )
   | Lwt.Return hints -> add_hints hints
   | Lwt.Fail ex -> raise ex end;
@@ -151,7 +150,7 @@ let confirm_keys config trust_db ?parent feed_url valid_sigs =
   let n_sigs = List.length valid_sigs in
   let `Remote_feed url = feed_url in
 
-  lwt key_names = valid_sigs |> List.map fst |> G.load_keys config.system in
+  valid_sigs |> List.map fst |> G.load_keys config.system >>= fun key_names ->
 
   let result, set_result = Lwt.wait () in
   let dialog = GWindow.dialog
@@ -174,14 +173,14 @@ let confirm_keys config trust_db ?parent feed_url valid_sigs =
 
   let domain = Trust.domain_from_url feed_url in
 
-  lwt descriptions =
-    match trust_db#get_keys_for_domain domain |> StringSet.elements with
+  begin match trust_db#get_keys_for_domain domain |> StringSet.elements with
     | [] -> Lwt.return ["None"]
     | keys ->
-        lwt keys = G.load_keys config.system keys in
-        keys |> StringMap.map_bindings (fun fp info ->
+      G.load_keys config.system keys >|= StringMap.map_bindings
+        (fun fp info ->
           Printf.sprintf "%s\n(fingerprint: %s)" (default "?" info.G.name) (pretty_fp fp)
-        ) |> Lwt.return in
+        )
+  end >>= fun descriptions ->
 
   frame
     ~title:(Printf.sprintf "Keys already approved for '%s'" domain)

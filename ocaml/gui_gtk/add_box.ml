@@ -82,8 +82,7 @@ let create ~(gui:Zeroinstall.Ui.ui_handler) ~tools initial_uri =
   let add () =
     let iface = entry#text in
     Gtk_utils.sanity_check_iface iface;
-    dialog#misc#set_sensitive false;
-    try_lwt
+    with_insensitive dialog (fun () ->
       let reqs = Zeroinstall.Requirements.default_requirements iface in
       gui#run_solver tools `Download_only reqs ~refresh:false >|= function
       | `Aborted_by_user -> ()
@@ -93,9 +92,7 @@ let create ~(gui:Zeroinstall.Ui.ui_handler) ~tools initial_uri =
           xdg_add_to_menu config feed;
           dialog#destroy ();
           Lwt.wakeup set_finished ()
-    finally
-      dialog#misc#set_sensitive true;
-      Lwt.return () in
+    ) in
 
   (* Drag-and-drop *)
 

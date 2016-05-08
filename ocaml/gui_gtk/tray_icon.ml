@@ -33,12 +33,11 @@ class tray_icon systray =
 
         (* If the icon isn't embedded yet, give it a chance first... *)
         Gtk_utils.async (fun () ->
-          lwt () = if not icon#is_embedded then Lwt_unix.sleep 0.5 else Lwt.return () in
+          begin if not icon#is_embedded then Lwt_unix.sleep 0.5 else Lwt.return () end >|= fun () ->
           if not icon#is_embedded then (
             log_info "No system-tray support, so opening main window immediately";
-            self#activate ();
-          );
-          Lwt.return ()
+            self#activate ()
+          )
         )
       )
 

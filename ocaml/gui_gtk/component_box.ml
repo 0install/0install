@@ -85,60 +85,60 @@ the 'Add Local Feed...' button to let 0install know about it, for example.\
 \n\n\
 Below the list of feeds is a box describing the selected one:\
 \n\n\
-- At the top is its short name.
-- Below that is the address (a URL or filename).
-- 'Last upstream change' shows the version of the cached copy of the feed file.
-- 'Last checked' is the last time a fresh copy of the upstream feed file was downloaded.
+- At the top is its short name.\n\
+- Below that is the address (a URL or filename).\n\
+- 'Last upstream change' shows the version of the cached copy of the feed file.\n\
+- 'Last checked' is the last time a fresh copy of the upstream feed file was downloaded.\n\
 - Then there is a longer description of the feed.");
 
 ("The Versions tab",
 "This tab shows a list of all known implementations of the interface, from all the feeds. \
-The columns have the following meanings:
+The columns have the following meanings:\n\
 \n\
 Version gives the version number. High-numbered versions are considered to be \
-better than low-numbered ones.
+better than low-numbered ones.\n\
 \n\
-Released gives the date this entry was added to the feed.
+Released gives the date this entry was added to the feed.\n\
 \n\
 Stability is 'stable' if the implementation is believed to be stable, 'buggy' if \
 it is known to contain serious bugs, and 'testing' if its stability is not yet \
 known. This information is normally supplied and updated by the author of the \
 software, but you can override their rating by right-clicking here (overridden \
 values are shown in upper-case). You can also use the special level 'preferred', which \
-is ranked higher than anything else.
+is ranked higher than anything else.\n\
 \n\
 Fetch indicates how much data needs to be downloaded to get this version if you don't \
 have it. If the implementation has already been downloaded to your computer, \
 it will say (cached). (local) means that you installed this version manually and \
 told 0install about it by adding a feed. (package) means that this version \
 is provided by your distribution's package manager, not by 0install. \
-In off-line mode, only locally-available implementations are considered for use.
+In off-line mode, only locally-available implementations are considered for use.\n\
 \n\
 Arch indicates what kind of computer system the implementation is for, or 'any' \
-if it works with all types of system.
+if it works with all types of system.\n\
 \n\
 If you want to know why a particular version wasn't chosen, right-click over it \
 and choose \"Explain this decision\" from the popup menu.");
 
 ("Sort order",
 "The implementations are ordered by version number (highest first), with the \
-currently selected one in bold. This is the \"best\" usable version.
+currently selected one in bold. This is the \"best\" usable version.\n\
 \n\
 Unusable ones are those for incompatible \
 architectures, those marked as 'buggy' or 'insecure', versions explicitly marked as incompatible with \
 another component you are using and, in off-line mode, uncached implementations. Unusable \
-implementations are shown crossed out.
+implementations are shown crossed out.\n\
 \n\
-For the usable implementations, the order is as follows:
+For the usable implementations, the order is as follows:\n\
 \n\
-- Preferred implementations come first.
+- Preferred implementations come first.\n\
 \n\
 - Then, if network use is set to 'Minimal', cached implementations come before \
-non-cached.
+non-cached.\n\
 \n\
-- Then, implementations at or above the selected stability level come before all others.
+- Then, implementations at or above the selected stability level come before all others.\n\
 \n\
-- Then, higher-numbered versions come before low-numbered ones.
+- Then, higher-numbered versions come before low-numbered ones.\n\
 \n\
 - Then cached come before non-cached (for 'Full' network use mode).");
 
@@ -165,30 +165,33 @@ let add_remote_feed ~parent ~watcher ~recalculate tools iface () =
   box#connect#response ==> (function
     | `DELETE_EVENT | `CANCEL -> box#destroy ()
     | `OK ->
-        error_label#misc#hide ();
-        box#misc#set_sensitive false;
-        Gtk_utils.async ~parent:box (fun () ->
-          try_lwt
-            let url = entry#text in
-            if url = "" then raise_safe "Enter a URL";
-            begin match Feed_url.parse_non_distro url with
-            | `Local_feed _ -> raise_safe "Not a remote feed!"
-            | `Remote_feed _ as feed_url ->
-                let config = tools#config in
-                let fetcher = tools#make_fetcher (watcher :> Progress.watcher) in
-                lwt () = Gui.add_remote_feed config fetcher iface feed_url in
-                box#destroy ();
-                recalculate ~force:false;
-                Lwt.return () end
-          with Safe_exception (msg, _) ->
-            box#misc#set_sensitive true;
-            error_label#set_text msg;
-            error_label#misc#show ();
-            entry#misc#grab_focus ();
-            Lwt.return ()
+      error_label#misc#hide ();
+      box#misc#set_sensitive false;
+      Gtk_utils.async ~parent:box (fun () ->
+          Lwt.catch
+            (fun () ->
+               let url = entry#text in
+               if url = "" then raise_safe "Enter a URL";
+               match Feed_url.parse_non_distro url with
+                 | `Local_feed _ -> raise_safe "Not a remote feed!"
+                 | `Remote_feed _ as feed_url ->
+                   let config = tools#config in
+                   let fetcher = tools#make_fetcher (watcher :> Progress.watcher) in
+                   Gui.add_remote_feed config fetcher iface feed_url >|= fun () ->
+                   box#destroy ();
+                   recalculate ~force:false
+            )
+            (function
+              | Safe_exception (msg, _) ->
+                box#misc#set_sensitive true;
+                error_label#set_text msg;
+                error_label#misc#show ();
+                entry#misc#grab_focus ();
+                Lwt.return ()
+              | ex -> Lwt.fail ex
+            )
         )
   );
-
   box#show ()
 
 let add_local_feed ~parent ~recalculate config iface () =
@@ -313,10 +316,9 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
           begin match watcher#feed_provider#get_feed feed_import.F.feed_src with
           | None -> buffer#insert ~iter:buffer#start_iter "Not yet downloaded."; Lwt.return ()
           | Some (feed, overrides) ->
-              lwt description = Gui.generate_feed_description config trust_db feed overrides in
+              Gui.generate_feed_description config trust_db feed overrides >|= fun description ->
               clear ();
-              add_description_text ~heading_style ~link_style buffer feed description;
-              Lwt.return () end
+              add_description_text ~heading_style ~link_style buffer feed description end
       | _ -> log_warning "Multiple selection in browse mode!"; Lwt.return ()
     )
   );
@@ -445,7 +447,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
     ~homogeneous:false ~packing:vbox#pack () in
 
   let set_stability_policy value =
-    let iface_config = {FC.load_iface_config config iface with FC.stability_policy = value} in
+    let iface_config = {(FC.load_iface_config config iface) with FC.stability_policy = value} in
     FC.save_iface_config config iface iface_config;
     recalculate ~force:false in
 
@@ -636,9 +638,8 @@ let create tools ~trust_db reqs role ~recalculate ~select_versions_tab ~watcher 
   dialog#connect#response ==> (function
     | `COMPILE ->
         Gtk_utils.async ~parent:dialog (fun () ->
-          lwt () = Gui.compile config watcher#feed_provider !role.Solver.iface ~autocompile:true in
-          recalculate ~force:false;
-          Lwt.return ()
+          Gui.compile config watcher#feed_provider !role.Solver.iface ~autocompile:true >|= fun () ->
+          recalculate ~force:false
         )
     | `DELETE_EVENT | `CLOSE -> dialog#destroy ()
     | `HELP -> component_help#display

@@ -11,10 +11,8 @@ module G = Support.Gpg
 
 let get_keys_by_domain config trust_db =
   let domains_of_key = trust_db#get_db in
-
   let fingerprints = domains_of_key |> StringMap.map_bindings (fun key _domains -> key) in
-  lwt key_info = G.load_keys config.system fingerprints in
-
+  G.load_keys config.system fingerprints >|= fun key_info ->
   let keys_of_domain = ref StringMap.empty in
   domains_of_key |> StringMap.iter (fun key domains ->
     domains |> StringSet.iter (fun domain ->
@@ -22,7 +20,7 @@ let get_keys_by_domain config trust_db =
       keys_of_domain := !keys_of_domain |> StringMap.add domain (key :: keys)
     )
   );
-  Lwt.return (key_info, !keys_of_domain)
+  (key_info, !keys_of_domain)
 
 let preferences_help = Help_box.create "0install Preferences Help" [
 ("Overview",
@@ -162,7 +160,7 @@ let add_key_list ~packing config trust_db =
 
   (* Populate model *)
   let populate_model () =
-    lwt key_info, keys_of_domain = get_keys_by_domain config trust_db in
+    get_keys_by_domain config trust_db >|= fun (key_info, keys_of_domain) ->
 
     (* Remember which ones are open *)
     let previously_open = find_open_rows view name in
@@ -187,8 +185,7 @@ let add_key_list ~packing config trust_db =
           view#expand_row (model#get_path iter);
         if model#iter_next iter then loop () in
       loop ()
-    );
-    Lwt.return () in
+    ) in
 
   let unregister = trust_db#add_watcher (object method notify = Gtk_utils.async populate_model end) in
   view#connect#destroy ==> unregister;

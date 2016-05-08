@@ -176,9 +176,8 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
     if have_source then (
       let compile ~autocompile () =
         Gtk_utils.async ~parent (fun () ->
-          lwt () = Gui.compile config watcher#feed_provider iface ~autocompile in
-          recalculate ~force:false;
-          Lwt.return ()
+          Gui.compile config watcher#feed_provider iface ~autocompile >|= fun () ->
+          recalculate ~force:false
         ) in
       let compile_menu = GMenu.menu () in
       compile_item#set_submenu compile_menu;

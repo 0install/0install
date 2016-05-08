@@ -75,13 +75,12 @@ let create config ?run_test ?last_error ~role ~results =
         get_errors#connect#clicked ==> (fun () ->
           get_errors#misc#set_sensitive false;
           Gtk_utils.async ~parent:box (fun () ->
-            try_lwt
-              lwt errors = run_test () in
-              buffer#insert ~iter:buffer#end_iter errors;
-              Lwt.return ()
-            finally
-              get_errors#misc#set_sensitive true;
-              Lwt.return ()
+            Lwt.finalize
+              (fun () -> run_test () >|= buffer#insert ~iter:buffer#end_iter)
+              (fun () ->
+                get_errors#misc#set_sensitive true;
+                Lwt.return ()
+              )
           )
         );
     | None -> get_errors#misc#set_sensitive false end;
@@ -113,15 +112,18 @@ let create config ?run_test ?last_error ~role ~results =
           (about_system#get_text ()) in
         box#misc#set_sensitive false;
         Gtk_utils.async ~parent:box (fun () ->
-          try_lwt
-            lwt reply = Zeroinstall.Gui.send_bug_report role.Zeroinstall.Solver.iface message in
-            box#destroy ();
-            Alert_box.report_info ~title:"Report Sent OK" reply;
-            Lwt.return ()
-          with ex ->
-            box#misc#set_sensitive true;
-            Alert_box.report_error ~parent:box ex;
-            Lwt.return ()
+            Lwt.catch
+              (fun () ->
+                 Zeroinstall.Gui.send_bug_report role.Zeroinstall.Solver.iface message >>= fun reply ->
+                 box#destroy ();
+                 Alert_box.report_info ~title:"Report Sent OK" reply;
+                 Lwt.return ()
+              )
+              (fun ex ->
+                 box#misc#set_sensitive true;
+                 Alert_box.report_error ~parent:box ex;
+                 Lwt.return ()
+              )
         )
   );
 

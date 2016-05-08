@@ -1,3 +1,2 @@
 true: for-pack(Gui_gtk)
-<*.ml>: syntax(camlp4o), package(lwt.syntax)
 true: package(lablgtk2)

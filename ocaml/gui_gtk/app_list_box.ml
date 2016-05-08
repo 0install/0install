@@ -157,22 +157,27 @@ let maybe_with_terminal system feed args =
     )
   ) else args
 
+let with_busy_cursor (widget:#GObj.widget) f =
+  Gdk.Window.set_cursor widget#misc#window (Lazy.force Gtk_utils.busy_cursor);
+  Lwt.finalize f
+    (fun () ->
+       Gdk.Window.set_cursor widget#misc#window (Lazy.force Gtk_utils.default_cursor);
+       Lwt.return ()
+    )
+
 let run config dialog tools gui uri =
   Gtk_utils.async ~parent:dialog (fun () ->
-    Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.busy_cursor);
-    try_lwt
-      get_selections tools ~gui uri >>= function
-      | `Aborted_by_user -> Lwt.return ()
-      | `Success sels ->
-          let feed_url = Feed_url.master_feed_of_iface uri in
-          let feed = FC.get_cached_feed config feed_url |? lazy (raise_safe "BUG: feed still not cached! %s" uri) in
-          let exec args ~env = config.system#spawn_detach ~env (maybe_with_terminal tools#config.system feed args) in
-          match Exec.execute_selections config ~exec sels [] with
-          | `Ok () -> Lwt_unix.sleep 0.5
-          | `Dry_run _ -> assert false
-    finally
-      Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.default_cursor);
-      Lwt.return ()
+      with_busy_cursor dialog (fun () ->
+          get_selections tools ~gui uri >>= function
+          | `Aborted_by_user -> Lwt.return ()
+          | `Success sels ->
+            let feed_url = Feed_url.master_feed_of_iface uri in
+            let feed = FC.get_cached_feed config feed_url |? lazy (raise_safe "BUG: feed still not cached! %s" uri) in
+            let exec args ~env = config.system#spawn_detach ~env (maybe_with_terminal tools#config.system feed args) in
+            match Exec.execute_selections config ~exec sels [] with
+            | `Ok () -> Lwt_unix.sleep 0.5
+            | `Dry_run _ -> assert false
+        )
   )
 
 let create config ~gui ~tools ~add_app =
@@ -241,8 +246,7 @@ let create config ~gui ~tools ~add_app =
     let uri = !menu_iface |? lazy (raise_safe "BUG: no selected item!") in
     let reqs = Requirements.default_requirements uri in
     Gtk_utils.async ~parent:dialog (fun () ->
-      lwt _ = gui#run_solver tools `Download_only reqs ~refresh:false in
-      Lwt.return ()
+      gui#run_solver tools `Download_only reqs ~refresh:false >|= ignore
     )
   );
 
@@ -254,21 +258,24 @@ let create config ~gui ~tools ~add_app =
         let path = model#get ~row ~column:path_col in
         dialog#misc#set_sensitive false;
         Gtk_utils.async ~parent:dialog (fun () ->
-          try_lwt
-            confirm_deletion ~parent:dialog name >|= function
-            | `Delete ->
-                log_info "rm %s" path;
-                begin
-                  try config.system#unlink path
-                  with Unix.Unix_error (Unix.EACCES, _, _) ->
-                    raise_safe "Permission denied. You may be able to remove the entry manually with:\n\
-                                sudo rm '%s'" path
-                end;
-                model#remove row |> ignore
-            | `Cancel -> ()
-          finally
-            dialog#misc#set_sensitive true;
-            Lwt.return ()
+          Lwt.finalize
+            (fun () ->
+              confirm_deletion ~parent:dialog name >|= function
+              | `Delete ->
+                  log_info "rm %s" path;
+                  begin
+                    try config.system#unlink path
+                    with Unix.Unix_error (Unix.EACCES, _, _) ->
+                      raise_safe "Permission denied. You may be able to remove the entry manually with:\n\
+                                  sudo rm '%s'" path
+                  end;
+                  model#remove row |> ignore
+              | `Cancel -> ()
+            )
+            (fun () ->
+              dialog#misc#set_sensitive true;
+              Lwt.return ()
+            )
         )
     | _ -> log_warning "Invalid selection!"
   );
@@ -320,7 +327,7 @@ let create config ~gui ~tools ~add_app =
 
   let add_and_repopulate uri =
     Gtk_utils.async ~parent:dialog (fun () ->
-      lwt () = add_app uri in
+      add_app uri >>= fun () ->
       populate ();
       Lwt.return ()
     ) in

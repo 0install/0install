@@ -53,11 +53,11 @@ let size_of_impl (system:system) path : Int64.t =
 let cache_help = Help_box.create "Cache Explorer Help" [
 ("Overview",
 "When you run a program using 0install, it downloads a suitable implementation (version) of the program and of \
-each library it uses. Each of these is stored in the cache, each in its own directory.
+each library it uses. Each of these is stored in the cache, each in its own directory.\n\
 \n\
 0install lets you have many different versions of each program on your computer at once. This is useful, \
 since it lets you use an old version if needed, and different programs may need to use \
-different versions of a single library in some cases.
+different versions of a single library in some cases.\n\
 \n\
 The cache viewer shows you all the implementations in your cache. \
 This is useful to find versions you don't need anymore, so that you can delete them and \
@@ -65,7 +65,7 @@ free up some disk space.");
 
 ("Operations",
 "When you select one or more implementations, the details are shown in the box at the bottom, with some buttons \
-along the side:\n
+along the side:\n\
 Delete will delete the directory.\n\
 Verify will check that the contents of the directory haven't been modified.\n\
 Open will open the directory in your file manager.");
@@ -73,7 +73,7 @@ Open will open the directory in your file manager.");
 ("Unowned implementations",
 "The cache viewer searches through all your feeds (XML files) to find out which implementations \
 they use. The 'Name' and 'Version' columns show what the implementation is used for. \
-If no feed can be found for an implementation, it is shown as '(unowned)'.
+If no feed can be found for an implementation, it is shown as '(unowned)'.\n\
 \n\
 Unowned implementations can result from old versions of a program no longer being listed \
 in the feed file or from sharing the cache with other users.");
@@ -123,41 +123,42 @@ let show_verification_box config ~parent paths =
 
   Gdk.Window.set_cursor box#misc#window (Lazy.force Gtk_utils.busy_cursor);
   Gtk_utils.async ~parent:box (fun () ->
-    try_lwt
       let rec loop = function
-        | _ when !cancelled -> raise Lwt.Canceled
-        | [] -> Lwt.return ()
+        | _ when !cancelled -> Lwt.return `Cancelled
+        | [] -> Lwt.return `Done
         | x::xs ->
-            begin try_lwt
-              incr n;
-              box#set_markup (Printf.sprintf "Checking item %d of %d" !n n_items);
-              let digest = Manifest.parse_digest (Filename.basename x) in
-              lwt () = Lwt_preemptive.detach (Manifest.verify config.system ~digest) x in
-              incr n_good;
-              Lwt.return ()
-            with Safe_exception (msg, _) ->
-              let space = if !n_bad = 0 then "" else "\n\n" in
-              incr n_bad;
-              report_problem @@ Printf.sprintf "%s%s:\n%s\n" space x msg;
-              Lwt.return ()
-            end >>
-            loop xs in
-      lwt () = loop paths in
-      if !n_bad = 1 && !n_good = 0 then
-        box#set_markup "<b>Verification failed!</b>"
-      else if !n_bad > 0 then
-        box#set_markup (Printf.sprintf "<b>Verification failed</b>\nFound bad items (%d / %d)" !n_bad (!n_bad + !n_good))
-      else if !n_good = 1 then
-        box#set_markup "Verification successful!"
-      else
-        box#set_markup (Printf.sprintf "Verification successful (%d items)" !n_good);
-      Lwt.return ()
-    with Lwt.Canceled ->
-      Lwt.return ()
-    finally
-      if not (!cancelled) then
+          Lwt.catch
+            (fun () ->
+               incr n;
+               box#set_markup (Printf.sprintf "Checking item %d of %d" !n n_items);
+               let digest = Manifest.parse_digest (Filename.basename x) in
+               Lwt_preemptive.detach (Manifest.verify config.system ~digest) x >|= fun () ->
+               incr n_good
+            )
+            (function 
+              | Safe_exception (msg, _) ->
+                let space = if !n_bad = 0 then "" else "\n\n" in
+                incr n_bad;
+                report_problem @@ Printf.sprintf "%s%s:\n%s\n" space x msg;
+                Lwt.return ()
+              | ex -> Lwt.fail ex
+            )
+          >>= fun () ->
+          loop xs in
+      loop paths >>= function
+      | `Done ->
         Gdk.Window.set_cursor box#misc#window (Lazy.force Gtk_utils.default_cursor);
-      Lwt.return ()
+        if !n_bad = 1 && !n_good = 0 then
+          box#set_markup "<b>Verification failed!</b>"
+        else if !n_bad > 0 then
+          box#set_markup (Printf.sprintf "<b>Verification failed</b>\nFound bad items (%d / %d)" !n_bad (!n_bad + !n_good))
+        else if !n_good = 1 then
+          box#set_markup "Verification successful!"
+        else
+          box#set_markup (Printf.sprintf "Verification successful (%d items)" !n_good);
+        Lwt.return ()
+      | `Cancelled ->
+        Lwt.return ()
   )
 
 let confirm_deletion ~parent n_items =
@@ -262,21 +263,24 @@ let open_cache_explorer config =
     dialog#misc#set_sensitive false;
     Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.busy_cursor);
     Gtk_utils.async ~parent:dialog (fun () ->
-      try_lwt
-        let rec loop = function
-          | [] -> Lwt.return ()
-          | x::xs ->
-              let dir = Unsorted_list.get model ~row:x ~column:impl_dir_col in
-              lwt () = Lwt_preemptive.detach (U.rmtree ~even_if_locked:true config.system) dir in
-              Unsorted_list.remove model x |> ignore;
-              loop xs in
-        confirm_deletion ~parent:dialog (List.length iters) >>= function
-        | `Delete -> loop iters
-        | `Cancel -> Lwt.return ()
-      finally
-        Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.default_cursor);
-        dialog#misc#set_sensitive true;
-        Lwt.return ()
+      Lwt.finalize
+        (fun () ->
+           let rec loop = function
+             | [] -> Lwt.return ()
+             | x::xs ->
+               let dir = Unsorted_list.get model ~row:x ~column:impl_dir_col in
+               Lwt_preemptive.detach (U.rmtree ~even_if_locked:true config.system) dir >>= fun () ->
+               Unsorted_list.remove model x |> ignore;
+               loop xs in
+           confirm_deletion ~parent:dialog (List.length iters) >>= function
+           | `Delete -> loop iters
+           | `Cancel -> Lwt.return ()
+        )
+        (fun () ->
+           Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.default_cursor);
+           dialog#misc#set_sensitive true;
+           Lwt.return ()
+        )
     )
   );
 
@@ -374,18 +378,18 @@ let open_cache_explorer config =
   );
 
   (* Now go back and fill in the sizes *)
-  lwt () =
-    match Unsorted_list.get_iter_first model with
+  begin match Unsorted_list.get_iter_first model with
     | Some row ->
-        let rec loop () =
-          let dir = Unsorted_list.get model ~row ~column:impl_dir_col in
-          lwt size = Lwt_preemptive.detach (size_of_impl config.system) dir in
-          Unsorted_list.set model ~row ~column:size_col size;
-          Unsorted_list.set model ~row ~column:size_str_col (U.format_size size);
-          if Unsorted_list.iter_next model row then loop ()
-          else Lwt.return () in
-        loop ()
-    | None -> Lwt.return () in
+      let rec loop () =
+        let dir = Unsorted_list.get model ~row ~column:impl_dir_col in
+        Lwt_preemptive.detach (size_of_impl config.system) dir >>= fun size ->
+        Unsorted_list.set model ~row ~column:size_col size;
+        Unsorted_list.set model ~row ~column:size_str_col (U.format_size size);
+        if Unsorted_list.iter_next model row then loop ()
+        else Lwt.return () in
+      loop ()
+    | None -> Lwt.return ()
+  end >>= fun () ->
 
   (* Sort by size initially *)
   sorted_model#set_sort_column_id size_col.GTree.index `DESCENDING;

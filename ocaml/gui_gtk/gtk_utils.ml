@@ -41,11 +41,12 @@ let load_png_icon (system:system) ~width ~height path : GdkPixbuf.pixbuf option 
 (** Run [fn ()] asynchronously. If it throws an exception, report it in an error dialog. *)
 let async ?parent fn =
   Lwt.ignore_result (
-    try_lwt fn ()
-    with ex ->
-      log_info ~ex "Unhandled exception from async Lwt thread";
-      Alert_box.report_error ?parent ex;
-      Lwt.return ()
+    Lwt.catch fn
+      (fun ex ->
+        log_info ~ex "Unhandled exception from async Lwt thread";
+        Alert_box.report_error ?parent ex;
+        Lwt.return ()
+      )
   )
 
 (* Lazy to let GTK initialise first *)

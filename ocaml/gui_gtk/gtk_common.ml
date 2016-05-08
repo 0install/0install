@@ -20,3 +20,8 @@ let append_column (tv:GTree.view) (col:GTree.view_column) =
 (** Append a notebook page and ignore the returned page number. *)
 let append_page (nb:GPack.notebook) ?tab_label page =
   ignore (nb#append_page ?tab_label page)
+
+let with_insensitive (widget:#GObj.widget) f =
+  widget#misc#set_sensitive false;
+  Lwt.finalize f
+    (fun () -> widget#misc#set_sensitive true; Lwt.return ())
