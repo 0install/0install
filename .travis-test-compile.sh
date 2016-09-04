@@ -1,6 +1,12 @@
-#!/bin/bash -eux
+#!/bin/bash
 echo Display: $DISPLAY
+set -eux
 export DISPLAY=
+
+if [ -d 0compile ]; then
+  # Already did this test
+  exit 0
+fi
 
 eval `opam config env`
 make

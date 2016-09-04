@@ -1,10 +1,15 @@
 language: c
-install: bash -e .travis-install.sh
-script: bash -e .travis-build.sh
+sudo: required
+install: wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.travis-opam.sh
+script: bash .travis-extra-deps.sh
 env:
+  global:
+    - OPAMVERBOSE=y
+    - POST_INSTALL_HOOK="bash .travis-test-compile.sh"
   matrix:
-    - OCAML_VERSION=4.01.0
-    - OCAML_VERSION=4.02.3
+    - OCAML_VERSION=4.01
+    - OCAML_VERSION=4.02
+    - OCAML_VERSION=4.03
 os:
   - linux
   - osx

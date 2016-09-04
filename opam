@@ -23,6 +23,6 @@ depopts: [ "obus" "lablgtk" ]
 depexts: [
   [["ubuntu"] ["unzip"]]
   [["debian"] ["unzip"]]
-  [["osx" "homebrew"] ["gnupg"]]
+  [["osx" "homebrew"] ["gnupg2"]]
 ]
 available: [ ocaml-version >= "4.00.0" ]
