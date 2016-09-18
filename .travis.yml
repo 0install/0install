@@ -1,5 +1,6 @@
 language: c
 sudo: required
+dist: trusty
 install: wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.travis-opam.sh
 script: bash .travis-extra-deps.sh
 env:
