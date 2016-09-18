@@ -1,12 +1,11 @@
 false: profile
-true: debug, bin_annot, package(yojson,xmlm,str,lwt,lwt.unix,lwt.react,lwt.preemptive,extlib,curl,dynlink), thread
+true: debug, bin_annot, package(yojson,xmlm,str,lwt,lwt.unix,lwt.react,lwt.preemptive,extlib,curl.lwt,dynlink), thread
 <static_0install.*>: linkall
 <tests/*>: package(oUnit)
 <gui_gtk.*>: package(lablgtk2), link_gtk
 true: strict_sequence
 true: warn(A-3-4-48-58), warn_error(+5+6+10+26)
 
-<main.ml>: mypp
 "support": for-pack(Support)
 "zeroinstall": for-pack(Zeroinstall)
 "gui_gtk": for-pack(Gui_gtk)

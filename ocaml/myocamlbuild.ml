@@ -146,17 +146,16 @@ let () =
     pdep ["link"] "linkdep_win" (fun param -> if on_windows then [param] else []);
     pdep ["link"] "link" (fun param -> [param]);
 
-    let have_ocurl_lwt =
-      match get_info "curl" with
-      | Some {version; dir = _} -> parse_version version >= [0; 7; 1]
-      | None -> failwith "Missing curl!" in
+    begin match get_info "curl" with
+    | None -> failwith "Missing ocurl!"
+    | Some {version; dir = _} ->
+      if parse_version version < [0; 7; 1] then
+        failwith "ocurl is too old - need 0.7.1 or later"
+    end;
 
     let have_sha = get_info "sha" <> None in
 
-    if have_ocurl_lwt then
-      flag ["link"] (S [A"-package"; A"curl.lwt"]);
-
-    if not have_ocurl_lwt || not have_sha then (
+    if not have_sha then (
       flag ["compile"] (S [A"-package"; A"ssl"]);
       flag ["link"] (S [A"-package"; A"ssl"]);
     );
@@ -180,7 +179,6 @@ let () =
     if (major_version < 4 || (major_version == 4 && minor_version < 2)) then add "-DOCAML_LT_4_02" defines_portable;
     if use_dbus then add "-DHAVE_DBUS" defines_portable;
     if gtk_dir <> None then add "-DHAVE_GTK" defines_portable;
-    if have_ocurl_lwt then add "-DHAVE_OCURL_LWT" defines_portable;
 
     if have_sha then (
       (* Use "sha" package instead of libcrypto *)

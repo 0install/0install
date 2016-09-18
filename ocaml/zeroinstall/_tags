@@ -1,2 +1,2 @@
 true: for-pack(Zeroinstall)
-<dbus.ml> or <curl_threading.ml>: mypp
+<dbus.ml>: mypp
