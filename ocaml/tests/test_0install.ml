@@ -435,7 +435,7 @@ let suite = "0install">::: [
 
     let app = expect @@ Zeroinstall.Apps.lookup_app config "local-app" in
     let old_local = U.read_file system (app +/ "selections.xml") in
-    let new_local = Str.replace_first (Str.regexp_string "0.1") "0.1-pre" old_local in
+    let new_local = Str.replace_first (Str.regexp "version=.0\\.1.") "version='0.1-pre'" old_local in
     app +/ "selections-2012-01-01.xml" |> system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
       output_string ch new_local
     );
@@ -452,7 +452,7 @@ let suite = "0install">::: [
     fake_system#set_spawn_handler None;
 
     (* select detects changes *)
-    let new_local = Str.replace_first (Str.regexp_string "0.1") "0.1-pre2" old_local in
+    let new_local = Str.replace_first (Str.regexp "version=.0\\.1.") "version='0.1-pre2'" old_local in
     app +/ "selections.xml" |> system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
       output_string ch new_local
     );
