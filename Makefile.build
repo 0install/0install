@@ -17,7 +17,7 @@ MACHINE = $(shell uname -m)
 VERSION = $(shell sed -n 's/let version = "\(.*\)"/\1/p' ${SRCDIR}/ocaml/zeroinstall/about.ml)
 
 all:
-	make -C "${SRCDIR}/ocaml" OCAML_BUILDDIR="${BUILDDIR}/ocaml"
+	make -C "${SRCDIR}/ocaml" OCAML_BUILDDIR="${BUILDDIR}/ocaml" ocaml
 	(cd "${SRCDIR}" && cp README.md COPYING "${DISTDIR}/")
 	install -d "${DISTDIR}/files"
 	install -d "${DISTDIR}/files/share"
@@ -34,6 +34,9 @@ all:
 	install -d "${DISTDIR}/0install"
 	[ -f "${DISTDIR}/0install/build-environment.xml" ] || sed 's/@ARCH@/${OS}-${MACHINE}/;s/@VERSION@/${VERSION}/' "${SRCDIR}/binary-feed.xml.in" > "${DISTDIR}/0install/feed.xml"
 
+test:
+	make -C "${SRCDIR}/ocaml" OCAML_BUILDDIR="${BUILDDIR}/ocaml" test
+
 install: install_local
 
 install_home:
@@ -49,4 +52,4 @@ install_local:
 	mkdir -p `dirname "$@"`
 	msgfmt -o "$@" "$<"
 
-.PHONY: all install
+.PHONY: all install test

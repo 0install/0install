@@ -36,7 +36,7 @@ SH = ${SRCDIR}/share/0install.net/unlzma
 # Running plain "make" does most of the same things that "0compile build" would do,
 # except that it doesn't generate/update the binary feed (dist/0install/feed.xml).
 
-default: all
+default: all test
 
 # Ubuntu's make requires this to come before the %:: default rule.
 %.ui.h: %.ui

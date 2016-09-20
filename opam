@@ -5,12 +5,15 @@ homepage: "http://0install.net/"
 bug-reports: "https://github.com/0install/0install/issues"
 dev-repo: "https://github.com/0install/0install.git"
 build: [
-  [make]
+  [make "all"]
+]
+build-test: [
+  [make "test"]
 ]
 depends: [
   "yojson"
   "xmlm"
-  "ounit"
+  "ounit" {test}
   "react"
   "lwt"
   "extlib"
