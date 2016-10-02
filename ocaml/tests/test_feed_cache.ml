@@ -105,8 +105,8 @@ let suite = "feed-cache">::: [
     Fake_system.assert_raises_safe_lwt
       ("New feed's modification time is before old version!\n\
         Interface: http://foo/\n\
-        Old time: 2013-09-25T12:57:28Z\n\
-        New time: 2013-09-25T12:43:10Z\n\
+        Old time: 2013-09-25T11:57:28Z\n\
+        New time: 2013-09-25T11:43:10Z\n\
         Refusing update.")
       (fun () -> fetcher#import_feed feed_url foo_signed_xml)
   );

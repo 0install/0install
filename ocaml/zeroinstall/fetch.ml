@@ -22,8 +22,8 @@ let string_of_result = function
   | `Aborted_by_user -> "Aborted by user"
   | `No_trusted_keys -> "Not signed with a trusted key"
   | `Replay_attack (url, old_time, new_time) ->
-      let old_time = old_time |> Unix.localtime |> U.format_time in
-      let new_time = new_time |> Unix.localtime |> U.format_time in
+      let old_time = old_time |> Unix.gmtime |> U.format_time in
+      let new_time = new_time |> Unix.gmtime |> U.format_time in
       Printf.sprintf (
         "New feed's modification time is before old version!\n" ^^
         "Interface: %s\nOld time: %s\nNew time: %s\n" ^^
