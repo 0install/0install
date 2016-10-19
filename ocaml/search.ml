@@ -14,7 +14,7 @@ module U = Support.Utils
 let handle options flags args =
   let config = options.config in
   let tools = options.tools in
-  options.tools#set_use_gui No;   (* There's no GUI for searches; using it just disabled the progress indicator. *)
+  options.tools#set_use_gui `No;   (* There's no GUI for searches; using it just disabled the progress indicator. *)
   Support.Argparse.iter_options flags (function
     | #common_option as o -> Common_options.process_common_option options o
   );

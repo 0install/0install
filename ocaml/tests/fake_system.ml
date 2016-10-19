@@ -443,7 +443,7 @@ let make_tools config =
     method downloader = download_pool#with_monitor ignore
     method make_fetcher watcher = Zeroinstall.Fetch.make config trust_db distro download_pool watcher
     method ui = (null_ui :> Zeroinstall.Ui.ui_handler)
-    method use_gui = No
+    method use_gui = `No
   end
 
 let fake_log =

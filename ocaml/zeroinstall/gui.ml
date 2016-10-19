@@ -321,11 +321,12 @@ let run_test config distro test_callback (ready, results) =
 
 let try_get_gui config ~use_gui =
   let system = config.system in
-  if use_gui = No then None
-  else (
+  match use_gui with
+  | `No -> None
+  | `Yes | `Auto as use_gui ->
     match system#getenv "DISPLAY" with
     | None | Some "" ->
-        if use_gui = Maybe then None
+        if use_gui = `Auto then None
         else raise_safe "Can't use GUI because $DISPLAY is not set"
     | Some _ ->
         if !gui_plugin = None then (
@@ -362,7 +363,7 @@ let try_get_gui config ~use_gui =
 
         match !gui_plugin with
         | None ->
-            if use_gui = Maybe then None
+            if use_gui = `Auto then None
             else raise_safe "Can't use GUI - plugin cannot be loaded"
         | Some gui_plugin ->
             try
@@ -370,7 +371,6 @@ let try_get_gui config ~use_gui =
             with ex ->
               log_warning ~ex "Failed to create GTK GUI";
               None
-  )
 
 let send_bug_report iface_uri message : string Lwt.t =
   let error_buffer = ref "" in

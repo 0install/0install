@@ -7,7 +7,7 @@
 val common_options :
   ([> `DryRun
     | `Help
-    | `UseGUI of Support.Common.yes_no_maybe
+    | `UseGUI of [`Yes | `No | `Auto]
     | `Verbose
     | `WithStore of Support.Common.filepath ],
    Options.zi_arg_type)

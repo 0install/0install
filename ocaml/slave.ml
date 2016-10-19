@@ -67,13 +67,13 @@ let make_no_gui connection : Ui.ui_handler =
 let make_ui config connection use_gui : Zeroinstall.Ui.ui_handler =
   let use_gui =
     match use_gui, config.dry_run with
-    | Yes, true -> raise_safe "Can't use GUI with --dry-run"
-    | (Maybe|No), true -> No
+    | `Yes, true -> raise_safe "Can't use GUI with --dry-run"
+    | (`Auto | `No), true -> `No
     | use_gui, false -> use_gui in
 
   match use_gui with
-  | No -> make_no_gui connection
-  | Yes | Maybe ->
+  | `No -> make_no_gui connection
+  | `Yes | `Auto ->
       match Zeroinstall.Gui.try_get_gui config ~use_gui with
       | Some gui -> gui
       | None -> make_no_gui connection
@@ -123,7 +123,7 @@ let select config tools (ui:Zeroinstall.Ui.ui_handler) requirements refresh =
     | `Success sels -> success ~sels ~stale:false
     | `Aborted_by_user -> `List [`String "aborted-by-user"] |> Lwt.return in
 
-  if refresh || tools#use_gui = Yes then select_with_refresh refresh
+  if refresh || tools#use_gui = `Yes then select_with_refresh refresh
   else (
     let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config tools#distro in
     match Zeroinstall.Solver.solve_for config feed_provider requirements with

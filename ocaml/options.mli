@@ -3,13 +3,12 @@
  *)
 
 open Zeroinstall.General
-open Support.Common
 
 type version = string
 
 type common_option = [
   (* common options *)
-  | `UseGUI of yes_no_maybe
+  | `UseGUI of [`Yes | `No | `Auto]
   | `Verbose
   | `Help
   | `DryRun
@@ -74,8 +73,8 @@ type tools = <
   distro : Zeroinstall.Distro.distribution;
   make_fetcher : Zeroinstall.Progress.watcher -> Zeroinstall.Fetch.fetcher;
   trust_db : Zeroinstall.Trust.trust_db;
-  set_use_gui : Support.Common.yes_no_maybe -> unit;
-  use_gui : Support.Common.yes_no_maybe;
+  set_use_gui : [`Yes | `No | `Auto] -> unit;
+  use_gui : [`Yes | `No | `Auto];
   release : unit;     (* Call this to release any open connections held by the download pool. *)
 >
 

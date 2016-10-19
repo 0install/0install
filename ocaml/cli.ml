@@ -152,9 +152,9 @@ let run_options : (_, _) opt_spec list = [
 ]
 
 let common_options : (_, _) opt_spec list = [
-  (["-c"; "--console"],    0, i_ "never use GUI",                     new no_arg @@ `UseGUI No);
+  (["-c"; "--console"],    0, i_ "never use GUI",                     new no_arg @@ `UseGUI `No);
   ([      "--dry-run"],    0, i_ "just print what would be executed", new no_arg @@ `DryRun);
-  (["-g"; "--gui"],        0, i_ "show graphical policy editor",      new no_arg @@ `UseGUI Yes);
+  (["-g"; "--gui"],        0, i_ "show graphical policy editor",      new no_arg @@ `UseGUI `Yes);
   (["-h"; "--help"],       0, i_ "show this help message and exit",   new no_arg @@ `Help);
   (["-v"; "--verbose"],    0, i_ "more verbose output",               new no_arg @@ `Verbose);
   ([      "--with-store"], 1, i_ "add an implementation cache",       new one_arg Dir @@ fun path -> `WithStore path);
@@ -247,9 +247,9 @@ let handle_no_command options flags args =
 let no_command = (make_command_hidden handle_no_command @@ common_options @ show_version_options)
 
 let make_tools config =
-  let gui = ref Maybe in
+  let gui = ref `Auto in
   let pool = ref None in
-  let ui = lazy (Zeroinstall.Default_ui.make_ui config !gui) in
+  let ui = lazy (Zeroinstall.Default_ui.make_ui config ~use_gui:!gui) in
   let packagekit = lazy (Zeroinstall.Packagekit.make (Support.Locale.LangMap.choose config.langs |> fst)) in
   let distro = lazy (Zeroinstall.Distro_impls.get_host_distribution ~packagekit config) in
   let trust_db = lazy (new Zeroinstall.Trust.trust_db config) in

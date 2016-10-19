@@ -11,5 +11,5 @@
  *)
 val make_ui :
   General.config ->
-  Support.Common.yes_no_maybe ->
+  use_gui:[< `Yes | `No | `Auto] ->
   Ui.ui_handler

@@ -21,8 +21,6 @@ ENDIF
 type filepath = string
 type varname = string
 
-type yes_no_maybe = Yes | No | Maybe
-
 exception Safe_exception of (string * string list ref)
 
 (** Raise this to exit the program. Allows finally blocks to run. *)

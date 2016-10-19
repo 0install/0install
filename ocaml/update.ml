@@ -242,7 +242,7 @@ let handle_bg options flags args =
 
         let new_sels =
           if !need_gui || not ready || Zeroinstall.Driver.get_unavailable_selections config ~distro new_sels <> [] then (
-            let interactive_ui = Zeroinstall.Gui.try_get_gui config ~use_gui:Maybe in
+            let interactive_ui = Zeroinstall.Gui.try_get_gui config ~use_gui:`Auto in
             match interactive_ui with
             | Some gui ->
                 log_info "Background update: trying to use GUI to update %s" name;

@@ -103,8 +103,8 @@ let test_option_parsing () =
 
   let p args = let (options, _flags, _args) = p_full args in options in
 
-  assert_equal Maybe (p ["select"]).tools#use_gui;
-  assert_equal No (p ["--console"; "select"]).tools#use_gui;
+  assert_equal `Auto (p ["select"]).tools#use_gui;
+  assert_equal `No (p ["--console"; "select"]).tools#use_gui;
 
   let _, _, args = p_full ["--with-store"; "/data/store"; "run"; "foo"] in
   assert_equal "/data/store" (List.nth config.stores @@ List.length config.stores - 1);
@@ -119,7 +119,7 @@ let test_option_parsing () =
 
   assert (List.length (fake_log#get) = 0);
   let s = p ["-cvv"; "run"] in
-  assert_equal No s.tools#use_gui;
+  assert_equal `No s.tools#use_gui;
   assert_equal 2 s.verbosity;
   assert (List.length (fake_log#get) > 0);
 

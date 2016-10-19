@@ -175,7 +175,7 @@ let get_selections options ~refresh ?test_callback reqs mode =
      - we don't need to download any implementations
     If we can run immediately, we might still spawn a background process to check for updates. *)
 
-  if refresh || tools#use_gui = Yes then (
+  if refresh || tools#use_gui = `Yes then (
     select_with_refresh refresh
   ) else (
     let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config tools#distro in
@@ -231,7 +231,7 @@ let handle options flags arg ?test_callback for_op =
   let tools = options.tools in
 
   let select_opts = {
-    must_select = (for_op = `Select_only) || tools#use_gui = Yes;
+    must_select = (for_op = `Select_only) || tools#use_gui = `Yes;
     output = (
       match for_op with   (* Default output style *)
       | `Select_only -> Output_human
