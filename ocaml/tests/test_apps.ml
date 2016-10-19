@@ -26,7 +26,7 @@ let suite = "apps">::: [
       (interface_cache +/ "http%3a%2f%2fexample.com%3a8000%2fHello.xml")
       0o644;
 
-    let r = R.default_requirements url in
+    let r = R.run url in
     let () =
       try ignore @@ Apps.create_app config "/foo" r; assert false
       with Safe_exception _ -> () in

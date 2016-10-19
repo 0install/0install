@@ -111,7 +111,7 @@ let handle options flags args =
             | None -> exec_man config args              (* Not a 0install executable *)
             | Some (AliasScript {uri; command; main}) -> (
                 let command = Some (default "run" command) in
-                let reqs = {(Zeroinstall.Requirements.default_requirements uri) with Zeroinstall.Requirements.command} in
+                let reqs = {(Zeroinstall.Requirements.run uri) with Zeroinstall.Requirements.command} in
                 (* Ensure cached *)
                 match Generic_select.get_selections options ~refresh:false reqs `Download_only |> Lwt_main.run with
                 | `Success sels -> (sels, main)

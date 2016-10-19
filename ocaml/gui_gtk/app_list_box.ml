@@ -100,7 +100,7 @@ let show_help config sel =
   U.xdg_open_dir ~exec:false system path
 
 let get_selections tools ~(gui:Ui.ui_handler) uri =
-  let reqs = Requirements.default_requirements uri in
+  let reqs = Requirements.run uri in
   match Driver.quick_solve tools reqs with
   | Some sels -> Lwt.return (`Success sels)
   | None ->
@@ -244,7 +244,7 @@ let create config ~gui ~tools ~add_app =
 
   edit_item#connect#activate ==> (fun () ->
     let uri = !menu_iface |? lazy (raise_safe "BUG: no selected item!") in
-    let reqs = Requirements.default_requirements uri in
+    let reqs = Requirements.run uri in
     Gtk_utils.async ~parent:dialog (fun () ->
       gui#run_solver tools `Download_only reqs ~refresh:false >|= ignore
     )

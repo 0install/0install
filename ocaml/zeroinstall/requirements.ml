@@ -2,8 +2,6 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(** A structure representing constraints/requirements specified by the user *)
-
 open Support.Common
 
 type t = {
@@ -17,7 +15,7 @@ type t = {
   may_compile : bool;
 }
 
-let default_requirements interface_uri = {
+let run interface_uri = {
   interface_uri;
   command = Some "run";
   source = false;
@@ -43,11 +41,11 @@ let to_string_option_or_empty x =
 let parse_os x = to_string_option_or_empty x |> pipe_some Arch.parse_os
 let parse_machine x = to_string_option_or_empty x |> pipe_some Arch.parse_machine
 
-let parse_requirements json =
+let of_json json =
   let open Yojson.Basic.Util in
   try
     let alist = to_assoc json in
-    let r = ref (default_requirements "") in
+    let r = ref (run "") in
     let before = ref None in
     let not_before = ref None in
     ListLabels.iter alist ~f:(fun (key, value) ->
@@ -110,10 +108,3 @@ let to_json reqs =
         `Assoc (StringMap.map_bindings (fun k v -> (k, `String v)) extra_restrictions)
       )]);
   ])
-
-let load (system:system) path =
-  let open Yojson.Basic in
-  path |> system#with_open_in [Open_rdonly; Open_binary] (fun ch ->
-    try parse_requirements (from_channel ~fname:path ch)
-    with Safe_exception _ as ex -> reraise_with_context ex "... parsing JSON file %s" path
-  )

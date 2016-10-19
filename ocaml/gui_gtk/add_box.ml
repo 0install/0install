@@ -83,7 +83,7 @@ let create ~(gui:Zeroinstall.Ui.ui_handler) ~tools initial_uri =
     let iface = entry#text in
     Gtk_utils.sanity_check_iface iface;
     with_insensitive dialog (fun () ->
-      let reqs = Zeroinstall.Requirements.default_requirements iface in
+      let reqs = Zeroinstall.Requirements.run iface in
       gui#run_solver tools `Download_only reqs ~refresh:false >|= function
       | `Aborted_by_user -> ()
       | `Success _ ->

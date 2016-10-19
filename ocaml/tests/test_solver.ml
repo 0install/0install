@@ -174,7 +174,7 @@ let make_solver_test test_elem =
     );
     fake_system#add_dir fake_system#getcwd [];
     let system = (fake_system :> system) in
-    let reqs = ref (Zeroinstall.Requirements.default_requirements "") in
+    let reqs = ref (Zeroinstall.Requirements.run "") in
     let fails = ref false in
     let expected_selections = ref (ZI.make "missing") in
     let expected_problem = ref "missing" in
@@ -541,7 +541,7 @@ let suite = "solver">::: [
     assert_equal 3 (List.length comp_impls.Impl_provider.impls);
 
     let reqs = Requirements.({
-      (default_requirements iface) with
+      (run iface) with
       source = true;
       command = Some "compile"}) in
 
@@ -584,7 +584,7 @@ let suite = "solver">::: [
 
   "command">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
-    let r = Requirements.default_requirements (Test_0install.feed_dir +/ "command-dep.xml") in
+    let r = Requirements.run (Test_0install.feed_dir +/ "command-dep.xml") in
     let distro = Fake_distro.make config in
     let feed_provider = new Feed_provider_impl.feed_provider config distro in
     match Solver.solve_for config (feed_provider :> Feed_provider.feed_provider) r with
@@ -646,7 +646,7 @@ let suite = "solver">::: [
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let uri = Test_0install.feed_dir +/ "Conflicts.xml" in
     let versions = Test_0install.feed_dir +/ "Versions.xml" in
-    let r = Requirements.default_requirements uri in
+    let r = Requirements.run uri in
 
     (* Selects 0.2 as the highest version, applying the restriction to versions < 4. *)
     let distro = Fake_distro.make config in

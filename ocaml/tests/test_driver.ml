@@ -74,7 +74,7 @@ let make_driver_test test_elem =
     let home = U.getenv_ex config.system "HOME" in
     let expand_tmp s =
       Str.global_replace (Str.regexp_string "@TMP@") tmpdir s in
-    let reqs = ref (Zeroinstall.Requirements.default_requirements "") in
+    let reqs = ref (Zeroinstall.Requirements.run "") in
     let fails = ref false in
     let expected_problem = ref "missing-problem" in
     let expected_output = ref "missing-output" in
@@ -184,7 +184,7 @@ let make_driver_test test_elem =
 let suite = "driver">::: [
   "simple">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
-    let reqs = Requirements.({(default_requirements "http://example.com/prog.xml") with command = None}) in
+    let reqs = Requirements.({(run "http://example.com/prog.xml") with command = None}) in
     let handler =
       object
         method download_impls = failwith "download_impls"
@@ -222,7 +222,7 @@ let suite = "driver">::: [
   "noNeedDl">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let foo_path = Test_0install.feed_dir +/ "Foo.xml" in
-    let reqs = Requirements.({(default_requirements foo_path) with command = None}) in
+    let reqs = Requirements.({(run foo_path) with command = None}) in
     let tools = Fake_system.make_tools config in
     match Fake_system.null_ui#run_solver tools `Select_for_run reqs ~refresh:false |> Lwt_main.run with
     | `Success _ -> ()
@@ -244,7 +244,7 @@ let suite = "driver">::: [
         method install_distro_packages = raise_safe "install_distro_packages"
         method match_name = (=) "dummy"
       end in
-    let reqs = Requirements.default_requirements "http://foo/Binary.xml" in
+    let reqs = Requirements.run "http://foo/Binary.xml" in
     let fetcher =
       object
         method download_and_import_feed (`Remote_feed url) = raise_safe "download_and_import_feed: %s" url

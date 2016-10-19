@@ -79,7 +79,7 @@ let parse_update_options ?(update=true) options requirements =
   !r
 
 let parse_options options interface_uri ~command =
-  parse_update_options ~update:false options @@ {(default_requirements interface_uri) with command}
+  parse_update_options ~update:false options @@ {(run interface_uri) with command}
 
 (** Convert a set of requirements to the corresponding command-line options. *)
 let to_options requirements =

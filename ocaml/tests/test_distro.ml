@@ -338,7 +338,7 @@ let suite = "distro">::: [
 
     (* testCommand *)
     let feed = get_feed "<package-implementation main='/unused' package='python-bittorrent'><command path='/bin/sh' name='run'/></package-implementation>" in
-    let requirements = Zeroinstall.Requirements.default_requirements "http://example.com/bittorrent" in
+    let requirements = Zeroinstall.Requirements.run "http://example.com/bittorrent" in
     let feed_provider =
       object
         inherit Zeroinstall.Feed_provider_impl.feed_provider config deb

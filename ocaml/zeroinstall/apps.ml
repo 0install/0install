@@ -85,8 +85,12 @@ let set_mtime config path =
     system#set_mtime path @@ system#time
   )
 
-let get_requirements (system:system) path =
-  Requirements.load system (path +/ "requirements.json")
+let get_requirements (system:system) app_path =
+  let path = app_path +/ "requirements.json" in
+  path |> system#with_open_in [Open_rdonly; Open_binary] (fun ch ->
+      try Requirements.of_json (Yojson.Basic.from_channel ~fname:path ch)
+      with Safe_exception _ as ex -> reraise_with_context ex "... parsing JSON file %s" path
+    )
 
 let set_last_checked system app_dir =
   U.touch system @@ app_dir +/ "last-checked"
