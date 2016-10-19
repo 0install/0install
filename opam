@@ -28,4 +28,4 @@ depexts: [
   [["debian"] ["unzip"]]
   [["osx" "homebrew"] ["gnupg2"]]
 ]
-available: [ ocaml-version >= "4.00.0" ]
+available: [ ocaml-version >= "4.01.0" ]

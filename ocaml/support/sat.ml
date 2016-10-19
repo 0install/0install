@@ -2,10 +2,6 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-open Common
-
-let () = ignore on_windows
-
 (** A general purpose SAT solver. *)
 
 (** The design of this solver is very heavily based on the one described in

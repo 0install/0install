@@ -5,9 +5,6 @@
 (** The "0install store manage" command *)
 
 open Options
-open Support.Common
-
-let () = ignore on_windows
 
 let handle options flags args =
   Support.Argparse.iter_options flags (function

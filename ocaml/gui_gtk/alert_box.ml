@@ -4,10 +4,7 @@
 
 (** A simple error report box *)
 
-open Support.Common
 open Gtk_common
-
-let () = ignore on_windows
 
 let report_info ?parent ~title message =
   let box = GWindow.message_dialog

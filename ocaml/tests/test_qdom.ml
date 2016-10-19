@@ -6,8 +6,6 @@ open Zeroinstall.General
 open Support.Common
 open OUnit
 
-let () = ignore on_windows
-
 module Q = Support.Qdom
 
 let assert_str_equal = Fake_system.assert_str_equal

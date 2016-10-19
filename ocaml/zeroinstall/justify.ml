@@ -2,13 +2,11 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-open Support.Common
 module FeedAttr = Constants.FeedAttr
 
 module U = Support.Utils
 
 let spf = Printf.sprintf
-let () = ignore on_windows
 
 exception Return of string
 

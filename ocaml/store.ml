@@ -8,8 +8,6 @@ open Options
 open Zeroinstall.General
 open Support.Common
 
-let () = ignore on_windows
-
 module U = Support.Utils
 module A = Zeroinstall.Archive
 module Stores = Zeroinstall.Stores

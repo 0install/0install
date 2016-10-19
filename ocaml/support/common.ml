@@ -8,13 +8,6 @@ type 'a result =
   | Success of 'a
   | Problem of exn
 
-(** [a @@ b @@ c] is an alternative way to write [a (b (c))]. It's like [$] in Haskell. **)
-(* external ( @@ ) : ('a -> 'b) -> 'a -> 'b = "%apply" *)
-IFDEF OCAML_LT_4_01 THEN
-let (@@) a b = a b
-let (|>) f x = x f
-ENDIF
-
 IFDEF OCAML_LT_4_02 THEN
 module Bytes = struct
   include String

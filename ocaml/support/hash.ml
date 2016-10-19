@@ -6,8 +6,6 @@
 
 open Common
 
-let _ = on_windows
-
 class type digest_context =
   object
     method update : string -> unit

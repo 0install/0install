@@ -315,15 +315,12 @@ let show_log_on_failure fn () =
     );
     raise ex
 
-(* Actually, we just want a recent Lwt, but this will do. *)
-IFNDEF OCAML_LT_4_01 THEN
 let () =
   Lwt.async_exception_hook := (fun ex ->
     async_exception := Some ex;
     Printf.fprintf orig_stderr "Async exception: %s" (Printexc.to_string ex);
     flush orig_stderr
   )
-ENDIF
 
 let is_error = function
   | RFailure _ | RError _ -> true

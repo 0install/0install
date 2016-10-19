@@ -10,8 +10,6 @@ open Support.Common
 module Manifest = Zeroinstall.Manifest
 module U = Support.Utils
 
-let () = ignore on_windows
-
 let handle config args =
   (* Make all system files world-readable, even if the default system umask is more strict. *)
   ignore (Unix.umask 0o022);
