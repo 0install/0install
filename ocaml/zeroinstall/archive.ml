@@ -103,7 +103,7 @@ let run_command ?cwd system args =
       match status with
       | Unix.WEXITED 0 -> Lwt.return ()
       | status ->
-          let messages = trim @@ stdout ^ stderr in
+          let messages = String.trim @@ stdout ^ stderr in
           if messages = "" then Support.System.check_exit_status status;
           raise_safe "Command failed: %s" messages
     with Safe_exception _ as ex ->

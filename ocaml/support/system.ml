@@ -266,7 +266,7 @@ module RealSystem (U : UnixType) =
                       if Sys.file_exists "/System/Library/Frameworks/Carbon.framework" then "MacOSX" else "Darwin" in
                     let machine =
                       if machine = "i386" then (
-                        let cpu64 = trim @@ Utils.check_output system input_line
+                        let cpu64 = String.trim @@ Utils.check_output system input_line
                           [Utils.find_in_path_ex system "sysctl"; "-n"; "hw.cpu64bit_capable"] in
                         if cpu64 = "1" then "x86_64" else "i386"
                       ) else canonical_machine machine in

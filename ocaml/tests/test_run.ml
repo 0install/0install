@@ -90,6 +90,6 @@ let suite = "run">::: [
 
   "run-package">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
     let out = run_0install fake_system ["run"; "--wrapper"; "echo $TEST #"; "--"; package_selections] in
-    assert_str_equal "OK" (trim out)
+    assert_str_equal "OK" (String.trim out)
   );
 ]

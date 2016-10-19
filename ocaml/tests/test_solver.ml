@@ -63,8 +63,8 @@ let xml_diff exp actual =
     ) else if a.tag <> b.tag then (
       p "Namespace '%s' vs '%s'\n" (fst a.tag) (fst a.tag); true
     ) else (
-      assert_equal ~printer:(fun s -> s) (trim a.text_before) (trim b.text_before);
-      assert_equal ~printer:(fun s -> s) (trim a.last_text_inside) (trim b.last_text_inside);
+      assert_equal ~printer:(fun s -> s) (String.trim a.text_before) (String.trim b.text_before);
+      assert_equal ~printer:(fun s -> s) (String.trim a.last_text_inside) (String.trim b.last_text_inside);
       ListString.assert_equal (set_of_attrs a) (set_of_attrs b);
       if List.length a.child_nodes <> List.length b.child_nodes then (
         p "Number of child nodes differs\n"; true
@@ -215,7 +215,7 @@ let make_solver_test test_elem =
         );
         fails := ZI.get_attribute_opt "fails" child = Some "true"
     | Some "selections" -> expected_selections := child
-    | Some "problem" -> expected_problem := trim child.Support.Qdom.last_text_inside
+    | Some "problem" -> expected_problem := String.trim child.Support.Qdom.last_text_inside
     | Some "justification" -> justifications := child :: !justifications
     | _ -> Support.Qdom.raise_elem "Unexpected element" child in
     ZI.iter process test_elem;
@@ -254,7 +254,7 @@ let make_solver_test test_elem =
         id = ZI.get_attribute "id" elem;
       }) in
       let reason = Zeroinstall.Justify.justify_decision config (feed_provider :> Feed_provider.feed_provider) !reqs iface ~source:false g_id in
-      Fake_system.assert_str_equal (trim elem.Support.Qdom.last_text_inside) reason
+      Fake_system.assert_str_equal (String.trim elem.Support.Qdom.last_text_inside) reason
     );
   )
 

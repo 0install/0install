@@ -332,7 +332,7 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
       if iter#has_tag link_style then (
         let start = iter#backward_to_tag_toggle (Some link_style) in
         let stop = iter#forward_to_tag_toggle (Some link_style) in
-        let target = start#get_text ~stop |> trim in
+        let target = start#get_text ~stop |> String.trim in
         open_in_browser config.system target;
         true
       ) else false

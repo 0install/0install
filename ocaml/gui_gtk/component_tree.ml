@@ -43,7 +43,7 @@ let first_para text =
       let index = Str.search_forward (Str.regexp_string "\n\n") text 0 in
       String.sub text 0 index
     with Not_found -> text in
-  Str.global_replace (Str.regexp_string "\n") " " first |> trim
+  Str.global_replace (Str.regexp_string "\n") " " first |> String.trim
 
 (* Visit all nodes from [start] up to and including [stop]. *)
 exception Stop_walk

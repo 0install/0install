@@ -179,29 +179,6 @@ let map_some fn = function
   | None -> None
   | Some x -> Some (fn x)
 
-(** {2 Backported from OCaml 4} **)
-
-let trim s =
-  let is_space = function
-    | ' ' | '\012' | '\n' | '\r' | '\t' -> true
-    | _ -> false in
-  let open String in
-  let len = length s in
-  let i = ref 0 in
-  while !i < len && is_space (unsafe_get s !i) do
-    incr i
-  done;
-  let j = ref (len - 1) in
-  while !j >= !i && is_space (unsafe_get s !j) do
-    decr j
-  done;
-  if !i = 0 && !j = len - 1 then
-    s
-  else if !j >= !i then
-    sub s !i (!j - !i + 1)
-  else
-    ""
-
 let (>>=) = Lwt.(>>=)
 let (>|=) = Lwt.(>|=)
 let return = Lwt.return

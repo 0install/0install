@@ -76,7 +76,7 @@ let re_dep = Str.regexp "\\([a-z]+\\)\\[\\([0-9]+\\)\\(,[0-9]+\\)?\\] => \\([a-z
 
 let run_sat_test expected problem =
   let parse_id id =
-    U.split_pair U.re_dash (trim id) in
+    U.split_pair U.re_dash (String.trim id) in
   let expected_items = List.map parse_id @@ Str.split re_comma expected in
   let (_root_iface, root_expected_version) = List.hd expected_items in
 
@@ -85,7 +85,7 @@ let run_sat_test expected problem =
   ListLabels.iter problem ~f:(fun line ->
     if String.contains line ':' then (
       let (prog, versions) = U.split_pair U.re_colon line in
-      impl_provider#add_impls (trim prog) (Str.split U.re_space versions)
+      impl_provider#add_impls (String.trim prog) (Str.split U.re_space versions)
     ) else (
       if Str.string_match re_dep line 0 then (
         let prog = Str.matched_group 1 line in

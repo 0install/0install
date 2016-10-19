@@ -281,7 +281,7 @@ let parse_ini (system:system) fn =
           handler := fn name
         else if Str.string_match re_key_value line 0 then
           let key = Str.matched_group 1 line in
-          let value = trim (Str.matched_group 2 line) in
+          let value = String.trim (Str.matched_group 2 line) in
           !handler (key, value)
       done
     with End_of_file -> ()

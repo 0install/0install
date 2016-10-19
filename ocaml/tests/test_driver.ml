@@ -110,7 +110,7 @@ let make_driver_test test_elem =
         child |> ZI.iter ~name:"arg" (fun arg ->
           args := arg.Support.Qdom.last_text_inside :: !args
         )
-    | Some "problem" -> expected_problem := trim child.Support.Qdom.last_text_inside
+    | Some "problem" -> expected_problem := String.trim child.Support.Qdom.last_text_inside
     | Some "download" -> expected_digests := StringSet.add (ZI.get_attribute "digest" child) !expected_digests
     | Some "set-env" ->
         let name = ZI.get_attribute "name" child in
@@ -151,7 +151,7 @@ let make_driver_test test_elem =
             | `Aborted_by_user -> assert false in
           if !fails then assert_failure "Expected run_solver to fail, but it didn't!";
           let actual_env = ref StringMap.empty in
-          let output = trim @@ Fake_system.capture_stdout (fun () ->
+          let output = String.trim @@ Fake_system.capture_stdout (fun () ->
             let exec cmd ~env =
               ArrayLabels.iter env ~f:(fun binding ->
                 let (name, value) = Support.Utils.split_pair Support.Utils.re_equals binding in

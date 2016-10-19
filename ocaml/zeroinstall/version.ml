@@ -91,7 +91,7 @@ let make_range_restriction low high : (t -> bool) =
   | Some low, Some high -> fun v -> (low <= v && v < high)
 
 let parse_range s =
-  let s = trim s in
+  let s = String.trim s in
   if Str.string_match re_range s 0 then (
     let low = Str.matched_group 1 s in
     let sep = Str.matched_group 2 s in

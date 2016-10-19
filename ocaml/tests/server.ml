@@ -47,7 +47,7 @@ let ignore_cancelled f =
 
 let rec skip_headers from_client =
   Lwt_io.read_line from_client >>= fun line ->
-  if trim line = "" then Lwt.return ()
+  if String.trim line = "" then Lwt.return ()
   else skip_headers from_client
 
 let start_server system =

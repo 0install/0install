@@ -137,13 +137,13 @@ module Debian = struct
             let stream = U.stream_of_lines out in
             begin try
               while true do
-                let line = Stream.next stream |> trim in
+                let line = Stream.next stream |> String.trim in
                 if U.starts_with line "Version: " then (
-                  version := try_cleanup_distro_version_warn (U.string_tail line 9 |> trim) package
+                  version := try_cleanup_distro_version_warn (U.string_tail line 9 |> String.trim) package
                 ) else if U.starts_with line "Architecture: " then (
-                  machine := Some (Support.System.canonical_machine (U.string_tail line 14 |> trim))
+                  machine := Some (Support.System.canonical_machine (U.string_tail line 14 |> String.trim))
                 ) else if U.starts_with line "Size: " then (
-                  size := Some (Int64.of_string (U.string_tail line 6 |> trim))
+                  size := Some (Int64.of_string (U.string_tail line 6 |> String.trim))
                 )
               done
             with Stream.Failure -> () end;
@@ -181,7 +181,7 @@ module Debian = struct
                         match try_cleanup_distro_version_warn version package_name with
                         | None -> ()
                         | Some clean_version ->
-                            let r = (clean_version, (Arch.parse_machine (Support.System.canonical_machine (trim debarch)))) in
+                            let r = (clean_version, (Arch.parse_machine (Support.System.canonical_machine (String.trim debarch)))) in
                             results := r :: !results
                       )
                   | _ -> log_warning "Can't parse dpkg output: '%s'" line
@@ -329,7 +329,7 @@ module RPM = struct
             match Str.bounded_split_delim U.re_tab line 3 with
             | ["gpg-pubkey"; _; _] -> ()
             | [package; version; rpmarch] ->
-                let zi_arch = Support.System.canonical_machine (trim rpmarch) |> Arch.parse_machine in
+                let zi_arch = Support.System.canonical_machine (String.trim rpmarch) |> Arch.parse_machine in
                 try_cleanup_distro_version_warn version package |> if_some (fun clean_version ->
                   add_entry package (clean_version, zi_arch)
                 )
@@ -407,7 +407,7 @@ module ArchLinux = struct
           while !arch = None do
             let line = input_line ch in
             if line = "%ARCH%" then
-              arch := Some (trim (input_line ch))
+              arch := Some (String.trim (input_line ch))
           done
         with End_of_file -> ()
       );
@@ -484,7 +484,7 @@ module Mac = struct
           let reaper pid = Support.System.waitpid_non_intr pid |> ignore in
           ["/usr/libexec/java_home"; "--failfast"; "--version"; version; "--arch"; arch]
           |> U.check_output config.system ~reaper ~stderr:(`FD dev_null) (fun ch -> try input_line ch with End_of_file -> "")
-          |> trim
+          |> String.trim
         ) in
 
     object (self : #distribution)
@@ -555,7 +555,7 @@ module Mac = struct
             let line = input_line ch in
             log_debug "Got: '%s'" line;
             if U.starts_with line " " then (
-              let line = trim line in
+              let line = String.trim line in
               match Str.bounded_split_delim U.re_space line 3 with
               | [package; version; extra] when U.starts_with extra "(active)" ->
                   log_debug "Found package='%s' version='%s' extra='%s'" package version extra;
@@ -836,7 +836,7 @@ module Gentoo = struct
               if U.starts_with filename match_prefix && is_digit (filename.[String.length match_prefix]) then (
                 let pf_path = category_dir +/ filename +/ "PF"in
                 let pf_mtime = (config.system#lstat pf_path |? lazy (raise_safe "Missing '%s' file!" pf_path)).Unix.st_mtime in
-                let name = pf_path|> config.system#with_open_in [Open_rdonly] input_line |> trim in
+                let name = pf_path|> config.system#with_open_in [Open_rdonly] input_line |> String.trim in
 
                 match (try Some (Str.search_forward re_version_start name 0) with Not_found -> None) with
                 | None -> log_warning "Cannot parse version from Gentoo package named '%s'" name

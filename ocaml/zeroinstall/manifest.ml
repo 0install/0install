@@ -301,7 +301,7 @@ let verify system ~digest dir =
         Buffer.add_string b "The .manifest file matches neither of the other digests. Odd."
     end;
 
-    raise (Safe_exception (trim @@ Buffer.contents b, ref []))
+    raise (Safe_exception (String.trim @@ Buffer.contents b, ref []))
   )
 
 let parse_manifest manifest_data =

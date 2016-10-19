@@ -13,7 +13,7 @@ let re_template = Str.regexp ("\\$\\(\\$\\|\\([a-zA-Z_][a-zA-Z0-9_]*\\)\\|{[^}]*
 (* Perform $ substitutions on [template], taking values from [env] *)
 let expand_arg arg env =
   (* Some versions of Python add newlines inside the <arg> element. *)
-  let template = trim (Element.simple_content arg) in
+  let template = String.trim (Element.simple_content arg) in
   let remove_braces s =
     let l = String.length s in
     if s.[0] = '{' then (

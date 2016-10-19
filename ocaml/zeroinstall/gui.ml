@@ -266,7 +266,7 @@ let get_bug_report_details config ~role (ready, results) =
   let issue_file = "/etc/issue" in
   let issue =
     if system#file_exists issue_file then
-      U.read_file system issue_file |> trim
+      U.read_file system issue_file |> String.trim
     else
       Printf.sprintf "(file '%s' not found)" issue_file in
 
@@ -416,7 +416,7 @@ let get_sigs config url =
       ) else Lwt.return []
 
 let format_para para =
-  para |> Str.split (Str.regexp_string "\n") |> List.map trim |> String.concat " "
+  para |> Str.split (Str.regexp_string "\n") |> List.map String.trim |> String.concat " "
 
 (** The formatted text for the details panel. *)
 let generate_feed_description config trust_db feed overrides =

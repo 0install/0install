@@ -155,7 +155,7 @@ class console_ui =
         let rec loop () =
           prerr_string "[Y/N] ";
           flush stderr;
-          match trim (input_line stdin) with
+          match String.trim (input_line stdin) with
           | "N" | "n" -> `Cancel
           | "Y" | "y" -> `Ok
           | _ -> loop () in

@@ -251,10 +251,10 @@ let to_utf8 elem =
 
 let reindent root =
   let rec process indent node = {node with
-    text_before = indent ^ trim node.text_before;
+    text_before = indent ^ String.trim node.text_before;
     child_nodes = List.map (process @@ indent ^ "  ") node.child_nodes;
     last_text_inside =
-      if node.child_nodes <> [] then trim node.last_text_inside ^ indent
+      if node.child_nodes <> [] then String.trim node.last_text_inside ^ indent
       else node.last_text_inside;
     } in
   process "\n" {root with text_before = ""}
@@ -274,8 +274,8 @@ let compare_nodes ~ignore_whitespace a b =
       | 0 -> ()
       | x -> raise (Compare_result x) in
     if ignore_whitespace then (
-      test (trim a.text_before) (trim b.text_before);
-      test (trim a.last_text_inside) (trim b.last_text_inside)
+      test (String.trim a.text_before) (String.trim b.text_before);
+      test (String.trim a.last_text_inside) (String.trim b.last_text_inside)
     ) else (
       test a.text_before b.text_before;
       test a.last_text_inside b.last_text_inside

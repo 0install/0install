@@ -106,8 +106,8 @@ let run_gpg_full system ?stdin args =
  *)
 let run_gpg system ?stdin args =
   run_gpg_full system ?stdin args >>= fun (stdout, stderr, status) ->
-  if stdout <> "" then log_info "GPG: output:\n%s" (trim stdout);
-  if stderr <> "" then log_info "GPG: warnings:\n%s" (trim stderr);
+  if stdout <> "" then log_info "GPG: output:\n%s" (String.trim stdout);
+  if stderr <> "" then log_info "GPG: warnings:\n%s" (String.trim stderr);
   match status with
   | Unix.WEXITED 0 -> Lwt.return stdout
   | status ->
@@ -245,7 +245,7 @@ let verify (system:system) xml =
       )
     >>= fun (stdout, stderr, exit_status) ->
     ignore exit_status;
-    Lwt.return (sigs_from_gpg_status_output stdout, trim stderr)
+    Lwt.return (sigs_from_gpg_status_output stdout, String.trim stderr)
   )
 
 type key_info = {

@@ -43,7 +43,7 @@ let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.
     let redirect = ref None in
     let check_header header =
       if U.starts_with header "Location:" then (
-        redirect := Some (U.string_tail header 9 |> trim)
+        redirect := Some (U.string_tail header 9 |> String.trim)
       );
       String.length header in
 
