@@ -2,11 +2,8 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(** A dialog box for confirming whether to trust a feed's GPG key(s). *)
-
 open Support.Common
 open Gtk_common
-open Zeroinstall.General
 
 module Progress = Zeroinstall.Progress
 module Trust = Zeroinstall.Trust
@@ -145,12 +142,12 @@ let frame ~title ~content (parent:GPack.box) =
   frame#add (content :> GObj.widget);
   parent#pack (frame :> GObj.widget) ~expand:false ~fill:true
 
-let confirm_keys config trust_db ?parent feed_url valid_sigs =
+let confirm_keys gpg trust_db ?parent feed_url valid_sigs =
   assert (valid_sigs <> []);
   let n_sigs = List.length valid_sigs in
   let `Remote_feed url = feed_url in
 
-  valid_sigs |> List.map fst |> G.load_keys config.system >>= fun key_names ->
+  valid_sigs |> List.map fst |> G.load_keys gpg >>= fun key_names ->
 
   let result, set_result = Lwt.wait () in
   let dialog = GWindow.dialog
@@ -176,7 +173,7 @@ let confirm_keys config trust_db ?parent feed_url valid_sigs =
   begin match trust_db#get_keys_for_domain domain |> StringSet.elements with
     | [] -> Lwt.return ["None"]
     | keys ->
-      G.load_keys config.system keys >|= StringMap.map_bindings
+      G.load_keys gpg keys >|= StringMap.map_bindings
         (fun fp info ->
           Printf.sprintf "%s\n(fingerprint: %s)" (default "?" info.G.name) (pretty_fp fp)
         )

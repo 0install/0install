@@ -62,14 +62,15 @@ let suite = "feed-cache">::: [
     let distro = Fake_distro.make config in
     let fetcher = Zeroinstall.Fetch.make config trust_db distro download_pool Fake_system.null_ui in
     let foo_signed_xml = U.read_file config.system (Fake_system.tests_dir +/ "foo.xml") in
+    let gpg = G.make config.system in
 
     (* Unsigned *)
     Fake_system.assert_raises_safe_lwt
       "This is not a Zero Install feed! It should be an XML document, but it starts:\nhello"
-      (fun () -> G.verify config.system "hello" >|= ignore)
+      (fun () -> G.verify gpg "hello" >|= ignore)
     >>= fun () ->
 
-    G.import_key config.system Test_gpg.thomas_key >>= fun () ->
+    G.import_key gpg Test_gpg.thomas_key >>= fun () ->
 
     (* Signed, wrong URL *)
     Fake_system.assert_raises_safe_lwt
@@ -86,7 +87,7 @@ let suite = "feed-cache">::: [
     assert_equal ["http://foo/"] @@ StringSet.elements @@ Feed_cache.list_all_feeds config;
 
     let new_xml = Feed_cache.get_cached_feed_path config feed_url |> Fake_system.expect |> U.read_file config.system in
-    G.verify config.system new_xml >>= fun (sigs, _) ->
+    G.verify gpg new_xml >>= fun (sigs, _) ->
     let last_modified = trust_db#oldest_trusted_sig "foo" sigs in
     assert_equal (Some 1380109390.) last_modified;
 

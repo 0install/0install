@@ -108,6 +108,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
   let key_info_provider = Key_info_provider.make config in
 
   let system = config.system in
+  let gpg = G.make system in
 
   (* Check the GPG signatures on [tmpfile]. If any keys are missing, download and import them.
    * Returns a non-empty list of valid (though maybe not trusted) signatures, or a suitable error.
@@ -117,7 +118,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
    *)
   let download_missing_keys ~use_mirror feed_url xml =
     let `Remote_feed feed = feed_url in
-    G.verify system xml >>= fun (sigs, messages) ->
+    G.verify gpg xml >>= fun (sigs, messages) ->
 
     if sigs = [] then (
       let extra = if messages = "" then "" else "\n" ^ messages in
@@ -143,7 +144,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
         | `Tmpfile tmpfile ->
             let contents = U.read_file system tmpfile in
             log_info "Importing key for feed '%s" feed;
-            G.import_key system contents >|= fun () ->
+            G.import_key gpg contents >|= fun () ->
             any_imported := true
       ) in
 
@@ -160,7 +161,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
     else (
       (* Recalculate signatures if we imported any new keys. *)
       begin
-        if !any_imported then G.verify system xml
+        if !any_imported then G.verify gpg xml
         else Lwt.return (sigs, messages)
       end >>= fun (sigs, messages) ->
 
@@ -229,7 +230,7 @@ class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (dow
       match old_xml with
       | None -> save_new_xml ()
       | Some old_xml ->
-          G.verify system old_xml >>= fun (old_sigs, warnings) ->
+          G.verify gpg old_xml >>= fun (old_sigs, warnings) ->
           match trust_db#oldest_trusted_sig (Trust.domain_from_url feed) old_sigs with
           | None -> raise_safe "Can't check signatures of currently cached feed %s" warnings
           | Some old_modified when old_modified > timestamp ->

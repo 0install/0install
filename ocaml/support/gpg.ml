@@ -4,6 +4,8 @@
 
 open Common
 
+type t = system
+
 module U = Utils
 
 let spf = Printf.sprintf
@@ -38,6 +40,8 @@ let re_xml_comment_start = Str.regexp "^<!-- Base64 Signature$"
 let re_newline = Str.regexp "[\n\r]+"
 
 let gnupg_options = ref None
+
+let make system = system
 
 let get_gnupg_options system =
   let gpg_path =

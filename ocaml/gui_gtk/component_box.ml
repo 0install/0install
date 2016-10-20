@@ -453,7 +453,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
 
   let iface_config = FC.load_iface_config config iface in
 
-  Preferences_box.combo
+  Gtk_utils.combo
     ~table ~top:0 ~label:"Preferred stability: "
     ~choices:[None; Some Stable; Some Testing; Some Developer]
     ~value:iface_config.FC.stability_policy

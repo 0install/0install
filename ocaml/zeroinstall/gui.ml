@@ -410,7 +410,8 @@ let get_sigs config url =
   | Some cache_path ->
       if config.system#file_exists cache_path then (
         let xml = U.read_file config.system cache_path in
-        Support.Gpg.verify config.system xml >|= fun (sigs, warnings) ->
+        let gpg = Support.Gpg.make config.system in
+        Support.Gpg.verify gpg xml >|= fun (sigs, warnings) ->
         if warnings <> "" then log_info "get_last_modified: %s" warnings;
         sigs
       ) else Lwt.return []
@@ -447,7 +448,8 @@ let generate_feed_description config trust_db feed overrides =
 
       sigs |> Lwt_list.map_s (function
         | G.ValidSig {G.fingerprint; G.timestamp} ->
-            G.get_key_name config.system fingerprint >|= fun name ->
+            let gpg = G.make config.system in
+            G.get_key_name gpg fingerprint >|= fun name ->
             let is_trusted =
               if trust_db#is_trusted ~domain fingerprint then `Trusted else `Not_trusted in
             `Valid (fingerprint, timestamp, name, is_trusted)

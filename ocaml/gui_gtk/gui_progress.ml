@@ -99,7 +99,9 @@ let make_watcher solver_box tools ~trust_db reqs =
     method confirm_keys feed_url infos =
       solver_box >>= fun box ->
       box#ensure_main_window >>= fun parent ->
-      Trust_box.confirm_keys ~parent tools#config trust_db feed_url infos
+      let open Zeroinstall.General in
+      let gpg = Support.Gpg.make tools#config.system in
+      Trust_box.confirm_keys ~parent gpg trust_db feed_url infos
 
     method confirm message =
       solver_box >>= fun box ->

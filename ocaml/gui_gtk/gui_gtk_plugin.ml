@@ -36,7 +36,7 @@ let make_gtk_ui config =
       match preferences_dialog with
       | Some (dialog, result) -> dialog#present (); result
       | None ->
-          let dialog, result = Preferences_box.show_preferences config trust_db ~recalculate:self#recalculate in
+          let dialog, result = Preferences_box.make config trust_db ~recalculate:self#recalculate in
           preferences_dialog <- Some (dialog, result);
           dialog#show ();
           Gtk_utils.async (fun () -> result >|= fun () -> preferences_dialog <- None);

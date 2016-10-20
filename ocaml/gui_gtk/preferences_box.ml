@@ -2,17 +2,15 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(** The global preferences dialog. *)
-
 open Support.Common
 open Gtk_common
 open Zeroinstall.General
 module G = Support.Gpg
 
-let get_keys_by_domain config trust_db =
+let get_keys_by_domain gpg trust_db =
   let domains_of_key = trust_db#get_db in
   let fingerprints = domains_of_key |> StringMap.map_bindings (fun key _domains -> key) in
-  G.load_keys config.system fingerprints >|= fun key_info ->
+  G.load_keys gpg fingerprints >|= fun key_info ->
   let keys_of_domain = ref StringMap.empty in
   domains_of_key |> StringMap.iter (fun key domains ->
     domains |> StringSet.iter (fun domain ->
@@ -79,27 +77,6 @@ let freshness_levels = [
   (Some (365. *. days), "Up to one year old");
 ]
 
-let combo ~(table:GPack.table) ~top ~label ~choices ~to_string ~value ~callback ~tooltip =
-  let data_conv = Gobject.({
-    kind = `STRING;
-    proj = (fun _ -> failwith "data_conv.proj called!");
-    inj = (fun x -> `STRING (Some (to_string x)));
-  }) in
-
-  let model, column = GTree.store_of_list data_conv choices in
-  GMisc.label ~packing:(table#attach ~left:0 ~top) ~text:label ~xalign:1.0 () |> ignore_widget;
-  let combo = GEdit.combo_box ~packing:(table#attach ~left:1 ~top ~expand:`X) ~model () in
-  let cell = GTree.cell_renderer_text [] in
-  combo#pack ~expand:true cell;
-  combo#add_attribute cell "text" column;
-  let rec index i = function
-    | [] -> log_warning "Current value is not a valid choice!"; 0
-    | x :: _ when x = value -> i
-    | _ :: rest -> index (i + 1) rest in
-  combo#set_active (index 0 choices);
-  combo#connect#changed ==> (fun () -> List.nth choices combo#active |> callback);
-  combo#misc#set_tooltip_text tooltip
-
 let find_open_rows (view:GTree.view) column =
   let model = view#model in
   match model#get_iter_first with
@@ -115,7 +92,7 @@ let find_open_rows (view:GTree.view) column =
       loop ();
       !results
 
-let add_key_list ~packing config trust_db =
+let add_key_list ~packing gpg trust_db =
   let swin = GBin.scrolled_window
     ~packing
     ~hpolicy:`AUTOMATIC
@@ -160,7 +137,7 @@ let add_key_list ~packing config trust_db =
 
   (* Populate model *)
   let populate_model () =
-    get_keys_by_domain config trust_db >|= fun (key_info, keys_of_domain) ->
+    get_keys_by_domain gpg trust_db >|= fun (key_info, keys_of_domain) ->
 
     (* Remember which ones are open *)
     let previously_open = find_open_rows view name in
@@ -192,7 +169,7 @@ let add_key_list ~packing config trust_db =
 
   Gtk_utils.async populate_model
 
-let show_preferences config trust_db ~recalculate =
+let make config trust_db ~recalculate =
   let apply_changes () =
     Zeroinstall.Config.save_config config;
     recalculate () in
@@ -208,7 +185,7 @@ let show_preferences config trust_db ~recalculate =
     ~homogeneous:false ~border_width:12 ~packing:policy_settings#add () in
 
   (* Network use *)
-  combo
+  Gtk_utils.combo
     ~table ~top:0 ~label:"Network use: "
     ~choices:[Offline; Minimal_network; Full_network] ~value:config.network_use
     ~to_string:(fun n -> Zeroinstall.Config.format_network_use n |> String.capitalize)
@@ -222,7 +199,7 @@ let show_preferences config trust_db ~recalculate =
     with Not_found ->
       let extra_choice = (config.freshness, Printf.sprintf "%.0f seconds" (default 0. config.freshness)) in
       (freshness_levels @ [extra_choice], extra_choice) in
-  combo
+  Gtk_utils.combo
     ~table ~top:1 ~label:"Freshness: "
     ~choices:freshness_levels ~value:current_freshness
     ~to_string:snd
@@ -249,7 +226,8 @@ let show_preferences config trust_db ~recalculate =
   let vbox = GPack.vbox ~border_width:12 ~packing:security_settings#add () in
   GMisc.label ~packing:vbox#pack ~xalign:0.0 ~markup:"<i>These keys may sign software updates:</i>" () |> ignore_widget;
 
-  add_key_list ~packing:(vbox#pack ~expand:true ~fill:true) config trust_db;
+  let gpg = G.make config.system in
+  add_key_list ~packing:(vbox#pack ~expand:true ~fill:true) gpg trust_db;
 
   let auto_approve = GButton.check_button
     ~packing:vbox#pack
@@ -279,4 +257,4 @@ let show_preferences config trust_db ~recalculate =
   );
 
   dialog#set_default_size ~width:(-1) ~height:(Gdk.Screen.height () / 3);
-  (dialog, result)
+  ((dialog :> GWindow.window_skel), result)

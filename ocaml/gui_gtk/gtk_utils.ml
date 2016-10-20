@@ -95,3 +95,24 @@ let sanity_check_iface uri =
      U.ends_with uri ".tgz" then (
    raise_safe "This URI (%s) looks like an archive, not a 0install feed. Make sure you're using the feed link!" uri
   )
+
+let combo ~(table:GPack.table) ~top ~label ~choices ~to_string ~value ~callback ~tooltip =
+  let data_conv = Gobject.({
+    kind = `STRING;
+    proj = (fun _ -> failwith "data_conv.proj called!");
+    inj = (fun x -> `STRING (Some (to_string x)));
+  }) in
+
+  let model, column = GTree.store_of_list data_conv choices in
+  GMisc.label ~packing:(table#attach ~left:0 ~top) ~text:label ~xalign:1.0 () |> ignore_widget;
+  let combo = GEdit.combo_box ~packing:(table#attach ~left:1 ~top ~expand:`X) ~model () in
+  let cell = GTree.cell_renderer_text [] in
+  combo#pack ~expand:true cell;
+  combo#add_attribute cell "text" column;
+  let rec index i = function
+    | [] -> log_warning "Current value is not a valid choice!"; 0
+    | x :: _ when x = value -> i
+    | _ :: rest -> index (i + 1) rest in
+  combo#set_active (index 0 choices);
+  combo#connect#changed ==> (fun () -> List.nth choices combo#active |> callback);
+  combo#misc#set_tooltip_text tooltip
