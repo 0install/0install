@@ -5,7 +5,6 @@
 (** Select a compatible set of components to run a program. *)
 
 open Support.Common
-module U = Support.Utils
 
 type ('a, 'b) partition_result =
   | Left of 'a

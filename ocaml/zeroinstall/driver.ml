@@ -5,7 +5,6 @@
 open General
 open Support.Common
 
-module U = Support.Utils
 let (>|=) = Lwt.(>|=)
 
 exception Aborted_by_user

@@ -7,9 +7,6 @@
 open Support.Common
 open Zeroinstall.General
 
-module Ui = Zeroinstall.Ui
-module Downloader = Zeroinstall.Downloader
-
 let make_gtk_ui config =
   let trust_db = new Zeroinstall.Trust.trust_db config in
 

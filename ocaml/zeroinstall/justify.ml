@@ -4,8 +4,6 @@
 
 module FeedAttr = Constants.FeedAttr
 
-module U = Support.Utils
-
 let spf = Printf.sprintf
 
 exception Return of string

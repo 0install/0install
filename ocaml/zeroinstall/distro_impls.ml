@@ -6,7 +6,6 @@
 
 open General
 open Support.Common
-module FeedAttr = Constants.FeedAttr
 module U = Support.Utils
 
 open Distro

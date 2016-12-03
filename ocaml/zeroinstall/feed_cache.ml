@@ -8,7 +8,6 @@ open General
 open Support.Common
 module Q = Support.Qdom
 module U = Support.Utils
-module Basedir = Support.Basedir
 module FeedSet = Feed_url.FeedSet
 open Constants
 

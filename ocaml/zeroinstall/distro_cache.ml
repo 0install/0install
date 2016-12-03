@@ -9,7 +9,6 @@ open Support.Common
 open General
 
 module U = Support.Utils
-module Basedir = Support.Basedir
 
 type package_name = string
 type entry = Version.t * Arch.machine option

@@ -7,10 +7,8 @@
 open General
 open Support.Common
 
-module Basedir = Support.Basedir
 module FeedAttr = Constants.FeedAttr
 module F = Feed
-module R = Requirements
 module U = Support.Utils
 module Q = Support.Qdom
 module G = Support.Gpg

@@ -4,7 +4,6 @@
 
 open General
 open Support.Common
-module Basedir = Support.Basedir
 module U = Support.Utils
 
 type app = filepath

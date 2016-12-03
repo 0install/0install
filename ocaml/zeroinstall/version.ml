@@ -5,7 +5,6 @@
 (** Parsing version numbers *)
 
 open Support.Common
-module U = Support.Utils
 
 type modifier =
   | Pre

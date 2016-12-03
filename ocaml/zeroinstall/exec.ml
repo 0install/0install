@@ -4,8 +4,6 @@
 
 open General
 open Support.Common
-module Basedir = Support.Basedir
-module FeedAttr = Constants.FeedAttr
 
 let re_exec_name = Str.regexp "^[^./'][^/']*$"
 
