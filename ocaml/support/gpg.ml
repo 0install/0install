@@ -175,7 +175,9 @@ let make_valid args = ValidSig {
 let make_bad args = BadSig args.(0)
 
 let make_err args = ErrSig (
-  match U.safe_int_of_string args.(5) with
+  (* GnuPG 2.1.16 sets the higher bits (possibly by mistake).
+     See: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=846834 *)
+  match U.safe_int_of_string args.(5) land 0xffff with
   | 4 -> UnsupportedAlgorithm args.(1)
   | 9 -> UnknownKey args.(0)
   | x -> UnknownSigError x
