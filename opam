@@ -17,7 +17,7 @@ depends: [
   "react"
   "lwt"
   "extlib"
-  "ocurl" {>= "0.7.7" & < "0.7.8"}
+  "ocurl" {>= "0.7.9"}
   "sha"
   "ocamlbuild" {build}
   "camlp4" {build}
