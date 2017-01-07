@@ -8,16 +8,6 @@ type 'a result =
   | Success of 'a
   | Problem of exn
 
-IFDEF OCAML_LT_4_02 THEN
-module Bytes = struct
-  include String
-
-  let to_string = String.copy
-  let unsafe_to_string x = x
-  let unsafe_of_string x = x
-end
-ENDIF
-
 type filepath = string
 type varname = string
 
@@ -63,8 +53,10 @@ class type system =
     method with_open_out : open_flag list -> mode:Unix.file_perm -> (out_channel -> 'a) -> filepath -> 'a
     method atomic_write : open_flag list -> mode:Unix.file_perm -> (out_channel -> 'a) -> filepath -> 'a
     method mkdir : filepath -> Unix.file_perm -> unit
+
     (** Returns [false] for a broken symlink. *)
     method file_exists : filepath -> bool
+
     method lstat : filepath -> Unix.stats option
     method stat : filepath -> Unix.stats option
     method unlink : filepath -> unit
@@ -84,9 +76,11 @@ class type system =
     method exec : 'a. ?search_path:bool -> ?env:string array -> string list -> 'a
     method spawn_detach : ?search_path:bool -> ?env:string array -> string list -> unit
     method create_process : ?env:string array -> string list -> Unix.file_descr -> Unix.file_descr -> Unix.file_descr -> int
+
     (** [reap_child ?kill_first:signal child_pid] calls [waitpid] to collect the child.
         @raise Safe_exception if it didn't exit with a status of 0 (success). *)
     method reap_child : ?kill_first:int -> int -> unit
+
     (** Low-level interface, in case you need to process the exit status yourself. *)
     method waitpid_non_intr : int -> (int * Unix.process_status)
 

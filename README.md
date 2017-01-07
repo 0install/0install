@@ -47,7 +47,7 @@ OCaml libraries to compile 0install.
 
 The easiest way to get the dependencies is using [OPAM](http://opam.ocamlpro.com/):
 
-    $ opam sw 4.01.0
+    $ opam sw 4.04.0
     $ eval `opam config env`
     $ opam install yojson xmlm ounit react lwt extlib ocurl obus lablgtk sha
 

@@ -71,12 +71,6 @@ let windres =
         "x86_64-w64-mingw32-windres.exe"
 
 let () =
-  let v = Sys.ocaml_version in
-  let first_dot = String.index v '.' in
-  let second_dot = String.index_from v (first_dot + 1) '.' in
-  let major_version = int_of_string (String.sub v 0 first_dot) in
-  let minor_version = int_of_string (String.sub v (first_dot + 1) (second_dot - first_dot - 1)) in
-
   let native_targets = ref ["static_0install.native"] in
 
   if Sys.os_type = "Win32" then native_targets := "runenv.native" :: !native_targets;
@@ -175,7 +169,6 @@ let () =
        then it just ignores the ppopt. So, we need to write the -pp option ourselves. *)
 
     let defines_portable = ref [] in
-    if (major_version < 4 || (major_version == 4 && minor_version < 2)) then add "-DOCAML_LT_4_02" defines_portable;
     if use_dbus then add "-DHAVE_DBUS" defines_portable;
     if gtk_dir <> None then add "-DHAVE_GTK" defines_portable;
 
