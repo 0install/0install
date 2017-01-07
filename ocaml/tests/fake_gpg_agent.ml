@@ -33,7 +33,7 @@ let handle_connection client =
 
 let run gpg_dir =
   let socket = Lwt_unix.(socket PF_UNIX SOCK_STREAM 0) in
-  Lwt_unix.bind socket (Lwt_unix.ADDR_UNIX (gpg_dir +/ "S.gpg-agent"));
+  Unix.bind (Lwt_unix.unix_file_descr socket) (Lwt_unix.ADDR_UNIX (gpg_dir +/ "S.gpg-agent"));
   Lwt_unix.set_close_on_exec socket;
   Lwt_unix.listen socket 5;
   let rec aux () =

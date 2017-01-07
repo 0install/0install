@@ -63,7 +63,7 @@ let start_server system =
     let rec find_port n =
       if n < 0 then raise_safe "Failed to find a free port (8000-8999) to bind to!";
       let port = 8000 + Random.int 1000 in
-      try Lwt_unix.(bind server_socket (ADDR_INET (Unix.inet_addr_loopback, port))); port
+      try Unix.(bind (Lwt_unix.unix_file_descr server_socket) (ADDR_INET (Unix.inet_addr_loopback, port))); port
       with Unix.Unix_error _ as ex ->
         log_info ~ex "Bind failed - port %d in use?" port;
         find_port (n - 1) in
