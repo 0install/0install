@@ -18,6 +18,7 @@ let cache_path_for config url = Feed_cache.get_save_cache_path config url
 
 let suite = "feed-cache">::: [
   "is-stale">:: Fake_system.with_tmpdir (fun tmpdir ->
+    skip_if on_windows "Time doesn't work on Windows";
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
 
     let url = `Remote_feed "http://localhost:8000/Hello" in
@@ -41,6 +42,7 @@ let suite = "feed-cache">::: [
   );
 
   "check-attempt">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    skip_if on_windows "mtime returns -1";
     let bar = `Remote_feed "http://foo/bar.xml" in
     assert_equal None @@ Feed_cache.get_last_check_attempt config bar;
 
@@ -48,8 +50,8 @@ let suite = "feed-cache">::: [
     Feed_cache.mark_as_checking config bar;
     let () =
       match Feed_cache.get_last_check_attempt config bar with
-      | Some 100.0 -> ()
-      | _ -> assert false in
+      | Some x -> assert_equal ~printer:string_of_float 100.0 x
+      | None -> assert false in
 
     assert_equal None @@ Feed_cache.get_last_check_attempt config (`Remote_feed "http://foo/bar2.xml")
   );
@@ -183,8 +185,11 @@ let suite = "feed-cache">::: [
     (* Check that we write it out, so that older 0installs can find it *)
     Feed_cache.save_iface_config config iface iface_config;
 
-    let config_file = Fake_system.expect @@ Basedir.load_first config.system ("0install.net" +/ "injector" +/
-                          "interfaces" +/ "http:##example.com#section#prog_1.xml") basedirs.Basedir.config in
+    let expected_dir_escaped =
+      if on_windows then "http%3a##example.com#section#prog_1.xml"
+      else "http:##example.com#section#prog_1.xml" in
+    let config_file = Fake_system.load_first_exn config.system ("0install.net" +/ "injector" +/
+                          "interfaces" +/ expected_dir_escaped) basedirs.Basedir.config in
     let doc = Q.parse_file config.system config_file in
 
     let is_feed elem = (ZI.tag elem = Some "feed") in
@@ -196,7 +201,7 @@ let suite = "feed-cache">::: [
     assert_equal 1 @@ List.length iface_config.Feed_cache.extra_feeds;
 
     (* Check feeds are automatically removed again *)
-    let site_dir = Fake_system.expect @@ Basedir.load_first config.system
+    let site_dir = Fake_system.load_first_exn config.system
       ("0install.net" +/ "site-packages" +/ "http" +/ "example.com" +/ expected_escape)
       basedirs.Basedir.data in
     U.rmtree config.system ~even_if_locked:false site_dir;

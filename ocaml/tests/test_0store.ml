@@ -21,6 +21,7 @@ let write_file (system:system) ~mtime ?(mode=0o644) path contents =
 
 (* Create a set of files, links and directories in target for testing. *)
 let populate_sample system target =
+  skip_if on_windows "No symlinks, plus permission problems";
   let path = target +/ "MyFile" in
   write_file system path ~mtime:2.0 "Hello";
 
@@ -97,6 +98,7 @@ let suite = "0store">::: [
   );
 
   "add-archive">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    skip_if on_windows "Pathnames cause trouble for tar on Windows";
     let digest = "sha1new=290eb133e146635fe37713fd58174324a16d595f" in
     check_adds config digest (fun () ->
       assert_str_equal "" @@ Test_0install.run_0install fake_system ["store"; "add"; digest; Test_0install.feed_dir +/ "HelloWorld.tgz"];
@@ -106,6 +108,7 @@ let suite = "0store">::: [
   );
 
   "add-archive-extract">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    skip_if on_windows "Pathnames cause trouble for tar on Windows";
     let digest = "sha1new=491678c37f77fadafbaae66b13d48d237773a68f" in
     check_adds config digest (fun () ->
       assert_str_equal "" @@ Test_0install.run_0install fake_system ["store"; "add"; digest; Test_0install.feed_dir +/ "HelloWorld.tgz"; "HelloWorld"];
@@ -113,6 +116,7 @@ let suite = "0store">::: [
   );
 
   "manifest">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    skip_if on_windows "mtime returns -1";
     let system = config.system in
     let home = U.getenv_ex fake_system "HOME" in
     assert_str_equal "" @@ Manifest.generate_manifest system "sha1new" home;

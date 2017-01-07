@@ -79,6 +79,7 @@ let make_dl_tester () =
 
 let suite = "fetch">::: [
   "download-local">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    skip_if on_windows "mtime returns -1";
     let tools = Fake_system.make_tools config in
     let fetcher = tools#make_fetcher tools#ui#watcher in
     download_impls fetcher [];
@@ -160,6 +161,7 @@ let suite = "fetch">::: [
   );
 
   "local-archive">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    skip_if on_windows "Pathnames cause trouble for tar on Windows";
     let tools = Fake_system.make_tools config in
     let fetcher = tools#make_fetcher tools#ui#watcher in
 
@@ -204,8 +206,8 @@ let suite = "fetch">::: [
     let sels = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None |> Zeroinstall.Selections.create in
     assert (Zeroinstall.Driver.get_unavailable_selections config ~distro:tools#distro sels <> []);
 
-    check ~error:"Local file '.*tests/IDONTEXIST.tgz' does not exist" "impl2";
-    check ~error:"Wrong size for .*/tests/HelloWorld.tgz: feed says 177, but actually 176 bytes" "impl3";
+    check ~error:"Local file '.*tests.IDONTEXIST.tgz' does not exist" "impl2";
+    check ~error:"Wrong size for .*.tests.HelloWorld.tgz: feed says 177, but actually 176 bytes" "impl3";
     check ~testfile:"HelloWorld" "impl1";
     check ~testfile:"archive.tgz" "impl4";
   );

@@ -40,6 +40,7 @@ let suite = "stores">::: [
 
   "check-system-store">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     skip_if (Sys.os_type = "Unix" && Unix.geteuid () = 0) "Doesn't work when unit-tests are run as root";
+    skip_if on_windows "Uses symlinks";
 
     let home = U.getenv_ex fake_system "HOME" in
     let system_store = home +/ "system_store" in
@@ -112,6 +113,7 @@ let suite = "stores">::: [
   );
 
   "test-helper">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    skip_if on_windows "umask not available";
     let home = U.getenv_ex fake_system "HOME" in
     let test = home +/ "test" in
     fake_system#mkdir test 0o755;
@@ -141,6 +143,7 @@ let suite = "stores">::: [
   );
 
   "check-permissions">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    skip_if on_windows "Windows doesn't support special bits";
     let tmpdir = Stores.make_tmp_dir config.system config.stores in
     let subdir = tmpdir +/ "subdir" in
     fake_system#mkdir subdir 0o755;
@@ -175,6 +178,7 @@ let suite = "stores">::: [
       let added_digest = (alg, Manifest.add_manifest_file config.system alg tmp) in
       Manifest.verify config.system tmp ~digest:added_digest;
       fake_system#chmod tmp 0o700;
+      fake_system#chmod mfile 0o600;  (* For Windows *)
       fake_system#unlink mfile in
 
     List.iter test ["sha1"; "sha256"; "sha1new"; "sha256new"]

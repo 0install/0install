@@ -33,6 +33,15 @@ let expect = function
   | Some x -> x
   | None -> assert_failure "got None!"
 
+let pp_path f xs =
+  let pp_sep f () = Format.pp_print_string f "; " in
+  Format.fprintf f "[%a]" (Format.pp_print_list ~pp_sep Format.pp_print_string) xs
+
+let load_first_exn system rel_path search_path =
+  match Support.Basedir.load_first system rel_path search_path with
+  | Some p -> p
+  | None -> raise_safe "Resource %S not found in %a" rel_path pp_path search_path
+
 module RealSystem = Support.System.RealSystem(Unix)
 let real_system = new RealSystem.real_system
 
@@ -63,23 +72,27 @@ let flush_all () =
 
 let capture_stdout ?(include_stderr=false) fn =
   let open Unix in
+  let tmp = Filename.temp_file "0install-" "-test-output" in
   U.finally_do
-    (fun (old_stdout, old_stderr) ->
-      dup2 old_stdout Unix.stdout; close old_stdout;
-      dup2 old_stderr Unix.stderr; close old_stderr)
-    (dup Unix.stdout, dup Unix.stderr)
-    (fun _old ->
-      let tmp = Filename.temp_file "0install-" "-test-output" in
-      U.finally_do
-        (fun fd -> flush_all (); close fd; unlink tmp)
-        (openfile tmp [O_RDWR] 0o600)
-        (fun tmpfd ->
-          dup2 tmpfd Unix.stdout;
-          if include_stderr then dup2 tmpfd Unix.stderr;
-          fn ();
-          flush_all ();
-          U.read_file real_system tmp
-        )
+    (fun fd ->
+       try close fd; unlink tmp
+       with ex -> log_warning ~ex "Error cleaning up stdout file"
+    )
+    (openfile tmp [O_RDWR] 0o600)
+    (fun tmpfd ->
+       U.finally_do
+         (fun (old_stdout, old_stderr) ->
+            flush_all ();
+            dup2 old_stdout Unix.stdout; close old_stdout;
+            dup2 old_stderr Unix.stderr; close old_stderr)
+         (dup Unix.stdout, dup Unix.stderr)
+         (fun _old ->
+            dup2 tmpfd Unix.stdout;
+            if include_stderr then dup2 tmpfd Unix.stderr;
+            fn ();
+            flush_all ();
+            U.read_file real_system tmp
+         )
     )
 
 let capture_stdout_lwt ?(include_stderr=false) fn =
@@ -281,7 +294,7 @@ class fake_system ?(portable_base=true) tmpdir =
       )
 
     method atomic_write open_flags ~mode fn path = real_system#atomic_write open_flags ~mode fn (check_write path)
-    method hardlink orig copy = real_system#hardlink (check_write orig) (check_write copy)
+    method hardlink orig copy = real_system#hardlink (check_read orig) (check_write copy)
     method unlink path = real_system#unlink (check_write path)
     method rmdir path = real_system#rmdir (check_write path)
 
@@ -377,7 +390,7 @@ class fake_system ?(portable_base=true) tmpdir =
     method running_as_root = false
 
     method with_stdin : 'a. string -> ('a Lazy.t) -> 'a = fun msg fn ->
-      let tmpfile = Filename.temp_file "0install-" "-test" in
+      let tmpfile = Filename.temp_file "0install-" "-test-stdin" in
       let tmp_fd = Unix.openfile tmpfile [Unix.O_RDWR] 0o644 in
       Unix.unlink tmpfile;
 
@@ -544,6 +557,15 @@ let with_tmpdir fn () =
         tmppath fn
     )
 
+let fake_win_dirs tmpdir =
+  object (_ : Support.Windows_api.windows_api)
+    method get_appdata () = tmpdir +/ "AppData"
+    method get_local_appdata () = tmpdir +/ "LocalAppData"
+    method get_common_appdata () = "C:\\ProgramData"
+    method read_registry_string key value _wow = log_info "read_registry_string %S %S -> None" key value; None
+    method read_registry_int key value _wow = log_info "read_registry_int %S %S -> None" key value; None
+  end
+
 let get_fake_config ?portable_base tmpdir =
   let system = new fake_system ?portable_base tmpdir in
   let home =
@@ -556,7 +578,15 @@ let get_fake_config ?portable_base tmpdir =
   system#putenv "HOME" home;
   if on_windows then (
     system#add_file (src_dir +/ "0install-runenv.exe") (build_dir +/ "0install-runenv.exe");
-    system#putenv "PATH" (Sys.getenv "PATH");
+    system#putenv "PATH" ("c:\\bin;" ^ Sys.getenv "PATH");
+    system#add_dir "c:\\bin" [];
+    system#add_file "c:\\bin\\0install-runenv.exe" (build_dir +/ "0install-runenv.exe");
+    system#add_file "c:\\bin\\0install.exe" (build_dir +/ "0install.exe");
+    system#add_file "c:\\bin\\0launch.exe" (build_dir +/ "0install.exe");
+    system#add_file "c:\\bin\\0alias.exe" (build_dir +/ "0install.exe");
+    match tmpdir with
+    | Some tmpdir -> Support.Windows_api.windowsAPI := Some (fake_win_dirs tmpdir);
+    | None -> ()
   ) else (
     system#putenv "PATH" @@ (home +/ "bin") ^ ":" ^ (Sys.getenv "PATH");
     system#add_file test_0install (build_dir +/ "0install");

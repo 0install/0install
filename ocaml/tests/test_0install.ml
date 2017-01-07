@@ -246,6 +246,7 @@ let suite = "0install">::: [
   );
 
   "download">:: Fake_system.with_tmpdir (fun tmpdir ->
+    skip_if on_windows "Uses tar";
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let system = (fake_system :> system) in
     let run = run_0install fake_system in
@@ -320,6 +321,7 @@ let suite = "0install">::: [
   );
 
   "apps">:: Fake_system.with_tmpdir (fun tmpdir ->
+    skip_if on_windows "Needs user bin directory in $PATH";
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let system = (fake_system :> system) in
     let run = run_0install fake_system in
@@ -477,6 +479,7 @@ let suite = "0install">::: [
   );
 
   "add">:: Fake_system.with_tmpdir (fun tmpdir ->
+    skip_if on_windows "Time doesn't work on Windows";
     Update.wait_for_network := (fun () -> `Disconnected);
 
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
@@ -523,7 +526,11 @@ let suite = "0install">::: [
 
     system#set_mtime (app +/ "last-solve") 400.0;
     let sels = A.get_selections_may_update tools app |> Lwt_main.run in
-    assert_equal [] @@ Zeroinstall.Driver.get_unavailable_selections config ~distro sels;
+    let printer xs =
+      let pp_sep f () = Format.pp_print_string f "; " in
+      Format.asprintf "[%a]" (Format.pp_print_list ~pp_sep Element.fmt) xs
+    in
+    assert_equal ~printer [] @@ Zeroinstall.Driver.get_unavailable_selections config ~distro sels;
     assert_equal 400.0 (A.get_times system app).A.last_solve;
 
     (* The feed is missing. We warn but continue with the old selections. *)
@@ -571,6 +578,7 @@ let suite = "0install">::: [
   );
 
   "add-feed">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    skip_if on_windows "Stdin FD tricks won't work";
     let binary_iface = "http://foo/Binary.xml" in
     let run ?(exit=0) args =
       fake_system#set_argv @@ Array.of_list (test_0install :: "--console" :: args);
@@ -601,13 +609,14 @@ let suite = "0install">::: [
     let iface_config = FC.load_iface_config config binary_iface in
     assert_equal 0 @@ List.length iface_config.FC.extra_feeds;
 
-    let tmp_feed, ch = Filename.open_temp_file "0install-" "-test" in
+    let tmp_feed, ch = Filename.open_temp_file "0install-" "-test-feed" in
     feed_dir +/ "Source.xml" |> fake_system#with_open_in [Open_binary] (fun source_ch ->
       U.copy_channel source_ch ch;
     );
     close_out ch;
     let out = run ["add-feed"; binary_iface; tmp_feed] in
     assert_str_equal "" out;
+    Unix.chmod tmp_feed 0o600;
     Unix.unlink tmp_feed;
     let out = run ["remove-feed"; binary_iface; tmp_feed] in
     assert_str_equal "" out;
@@ -624,6 +633,7 @@ let suite = "0install">::: [
   );
 
   "digest">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    skip_if on_windows "Uses tar";
     let run args = run_0install fake_system args in
     let hw = feed_dir +/ "HelloWorld.tgz" in
 
@@ -711,8 +721,8 @@ let suite = "0install">::: [
     let injector_dir = fake_system#tmpdir +/ "config/injector" in
     assert_equal ~msg:"init no config" false (fake_system#file_exists injector_dir);
 
-    run_0install fake_system ["config"; "--dry-run"; "help_with_testing"; "false"]
-    |> Fake_system.assert_matches "^\\[dry-run] Would write config to .*/config/injector/global";
+    let out = run_0install fake_system ["config"; "--dry-run"; "help_with_testing"; "false"] in
+    Fake_system.assert_matches "^\\[dry-run] Would write config to .*config..?injector..?global" out;
     Zeroinstall.Config.load_config config;
     assert_equal false config.help_with_testing;
     assert_equal ~msg:"no config dir created" false (fake_system#file_exists injector_dir);
@@ -881,7 +891,8 @@ let suite = "0install">::: [
 
   "ranges">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
     let out = run_0install fake_system ["select"; "--before=1"; "--not-before=0.2"; feed_dir +/ "Foo.xml"] in
-    assert_contains "tests/rpm" out;
+    if on_windows then assert_contains "tests\\rpm" out
+    else assert_contains "tests/rpm" out;
   );
 
   "logging">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
@@ -942,6 +953,7 @@ let suite = "0install">::: [
   );
 
   "update-alias">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    skip_if on_windows "Aliases don't work on Windows";
     let local_feed = feed_dir +/ "Local.xml" in
     let bindir = fake_system#tmpdir +/ "bin" in
     fake_system#mkdir bindir 0o700;
@@ -954,6 +966,7 @@ let suite = "0install">::: [
   );
 
   "man">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    skip_if on_windows "No man. No aliases";
     let out = run_0install fake_system ["man"; "--help"] in
     assert (U.starts_with out "Usage:");
 

@@ -15,6 +15,13 @@ module Q = Support.Qdom
 
 let cache_path_for config url = Feed_cache.get_save_cache_path config url
 
+let re_backslash = Str.regexp_string "\\"
+let re_win_root = Str.regexp_string "c:\\root\\"
+
+let fixup_windows_paths str =
+  Str.global_replace re_win_root "/root/" str
+  |> Str.global_replace re_backslash "/"
+
 let make_packagekit get_distro_candidates =
   object (_ : Zeroinstall.Packagekit.packagekit)
     val candidates = Hashtbl.create 10
@@ -70,6 +77,9 @@ let make_driver_test test_elem =
   ZI.check_tag "test" test_elem;
   let name = ZI.get_attribute "name" test_elem in
   name >:: Fake_system.with_tmpdir (fun tmpdir ->
+    match ZI.get_attribute_opt "skip-windows" test_elem with
+    | Some reason when on_windows -> skip_if true reason
+    | _ ->
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let home = U.getenv_ex config.system "HOME" in
     let expand_tmp s =
@@ -162,6 +172,7 @@ let make_driver_test test_elem =
             | `Dry_run msg -> Zeroinstall.Dry_run.log "%s" msg
             | `Ok () -> ()
           ) in
+          let output = if on_windows then fixup_windows_paths output else output in
           let re = Str.regexp !expected_output in
           if not (Str.string_match re output 0) then
             assert_failure (Printf.sprintf "Expected output '%s' but got '%s'" !expected_output output);

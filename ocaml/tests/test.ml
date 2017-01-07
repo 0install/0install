@@ -44,6 +44,7 @@ let test_basedir () =
   equal_str_lists ~msg:"XDG3" ["/home/bob/.local/share"; "/data1"; "/data2"] bd.data
 
 let test_portable_base () =
+  skip_if (Sys.os_type = "Win32") "Tests Unix paths";
   let system = new fake_system None in
   system#putenv "HOME" "/home/bob";
   let paths = Paths.get_default (system :> system) in

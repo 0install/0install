@@ -785,7 +785,7 @@ let suite = "download">::: [
     assert_contains "(not cached)" out;
   );
 
-  "slave-2.6">::  Server.with_server ~portable_base:false (fun (config, _fake_system) server ->
+  "slave-2.6">:: Server.with_server ~portable_base:false (fun (config, _fake_system) server ->
     server#expect [
       [("Hello.xml", `Serve)];
       [("6FCF121BE2390E0B.gpg", `Serve)];

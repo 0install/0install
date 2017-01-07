@@ -64,6 +64,7 @@ let suite = "manifest">::: [
   );
 
   "ordering-sha1">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    skip_if on_windows "mtime returns -1";
     let system = config.system in
     let home = U.getenv_ex config.system "HOME" in
     let mydir = home +/ "Dir" in
@@ -98,6 +99,7 @@ let suite = "manifest">::: [
   );
 
   "ordering">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    skip_if on_windows "mtime returns -1";
     let system = config.system in
     let home = U.getenv_ex config.system "HOME" in
     let mydir = home +/ "Dir" in
@@ -112,6 +114,7 @@ let suite = "manifest">::: [
 
   (* @skipIf(sys.getfilesystemencoding().lower() != "utf-8", "tar only unpacks to utf-8") *)
   "non-ascii">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows tar";
     let home = U.getenv_ex config.system "HOME" in
     let mydir = home +/ "unicode" in
     let system = config.system in

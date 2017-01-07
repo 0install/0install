@@ -8,8 +8,8 @@ endif
 
 TYPE=native
 OCAMLBUILD=ocamlbuild -j 0 -build-dir "${BUILDDIR_NATIVE}"
+WINDOWS_LIBS = $(shell dirname $(shell which ocamlc))
 ifeq ($(OS), Windows_NT)
-  WINDOWS_LIBS = $(shell dirname $(shell which ocamlc))
   OCAMLBUILDFLAGS = -lflag -cclib -lflag -lshell32
 endif
 TEST_BINARY=${OCAML_BUILDDIR}/tests/test.$(TYPE)
@@ -31,15 +31,14 @@ test: ocaml
 # Build static version (of $TYPE)
 ocaml: build_dir
 	$(OCAMLBUILD) $(OCAMLBUILDFLAGS) "all-${TYPE}.otarget"
-	#cp 0install.ml "$(OCAML_BUILDDIR)/"
-	if [ "$(OS)" = "Windows_NT" ];then $(MAKE) ocaml_windows; else $(MAKE) ocaml_posix; fi
+	if [ -f "${OCAML_BUILDDIR}/runenv.native" ];then $(MAKE) ocaml_windows; else $(MAKE) ocaml_posix; fi
 
 # For static Windows version, we also need the runenv.native helper.
 ocaml_windows:
 	cp ${OCAML_BUILDDIR}/static_0install.$(TYPE) ${OCAML_BUILDDIR}/0install.exe
 	cp ${OCAML_BUILDDIR}/runenv.native ${OCAML_BUILDDIR}/0install-runenv.exe
 	ln -f "${OCAML_BUILDDIR}/0install.exe" "${OCAML_BUILDDIR}/0launch.exe"
-	cp "${WINDOWS_LIBS}/libeay32.dll" "${WINDOWS_LIBS}/ssleay32.dll" "${OCAML_BUILDDIR}"
+	-cp "${WINDOWS_LIBS}/libeay32.dll" "${WINDOWS_LIBS}/ssleay32.dll" "${OCAML_BUILDDIR}"
 
 ocaml_posix:
 	cp ${OCAML_BUILDDIR}/static_0install.$(TYPE) ${OCAML_BUILDDIR}/0install

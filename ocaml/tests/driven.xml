@@ -15,7 +15,7 @@
     <problem>No digests found for 'unknown=123': &lt;implementation> at .*</problem>
   </test>
 
-  <test name='download'>
+  <test name='download' skip-windows='No /bin'>
     <interface local-path="local.xml" main='ThisBetterNotExist'>
       <name>Foo</name>
       <summary>Foo</summary>
@@ -30,7 +30,7 @@
     <output>\[dry-run] would execute: /bin/ThisBetterNotExist Hello</output>
   </test>
 
-  <test name='no-main'>
+  <test name='no-main' skip-windows='No /bin'>
     <interface local-path="local.xml">
       <name>Foo</name>
       <summary>Foo</summary>
@@ -62,7 +62,7 @@
     <output>\[dry-run] would execute: .*/cache/implementations/sha1=123/ThisBetterNotExist</output>
   </test>
 
-  <test name='binding'>
+  <test name='binding' skip-windows='Unix paths'>
     <interface last-modified="0"
       uri="http://foo/">
       <name>Foo</name>
@@ -98,7 +98,7 @@
 
     <set-env name='FOO_PATH' value='old'/>
     <cache digest='sha1=123'/>
-    <output>Would execute: .*/\. Hello</output>
+    <output>Would execute: .* Hello</output>
     <check-env name='FOO_PATH'>@TMP@/cache/implementations/sha1=123/.:old</check-env>
     <check-env name='BAR_PATH'>@TMP@/cache/implementations/sha1=123/.:/a:/b</check-env>
     <check-env name='BAZ_PATH'>@TMP@/cache/implementations/sha1=123/.</check-env>

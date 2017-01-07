@@ -193,6 +193,7 @@ let start_server system =
 
 let with_server ?portable_base (fn:_ -> _ -> unit) =
   Fake_system.with_fake_config ?portable_base (fun (config, f) ->
+    OUnit.skip_if on_windows "Fails with Unix.EAFNOSUPPORT";
     Support.Logging.threshold := Support.Logging.Info;  (* Otherwise, curl prints everything *)
 
     let config = {config with Zeroinstall.General.key_info_server = Some "http://localhost:3333/key-info"} in

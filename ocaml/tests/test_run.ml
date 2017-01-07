@@ -29,11 +29,13 @@ let run_0install (fake_system:Fake_system.fake_system) args =
 
 let suite = "run">::: [
   "runnable">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    skip_if on_windows "No /bin/sh";
     let out = run_0install fake_system ["run"; "--"; runnable; "user-arg"] in
     assert_str_equal "Runner: script=A test script: args=command-arg -- user-arg\n" out;
   );
 
   "command-bindings">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    skip_if on_windows "No /bin/sh";
     let out = run_0install fake_system ["run"; "--main=runnable/go.sh"; "-wenv #"; command_feed] in
     assert_contains "LOCAL=" out;
     assert_contains "SELF_COMMAND=" out
@@ -42,7 +44,8 @@ let suite = "run">::: [
   "abs-main">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
     let out = Test_0install.run_0install fake_system ["run"; "--dry-run"; "--main=runnable/runner"; command_feed] in
     assert_contains "[dry-run] would execute:" out;
-    assert_contains "./runnable/runner" out;
+    if on_windows then assert_contains ".\\runnable/runner" out
+    else assert_contains "./runnable/runner" out;
 
     Fake_system.assert_raises_safe ".*not-there" (lazy (
       Test_0install.run_0install fake_system ["run"; "--main=runnable/not-there"; command_feed] |> ignore;
@@ -78,17 +81,20 @@ let suite = "run">::: [
   );
 
   "recursive">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    skip_if on_windows "No /bin/sh";
     let out = run_0install fake_system ["run"; "--"; recursive_runner; "user-arg"] in
     assert_contains "Runner: script=A test script: args=command-arg -- arg-for-runnable recursive-arg -- user-arg" out
   );
 
   "executable">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    skip_if on_windows "No /bin/sh";
     let out = run_0install fake_system ["run"; "--"; runexec; "user-arg-run"] in
     assert_contains "Runner: script=A test script: args=foo-arg -- var user-arg-run" out;
     assert_contains "Runner: script=A test script: args=command-arg -- path user-arg-run" out
   );
 
   "run-package">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
+    skip_if on_windows "No /bin/sh";
     let out = run_0install fake_system ["run"; "--wrapper"; "echo $TEST #"; "--"; package_selections] in
     assert_str_equal "OK" (String.trim out)
   );

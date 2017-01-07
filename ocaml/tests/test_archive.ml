@@ -40,6 +40,7 @@ let assert_manifest system required tmpdir =
   check_perms tmpdir
 
 let test_archive config expected ?extract archive =
+  skip_if on_windows "Pathnames cause trouble on Windows";
   let mime_type = A.type_from_url archive in
   let home = config.system#getenv "HOME" |> Fake_system.expect in
   let destdir = home +/ "dest" in
@@ -53,6 +54,7 @@ let suite = "archive">::: [
   );
 
   "special">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    skip_if on_windows "Pathnames cause trouble on Windows";
     (* When creating a temporary directory for extracting an archive, always clear
        any special bits. Otherwise, if the parent is set-guid then the tmp directory
        will be too, and the post-extraction check will fail because the permissions
@@ -70,8 +72,8 @@ let suite = "archive">::: [
   );
 
   "bad">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    skip_if on_windows "Pathnames cause trouble on Windows";
     let system = config.system in
-
     let tmpdir = Zeroinstall.Stores.make_tmp_dir system config.stores in
     let destdir = U.make_tmp_dir system ~prefix:"0store-add-" tmpdir in
     Lwt_main.run @@ A.unpack_over config ~archive:(Test_0install.feed_dir +/ "HelloWorld.tgz")

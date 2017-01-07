@@ -233,7 +233,7 @@ let make_solver_test test_elem =
 
     if (!fails) then
       let reason = Zeroinstall.Solver.get_failure_reason config result in
-      Fake_system.assert_str_equal !expected_problem reason
+      Fake_system.assert_str_equal !expected_problem (Test_driver.fixup_windows_paths reason)
     else (
       let actual_sels = Solver.selections result in
       (* Selections.as_xml actual_sels |> Q.reindent |> Q.to_utf8 |> print_endline; *)

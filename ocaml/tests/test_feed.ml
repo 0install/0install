@@ -120,6 +120,7 @@ let suite = "feed">::: [
   );
 
   "bindings">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
+    skip_if on_windows "Tests use Unix paths";
     let xml = "<?xml version='1.0' ?>\n\
       <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>\n\
         <name>Foo</name>\n\
@@ -180,6 +181,7 @@ let suite = "feed">::: [
   );
 
   "env-modes">:: (fun () ->
+    skip_if on_windows "Tests use Unix paths";
     let prepend = {
       B.var_name = "PYTHONPATH";
       B.source = B.InsertPath "lib";
