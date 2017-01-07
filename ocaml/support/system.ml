@@ -63,7 +63,7 @@ let canonical_machines = List.fold_left (fun map (k, v) -> StringMap.add k v map
 
 (** Return the canonical name for this CPU, or [s] if we don't know one. *)
 let canonical_machine s =
-  StringMap.find (String.lowercase s) canonical_machines |? lazy s
+  StringMap.find (String.lowercase_ascii s) canonical_machines |? lazy s
 
 let canonical_os = function
   | "SunOS" -> "Solaris"

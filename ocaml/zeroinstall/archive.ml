@@ -13,7 +13,7 @@ let type_from_url url =
   let ext =
     try U.string_tail url @@ Str.search_forward re_extension url 0
     with Not_found -> "" in
-  match String.lowercase ext with
+  match String.lowercase_ascii ext with
   | ".tar.bz2"  -> "application/x-bzip-compressed-tar"
   | ".tar.gz"   -> "application/x-compressed-tar"
   | ".tar.lzma" -> "application/x-lzma-compressed-tar"

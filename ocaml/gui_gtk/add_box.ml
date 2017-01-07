@@ -20,7 +20,7 @@ let xdg_add_to_menu config feed =
     (U.rmtree system ~even_if_locked:true)
     (U.make_tmp_dir system ~prefix:"0desktop-" (Filename.get_temp_dir_name ()))
     (fun tmpdir ->
-      let name = feed.F.name |> String.lowercase |> Str.global_replace U.re_dir_sep "-" |> Str.global_replace U.re_space "" in
+      let name = feed.F.name |> String.lowercase_ascii |> Str.global_replace U.re_dir_sep "-" |> Str.global_replace U.re_space "" in
       let desktop_name = tmpdir +/ ("zeroinstall-" ^ name ^ ".desktop") in
       let icon_path = FC.get_cached_icon_path config feed.F.url in
       desktop_name |> system#with_open_out [Open_wronly; Open_creat] ~mode:0o600 (fun ch ->

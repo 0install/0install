@@ -582,7 +582,7 @@ let suite = "0install">::: [
     assert_str_equal "(no feeds)\n" @@ run ["list-feeds"; binary_iface];
 
     let out = run ~exit:1 ["add-feed"] in
-    assert_contains "usage:" @@ String.lowercase out;
+    assert_contains "usage:" @@ String.lowercase_ascii out;
     assert_contains "NEW-FEED" out;
 
     let out = fake_system#with_stdin "\n" (lazy (run ["add-feed"; (feed_dir +/ "Source.xml")])) in

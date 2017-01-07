@@ -39,6 +39,13 @@ module StringMap = struct
 end
 module StringSet = Set.Make(String)
 
+module String = struct
+  include String
+  let capitalize_ascii x = String.capitalize x
+  let uppercase_ascii x = String.uppercase x
+  let lowercase_ascii x = String.lowercase x
+end [@@ocaml.warning "-3"]
+
 (** Define an interface for interacting with the system, so we can replace it
     in unit-tests. *)
 class type system =

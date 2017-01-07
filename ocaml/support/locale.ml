@@ -19,7 +19,7 @@ module LangType =
 module LangMap = Map.Make(LangType)
 
 let parse_lang locale : lang_spec option =
-  let s = (String.lowercase locale) in
+  let s = String.lowercase_ascii locale in
   if not (Str.string_match re_locale s 0) then (
     log_warning "Failed to parse locale '%s'" locale;
     None
@@ -31,7 +31,7 @@ let parse_lang locale : lang_spec option =
 
 let format_lang = function
   | (l, None) -> l
-  | (l, Some c) -> l ^ "_" ^ (String.uppercase c)
+  | (l, Some c) -> l ^ "_" ^ String.uppercase_ascii c
 
 (** Get the users preferred language(s), most preferred first. The default is always included.
     See: http://www.gnu.org/software/gettext/manual/html_mono/gettext.html#The-LANGUAGE-variable *)

@@ -388,7 +388,7 @@ let build_stability_menu set_stability =
   GMenu.separator_item ~packing:menu#add () |> ignore_widget;
 
   [Preferred; Packaged; Stable; Testing; Developer; Buggy; Insecure] |> List.iter (fun stability ->
-    let label = Impl.format_stability stability |> String.capitalize in
+    let label = Impl.format_stability stability |> String.capitalize_ascii in
     let item = GMenu.menu_item ~packing:menu#add ~label () in
     item#connect#activate ==> (fun () -> set_stability (Some stability))
   );
@@ -459,7 +459,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
     ~value:iface_config.FC.stability_policy
     ~to_string:(function
       | None -> "Use default setting"
-      | Some level -> Impl.format_stability level |> String.capitalize
+      | Some level -> Impl.format_stability level |> String.capitalize_ascii
     )
     ~callback:set_stability_policy
     ~tooltip:"Implementations at this stability level or higher will be used in preference to others. \
@@ -574,7 +574,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
         let overrides = get_overrides from_feed in
         let stability_value =
           match StringMap.find impl_id overrides.F.user_stability with
-          | Some user_stability -> Impl.format_stability user_stability |> String.uppercase
+          | Some user_stability -> Impl.format_stability user_stability |> String.uppercase_ascii
           | None -> Q.AttrMap.get_no_ns FeedAttr.stability impl.Impl.props.Impl.attrs |> default "testing" in
 
         let arch_value =

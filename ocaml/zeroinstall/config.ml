@@ -21,7 +21,7 @@ let format_network_use = function
   | Offline -> "off-line"
 
 let parse_bool s =
-  match String.lowercase s with
+  match String.lowercase_ascii s with
   | "true" -> true
   | "false" -> false
   | x -> log_warning "Not a boolean '%s'" x; false

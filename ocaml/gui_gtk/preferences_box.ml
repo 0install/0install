@@ -188,7 +188,7 @@ let make config trust_db ~recalculate =
   Gtk_utils.combo
     ~table ~top:0 ~label:"Network use: "
     ~choices:[Offline; Minimal_network; Full_network] ~value:config.network_use
-    ~to_string:(fun n -> Zeroinstall.Config.format_network_use n |> String.capitalize)
+    ~to_string:(fun n -> Zeroinstall.Config.format_network_use n |> String.capitalize_ascii)
     ~callback:(fun network_use -> config.network_use <- network_use; apply_changes ())
     ~tooltip:"This controls whether Zero Install will always try to run the best version, downloading it if needed, \
               or whether it will prefer to run an older version that is already on your machine.";

@@ -259,7 +259,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
           let version = impl.Impl.parsed_version |> Version.to_string in
           let stability_str =
             match user_stability with
-            | Some s -> String.uppercase (Impl.format_stability s)
+            | Some s -> String.uppercase_ascii (Impl.format_stability s)
             | None -> Impl.get_attr_ex FeedAttr.stability impl in
           let prev_version = watcher#original_selections
             |> pipe_some (Selections.get_selected {Selections.iface = uri; source = role.Solver.source})

@@ -46,7 +46,7 @@ let main (system:system) : unit =
   | [] -> assert false
   | prog :: args ->
       with_config system prog @@ fun config ->
-      match String.lowercase @@ Filename.basename prog with
+      match String.lowercase_ascii @@ Filename.basename prog with
       | "0launch" | "0launch.exe" ->
           begin match args with
           | "_complete" :: args -> Completion.handle_complete config args

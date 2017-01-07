@@ -62,7 +62,7 @@ let discover_existing_apps config =
   !already_installed
 
 let by_name_ignore_case (n1, p1, u1) (n2, p2, u2) =
-  let r = String.compare (String.lowercase n1) (String.lowercase n2) in
+  let r = String.compare (String.lowercase_ascii n1) (String.lowercase_ascii n2) in
   if r <> 0 then r
   else compare (p1, u1) (p2, u2)
 

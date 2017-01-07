@@ -20,7 +20,7 @@ type key =
   | Auto_approve_keys
 
 let parse_bool s =
-  match String.lowercase s with
+  match String.lowercase_ascii s with
   | "true" -> true
   | "false" -> false
   | _ -> raise_safe "Expected 'true' or 'false' but got '%s'" s
