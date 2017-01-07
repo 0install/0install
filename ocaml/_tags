@@ -4,7 +4,7 @@ true: debug, bin_annot, package(yojson,xmlm,str,lwt,lwt.unix,lwt.react,lwt.preem
 <tests/*>: package(oUnit)
 <gui_gtk.*>: package(lablgtk2), link_gtk
 true: strict_sequence
-true: warn(A-3-4-48-58), warn_error(+5+6+10+26)
+true: warn(A-4-48-58), warn_error(+5+6+10+26)
 
 "support": for-pack(Support)
 "zeroinstall": for-pack(Zeroinstall)

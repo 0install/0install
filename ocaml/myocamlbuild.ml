@@ -1,4 +1,4 @@
-(* Copyright (C) 2013, Thomas Leonard
+(* Copyright (C) 2017, Thomas Leonard
  * See the README file for details, or visit http://0install.net.
  *)
 
@@ -20,6 +20,10 @@ type details = {
   version : string;
   dir : string;
 }
+
+let ci_build =
+  try Sys.getenv "CI" = "true"
+  with Not_found -> false
 
 let get_info package =
   (* Windows can't handle newlines or tabs in the format string, so use ASCII unit separator. *)
@@ -195,6 +199,9 @@ let () =
     flag ["byte";"ocaml";"pp";"mypp"] (S (A "camlp4of" :: !defines_portable));
 
     flag ["ocaml";"ocamldep";"mypp"] (S [A"-pp"; A "camlp4of"]);
+
+    (* Make all enabled warnings fatal for CI builds. *)
+    if ci_build then flag ["compile"; "ocaml"] (S [A"-warn-error"; A"A-4-48-58"]);
 
     pflag [] "dllib" (fun x -> (S [A"-dllib"; A x]));
 
