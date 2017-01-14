@@ -32,7 +32,7 @@ let parse_digest_from prefixes digest =
 let parse_digest = parse_digest_from strict_digest_prefixes
 let parse_digest_loose = parse_digest_from lenient_digest_prefixes
 
-let generate_manifest (system:system) alg root =
+let generate_manifest (system:#filesystem) alg root =
   let old = (alg = "sha1") in
   let hash_name =
     match alg with
@@ -330,7 +330,7 @@ let parse_manifest manifest_data =
   List.rev items
 
 (** Copy the file [src] to [dst]. Error if it doesn't end up with the right hash. *)
-let copy_with_verify (system:system) src dst ~digest ~required_hash ~mode =
+let copy_with_verify (system:#filesystem) src dst ~digest ~required_hash ~mode =
   src |> system#with_open_in [Open_rdonly;Open_binary] (fun ic ->
     dst |> system#with_open_out [Open_creat;Open_excl;Open_wronly;Open_binary] ~mode (fun oc ->
       let bufsize = 4096 in

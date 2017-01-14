@@ -20,7 +20,7 @@ val algorithm_names : string list
 
 (** [generate_manifest system alg dir] scans [dir] and return the contents of the generated manifest.
  * If the directory contains a .manifest file at the top level, it is ignored. *)
-val generate_manifest : Support.Common.system -> alg -> Support.Common.filepath -> string
+val generate_manifest : #Support.Common.filesystem -> alg -> Support.Common.filepath -> string
 
 (** Generate the final overall hash value of the manifest. *)
 val hash_manifest : alg -> string -> string
@@ -29,14 +29,14 @@ val hash_manifest : alg -> string -> string
     You should call Stores.fixup_permissions before this to ensure that the permissions are correct.
     On exit, dir itself has mode 555. Subdirectories are not changed.
     @return the value part of the digest of the manifest. *)
-val add_manifest_file : Support.Common.system -> alg -> Support.Common.filepath -> string
+val add_manifest_file : #Support.Common.filesystem -> alg -> Support.Common.filepath -> string
 
 (** Ensure that directory 'dir' generates the given digest.
     @param digest the required digest (usually this is just [Filename.basename dir])
     For a non-error return:
     - The calculated digest of the contents must match [digest].
     - If there is a .manifest file, then its digest must also match. *)
-val verify : Support.Common.system -> digest:digest -> Support.Common.filepath -> unit
+val verify : #Support.Common.filesystem -> digest:digest -> Support.Common.filepath -> unit
 
 (** Copy directory source to be a subdirectory of target if it matches the required_digest.
     manifest_data is normally source/.manifest. source and manifest_data are not trusted
@@ -44,7 +44,7 @@ val verify : Support.Common.system -> digest:digest -> Support.Common.filepath -
     The copy is first done to a temporary directory in target, then renamed to the final name
     only if correct. Therefore, an invalid 'target/required_digest' will never exist.
     A successful return means than target/required_digest now exists (whether we created it or not). *)
-val copy_tree_with_verify : Support.Common.system ->
+val copy_tree_with_verify : #Support.Common.filesystem ->
   Support.Common.filepath -> Support.Common.filepath -> string -> digest -> unit
 
 type hash = string

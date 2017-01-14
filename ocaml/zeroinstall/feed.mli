@@ -43,7 +43,7 @@ type feed = {
 }
 
 (** {2 Parsing} *)
-val parse : system -> [`Feed] Element.t -> filepath option -> feed
+val parse : #filesystem -> [`Feed] Element.t -> filepath option -> feed
 
 val get_implementations : feed -> Impl.existing Impl.t list
 val default_attrs : url:string -> Support.Qdom.AttrMap.t

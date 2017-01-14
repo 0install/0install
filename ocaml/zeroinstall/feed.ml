@@ -165,7 +165,7 @@ let default_attrs ~url =
     |> AttrMap.add_no_ns FeedAttr.stability FeedAttr.value_testing
     |> AttrMap.add_no_ns FeedAttr.from_feed url
 
-let parse_implementations (system:system) root_attrs root local_dir =
+let parse_implementations (system:#filesystem) root_attrs root local_dir =
   let open Impl in
   let implementations = ref StringMap.empty in
   let package_implementations = ref [] in

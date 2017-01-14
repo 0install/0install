@@ -48,14 +48,8 @@ end [@@ocaml.warning "-3"]
 
 (** Define an interface for interacting with the system, so we can replace it
     in unit-tests. *)
-class type system =
+class type filesystem =
   object
-    method argv : string array
-    method print_string : string -> unit
-    method std_formatter : Format.formatter
-    method time : float
-    method isatty : Unix.file_descr -> bool
-
     method with_open_in : open_flag list -> (in_channel -> 'a) -> filepath -> 'a
     method with_open_out : open_flag list -> mode:Unix.file_perm -> (out_channel -> 'a) -> filepath -> 'a
     method atomic_write : open_flag list -> mode:Unix.file_perm -> (out_channel -> 'a) -> filepath -> 'a
@@ -79,7 +73,10 @@ class type system =
     method set_mtime : filepath -> float -> unit
     method symlink : target:filepath -> newlink:filepath -> unit
     method readlink : filepath -> filepath option
+  end
 
+class type processes =
+  object
     method exec : 'a. ?search_path:bool -> ?env:string array -> string list -> 'a
     method spawn_detach : ?search_path:bool -> ?env:string array -> string list -> unit
     method create_process : ?env:string array -> string list -> Unix.file_descr -> Unix.file_descr -> Unix.file_descr -> int
@@ -90,9 +87,25 @@ class type system =
 
     (** Low-level interface, in case you need to process the exit status yourself. *)
     method waitpid_non_intr : int -> (int * Unix.process_status)
+  end
 
+class type environment =
+  object
     method getenv : varname -> string option
     method environment : string array
+  end
+
+class type system =
+  object
+    inherit filesystem
+    inherit processes
+    inherit environment
+
+    method argv : string array
+    method print_string : string -> unit
+    method std_formatter : Format.formatter
+    method time : float
+    method isatty : Unix.file_descr -> bool
 
     (** True if we're on Unix and running as root; we must take care to avoid creating files in the wrong
      * place when running under sudo. *)

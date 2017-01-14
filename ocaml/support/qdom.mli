@@ -62,7 +62,7 @@ val parse_input : string option -> Xmlm.input -> element
 (** Load XML from a file.
  * @param name: optional name to report in location messages (if missing, uses file name)
  * @raise Safe_exception if the XML is not well formed. *)
-val parse_file : Common.system -> ?name:string -> string -> element
+val parse_file : #Common.filesystem -> ?name:string -> string -> element
 
 (** {2 Helper functions} *)
 

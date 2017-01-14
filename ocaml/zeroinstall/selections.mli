@@ -32,7 +32,7 @@ type impl_source =
 val create : Support.Qdom.element -> t
 
 (** Create a [selections] value from a file (parse + create). *)
-val load_selections : system -> filepath -> t
+val load_selections : #filesystem -> filepath -> t
 
 (** The role of the root selection. *)
 val root_role : t -> role
@@ -62,7 +62,7 @@ val get_source : selection -> impl_source
 
 (** Look up this selection's directory.
  * @return None for package implementations. *)
-val get_path : system -> Stores.stores -> selection -> filepath option
+val get_path : #filesystem -> Stores.stores -> selection -> filepath option
 
 (** Get the URL of the feed this selection came from. *)
 val get_feed : selection -> Sigs.feed_url

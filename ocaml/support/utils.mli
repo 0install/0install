@@ -30,7 +30,7 @@ val slice : start:int -> ?stop:int -> 'a list -> 'a list
 (** {2 System utilities} *)
 
 (** [makedirs path mode] ensures that [path] is a directory, creating it and any missing parents (using [mode]) if not. *)
-val makedirs : Common.system -> Common.filepath -> Unix.file_perm -> unit
+val makedirs : #Common.filesystem -> Common.filepath -> Unix.file_perm -> unit
 
 (** Wrapper for [Sys.getenv] that gives a more user-friendly exception message. *)
 val getenv_ex : < getenv : string -> 'a option; .. > -> string -> 'a
@@ -48,21 +48,21 @@ val check_output :
   ?env:string array ->
   ?stderr:[< `FD of Unix.file_descr | `Stdout ] ->
   ?reaper:(int -> unit) ->
-  Common.system -> (in_channel -> 'a) -> string list -> 'a
+  #Common.processes -> (in_channel -> 'a) -> string list -> 'a
 
 (** Read up to [n] bytes from [ch] (less if we hit end-of-file. *)
 val read_upto : int -> in_channel -> string
 val is_dir : < stat : Common.filepath -> Unix.stats option; .. > -> Common.filepath -> bool
-val touch : Common.system -> Common.filepath -> unit
-val read_file : Common.system -> Common.filepath -> string
+val touch : #Common.system -> Common.filepath -> unit
+val read_file : #Common.filesystem -> Common.filepath -> string
 
 (** [parse_ini system fn path] calls [fn section (key, value)] on each [key=value]
     line in [path]. *)
 val parse_ini :
-  Common.system ->
+  #Common.filesystem ->
   (string -> string * string -> unit) -> Common.filepath -> unit
 
-val rmtree : even_if_locked:bool -> Common.system -> Common.filepath -> unit
+val rmtree : even_if_locked:bool -> #Common.filesystem -> Common.filepath -> unit
 
 (** Create a randomly-named subdirectory inside [parent]. *)
 val make_tmp_dir :
@@ -73,7 +73,7 @@ val make_tmp_dir :
 val copy_channel : in_channel -> out_channel -> unit
 
 (** Copy [source] to [dest]. Error if [dest] already exists. *)
-val copy_file : Common.system -> Common.filepath -> Common.filepath -> Unix.file_perm -> unit
+val copy_file : #Common.filesystem -> Common.filepath -> Common.filepath -> Unix.file_perm -> unit
 val print : Common.system -> ('a, Format.formatter, unit) format -> 'a
 
 (** {2 Strings} *)
@@ -93,11 +93,11 @@ val path_is_absolute : string -> bool
 val normpath : string -> Common.filepath
 
 (** If the given path is relative, make it absolute by prepending the current directory to it. *)
-val abspath : Common.system -> Common.filepath -> Common.filepath
+val abspath : #Common.filesystem -> Common.filepath -> Common.filepath
 
 (** Get the canonical name of this path, resolving all symlinks. If a symlink cannot be resolved, treat it as
     a regular file. If there is a symlink loop, no resolution is done for the remaining components. *)
-val realpath : Common.system -> Common.filepath -> Common.filepath
+val realpath : #Common.filesystem -> Common.filepath -> Common.filepath
 
 (** {2 Regular expressions} *)
 val re_dash : Str.regexp
@@ -116,7 +116,7 @@ val format_time_pretty : Unix.tm -> string
 val format_date : Unix.tm -> string
 
 val format_size : Int64.t -> string
-val atomic_hardlink : Common.system -> link_to:Common.filepath -> replace:Common.filepath -> unit
+val atomic_hardlink : #Common.filesystem -> link_to:Common.filepath -> replace:Common.filepath -> unit
 val stream_of_lines : string -> string Stream.t
 val make_command : Common.system -> string list -> Lwt_process.command
 

@@ -69,7 +69,7 @@ let filter_map_array fn arr =
   done;
   List.rev !result
 
-let makedirs (system:system) path mode =
+let makedirs (system:#filesystem) path mode =
   let rec loop path =
     match system#stat path with
     | Some info ->
@@ -178,7 +178,7 @@ let normpath path : filepath =
 
   String.concat Filename.dir_sep @@ List.rev_map to_string @@ remove_parents ([], explode path)
 
-let abspath (system:system) path =
+let abspath (system:#filesystem) path =
   normpath (
     if path_is_absolute path then path
     else system#getcwd +/ path
@@ -219,7 +219,7 @@ let find_in_path_ex system name =
   | Some path -> path
   | None -> raise_safe "Not found in $PATH: %s" name
 
-let check_output ?env ?stderr ?reaper (system:system) fn (argv:string list) =
+let check_output ?env ?stderr ?reaper (system:#processes) fn (argv:string list) =
   try
     let (r, w) = Unix.pipe () in
     let child_pid =
@@ -270,7 +270,7 @@ let split_pair re str =
 let re_section = Str.regexp "^[ \t]*\\[[ \t]*\\([^]]*\\)[ \t]*\\][ \t]*$"
 let re_key_value = Str.regexp "^[ \t]*\\([^= ]+\\)[ \t]*=[ \t]*\\(.*\\)$"
 
-let parse_ini (system:system) fn =
+let parse_ini (system:#filesystem) fn =
   system#with_open_in [Open_rdonly; Open_text] (fun ch ->
     let handler = ref (fun x -> fn "" x) in
     try
@@ -287,7 +287,7 @@ let parse_ini (system:system) fn =
     with End_of_file -> ()
   )
 
-let rmtree ~even_if_locked (sys:system) root =
+let rmtree ~even_if_locked (sys:#filesystem) root =
   if starts_with (sys#getcwd ^ Filename.dir_sep) (root ^ Filename.dir_sep) then
     log_warning "Removing tree (%s) containing the current directory (%s) - this will not work on Windows" root sys#getcwd;
 
@@ -324,7 +324,7 @@ let copy_channel ic oc =
     done
   with End_of_file -> ()
 
-let copy_file (system:system) source dest mode =
+let copy_file (system:#filesystem) source dest mode =
   try
     source |> system#with_open_in [Open_rdonly;Open_binary] (fun ic ->
       dest |> system#with_open_out [Open_creat;Open_excl;Open_wronly;Open_binary] ~mode (copy_channel ic)
@@ -352,7 +352,7 @@ let slice ~start ?stop lst =
 let print (system:system) fmt =
   Logging.kasprintf system#print_string (fmt ^^ "@.")
 
-let realpath (system:system) path =
+let realpath (system:#filesystem) path =
   let (+/) = Filename.concat in   (* Faster version, since we know the path is relative *)
 
   (* Based on Python's version *)
@@ -457,11 +457,11 @@ let is_dir system path =
   | None -> false
   | Some info -> info.Unix.st_kind = Unix.S_DIR
 
-let touch (system:system) path =
+let touch (system:#system) path =
   system#with_open_out [Open_wronly; Open_creat] ~mode:0o600 ignore path;
   system#set_mtime path @@ system#time   (* In case file already exists *)
 
-let read_file (system:system) path =
+let read_file (system:#filesystem) path =
   match system#stat path with
   | None -> raise_safe "File '%s' doesn't exist" path
   | Some info ->

@@ -17,7 +17,7 @@ exception Not_stored of string
 
 let first_match = Support.Utils.first_match
 
-let lookup_digest (system:system) stores digest =
+let lookup_digest (system:#filesystem) stores digest =
   let check_store store = (
     let path = Filename.concat store (Manifest.format_digest digest) in
     if system#file_exists path then Some path else None
@@ -33,7 +33,7 @@ let lookup_any system digests stores =
       let str_stores = String.concat "\n- " stores in
       raise (Not_stored ("Item with digest " ^ str_digests ^ " not found in stores. Searched:\n- " ^ str_stores))
 
-let read_impl_dirs (system:system) paths =
+let read_impl_dirs (system:#filesystem) paths =
   (* Read the old implementation-dirs configuration file *)
   let extra_impl_dirs = ref [] in
   Paths.Config.(all_paths implementation_dirs) paths
@@ -61,7 +61,7 @@ let get_default_stores system paths =
   Paths.Cache.(all_paths implementations) paths
   @ read_impl_dirs system paths
 
-let get_available_digests (system:system) stores =
+let get_available_digests (system:#filesystem) stores =
   let digests = Hashtbl.create 1000 in
   let scan_dir dir =
     match system#readdir dir with
@@ -122,7 +122,7 @@ let best_digest digests =
       let algs = digests |> List.map fst |> String.concat ", " in
       raise_safe "None of the candidate digest algorithms (%s) is supported" algs
 
-let make_tmp_dir (system:system) = function
+let make_tmp_dir (system:#filesystem) = function
   | store :: _ ->
       let mode = 0o755 in     (* r-x for all; needed by 0store-helper *)
       U.makedirs system store mode;
@@ -225,7 +225,7 @@ let add_with_helper config required_digest tmpdir =
         )
   )
 
-let rec fixup_permissions (system:system) path =
+let rec fixup_permissions (system:#filesystem) path =
   let info = system#lstat path |? lazy (raise_safe "Path '%s' has disappeared!" path) in
   match info.Unix.st_kind with
   | Unix.S_LNK -> ()

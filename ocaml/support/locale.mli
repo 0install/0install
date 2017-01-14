@@ -17,7 +17,7 @@ val format_lang : lang_spec -> string
 
 (** Get the user's preferred language(s), most preferred first. The default is always included.
     See: http://www.gnu.org/software/gettext/manual/html_mono/gettext.html#The-LANGUAGE-variable *)
-val get_langs : ?default:lang_spec -> Common.system -> lang_spec list
+val get_langs : ?default:lang_spec -> #Common.environment -> lang_spec list
 
 (* Converts a list of languages (most preferred first) to a map from languauges to scores.
  * For example, the list ["en_US", "en_GB", "fr"] produces the scores:

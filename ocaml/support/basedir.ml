@@ -10,7 +10,7 @@ type basedirs = {
   config: filepath list;
 }
 
-let get_path (system:system) home_var dirs_var = function
+let get_path (system:#filesystem) home_var dirs_var = function
   | [] -> failwith "No defaults!"
   | (default_home :: default_system) ->
 
@@ -26,7 +26,7 @@ let get_path (system:system) home_var dirs_var = function
 
     user_dir :: system_dirs
 
-let get_unix_home (system:system) =
+let get_unix_home (system:#system) =
   let home = default "/root" (system#getenv "HOME") in
   if not system#running_as_root then (
     home    (* We're not root; no problem *)
@@ -43,7 +43,7 @@ let get_unix_home (system:system) =
     root_home
   )
 
-let get_default_config (system:system) =
+let get_default_config (system:#system) =
   let get = get_path system in
   if on_windows then (
     match !Windows_api.windowsAPI with
@@ -67,7 +67,7 @@ let get_default_config (system:system) =
     }
   )
 
-let load_first (system:system) rel_path search_path =
+let load_first (system:#filesystem) rel_path search_path =
   let rec loop = function
     | [] -> None
     | (x::xs) ->
@@ -75,7 +75,7 @@ let load_first (system:system) rel_path search_path =
         if system#file_exists path then Some path else loop xs
   in loop search_path
 
-let save_path (system:Common.system) rel_path dirs =
+let save_path (system:#filesystem) rel_path dirs =
   let save_dir = List.hd dirs in
   let path = save_dir +/ rel_path in
   if not (system#file_exists path) then

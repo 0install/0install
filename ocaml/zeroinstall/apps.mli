@@ -31,11 +31,11 @@ val set_requirements : config -> app -> Requirements.t -> unit
  * Used by the "0install whatchanged" command. *)
 val get_history : config -> app -> string list
 
-val get_times : system -> app -> app_times
+val get_times : #filesystem -> app -> app_times
 
 (** Get the current selections. Does not check whether they're still valid.
  * @raise Safe_exception if they're missing. *)
-val get_selections_no_updates : system -> app -> Selections.t
+val get_selections_no_updates : #filesystem -> app -> Selections.t
 
 (** Get the current selections.
  * If they're missing or unusable, start a solve to get them.
