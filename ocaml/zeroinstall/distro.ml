@@ -56,118 +56,9 @@ let make_query feed elem elem_props results problem = {
 type quick_test_condition = Exists | UnchangedSince of float
 type quick_test = (Support.Common.filepath * quick_test_condition)
 
-let python_test_code =
-  "import sys\n" ^
-  "python_version = '.'.join([str(v) for v in sys.version_info if isinstance(v, int)])\n" ^
-  "p_info = (sys.executable or '/usr/bin/python', python_version)\n" ^
-  "try:\n" ^
-  "  if sys.version_info[0] > 2:\n" ^
-  "    from gi.repository import GObject as gobject\n" ^
-  "  else:\n" ^
-  "    import gobject\n" ^
-  "  if gobject.__file__.startswith('<'):\n" ^
-  "    path = gobject.__path__    # Python 3\n" ^
-  "    if type(path) is bytes:\n" ^
-  "        path = path.decode(sys.getfilesystemencoding())\n" ^
-  "  else:\n" ^
-  "    path = gobject.__file__    # Python 2\n" ^
-  "  version = '.'.join(str(x) for x in gobject.pygobject_version)\n" ^
-  "  g_info = (path, version)\n" ^
-  "except BaseException:\n" ^
-  "  g_info = None\n" ^
-  "import json\n" ^
-  "print(json.dumps([p_info, g_info]))\n"
-
-(** Set quick-test-file and quick-test-mtime from path. *)
-let get_quick_test_attrs path =
-  let mtime =
-    (* Ensure we round the same way as in [is_installed_quick] *)
-    (Unix.stat path).Unix.st_mtime
-    |> Int64.of_float
-    |> Int64.to_string in
-  Q.AttrMap.empty
-  |> Q.AttrMap.add_no_ns FeedAttr.quick_test_file path
-  |> Q.AttrMap.add_no_ns FeedAttr.quick_test_mtime mtime
-
-let make_restricts_distro iface_uri distros = { Impl.
-    dep_qdom = Element.dummy_restricts;
-    dep_importance = `Restricts;
-    dep_iface = iface_uri;
-    dep_src = false;
-    dep_restrictions = [Impl.make_distribtion_restriction distros];
-    dep_required_commands = [];
-    dep_if_os = None;
-    dep_use = None;
-  }
-
 class virtual distribution config =
   let system = config.system in
-
-  let python_info = lazy (
-    ["python"; "python2"; "python3"] |> U.filter_map (fun name ->
-      U.find_in_path system name |> pipe_some (fun path ->
-        try
-          let json = [path; "-c"; python_test_code] |> U.check_output system Yojson.Basic.from_channel in
-          match json with
-          | `List [`List [`String python_path; `String python_version]; gobject_json] ->
-              let gobject =
-                match gobject_json with
-                | `Null -> None
-                | `List [`String gobject_path; `String gobject_version] -> Some (gobject_path, gobject_version)
-                | _ -> raise_safe "Bad JSON: '%s'" (Yojson.Basic.to_string json) in
-              Some ((python_path, python_version), gobject)
-          | _ -> raise_safe "Bad JSON: '%s'" (Yojson.Basic.to_string json)
-        with ex -> log_warning ~ex "Failed to get details from Python"; None
-      )
-    )
-  ) in
-
-  let make_host_impl path version ~package ?(commands=StringMap.empty) ?(requires=[]) from_feed id =
-    let (_host_os, host_machine) = Arch.platform system in
-    let props = { Impl.
-      attrs = get_quick_test_attrs path
-        |> Q.AttrMap.add_no_ns FeedAttr.from_feed (Feed_url.format_url (`Distribution_feed from_feed))
-        |> Q.AttrMap.add_no_ns FeedAttr.id id
-        |> Q.AttrMap.add_no_ns FeedAttr.stability "packaged"
-        |> Q.AttrMap.add_no_ns FeedAttr.version version
-        |> Q.AttrMap.add_no_ns FeedAttr.package package;
-      requires;
-      bindings = [];
-      commands;
-    } in { Impl.
-      qdom = Element.make_impl Q.AttrMap.empty;
-      props;
-      stability = Stability.Packaged;
-      os = None;
-      machine = Some host_machine;       (* (hopefully) *)
-      parsed_version = Version.parse version;
-      impl_type = `Package_impl { Impl.
-        package_distro = "host";
-        package_state = `Installed;
-      }
-    } in
-
-  let get_host_impls = function
-    | `Remote_feed "http://repo.roscidus.com/python/python" as url ->
-        (* We support Python on platforms with unsupported package managers
-           by running it manually and parsing the output. Ideally we would
-           cache this information on disk. *)
-        Lazy.force python_info |> List.map (fun ((path, version), _) ->
-          let id = "package:host:python:" ^ version in
-          let run = Impl.make_command "run" path in
-          let commands = StringMap.singleton "run" run in
-          (id, make_host_impl ~package:"host-python" path version ~commands url id)
-        )
-    | `Remote_feed "http://repo.roscidus.com/python/python-gobject" as url ->
-        Lazy.force python_info |> U.filter_map (function
-          | (_, Some (path, version)) ->
-              let id = "package:host:python-gobject:" ^ version in
-              let requires = [make_restricts_distro "http://repo.roscidus.com/python/python" "host"] in
-              Some (id, make_host_impl ~package:"host-python-gobject" path version ~requires url id)
-          | (_, None) -> None
-        )
-    | _ -> [] in
-
+  let host_python = Host_python.make system in
   object (self)
     val virtual distro_name : string
     val virtual check_host_python : bool
@@ -288,7 +179,7 @@ class virtual distribution config =
       let results = ref init in
 
       if check_host_python then (
-        get_host_impls feed.Feed.url |> List.iter (fun (id, impl) -> results := StringMap.add id impl !results)
+        Host_python.get host_python feed.Feed.url |> List.iter (fun (id, impl) -> results := StringMap.add id impl !results)
       );
 
       match get_matching_package_impls self feed with
