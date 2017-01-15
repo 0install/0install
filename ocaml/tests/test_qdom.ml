@@ -2,7 +2,6 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-open Zeroinstall.General
 open Support.Common
 open OUnit
 
@@ -24,8 +23,8 @@ let parse s1 =
 let suite = "qdom">::: [
   "simple">:: (fun () ->
     let root = parse "<?xml version=\"1.0\"?><root/>" in
-    Empty.check_tag "root" root;
-    assert_equal (Some "root") (Empty.tag root);
+    Q.Empty.check_tag "root" root;
+    assert_equal (Some "root") (Q.Empty.tag root);
     assert_str_equal "" (Q.simple_content root);
   );
 

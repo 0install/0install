@@ -167,9 +167,22 @@ let rec show_with_loc elem =
       let (_ns, name) = elem.tag in
       Printf.sprintf "<%s> at %s:%d:%d" name path line col
 
-module type NsType = sig
+module type NS = sig
   val ns : string
   val prefix_hint : string
+end
+
+module type NS_QUERY = sig
+  val get_attribute : string -> element -> string
+  val get_attribute_opt : string -> element -> string option
+  val fold_left : ?name:string -> init:'a -> ('a -> element -> 'a) -> element -> 'a
+  val map : ?name:string -> (element -> 'a) -> element -> 'a list
+  val filter_map : (element -> 'a option) -> element -> 'a list
+  val iter : ?name:string -> (element -> unit) -> element -> unit
+  val tag : element -> string option
+  val check_tag : string -> element -> unit
+  val check_ns : element -> unit
+  val make : ?source_hint:element -> ?attrs:AttrMap.t -> ?child_nodes:element list -> string -> element
 end
 
 let raise_elem fmt =
@@ -286,7 +299,7 @@ let compare_nodes ~ignore_whitespace a b =
   try find_diff a b; 0
   with Compare_result x -> x
 
-module NsQuery (Ns : NsType) = struct
+module NsQuery (Ns : NS) = struct
   (** Return the localName part of this element's tag.
       Throws an exception if it's in the wrong namespace. *)
   let tag elem =
@@ -358,3 +371,10 @@ module NsQuery (Ns : NsType) = struct
     | Some elem -> GeneratedFrom elem
   }
 end
+
+module Empty = NsQuery(
+  struct
+    let ns = ""
+    let prefix_hint = ""
+  end
+)

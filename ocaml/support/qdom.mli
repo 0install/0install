@@ -97,41 +97,45 @@ val compare_nodes : ignore_whitespace:bool -> element -> element -> int
     (e.g. [<name>Bob</name>] do not have their content changed. *)
 val reindent : element -> element
 
-module type NsType = sig
+module type NS = sig
   val ns : string
   val prefix_hint : string      (* A suggested namespace prefix (for serialisation) *)
 end
 
-module NsQuery :
-  functor (Ns : NsType) ->
-    sig
-      (** Get the value of the non-namespaced attribute [attr].
-          Throws an exception if [elem] isn't in our namespace. *)
-      val get_attribute : string -> element -> string
+module type NS_QUERY = sig
+  (** Get the value of the non-namespaced attribute [attr].
+      Throws an exception if [elem] isn't in our namespace. *)
+  val get_attribute : string -> element -> string
 
-      val get_attribute_opt : string -> element -> string option
+  val get_attribute_opt : string -> element -> string option
 
-      val fold_left : ?name:string -> init:'a -> ('a -> element -> 'a) -> element -> 'a
+  val fold_left : ?name:string -> init:'a -> ('a -> element -> 'a) -> element -> 'a
 
-      (** Apply [fn] to each child node in our namespace with local name [name] *)
-      val map : ?name:string -> (element -> 'a) -> element -> 'a list
+  (** Apply [fn] to each child node in our namespace with local name [name] *)
+  val map : ?name:string -> (element -> 'a) -> element -> 'a list
 
-      (** Apply [fn] to each child node in our namespace *)
-      val filter_map : (element -> 'a option) -> element -> 'a list
+  (** Apply [fn] to each child node in our namespace *)
+  val filter_map : (element -> 'a option) -> element -> 'a list
 
-      (** Call [fn] on each child node in our namespace (with name [name]) *)
-      val iter : ?name:string -> (element -> unit) -> element -> unit
+  (** Call [fn] on each child node in our namespace (with name [name]) *)
+  val iter : ?name:string -> (element -> unit) -> element -> unit
 
-      (** Get the local name of this element, if it's in our namespace. *)
-      val tag : element -> string option
+  (** Get the local name of this element, if it's in our namespace. *)
+  val tag : element -> string option
 
-      (** @raise Safe_exception if element does not have the expected name and namespace. *)
-      val check_tag : string -> element -> unit
+  (** @raise Safe_exception if element does not have the expected name and namespace. *)
+  val check_tag : string -> element -> unit
 
-      (** @raise Safe_exception if element does not have the expected namespace. *)
-      val check_ns : element -> unit
+  (** @raise Safe_exception if element does not have the expected namespace. *)
+  val check_ns : element -> unit
 
-      (** Create a new element in our namespace.
-       * @param source_hint will be used in error messages *)
-      val make : ?source_hint:element -> ?attrs:AttrMap.t -> ?child_nodes:element list -> string -> element
-    end
+  (** Create a new element in our namespace.
+   * @param source_hint will be used in error messages *)
+  val make : ?source_hint:element -> ?attrs:AttrMap.t -> ?child_nodes:element list -> string -> element
+end
+
+module NsQuery (N : NS) : NS_QUERY
+(** A module for XML operations specialised to namespace [N]. *)
+
+module Empty : NS_QUERY
+(** Operations using the empty namespace. *)

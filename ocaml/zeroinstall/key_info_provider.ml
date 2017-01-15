@@ -8,7 +8,7 @@ open Support.Common
 module U = Support.Utils
 module Q = Support.Qdom
 module G = Support.Gpg
-module KI = Empty   (* Key info XML documents don't have a namespace. *)
+module KI = Support.Qdom.Empty   (* Key info XML documents don't have a namespace. *)
 
 type t = {
   config : General.config;

@@ -29,8 +29,6 @@ type config = {
   langs : int Support.Locale.LangMap.t;
 }
 
-(** {2 Utility functions} *)
-
 (** {2 Useful constants} *)
 
 let hours = 60. *. 60.         (* Seconds per hour *)
@@ -50,12 +48,3 @@ module COMPILE_NS = struct
   let ns = "http://zero-install.sourceforge.net/2006/namespaces/0compile"
   let prefix_hint = "compile"
 end
-
-module Empty = Support.Qdom.NsQuery(
-  struct
-    let ns = ""
-    let prefix_hint = ""
-  end
-)
-
-let xml_ns = "http://www.w3.org/XML/1998/namespace"

@@ -18,6 +18,8 @@ module Compile = Support.Qdom.NsQuery(COMPILE_NS)
 
 type 'a t = Q.element
 
+let xml_ns = "http://www.w3.org/XML/1998/namespace"
+
 let simple_content elem =
   elem.Q.last_text_inside
 
