@@ -4,7 +4,6 @@
 
 open Support.Common
 
-module Q = Support.Qdom
 module U = Support.Utils
 module FeedAttr = Constants.FeedAttr
 module AttrMap = Support.Qdom.AttrMap
@@ -30,7 +29,7 @@ type package_impl = {
 
 type cache_impl = {
   digests : Manifest.digest list;
-  retrieval_methods : Q.element list;
+  retrieval_methods : [`Archive | `File | `Recipe] Element.t list;
 }
 
 type existing =

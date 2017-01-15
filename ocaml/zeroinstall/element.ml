@@ -223,8 +223,53 @@ let compile_command group = group.Q.attrs |> AttrMap.get (COMPILE_NS.ns, "comman
 let compile_min_version sel = sel.Q.attrs |> AttrMap.get (COMPILE_NS.ns, "min-version")
 let requires_compilation = bool_opt ("", "requires-compilation")
 
+let is_retrieval_method elem =
+  match ZI.tag elem with
+  | Some "archive" | Some "file" | Some "recipe" -> true
+  | _ -> false
+
 let retrieval_methods impl =
-  List.filter Recipe.is_retrieval_method impl.Q.child_nodes
+  List.filter is_retrieval_method impl.Q.child_nodes
+
+let classify_retrieval elem =
+  match ZI.tag elem with
+  | Some "archive" -> `Archive elem
+  | Some "file" -> `File elem
+  | Some "recipe" -> `Recipe elem
+  | _ -> assert false
+
+let size elem =
+  let s = ZI.get_attribute "size" elem in
+  try Int64.of_string s
+  with _ -> raise_safe "Invalid size '%s'" s
+
+let dest = ZI.get_attribute "dest"
+let rename_source = ZI.get_attribute "source"
+let dest_opt = ZI.get_attribute_opt "dest"
+let extract = ZI.get_attribute_opt "extract"
+let mime_type = ZI.get_attribute_opt "type"
+let remove_path = ZI.get_attribute "path"
+
+let start_offset elem =
+  match ZI.get_attribute_opt "start-offset" elem with
+  | None -> None
+  | Some s ->
+    try Some (Int64.of_string s)
+    with _ -> raise_safe "Invalid offset '%s'" s
+
+exception Unknown_step
+
+let recipe_steps elem =
+  let parse_step child =
+    match ZI.tag child with
+    | Some "archive" -> Some (`Archive child)
+    | Some "file" -> Some (`File child)
+    | Some "rename" -> Some (`Rename child)
+    | Some "remove" -> Some (`Remove child)
+    | Some _ -> raise Unknown_step
+    | None -> None in
+  try Some (Support.Utils.filter_map parse_step elem.Q.child_nodes)
+  with Unknown_step -> None
 
 let importance dep =
   match ZI.get_attribute_opt FeedAttr.importance dep with

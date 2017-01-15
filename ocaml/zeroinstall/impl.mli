@@ -29,7 +29,7 @@ type package_impl = {
 
 type cache_impl = {
   digests : Manifest.digest list;
-  retrieval_methods : Support.Qdom.element list;
+  retrieval_methods : [`Archive | `File | `Recipe] Element.t list;
 }
 
 type existing =

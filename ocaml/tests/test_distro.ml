@@ -24,6 +24,11 @@ let is_available_locally config impl =
       | None -> false
       | Some _path -> true
 
+let parse_xml s =
+  let s = "<root xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>" ^ s ^ "</root>" in
+  let root = `String (0, s) |> Xmlm.make_input |> Q.parse_input None in
+  List.hd root.Q.child_nodes
+
 let test_feed = "<?xml version='1.0'?>\n\
 <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface' uri='http://repo.roscidus.com/python/python'>\n\
   <name>Test</name>\n\
@@ -419,11 +424,11 @@ let suite = "distro">::: [
 
   "import_packages">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     let master_uri = "http://example.com/iface" in
-    let master_feed = Test_fetch.parse_xml
+    let master_feed = parse_xml
       "<interface uri='http://example.com/iface'><name>master</name><summary>master</summary>\
          <feed src='http://example.com/imported'/>\
       </interface>" in
-    let imported_feed = Test_fetch.parse_xml
+    let imported_feed = parse_xml
       "<interface uri='http://example.com/imported'><name>imported</name><summary>imported</summary>\
          <package-implementation package='foo'/>\
       </interface>" in

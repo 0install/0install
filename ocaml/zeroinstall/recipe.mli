@@ -37,8 +37,7 @@ type recipe_step =
 
 type t = recipe_step list
 
-val is_retrieval_method : Support.Qdom.element -> bool
-val parse_retrieval_method : Support.Qdom.element -> t option
+val parse_retrieval_method : [`Archive | `File | `Recipe] Element.t -> t option
 
 val recipe_requires_network : t -> bool
 val get_download_size : t -> Int64.t

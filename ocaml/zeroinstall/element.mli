@@ -92,8 +92,30 @@ val group_children : [< `Feed | `Group] t ->
 val main : [< `Feed | attr_node] t -> string option
 val self_test : [< attr_node] t -> string option
 val compile_command : [< attr_node] t -> string option
-val retrieval_methods : [`Implementation] t -> Support.Qdom.element list
-val href : [`Icon] t -> string
+val retrieval_methods : [`Implementation] t -> [`Archive | `File | `Recipe] t list
+val classify_retrieval : [`Archive | `File | `Recipe] t ->
+  [ `Archive of [`Archive] t
+  | `File of [`File] t
+  | `Recipe of [`Recipe] t ]
+val dest_opt : [`Archive] t -> filepath option
+val dest : [< `File | `Rename] t -> filepath
+val extract : [`Archive] t -> filepath option
+val start_offset : [`Archive] t -> int64 option
+val mime_type : [`Archive] t -> string option
+val remove_path : [`Remove] t -> string
+val size : [< `Archive | `File] t -> int64
+
+val recipe_steps : [`Recipe] t -> [
+    | `Archive of [`Archive] t
+    | `File of [`File] t
+    | `Rename of [`Rename] t
+    | `Remove of [`Remove] t
+  ] list option
+(** [recipe_steps e] is the steps of the recipe if we recognise every child with a 0install namespace,
+    or [None] if there are unknown step types. *)
+
+val href : [< `Archive | `File | `Icon] t -> string
+val rename_source : [`Rename] t -> filepath
 val icon_type : [`Icon] t -> string option
 val distributions : [< `Package_impl] t -> string option
 

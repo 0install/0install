@@ -4,10 +4,7 @@
 
 (** Handling <recipe>, <archive> and similar elements *)
 
-open General
 open Support.Common
-module Qdom = Support.Qdom
-module U = Support.Utils
 
 type archive_options = {
   dest : string option;
@@ -42,76 +39,46 @@ type recipe_step =
 
 type t = recipe_step list
 
-let attr_href = "href"
-let attr_size = "size"
-let attr_extract = "extract"
-let attr_start_offset = "start-offset"
-let attr_type = "type"
-let attr_dest = "dest"
-let attr_source = "source"
-let attr_path = "path"
-
-let parse_size s =
-  try Int64.of_string s
-  with _ -> raise_safe "Invalid size '%s'" s
-
 let parse_archive elem = DownloadStep {
-    url = ZI.get_attribute attr_href elem;
-    size = Some (parse_size @@ ZI.get_attribute attr_size elem);
+    url = Element.href elem;
+    size = Some (Element.size elem);
     download_type = ArchiveDownload {
-      dest = ZI.get_attribute_opt attr_dest elem;
-      extract = ZI.get_attribute_opt attr_extract elem;
-      start_offset = (
-        match ZI.get_attribute_opt attr_start_offset elem with
-        | None -> Int64.zero
-        | Some s -> parse_size s
-      );
-      mime_type = ZI.get_attribute_opt attr_type elem;
+      dest = Element.dest_opt elem;
+      extract = Element.extract elem;
+      start_offset = Element.start_offset elem |> default Int64.zero;
+      mime_type = Element.mime_type elem;
     };
   }
 
 let parse_file_elem elem = DownloadStep {
-  url = ZI.get_attribute attr_href elem;
-  size = Some (parse_size @@ ZI.get_attribute attr_size elem);
-  download_type = FileDownload (ZI.get_attribute attr_dest elem);
+  url = Element.href elem;
+  size = Some (Element.size elem);
+  download_type = FileDownload (Element.dest elem);
 }
 
 let parse_rename elem = RenameStep {
-  rename_source = ZI.get_attribute attr_source elem;
-  rename_dest = ZI.get_attribute attr_dest elem;
+  rename_source = Element.rename_source elem;
+  rename_dest = Element.dest elem;
 }
 
 let parse_remove elem = RemoveStep {
-  remove = ZI.get_attribute attr_path elem
+  remove = Element.remove_path elem;
 }
 
-exception Unknown_step
-
-let parse_recipe elem =
-  let parse_step child =
-    match ZI.tag child with
-    | Some "archive" -> Some (parse_archive child)
-    | Some "file" -> Some (parse_file_elem child)
-    | Some "rename" -> Some (parse_rename child)
-    | Some "remove" -> Some (parse_remove child)
-    | Some _ -> raise Unknown_step
-    | None -> None in
-  U.filter_map parse_step elem.Qdom.child_nodes
-
-let is_retrieval_method elem =
-  match ZI.tag elem with
-  | Some "archive" | Some "file" | Some "recipe" -> true
-  | _ -> false
+let parse_step = function
+  | `Archive child -> parse_archive child
+  | `File child    -> parse_file_elem child
+  | `Rename child  -> parse_rename child
+  | `Remove child  -> parse_remove child
 
 let parse_retrieval_method elem =
-  match ZI.tag elem with
-  | Some "archive" -> Some [ parse_archive elem ]
-  | Some "file" -> Some [ parse_file_elem elem ]
-  | Some "recipe" -> (
-      try Some (parse_recipe elem)
-      with Unknown_step -> None
-  )
-  | _ -> None
+  match Element.classify_retrieval elem with
+  | `Archive elem -> Some [ parse_archive elem ]
+  | `File elem -> Some [ parse_file_elem elem ]
+  | `Recipe elem ->
+      match Element.recipe_steps elem with
+      | None -> None
+      | Some steps -> Some (List.map parse_step steps)
 
 let re_scheme_sep = Str.regexp ".*://"
 

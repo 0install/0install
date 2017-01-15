@@ -37,10 +37,16 @@ let impl_template = Impl.({
   };
 })
 
-let parse_xml s =
-  let s = "<root xmlns='http://zero-install.sourceforge.net/2004/injector/interface'>" ^ s ^ "</root>" in
-  let root = `String (0, s) |> Xmlm.make_input |> Q.parse_input None in
-  List.hd root.Q.child_nodes
+let parse_recipe s =
+  let s = Printf.sprintf
+      "<interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface'> \n\
+        <name>Test</name> \n\
+        <implementation id='sha1=123'>%s</implementation> \n\
+       </interface>" s in
+  let feed = `String (0, s) |> Xmlm.make_input |> Q.parse_input None |> Element.parse_feed in
+  match Element.group_children feed with
+  | [`Implementation impl] -> Element.retrieval_methods impl
+  | _ -> assert false
 
 let make_dl_tester () =
   let log = ref [] in
@@ -88,10 +94,10 @@ let suite = "fetch">::: [
       (fun () -> download_impls fetcher [impl_template]);
 
     let try_with ?(template = impl_template) ?(digest=("sha1new", "123")) xml =
-      let recipe = parse_xml xml in
+      let recipe = parse_recipe xml in
       let impl_type = Impl.(`Cache_impl {
         digests = [digest];
-        retrieval_methods = [recipe];
+        retrieval_methods = recipe;
       }) in
       let impl = Impl.({template with impl_type}) in
       download_impls fetcher [impl] in
