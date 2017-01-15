@@ -12,7 +12,7 @@ module FeedSet = Feed_url.FeedSet
 open Constants
 
 type interface_config = {
-  stability_policy : stability_level option;
+  stability_policy : Stability.t option;
   extra_feeds : Feed.feed_import list;
 }
 
@@ -93,7 +93,7 @@ let load_iface_config config uri : interface_config =
       let stability_policy =
         match ZI.get_attribute_opt IfaceConfigAttr.stability_policy root with
         | None -> None
-        | Some s -> Some (Impl.parse_stability s ~from_user:true) in
+        | Some s -> Some (Stability.of_string s ~from_user:true) in
 
       (* User-registered feeds (0install add-feed) *)
       let known_site_feeds = List.fold_left (fun map feed -> FeedSet.add feed.Feed.feed_src map) FeedSet.empty site_feeds in
@@ -155,7 +155,7 @@ let save_iface_config config uri iface_config =
 
   let attrs = ref (Q.AttrMap.singleton FeedAttr.uri uri) in
   iface_config.stability_policy |> if_some (fun policy ->
-    attrs := !attrs |> Q.AttrMap.add_no_ns IfaceConfigAttr.stability_policy (Impl.format_stability policy)
+    attrs := !attrs |> Q.AttrMap.add_no_ns IfaceConfigAttr.stability_policy (Stability.to_string policy)
   );
 
   let child_nodes = iface_config.extra_feeds |> U.filter_map add_import_elem in

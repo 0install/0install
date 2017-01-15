@@ -58,7 +58,7 @@ val list_impls : Solver.Model.t -> Solver.role ->
 val get_fetch_info : General.config -> Impl.generic_implementation -> (string * string)
 
 (** Set a user-override stability rating. *)
-val set_impl_stability : General.config -> Feed_url.global_id -> General.stability_level option -> unit
+val set_impl_stability : General.config -> Feed_url.global_id -> Stability.t option -> unit
 
 (** Get the initial text for the bug report dialog box. *)
 val get_bug_report_details : General.config -> role:Solver.role -> (bool * Solver.Model.t) -> string

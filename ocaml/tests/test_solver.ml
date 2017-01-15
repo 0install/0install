@@ -429,12 +429,12 @@ let suite = "solver">::: [
           match super#get_feed url with
           | None -> None
           | Some (feed, overrides) ->
-              let overrides = {overrides with Feed.user_stability = StringMap.singleton "preferred_by_user" Preferred} in
+              let overrides = {overrides with Feed.user_stability = StringMap.singleton "preferred_by_user" Stability.Preferred} in
               Some (feed, overrides)
 
         method! get_distro_impls feed =
           let result = super#get_distro_impls feed in
-          let overrides = {result.Feed_provider.overrides with Feed.user_stability = StringMap.singleton "package:buggy" Buggy} in
+          let overrides = {result.Feed_provider.overrides with Feed.user_stability = StringMap.singleton "package:buggy" Stability.Buggy} in
           {result with Feed_provider.overrides}
       end in
     feed_provider#add_iface (Support.Qdom.parse_file Fake_system.real_system (Fake_system.tests_dir +/ "ranking.xml"));

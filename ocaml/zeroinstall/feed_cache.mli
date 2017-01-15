@@ -8,8 +8,8 @@ open General
 open Support.Common
 
 type interface_config = {
-  stability_policy : stability_level option;    (* Overrides config.help_with_testing if set *)
-  extra_feeds : Feed.feed_import list;          (* Feeds added manually with "0install add-feed" *)
+  stability_policy : Stability.t option;      (* Overrides config.help_with_testing if set *)
+  extra_feeds : Feed.feed_import list;        (* Feeds added manually with "0install add-feed" *)
 }
 
 (** Load a cached feed.

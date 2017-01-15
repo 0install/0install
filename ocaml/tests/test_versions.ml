@@ -4,7 +4,6 @@
 
 open OUnit
 open Zeroinstall
-open Zeroinstall.General
 open Support.Common
 open Fake_system
 
@@ -21,7 +20,7 @@ let dummy_impl = Impl.({
   qdom = Element.make_impl Support.Qdom.AttrMap.empty;
   os = None;
   machine = None;
-  stability = Testing;
+  stability = Stability.Testing;
   props = {
     attrs = Support.Qdom.AttrMap.empty;
     requires = [];

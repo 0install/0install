@@ -3,7 +3,6 @@
  *)
 
 open Support.Common
-open General
 
 module Q = Support.Qdom
 module U = Support.Utils
@@ -74,7 +73,7 @@ and properties = {
 and +'a t = {
   qdom : [ `Implementation | `Package_impl ] Element.t;
   props : properties;
-  stability : stability_level;
+  stability : Stability.t;
   os : Arch.os option;            (* Required OS; the first part of the 'arch' attribute. None for '*' *)
   machine : Arch.machine option;  (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
   parsed_version : Version.t;
@@ -83,28 +82,6 @@ and +'a t = {
 
 type generic_implementation = impl_type t
 type distro_implementation = [ `Package_impl of package_impl ] t
-
-let parse_stability ~from_user s =
-  let if_from_user l =
-    if from_user then l else raise_safe "Stability '%s' not allowed here" s in
-  match s with
-  | "insecure" -> Insecure
-  | "buggy" -> Buggy
-  | "developer" -> Developer
-  | "testing" -> Testing
-  | "stable" -> Stable
-  | "packaged" -> if_from_user Packaged
-  | "preferred" -> if_from_user Preferred
-  | x -> raise_safe "Unknown stability level '%s'" x
-
-let format_stability = function
-  | Insecure -> "insecure"
-  | Buggy -> "buggy"
-  | Developer -> "developer"
-  | Testing -> "testing"
-  | Stable -> "stable"
-  | Packaged -> "packaged"
-  | Preferred -> "preferred"
 
 let make_command ?source_hint name path : command =
   let elem = Element.make_command ~path ~source_hint name in

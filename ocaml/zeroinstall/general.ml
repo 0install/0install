@@ -59,12 +59,3 @@ module Empty = Support.Qdom.NsQuery(
 )
 
 let xml_ns = "http://www.w3.org/XML/1998/namespace"
-
-type stability_level =
-  | Insecure
-  | Buggy
-  | Developer
-  | Testing
-  | Stable
-  | Packaged
-  | Preferred

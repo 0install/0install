@@ -57,14 +57,14 @@ let suite = "feed">::: [
     assert_equal 0 (StringMap.cardinal overrides.F.user_stability);
 
     F.save_feed_overrides config (`Local_feed feed_url) {
-      F.user_stability = StringMap.add digest Developer overrides.F.user_stability;
+      F.user_stability = StringMap.add digest Stability.Developer overrides.F.user_stability;
       F.last_checked = Some 100.0;
     };
 
     (* Rating now visible *)
     let overrides = F.load_feed_overrides config (`Local_feed feed_url) in
     assert_equal 1 (StringMap.cardinal overrides.F.user_stability);
-    assert_equal Developer (StringMap.find_safe digest overrides.F.user_stability);
+    assert_equal Stability.Developer (StringMap.find_safe digest overrides.F.user_stability);
     assert_equal (Some 100.0) overrides.F.last_checked;
   );
 

@@ -10,7 +10,7 @@ open Support.Common
 
 type feed_overrides = {
   last_checked : float option;
-  user_stability : General.stability_level StringMap.t;
+  user_stability : Stability.t StringMap.t;
 }
 
 type feed_type =

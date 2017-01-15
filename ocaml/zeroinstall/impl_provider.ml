@@ -39,7 +39,7 @@ let describe_problem impl =
   let spf = Printf.sprintf in
   function
   | `User_restriction_rejects r -> "Excluded by user-provided restriction: " ^ r#to_string
-  | `Poor_stability           -> spf "Poor stability '%s'" Impl.(format_stability impl.stability)
+  | `Poor_stability           -> spf "Poor stability '%s'" Impl.(Stability.to_string impl.stability)
   | `No_retrieval_methods     -> "No retrieval methods"
   | `Not_cached_and_offline   -> "Can't download it because we're offline"
   | `Incompatible_OS          -> "Not compatible with the requested OS type"
@@ -96,7 +96,7 @@ let check_acceptability ~scope_filter ~network_use ~is_available ~want_source ~u
   match user_restrictions with
   | Some r when not (r#meets_restriction impl) -> `User_restriction_rejects r
   | _ ->
-      if stability <= Buggy then `Poor_stability
+      if stability <= Stability.Buggy then `Poor_stability
       else if not (Scope_filter.os_ok scope_filter impl.Impl.os) then `Incompatible_OS
       else if want_source && not is_source then `Not_source
       else if not want_source && is_source then `Not_binary
@@ -152,7 +152,7 @@ let compare_impls_full ~scope_filter ~network_use ~is_available ~stability_polic
 
   let score_stability i =
     let s = i.stability in
-    if s >= stability_policy then Preferred
+    if s >= stability_policy then Stability.Preferred
     else s in
 
   let score_is_package i =
@@ -166,8 +166,8 @@ let compare_impls_full ~scope_filter ~network_use ~is_available ~stability_polic
 
   ignore (
     (* Preferred versions come first *)
-    test PreferStability @@ compare (score_true (a.stability = Preferred))
-                                    (score_true (b.stability = Preferred)) ||
+    test PreferStability @@ compare (score_true (a.stability = Stability.Preferred))
+                                    (score_true (b.stability = Stability.Preferred)) ||
 
     (* Languages we understand come first *)
     test PreferLang @@ compare (score_langs langs_a) (score_langs langs_b) ||
@@ -292,7 +292,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
 
     let stability_policy =
       match stability_policy with
-      | None -> if config.help_with_testing then Testing else Stable
+      | None -> if config.help_with_testing then Stability.Testing else Stability.Stable
       | Some s -> s in
 
     let network_use = config.network_use in

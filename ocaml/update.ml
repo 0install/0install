@@ -4,6 +4,7 @@
 
 (** The "0install update" command *)
 
+open Zeroinstall
 open Zeroinstall.General
 open Options
 open Support.Common
@@ -87,7 +88,7 @@ let check_for_updates options reqs old_sels =
                 reqs.R.interface_uri
                 Zeroinstall.Version.fmt best.Impl.parsed_version
                 root_version;
-              if not config.help_with_testing && best.Impl.stability < Stable then
+              if not config.help_with_testing && best.Impl.stability < Stability.Stable then
                 print "To select \"testing\" versions, use:\n0install config help_with_testing True"
             ) else if not changes then (
               print "No updates found. Continuing with version %s." root_version

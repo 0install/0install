@@ -34,7 +34,7 @@ class impl_provider =
         bindings = [];
         commands = StringMap.empty;
       };
-      stability = General.Stable;
+      stability = Stability.Stable;
       os; machine;
       parsed_version = Version.parse v;
       impl_type = `Local_impl "/"

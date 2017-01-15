@@ -27,7 +27,7 @@ let impl_template = Impl.({
     bindings = [];
     commands = StringMap.empty;
   };
-  stability = Testing;
+  stability = Stability.Testing;
   os = None;
   machine = None;
   parsed_version = Zeroinstall.Version.parse "1.0";

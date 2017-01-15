@@ -14,7 +14,7 @@ module AttrMap = Support.Qdom.AttrMap
 
 type feed_overrides = {
   last_checked : float option;
-  user_stability : stability_level StringMap.t;
+  user_stability : Stability.t StringMap.t;
 }
 
 type feed_type =
@@ -93,8 +93,8 @@ let create_impl system ~local_dir state node =
 
   let stability =
     match AttrMap.get_no_ns FeedAttr.stability !s.attrs with
-    | None -> Testing
-    | Some s -> parse_stability ~from_user:false s in
+    | None -> Stability.Testing
+    | Some s -> Stability.of_string ~from_user:false s in
 
   let impl_type =
     match AttrMap.get_no_ns FeedAttr.local_path !s.attrs with
@@ -299,7 +299,7 @@ let load_feed_overrides config feed_url =
         let id = ZI.get_attribute "id" impl in
         match ZI.get_attribute_opt FeedConfigAttr.user_stability impl with
         | None -> ()
-        | Some s -> stability := StringMap.add id (Impl.parse_stability ~from_user:true s) !stability
+        | Some s -> stability := StringMap.add id (Stability.of_string ~from_user:true s) !stability
       );
 
       { last_checked; user_stability = !stability; }
@@ -316,7 +316,7 @@ let save_feed_overrides config feed_url overrides =
   let child_nodes = user_stability |> StringMap.map_bindings (fun id stability ->
     ZI.make "implementation" ~attrs:(
       AttrMap.singleton FeedAttr.id id
-      |> AttrMap.add_no_ns FeedConfigAttr.user_stability (Impl.format_stability stability)
+      |> AttrMap.add_no_ns FeedConfigAttr.user_stability (Stability.to_string stability)
     )
   ) in
   let root = ZI.make ~attrs ~child_nodes "feed-preferences" in

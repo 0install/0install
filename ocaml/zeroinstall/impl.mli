@@ -66,7 +66,7 @@ and properties = {
 and +'a t = {
   qdom : [`Implementation | `Package_impl] Element.t;
   props : properties;
-  stability : General.stability_level;
+  stability : Stability.t;
   os : Arch.os option;                (* Required OS; the first part of the 'arch' attribute. None for '*' *)
   machine : Arch.machine option;      (* Required CPU; the second part of the 'arch' attribute. None for '*' *)
   parsed_version : Version.t;
@@ -77,8 +77,6 @@ type generic_implementation = impl_type t
 type distro_implementation = [ `Package_impl of package_impl ] t
 
 (** {2 Utility functions} *)
-val parse_stability : from_user:bool -> string -> General.stability_level
-val format_stability : General.stability_level -> string
 
 val make_command :
   ?source_hint:_ Element.t ->

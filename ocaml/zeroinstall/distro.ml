@@ -137,7 +137,7 @@ class virtual distribution config =
     } in { Impl.
       qdom = Element.make_impl Q.AttrMap.empty;
       props;
-      stability = Packaged;
+      stability = Stability.Packaged;
       os = None;
       machine = Some host_machine;       (* (hopefully) *)
       parsed_version = Version.parse version;
@@ -239,7 +239,7 @@ class virtual distribution config =
         qdom = (elem :> [ `Implementation | `Package_impl ] Element.t);
         os = None;
         machine;
-        stability = Packaged;
+        stability = Stability.Packaged;
         props = {props with attrs = !new_attrs};
         parsed_version = version;
         impl_type = `Package_impl { package_state; package_distro = distro_name };
