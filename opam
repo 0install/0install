@@ -14,15 +14,14 @@ depends: [
   "yojson"
   "xmlm"
   "ounit" {test}
-  "react"
-  "lwt"
+  "lwt_react"
   "extlib"
   "ocurl" {>= "0.7.9"}
   "sha"
   "ocamlbuild" {build}
   "camlp4" {build}
 ]
-depopts: [ "obus" "lablgtk" ]
+depopts: [ "obus" "lablgtk" "lwt_glib" ]
 depexts: [
   [["ubuntu"] ["unzip"]]
   [["debian"] ["unzip"]]

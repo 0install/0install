@@ -49,21 +49,21 @@ The easiest way to get the dependencies is using [OPAM](http://opam.ocamlpro.com
 
     $ opam sw 4.04.0
     $ eval `opam config env`
-    $ opam install yojson xmlm ounit react lwt extlib ocurl obus lablgtk sha
+    $ opam install yojson xmlm ounit lwt_react extlib ocurl obus lablgtk lwt_glib sha
 
 Note: some of these are optional:
 
-- obus is used on Linux to add support for D-BUS notifications, installing
+- `obus` is used on Linux to add support for D-BUS notifications, installing
   native packages using PackageKit, and using NetworkManager to check
   the network status before doing background updates.
-- lablgtk provides a GTK GUI.
+- `lablgtk` and `lwt_glib` provide a GTK GUI.
 
 Alternatively, you can use your distribution's packages if you prefer (and if
 they are new enough). For example, on Debian:
 
     $ sudo apt-get install gettext ocaml-nox ocaml-findlib libyojson-ocaml-dev \
        libxmlm-ocaml-dev camlp4-extra make liblwt-ocaml-dev libounit-ocaml-dev \
-       libextlib-ocaml-dev libcurl-ocaml-dev libssl-ocaml-dev \
+       libextlib-ocaml-dev libcurl-ocaml-dev libsha-ocaml-dev \
        libobus-ocaml-dev liblablgtk2-ocaml-dev liblwt-glib-ocaml-dev
 
 On Fedora:
