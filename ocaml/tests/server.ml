@@ -105,16 +105,19 @@ let start_server system =
         | `Redirect redirect_target ->
             send_response to_client 302 >>= fun () ->
             send_header to_client "Location" redirect_target >>= fun () ->
+            let msg = "<html>\n\
+                         <head>\n\
+                          <title>302 Found</title>\n\
+                         </head>\n\
+                         <body>\n\
+                          <h1>302 Found</h1>\n\
+                        </body>\n\
+                      </html>"
+            in
+            let len = string_of_int (String.length msg) in
+            send_header to_client "Content-Length" len >>= fun () ->
             end_headers to_client >>= fun () ->
-            send_body to_client "\
-              <html>\n\
-               <head>\n\
-                <title>302 Found</title>\n\
-               </head>\n\
-               <body>\n\
-                <h1>302 Found</h1>\n\
-              </body>\n\
-            </html>"
+            send_body to_client msg
         | `ServeFile relpath ->
             send_response to_client 200 >>= fun () ->
             end_headers to_client >>= fun () ->

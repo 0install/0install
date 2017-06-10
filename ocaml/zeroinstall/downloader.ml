@@ -34,6 +34,10 @@ let init = lazy (
 
 let interceptor = ref None        (* (for unit-tests) *)
 
+let is_redirect connection =
+  let code = Curl.get_httpcode connection in
+  code >= 300 && code < 400
+
 (** Download the contents of [url] into [ch].
  * This runs in a separate (either Lwt or native) thread. *)
 let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.zero) ~progress connection ch url =
@@ -94,20 +98,23 @@ let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.
     );
     Curl.set_noprogress connection false; (* progress = true *)
 
-    Curl_lwt.perform connection >|= function
-    | Curl.CURLE_OK ->
-      begin
-        let actual_size = Curl.get_sizedownload connection in
+    Curl_lwt.perform connection >|= fun result ->
+    (* Check for redirect header first because for large redirect bodies we
+       may get a size-exceeded error rather than CURLE_OK. *)
+    match !redirect with
+    | Some target when is_redirect connection ->
+      (* ocurl is missing CURLINFO_REDIRECT_URL, so we have to do this manually *)
+      let target = Support.Urlparse.join_url url target in
+      log_info "Redirect from '%s' to '%s'" url target;
+      `Redirect target
+    | _ ->
+      match result with
+      | Curl.CURLE_OK ->
+        begin
+          let actual_size = Curl.get_sizedownload connection in
 
-        (* Curl.cleanup connection; - leave it open for the next request *)
+          (* Curl.cleanup connection; - leave it open for the next request *)
 
-        match !redirect with
-        | Some target ->
-          (* ocurl is missing CURLINFO_REDIRECT_URL, so we have to do this manually *)
-          let target = Support.Urlparse.join_url url target in
-          log_info "Redirect from '%s' to '%s'" url target;
-          `Redirect target
-        | None ->
           if modification_time <> None && actual_size = 0.0 then (
             raise Unmodified  (* ocurl is missing CURLINFO_CONDITION_UNMET *)
           ) else (
@@ -122,8 +129,8 @@ let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.
             log_info "Download '%s' completed successfully (%.0f bytes)" url actual_size;
             `Success
           )
-      end
-    | code -> raise Curl.(CurlException (code, errno code, strerror code))
+        end
+      | code -> raise Curl.(CurlException (code, errno code, strerror code))
   )
   (function
   | Curl.CurlException _ as ex ->

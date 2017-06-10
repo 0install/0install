@@ -785,6 +785,22 @@ let suite = "download">::: [
     assert_contains "(not cached)" out;
   );
 
+  "short-redirect">:: Server.with_server (fun _ server ->
+    server#expect [
+      ["Link", `Redirect "/Short"];
+      ["Short", `Serve];
+    ];
+    let pool = Downloader.make_pool ~max_downloads_per_site:1 in
+    let dl = pool#with_monitor ignore in
+    Lwt_main.run begin
+      let switch = Lwt_switch.create () in
+      Downloader.download dl ~switch ~size:2L "http://example.com:8000/Link" >|= function
+      | `Tmpfile _ -> ()
+      | _ -> OUnit.assert_failure "Download failed!"
+    end;
+    pool#release
+  );
+
   "slave-2.6">:: Server.with_server ~portable_base:false (fun (config, _fake_system) server ->
     server#expect [
       [("Hello.xml", `Serve)];
