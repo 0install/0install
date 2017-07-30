@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Copyright 2014 Thomas Leonard -->
-<application>
+<component type="desktop-application">
 <id type="desktop">0install.desktop</id>
 <metadata_license>CC0-1.0</metadata_license>
 <project_license>LGPL-2.1+</project_license>
@@ -24,4 +24,5 @@
 </screenshots>
 <url type="homepage">http://0install.net</url>
 <updatecontact>zero-install-devel@lists.sourceforge.net</updatecontact>
-</application>
+<translation/> <!-- Don't know what this is, but linter insists on having it -->
+</component>

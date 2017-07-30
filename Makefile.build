@@ -30,7 +30,7 @@ all:
 	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0alias"
 	(cd "${SRCDIR}" && cp ${MANPAGES} "${DISTDIR}/files")
 	install "${SRCDIR}/install.sh.src" "${DISTDIR}/install.sh"
-	(cd "${SRCDIR}" && cp -r share/0install.net share/applications share/appdata share/bash-completion share/fish share/icons share/zsh "${DISTDIR}/files/share/")
+	(cd "${SRCDIR}" && cp -r share/0install.net share/applications share/metainfo share/bash-completion share/fish share/icons share/zsh "${DISTDIR}/files/share/")
 	install -d "${DISTDIR}/0install"
 	[ -f "${DISTDIR}/0install/build-environment.xml" ] || sed 's/@ARCH@/${OS}-${MACHINE}/;s/@VERSION@/${VERSION}/' "${SRCDIR}/binary-feed.xml.in" > "${DISTDIR}/0install/feed.xml"
 
