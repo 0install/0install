@@ -10,8 +10,8 @@ install_on_osx () {
   sudo hdiutil attach XQuartz-2.7.6.dmg
   sudo installer -verbose -pkg /Volumes/XQuartz-2.7.6/XQuartz.pkg -target /
   brew update &> /dev/null
-  brew uninstall -f gnupg@2.1 gnupg21
-  brew install gnupg gtk+ pygobject
+  brew upgrade gnupg
+  brew install gtk+ pygobject
   export PKG_CONFIG_PATH=/usr/local/Library/Homebrew/os/mac/pkgconfig/10.9:/usr/lib/pkgconfig
 }
 
