@@ -25,7 +25,7 @@ fi
 
 DOCS="../README.md ../COPYING"
 MANPAGES="0launch.1 0store-secure-add.1 0store.1 0desktop.1 0install.1"
-PLUGINS=`find . -name 'gui_gtk.c*[sa]' -print`
+PLUGINS=`find . \( -name 'gui_gtk.cma' -o -name 'gui_gtk.cmxs' \) -print`
 
 # Use "share/zsh/vendor-completions" on Debian
 ZSHFUNCTIONS="share/zsh/site-functions"
