@@ -166,7 +166,7 @@ let () =
           | None -> failwith "lablgtk2 is present, but missing lwt.glib dependency!" in
         (* ("-thread" is needed on Ubuntu 13.04 for some reason, even though it's in the _tags too) *)
         flag ["library"; "shared"; "native"; "link_gtk"] (S [A"-thread"; A (gtk_dir / "lablgtk.cmxa"); A (lwt_dir / "lwt-glib.cmxa")]);
-        flag ["library"; "shared"; "byte"; "link_gtk"] (S [A"-thread"; A (gtk_dir / "lablgtk.cma"); A (lwt_dir / "lwt-glib.cma")]);
+        flag ["library"; "byte"; "link_gtk"] (S [A"-thread"; A (gtk_dir / "lablgtk.cma"); A (lwt_dir / "lwt-glib.cma")]);
     | None -> () end;
 
     (* We use mypp rather than camlp4of because if you pass -pp and -ppopt to ocamlfind
