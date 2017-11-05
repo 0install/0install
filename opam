@@ -15,7 +15,6 @@ depends: [
   "xmlm"
   "ounit" {test}
   "lwt_react"
-  "extlib"
   "ocurl" {>= "0.7.9"}
   "sha"
   "ocamlbuild" {build}

@@ -1,5 +1,5 @@
 false: profile
-true: debug, bin_annot, package(yojson,xmlm,str,lwt,lwt.unix,lwt_react,lwt.preemptive,extlib,curl.lwt,dynlink), thread
+true: debug, bin_annot, package(yojson,xmlm,str,lwt,lwt.unix,lwt_react,lwt.preemptive,curl.lwt,dynlink), thread
 <static_0install.*>: linkall
 <tests/*>: package(oUnit)
 <gui_gtk.*>: package(lablgtk2), link_gtk
