@@ -24,8 +24,8 @@ let read_chunk ch : J.json option Lwt.t =
   | Some size ->
       let size = U.safe_int_of_string size in
       let buf = Bytes.create size in
-      let buf = Bytes.unsafe_to_string buf in   (* Needed for old Lwt API *)
       Lwt_io.read_into_exactly ch buf 0 size >>= fun () ->
+      let buf = Bytes.unsafe_to_string buf in
       log_info "Message from peer: %s" buf;
       Lwt.return (Some (J.from_string buf))
 
@@ -35,8 +35,8 @@ let read_xml_chunk ch =
   | Some size ->
       let size = U.safe_int_of_string size in
       let buf = Bytes.create size in
-      let buf = Bytes.unsafe_to_string buf in
       Lwt_io.read_into_exactly ch buf 0 size >|= fun () ->
+      let buf = Bytes.unsafe_to_string buf in
       Q.parse_input None (Xmlm.make_input (`String (0, buf)))
 
 type opt_xml = [J.json | `WithXML of J.json * Q.element ]

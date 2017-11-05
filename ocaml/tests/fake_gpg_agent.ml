@@ -6,7 +6,7 @@ open Support.Common
 module U = Support.Utils
 
 let write fd msg =
-  Lwt_unix.write fd msg 0 (String.length msg) >>= fun wrote ->
+  Lwt_unix.write_string fd msg 0 (String.length msg) >>= fun wrote ->
   assert (wrote = String.length msg);
   Lwt.return ()
 

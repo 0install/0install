@@ -11,5 +11,5 @@ true: warn(A-4-48-58), warn_error(+5+6+10+26)
 "gui_gtk": for-pack(Gui_gtk)
 <utils.c>: link_crypto
 <static_0install.*> or <**/*.native> or <**/*.byte>: linkdep_win(0install.exe.o), linkdep_win(windows.o), package(unix), link(utils.o)
-not <support/gpg.*> and not <zeroinstall/json_connection.*> and not <tests/fake_gpg_agent.*>: safe_string
+true: safe_string
 <_build>: not_hygienic
