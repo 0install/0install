@@ -9,5 +9,5 @@ S support
 S zeroinstall
 S gui_gtk
 S tests
-PKG yojson xmlm str lwt lwt.unix lwt_react lwt.preemptive extlib curl dynlink lablgtk2 obus oUnit
+PKG yojson xmlm str lwt lwt.unix lwt_react lwt.preemptive curl dynlink lablgtk2 obus oUnit
 EXT lwt
