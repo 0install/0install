@@ -232,7 +232,7 @@ let verify (system:system) xml =
           (open_out_bin tmp)
           (fun ch -> output_string ch sig_data);
 
-        let write_stdin stdin = Lwt_io.write_from_exactly stdin xml 0 index in
+        let write_stdin stdin = Lwt_io.write_from_string_exactly stdin xml 0 index in
         run_gpg_full system ~stdin:write_stdin [
             (* Not all versions support this: *)
             (* '--max-output', str(1024 * 1024), *)
