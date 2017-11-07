@@ -17,7 +17,7 @@ class type digest_context =
     method to_bin : string
   end
 
-IFDEF HAVE_SHA THEN
+#ifdef HAVE_SHA
 
 (* Implementation using the "sha" package *)
 
@@ -45,7 +45,7 @@ let create = function
   | "sha256" -> make_context (module Sha256)
   | x -> raise_safe "Unknown digest type '%s'" x
 
-ELSE
+#else
 
 (* Implementation using openssl *)
 
@@ -71,7 +71,7 @@ let create alg =
       Bytes.to_string str_digest
   end
 
-ENDIF
+#endif
 
 let hex_digest ctx = ctx#to_hex
 let update ctx = ctx#update

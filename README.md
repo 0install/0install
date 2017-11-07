@@ -1,7 +1,7 @@
 0install
 ========
 
-Copyright Thomas Leonard and others, 2013
+Copyright Thomas Leonard and others, 2017
 
 INTRODUCTION
 ------------
@@ -49,7 +49,7 @@ The easiest way to get the dependencies is using [OPAM](http://opam.ocamlpro.com
 
     $ opam sw 4.04.0
     $ eval `opam config env`
-    $ opam install yojson xmlm ounit lwt_react ocurl obus lablgtk lwt_glib sha
+    $ opam install cppo yojson xmlm ounit lwt_react ocurl obus lablgtk lwt_glib sha
 
 Note: some of these are optional:
 
@@ -61,15 +61,15 @@ Note: some of these are optional:
 Alternatively, you can use your distribution's packages if you prefer (and if
 they are new enough). For example, on Debian:
 
-    $ sudo apt-get install gettext ocaml-nox ocaml-findlib libyojson-ocaml-dev \
-       libxmlm-ocaml-dev camlp4-extra make liblwt-ocaml-dev libounit-ocaml-dev \
+    $ sudo apt-get install cppo gettext ocaml-nox ocaml-findlib libyojson-ocaml-dev \
+       libxmlm-ocaml-dev make liblwt-ocaml-dev libounit-ocaml-dev \
        libcurl-ocaml-dev libsha-ocaml-dev \
        libobus-ocaml-dev liblablgtk2-ocaml-dev liblwt-glib-ocaml-dev
 
 On Fedora:
 
-    $ su -c 'yum install gettext ocaml ocaml-findlib ocaml-yojson-devel \
-       ocaml-biniou-devel ocaml-easy-format-devel ocaml-xmlm-devel ocaml-camlp4-devel \
+    $ su -c 'yum install ocaml-cppo gettext ocaml ocaml-findlib ocaml-yojson-devel \
+       ocaml-biniou-devel ocaml-easy-format-devel ocaml-xmlm-devel \
        ocaml-lwt-devel ocaml-ounit-devel ocaml-curl-devel \
        ocaml-obus-devel ocaml-lablgtk-devel openssl-devel'
 

@@ -6,7 +6,7 @@
 
 open Support.Common
 
-IFDEF HAVE_DBUS THEN
+#ifdef HAVE_DBUS
 module OBus_bus = OBus_bus
 module OBus_proxy = OBus_proxy
 module OBus_peer = OBus_peer
@@ -53,7 +53,7 @@ let system () =
       return (`Error "Failed to get D-BUS system bus")
     )
 
-ELSE
+#else
 
 let session ?switch:_ () =
   return (`Error "0install was compiled without D-BUS support")
@@ -217,4 +217,4 @@ module OBus_signal =
     let make _signal = no_dbus
     let emit _info _obj ?peer:_ = no_dbus
   end
-ENDIF
+#endif

@@ -114,7 +114,9 @@ let () =
   (* When building byte-code, we need -custom to include the C code *)
   flag ["link"; "ocaml"; "byte"] (A"-custom");
 
-  dispatch (function
+  dispatch @@ fun hook ->
+  Ocamlbuild_cppo.dispatcher hook;
+  match hook with
   | Before_options ->
       Options.make_links := false;
       Options.use_ocamlfind := true;
@@ -169,16 +171,9 @@ let () =
         flag ["library"; "byte"; "link_gtk"] (S [A"-thread"; A (gtk_dir / "lablgtk.cma"); A (lwt_dir / "lwt-glib.cma")]);
     | None -> () end;
 
-    (* We use mypp rather than camlp4of because if you pass -pp and -ppopt to ocamlfind
-       then it just ignores the ppopt. So, we need to write the -pp option ourselves. *)
-
-    let defines_portable = ref [] in
-    if use_dbus then add "-DHAVE_DBUS" defines_portable;
-    if gtk_dir <> None then add "-DHAVE_GTK" defines_portable;
-
     if have_sha then (
       (* Use "sha" package instead of libcrypto *)
-      add "-DHAVE_SHA" defines_portable;
+      flag ["cppo"] (S [A "-D"; A "HAVE_SHA"]);
       flag ["compile"; "link_crypto"] (S [A"-ccopt"; A"-DHAVE_SHA"]);
       flag ["compile"; "ocaml"] (S [A"-package"; A"sha"]);
       flag ["link"] (S [A"-package"; A"sha"]);
@@ -186,8 +181,8 @@ let () =
       print_endline "sha (ocaml-sha) not found; using OpenSSL instead"
     );
 
-    let defines_native = ref !defines_portable in
-    if on_windows then add "-DWINDOWS" defines_native;
+    if on_windows then
+      flag ["cppo"] (S [A "-D"; A "WINDOWS"]);
 
     if gtk_dir <> None then (
       let add_glib tag =
@@ -195,10 +190,8 @@ let () =
       List.iter add_glib ["compile"; "ocamldep"; "doc"; "link"; "infer_interface"]
     );
 
-    flag ["native";"ocaml";"pp";"mypp"] (S (A "camlp4of" :: !defines_native));
-    flag ["byte";"ocaml";"pp";"mypp"] (S (A "camlp4of" :: !defines_portable));
-
-    flag ["ocaml";"ocamldep";"mypp"] (S [A"-pp"; A "camlp4of"]);
+    if use_dbus then
+      flag ["cppo"] (S [A "-D"; A "HAVE_DBUS"]);
 
     (* Make all enabled warnings fatal for CI builds. *)
     if ci_build then flag ["compile"; "ocaml"] (S [A"-warn-error"; A"A-4-48-58"]);
@@ -217,5 +210,3 @@ let () =
       flag ["link"] (S [A"-package"; A"bisect"]);
     );
   | _ -> ()
-  )
-

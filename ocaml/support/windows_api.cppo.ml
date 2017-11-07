@@ -25,7 +25,7 @@ class type windows_api =
 
 let windowsAPI : windows_api option ref = ref None
 
-IFDEF WINDOWS THEN
+#ifdef WINDOWS
   (* This is only used when compiling native code on Windows, not for the portable bytecode. *)
   external win_get_appdata : unit -> string = "caml_win_get_appdata"
   external win_get_local_appdata : unit -> string = "caml_win_get_local_appdata"
@@ -50,4 +50,4 @@ IFDEF WINDOWS THEN
           None
     end
   )
-ENDIF
+#endif
