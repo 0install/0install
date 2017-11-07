@@ -1,3 +1,2 @@
 true: for-pack(Support)
-<windows_api.ml> or <hash.ml>: mypp
 "windows.cma": dllib(-lwindows)

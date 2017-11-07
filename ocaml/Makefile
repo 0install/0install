@@ -7,7 +7,7 @@ else
 endif
 
 TYPE=native
-OCAMLBUILD=ocamlbuild -j 0 -build-dir "${BUILDDIR_NATIVE}"
+OCAMLBUILD=ocamlbuild -j 0 -use-ocamlfind -plugin-tag 'package(cppo_ocamlbuild)' -build-dir "${BUILDDIR_NATIVE}"
 WINDOWS_LIBS = $(shell dirname $(shell which ocamlc))
 ifeq ($(OS), Windows_NT)
   OCAMLBUILDFLAGS = -lflag -cclib -lflag -lshell32
