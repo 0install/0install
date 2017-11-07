@@ -33,7 +33,7 @@ let windowsAPI : windows_api option ref = ref None
   external win_read_registry_string : string -> string -> wow -> string = "caml_win_read_registry_string"
   external win_read_registry_int : string -> string -> wow -> int = "caml_win_read_registry_int"
 
-  windowsAPI := Some (
+  let () = windowsAPI := Some (
     object
       method get_appdata = win_get_appdata
       method get_local_appdata = win_get_local_appdata
