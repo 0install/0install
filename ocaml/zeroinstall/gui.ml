@@ -374,7 +374,7 @@ let send_bug_report iface_uri message : string Lwt.t =
   let error_buffer = ref "" in
   try
     (* todo: Check the interface to decide where to send bug reports *)
-    let url = "http://0install.net/api/report-bug/" in
+    let url = "http://api.0install.net/api/report-bug/" in
     let connection = Curl.init () in
     Curl.set_nosignal connection true;    (* Can't use DNS timeouts when multi-threaded *)
     Curl.set_failonerror connection true;
