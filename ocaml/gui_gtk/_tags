@@ -1,2 +1,2 @@
 true: for-pack(Gui_gtk)
-true: package(lablgtk2)
+true: package(lablgtk2, lwt_glib)

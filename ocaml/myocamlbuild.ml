@@ -161,15 +161,22 @@ let () =
     );
 
     begin match gtk_dir with
-    | Some gtk_dir ->
-        let lwt_dir =
-          match get_info "lwt.glib" with
-          | Some {version=_; dir} -> dir
-          | None -> failwith "lablgtk2 is present, but missing lwt.glib dependency!" in
-        (* ("-thread" is needed on Ubuntu 13.04 for some reason, even though it's in the _tags too) *)
-        flag ["library"; "shared"; "native"; "link_gtk"] (S [A"-thread"; A (gtk_dir / "lablgtk.cmxa"); A (lwt_dir / "lwt-glib.cmxa")]);
-        flag ["library"; "byte"; "link_gtk"] (S [A"-thread"; A (gtk_dir / "lablgtk.cma"); A (lwt_dir / "lwt-glib.cma")]);
-    | None -> () end;
+      | None -> ()
+      | Some gtk_dir ->
+        match get_info "lwt.glib" with
+          | Some {version; dir = lwt_dir} -> (* Lwt 3 < 3 *)
+            print_endline "Linking with old lwt.glib structure";
+            flag ["library"; "shared"; "native"; "link_gtk"] (S [A"-thread"; A (gtk_dir / "lablgtk.cmxa"); A (lwt_dir / "lwt-glib.cmxa")]);
+            flag ["library"; "byte"; "link_gtk"] (S [A"-thread"; A (gtk_dir / "lablgtk.cma"); A (lwt_dir / "lwt-glib.cma")]);
+          | None ->   (* Lwt >= 3 *)
+            let lwt_dir =
+              match get_info "lwt_glib" with
+              | Some {version=_; dir} -> dir
+              | None -> failwith "lablgtk2 is present, but missing lwt_glib dependency!" in
+            (* ("-thread" is needed on Ubuntu 13.04 for some reason, even though it's in the _tags too) *)
+            flag ["library"; "shared"; "native"; "link_gtk"] (S [A"-thread"; A (gtk_dir / "lablgtk.cmxa"); A (lwt_dir / "lwt_glib.cmxa")]);
+            flag ["library"; "byte"; "link_gtk"] (S [A"-thread"; A (gtk_dir / "lablgtk.cma"); A (lwt_dir / "lwt_glib.cma")]);
+    end;
 
     if have_sha then (
       (* Use "sha" package instead of libcrypto *)
