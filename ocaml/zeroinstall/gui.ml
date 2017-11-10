@@ -372,35 +372,38 @@ let try_get_gui config ~use_gui =
 
 let send_bug_report iface_uri message : string Lwt.t =
   let error_buffer = ref "" in
-  try
-    (* todo: Check the interface to decide where to send bug reports *)
-    let url = "http://api.0install.net/api/report-bug/" in
-    let connection = Curl.init () in
-    Curl.set_nosignal connection true;    (* Can't use DNS timeouts when multi-threaded *)
-    Curl.set_failonerror connection true;
-    if Support.Logging.will_log Support.Logging.Debug then Curl.set_verbose connection true;
 
-    Curl.set_errorbuffer connection error_buffer;
+  (* todo: Check the interface to decide where to send bug reports *)
+  let url = "http://api.0install.net/api/report-bug/" in
+  let connection = Curl.init () in
+  Curl.set_nosignal connection true;    (* Can't use DNS timeouts when multi-threaded *)
+  Curl.set_failonerror connection true;
+  if Support.Logging.will_log Support.Logging.Debug then Curl.set_verbose connection true;
 
-    let output_buffer = Buffer.create 256 in
-    Curl.set_writefunction connection (fun data ->
+  Curl.set_errorbuffer connection error_buffer;
+
+  let output_buffer = Buffer.create 256 in
+  Curl.set_writefunction connection (fun data ->
       Buffer.add_string output_buffer data;
       String.length data
     );
 
-    let post_data = Printf.sprintf "uri=%s&body=%s" (Curl.escape iface_uri) (Curl.escape message) in
+  let post_data = Printf.sprintf "uri=%s&body=%s" (Curl.escape iface_uri) (Curl.escape message) in
 
-    Curl.set_url connection url;
-    Curl.set_post connection true;
-    Curl.set_postfields connection post_data;
-    Curl.set_postfieldsize connection (String.length post_data);
+  Curl.set_url connection url;
+  Curl.set_post connection true;
+  Curl.set_postfields connection post_data;
+  Curl.set_postfieldsize connection (String.length post_data);
 
-    Curl.perform connection;
-
-    Lwt.return (Buffer.contents output_buffer)
-  with Curl.CurlException _ as ex ->
-    log_info ~ex "Curl error: %s" !error_buffer;
-    raise_safe "Failed to submit bug report: %s\n%s" (Printexc.to_string ex) !error_buffer
+  Lwt.finalize
+    (fun () -> Curl_lwt.perform connection)
+    (fun () -> Curl.cleanup connection; Lwt.return ())
+  >|= function
+  | Curl.CURLE_OK -> Buffer.contents output_buffer
+  | code ->
+    let msg = Curl.strerror code in
+    log_info "Curl error: %s\n%s" msg !error_buffer;
+    raise_safe "Failed to submit bug report: %s\n%s" msg !error_buffer
 
 let get_sigs config url =
   match Feed_cache.get_cached_feed_path config url with
