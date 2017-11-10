@@ -150,9 +150,11 @@ module Debian = struct
             | Some version, Some machine -> Lwt.return (Some {version; machine; size = !size})
             | _ -> Lwt.return None
           )
-          (fun ex ->
-            log_warning ~ex "'apt-cache show %s' failed" package;
-            Lwt.return None
+          (function
+            | Lwt.Canceled -> Lwt.return None
+            | ex ->
+              log_warning ~ex "'apt-cache show %s' failed" package;
+              Lwt.return None
           )
         >>= fun result ->
         (* (multi-arch support? can there be multiple candidates?) *)
