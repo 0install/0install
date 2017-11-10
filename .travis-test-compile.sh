@@ -9,6 +9,20 @@ if [ -d 0compile ]; then
 fi
 
 eval `opam config env`
+
+mkdir -p ~/.config/0install.net/injector
+cat > ~/.config/0install.net/injector/trustdb.xml <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<trusted-keys xmlns="http://zero-install.sourceforge.net/2007/injector/trust">
+  <key fingerprint="DA9825AECAD089757CDABD8E07133F96CA74D8BA">
+    <domain value="0install.net"/>
+  </key>
+  <key fingerprint="AC9B973549D819AE22BCD08D22EA111A7E4242A4">
+    <domain value="repo.roscidus.com"/>
+  </key>
+</trusted-keys>
+EOF
+
 make
 sudo make install
 0install add-feed http://0install.net/tools/0install.xml dist/0install/feed.xml
