@@ -23,9 +23,10 @@ class type virtual provider =
     (** Can we use packages for this distribution? For example, MacPortsDistribution can use "MacPorts" and "Darwin" packages. *)
     method match_name : string -> bool
 
-    (** Check whether this <selection> is still valid. If the quick-test-* attributes are present, we use
-        them to check. Otherwise, we call [is_installed]. *)
-    method is_installed_quick : Selections.selection -> bool
+    (** Test whether this <selection> element is still valid. The default implementation tries to load the feed from the
+     * feed cache, calls [distribution#get_impls_for_feed] on it and checks whether the required implementation ID is in the
+     * returned map. Override this if you can provide a more efficient implementation. *)
+    method is_installed : Selections.selection -> bool
 
     (** Get the native implementations (installed or candidates for installation) for this feed.
      * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one.
@@ -79,11 +80,6 @@ class virtual distribution : General.config ->
      * [get_correct_main] to get the correct value. *)
     method private fixup_main : Impl.distro_implementation -> unit
 
-    (** Test whether this <selection> element is still valid. The default implementation tries to load the feed from the
-     * feed cache, calls [distribution#get_impls_for_feed] on it and checks whether the required implementation ID is in the
-     * returned map. Override this if you can provide a more efficient implementation. *)
-    method private is_installed : Selections.selection -> bool
-
     (** Add the implementations for this feed to [query].
      * Called by [get_impls_for_feed] once for each <package-implementation> element. *)
     method virtual private get_package_impls : query -> unit
@@ -135,4 +131,4 @@ val install_distro_packages : t -> #Packagekit.ui -> Impl.distro_implementation 
 
 (** Check whether this <selection> is still valid. If the quick-test-* attributes are present, we use
     them to check. Otherwise, we call [t#is_installed]. *)
-val is_installed : t -> Selections.selection -> bool
+val is_installed : t -> General.config -> Selections.selection -> bool

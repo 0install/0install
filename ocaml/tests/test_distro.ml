@@ -206,7 +206,7 @@ let suite = "distro">::: [
 
     fake_system#set_spawn_handler (Some Fake_system.real_spawn_handler);
 
-    let distro = Distro_impls.generic_distribution ~packagekit config in
+    let distro = Distro_impls.generic_distribution ~packagekit config |> Distro.of_provider in
 
     let open Impl in
     let is_host (id, _impl) = U.starts_with id "package:host:" in
@@ -217,7 +217,7 @@ let suite = "distro">::: [
     let root = Q.parse_input None @@ Xmlm.make_input (`String (0, test_feed)) |> Element.parse_feed in
     let feed = F.parse system root None in
     let () =
-      let impls = distro#get_impls_for_feed ~problem:failwith feed in
+      let impls = Distro.get_impls_for_feed distro ~problem:failwith feed in
       let host_python = find_host impls in
       let python_run =
         try StringMap.find_nf "run" host_python.props.commands
@@ -228,7 +228,7 @@ let suite = "distro">::: [
     let root = Q.parse_input None @@ Xmlm.make_input (`String (0, test_gobject_feed)) |> Element.parse_feed in
     let feed = F.parse system root None in
 
-    let impls = distro#get_impls_for_feed ~problem:failwith feed in
+    let impls = Distro.get_impls_for_feed distro ~problem:failwith feed in
     let host_gobject =
       try impls |> StringMap.bindings |> List.find is_host |> snd
       with Not_found -> skip_if true "No host python-gobject found"; assert false in
@@ -244,7 +244,7 @@ let suite = "distro">::: [
       ~attrs:(Q.AttrMap.singleton "interface" "http://repo.roscidus.com/python/python")
       ~child_nodes:[sel] |> Element.parse_selections in
     match Element.selections sels with
-    | [sel] -> assert (distro#is_installed_quick sel)
+    | [sel] -> assert (Distro.is_installed distro config sel)
     | _ -> assert false
   );
 

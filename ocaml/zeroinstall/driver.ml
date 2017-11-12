@@ -29,7 +29,7 @@ let get_unavailable_selections config ?distro sels =
     | Selections.PackageSelection ->
         match distro with
         | None -> false
-        | Some distro -> not @@ Distro.is_installed distro elem
+        | Some distro -> not @@ Distro.is_installed distro config elem
   in
   sels |> Selections.iter (fun role sel ->
     if needs_download sel then (
