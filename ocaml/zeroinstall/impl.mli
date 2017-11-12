@@ -76,6 +76,17 @@ and +'a t = {
 type generic_implementation = impl_type t
 type distro_implementation = [ `Package_impl of package_impl ] t
 
+val make :
+  elem : [< `Implementation | `Package_impl] Element.t ->
+  props : properties ->
+  stability : Stability.t ->
+  os : Arch.os option ->
+  machine : Arch.machine option ->
+  version : Version.t ->
+  'a -> 'a t
+
+val with_stability : Stability.t -> 'a t -> 'a t
+
 (** {2 Utility functions} *)
 
 val make_command :

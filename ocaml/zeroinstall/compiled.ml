@@ -116,12 +116,11 @@ let of_source ~host_arch impl =
     bindings = [];
     commands = StringMap.empty;
   } bin_element in
-  `Ok {
-    qdom = bin_element;
-    props;
-    stability = impl.stability;
-    os;
-    machine;
-    parsed_version = impl.parsed_version;
-    impl_type = `Binary_of impl
-  }
+  `Ok (Impl.make
+         ~elem:bin_element
+         ~props
+         ~stability:impl.stability
+         ~os ~machine
+         ~version:impl.parsed_version
+         (`Binary_of impl)
+      )

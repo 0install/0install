@@ -124,20 +124,17 @@ class virtual distribution config =
           | Exists -> ()
           | UnchangedSince mtime ->
               set FeedAttr.quick_test_mtime (Int64.of_float mtime |> Int64.to_string) end;
-
-      let open Impl in
-      let impl = {
-        qdom = (elem :> [ `Implementation | `Package_impl ] Element.t);
-        os = None;
-        machine;
-        stability = Stability.Packaged;
-        props = {props with attrs = !new_attrs};
-        parsed_version = version;
-        impl_type = `Package_impl { package_state; package_distro = distro_name };
-      } in
-
+      let impl =
+        Impl.make
+          ~elem
+          ~os:None
+          ~machine
+          ~stability:Stability.Packaged
+          ~props:{props with Impl.attrs = !new_attrs}
+          ~version
+          (`Package_impl { Impl.package_state; package_distro = distro_name })
+      in
       if package_state = `Installed then self#fixup_main impl;
-
       query.results := StringMap.add id impl !(query.results)
 
     (** Test whether this <selection> element is still valid. The default implementation tries to load the feed from the

@@ -82,6 +82,19 @@ and +'a t = {
 type generic_implementation = impl_type t
 type distro_implementation = [ `Package_impl of package_impl ] t
 
+let make ~elem ~props ~stability ~os ~machine ~version impl_type =
+  {
+    qdom = (elem :> [`Implementation | `Package_impl] Element.t);
+    props;
+    stability;
+    os;
+    machine;
+    parsed_version = version;
+    impl_type;
+  }
+
+let with_stability stability t = {t with stability}
+
 let make_command ?source_hint name path : command =
   let elem = Element.make_command ~path ~source_hint name in
   {

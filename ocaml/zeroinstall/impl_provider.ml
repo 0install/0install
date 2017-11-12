@@ -85,7 +85,7 @@ class type impl_provider =
 let do_overrides overrides =
   StringMap.map_bindings (fun id impl ->
     match StringMap.find id overrides.Feed.user_stability with
-    | Some stability -> {impl with Impl.stability = stability}
+    | Some stability -> Impl.with_stability stability impl
     | None -> impl
   )
 
@@ -235,7 +235,8 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
 
   let get_impls ~problem (feed, overrides) =
     let distro_impls = (get_distro_impls ~problem feed :> Impl.existing Impl.t list) in
-    distro_impls @ do_overrides overrides feed.Feed.implementations in
+    let zi_impls = (do_overrides overrides feed.Feed.implementations :> Impl.existing Impl.t list) in
+    distro_impls @ zi_impls in
 
   let cached_digests = Stores.get_available_digests config.system config.stores in
 

@@ -105,18 +105,19 @@ let make_host_impl t path version ~package ?(commands=StringMap.empty) ?(require
     requires;
     bindings = [];
     commands;
-  } in { Impl.
-    qdom = Element.make_impl Q.AttrMap.empty;
-    props;
-    stability = Stability.Packaged;
-    os = None;
-    machine = Some t.host_machine;       (* (hopefully) *)
-    parsed_version = Version.parse version;
-    impl_type = `Package_impl { Impl.
-      package_distro = "host";
-      package_state = `Installed;
-    }
-  }
+  } in
+  Impl.make
+    ~elem:(Element.make_impl Q.AttrMap.empty)
+    ~props
+    ~stability:Stability.Packaged
+    ~os:None
+    ~machine:(Some t.host_machine)       (* (hopefully) *)
+    ~version:(Version.parse version)
+    (`Package_impl { Impl.
+                     package_distro = "host";
+                     package_state = `Installed;
+                   }
+    )
 
 let get t = function
   | `Remote_feed "http://repo.roscidus.com/python/python" as url ->
