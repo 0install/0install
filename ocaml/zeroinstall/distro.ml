@@ -82,6 +82,18 @@ class type virtual provider =
     method is_valid_package_name : string -> bool
   end
 
+(* We may add a command, or modify the existing main executable path. *)
+let with_main_path path props =
+  let open Impl in
+  let run_command =
+    match StringMap.find "run" props.commands with
+    | Some command ->
+      (* Keep any existing bindings and dependencies *)
+      {command with command_qdom = Element.make_command ~path ~source_hint:None "run"}
+    | None ->
+      make_command "run" path in
+  {props with commands = StringMap.add "run" run_command props.commands}
+
 class virtual distribution config =
   let system = config.system in
   let host_python = Host_python.make system in
@@ -119,21 +131,11 @@ class virtual distribution config =
       let version_str = Version.to_string version in
       let { Query.package_name; elem_props = props; elem; _ } = query in
       let id = id |? lazy (Printf.sprintf "%s:%s:%s:%s" id_prefix package_name version_str (Arch.format_machine_or_star machine)) in
-
       let props =
         match main with
         | None -> props
-        | Some path ->
-            (* We may add or modify the main executable path. *)
-            let open Impl in
-            let run_command =
-              match StringMap.find "run" props.commands with
-              | Some command ->
-                  {command with command_qdom = Element.make_command ~path ~source_hint:None "run"}
-              | None ->
-                  make_command "run" path in
-            {props with commands = StringMap.add "run" run_command props.commands} in
-
+        | Some path -> with_main_path path props
+      in
       let new_attrs = ref props.Impl.attrs in
       let set name value =
         new_attrs := Q.AttrMap.add_no_ns name value !new_attrs in
