@@ -1,4 +1,4 @@
-(* Copyright (C) 2013, Thomas Leonard
+(* Copyright (C) 2017, Thomas Leonard
  * See the README file for details, or visit http://0install.net.
  *)
 
@@ -35,26 +35,39 @@ let get_matching_package_impls distro feed =
   );
   !best_impls
 
-type query = {
-  elem : [`Package_impl] Element.t; (* The <package-element> which generated this query *)
-  package_name : string;            (* The 'package' attribute on the <package-element> *)
-  elem_props : Impl.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
-  feed : Feed.feed;                 (* The feed containing the <package-element> *)
-  results : Impl.distro_implementation Support.Common.StringMap.t ref;
-  problem : string -> unit;
-}
+module Query = struct
+  type t = {
+    elem : [`Package_impl] Element.t; (* The <package-element> which generated this query *)
+    package_name : string;            (* The 'package' attribute on the <package-element> *)
+    elem_props : Impl.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
+    feed : Feed.feed;                 (* The feed containing the <package-element> *)
+    results : Impl.distro_implementation Support.Common.StringMap.t ref;
+    problem : string -> unit;
+  }
 
-let make_query feed elem elem_props results problem = {
-  elem;
-  package_name = Element.package elem;
-  elem_props;
-  feed;
-  results;
-  problem;
-}
+  let make feed elem elem_props results problem = {
+    elem;
+    package_name = Element.package elem;
+    elem_props;
+    feed;
+    results;
+    problem;
+  }
+
+  let package t = t.package_name
+
+  let problem t fmt =
+    fmt |> Support.Logging.kasprintf @@ fun msg ->
+    t.problem msg
+
+  let add_result t id impl =
+    t.results := StringMap.add id impl !(t.results)
+
+  let results t = !(t.results)
+end
 
 type quick_test_condition = Exists | UnchangedSince of float
-type quick_test = (Support.Common.filepath * quick_test_condition)
+type quick_test = (filepath * quick_test_condition)
 
 class type virtual provider =
   object
@@ -103,11 +116,10 @@ class virtual distribution config =
           | Some new_main -> run.command_qdom <- Element.make_command ~path:new_main ~source_hint:None "run"
 
     (** Convenience wrapper for [add_result] that builds a new implementation from the given attributes. *)
-    method private add_package_implementation ?id ?main (query:query) ~version ~machine ~quick_test ~package_state ~distro_name =
+    method private add_package_implementation ?id ?main (query:Query.t) ~version ~machine ~quick_test ~package_state ~distro_name =
       let version_str = Version.to_string version in
-      let id = id |? lazy (Printf.sprintf "%s:%s:%s:%s" id_prefix query.package_name version_str (Arch.format_machine_or_star machine)) in
-      let props = query.elem_props in
-      let elem = query.elem in
+      let { Query.package_name; elem_props = props; elem; _ } = query in
+      let id = id |? lazy (Printf.sprintf "%s:%s:%s:%s" id_prefix package_name version_str (Arch.format_machine_or_star machine)) in
 
       let props =
         match main with
@@ -149,7 +161,7 @@ class virtual distribution config =
           (`Package_impl { Impl.package_state; package_distro = distro_name })
       in
       if package_state = `Installed then self#fixup_main impl;
-      query.results := StringMap.add id impl !(query.results)
+      Query.add_result query id impl
 
     (** Test whether this <selection> element is still valid. The default implementation tries to load the feed from the
      * feed cache, calls [distribution#get_impls_for_feed] on it and checks whether the required implementation ID is in the
@@ -184,11 +196,11 @@ class virtual distribution config =
       | [] -> !results
       | matches ->
           matches |> List.iter (fun (elem, props) ->
-            self#get_package_impls (make_query feed elem props results problem);
+            self#get_package_impls (Query.make feed elem props results problem);
           );
           !results
 
-    method virtual private get_package_impls : query -> unit
+    method virtual private get_package_impls : Query.t -> unit
 
     (** Called when an installed package is added, or when installation completes. This is useful to fix up the main value.
         The default implementation checks that main exists, and searches [system_paths] for

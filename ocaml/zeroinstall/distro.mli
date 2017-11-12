@@ -1,18 +1,25 @@
-(* Copyright (C) 2013, Thomas Leonard
+(* Copyright (C) 2017, Thomas Leonard
  * See the README file for details, or visit http://0install.net.
  *)
 
 (** Generic code for interacting with distribution package managers. *)
 
-(** Passed to [distribution#get_package_impls]. It provides details of the query and a place to collect the results. *)
-type query = {
-  elem : [`Package_impl] Element.t; (* The <package-element> which generated this query *)
-  package_name : string;            (* The 'package' attribute on the <package-element> *)
-  elem_props : Impl.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
-  feed : Feed.feed;                 (* The feed containing the <package-element> *)
-  results : Impl.distro_implementation Support.Common.StringMap.t ref;
-  problem : string -> unit;
-}
+module Query : sig
+  type t
+  (** Details of a query and a place to collect the results. *)
+
+  val package : t -> string
+  (** [package t] is the name of the package being queried. *)
+
+  val problem : t -> ('a, Format.formatter, unit) format -> 'a
+  (** Add a warning message to the query. *)
+
+  val add_result : t -> string -> Impl.distro_implementation -> unit
+  (** [add_result t id impl] adds [id -> impl] to the result map. *)
+
+  val results : t -> Impl.distro_implementation Support.Common.StringMap.t
+  (** [results t] is the current results of the query. *)
+end
 
 type quick_test_condition = Exists | UnchangedSince of float
 type quick_test = (Support.Common.filepath * quick_test_condition)
@@ -82,7 +89,7 @@ class virtual distribution : General.config ->
 
     (** Add the implementations for this feed to [query].
      * Called by [get_impls_for_feed] once for each <package-implementation> element. *)
-    method virtual private get_package_impls : query -> unit
+    method virtual private get_package_impls : Query.t -> unit
 
     (** Called when an installed package is added, or when installation completes, to find the correct main value,
      * since we might not be able to work it out before-hand. The default checks that the path exists and, if not,
@@ -94,7 +101,7 @@ class virtual distribution : General.config ->
     method private add_package_implementation :
       ?id:string ->
       ?main:string ->
-      query ->
+      Query.t ->
       version:Version.t ->
       machine:(Arch.machine option) ->
       quick_test:(quick_test option) ->  (* The result is valid while this condition holds *)

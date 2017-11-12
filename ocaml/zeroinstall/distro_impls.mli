@@ -1,4 +1,4 @@
-(* Copyright (C) 2013, Thomas Leonard
+(* Copyright (C) 2017, Thomas Leonard
  * See the README file for details, or visit http://0install.net.
  *)
 

@@ -439,7 +439,7 @@ let suite = "distro">::: [
         val id_prefix = "package:test"
 
         method private get_package_impls query =
-          match query.Distro.package_name with
+          match Distro.Query.package query with
           | "foo" ->
               self#add_package_implementation
                 ~main:"foo"

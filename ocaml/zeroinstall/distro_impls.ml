@@ -1,4 +1,4 @@
-(* Copyright (C) 2013, Thomas Leonard
+(* Copyright (C) 2017, Thomas Leonard
  * See the README file for details, or visit http://0install.net.
  *)
 
@@ -17,15 +17,15 @@ class virtual packagekit_distro ~(packagekit:Packagekit.packagekit Lazy.t) confi
 
     method private get_package_impls query =
       let packagekit = Lazy.force packagekit in
-      let package_name = query.package_name in
-      let pk_unavailable reason = query.problem (Printf.sprintf "%s: %s" package_name reason) in
+      let package_name = Query.package query in
+      let pk_unavailable reason = Query.problem query "%s: %s" package_name reason in
       match Lwt.state packagekit#status with
       | Lwt.Fail ex -> pk_unavailable (Printexc.to_string ex)
       | Lwt.Sleep -> pk_unavailable "Waiting for PackageKit..."
       | Lwt.Return (`Unavailable reason) -> pk_unavailable reason
       | Lwt.Return `Ok ->
           let pk_query = packagekit#get_impls package_name in
-          pk_query.Packagekit.problems |> List.iter query.problem;
+          pk_query.Packagekit.problems |> List.iter (fun x -> Query.problem query "%s" x);
           pk_query.Packagekit.results |> List.iter (fun info ->
             let {Packagekit.version; Packagekit.machine; Packagekit.installed; Packagekit.retrieval_method} = info in
             let package_state =
@@ -230,7 +230,7 @@ module Debian = struct
 
       method! private get_package_impls query =
         let packagekit = Lazy.force packagekit in
-        let package_name = query.package_name in
+        let package_name = Query.package query in
         (* Add any PackageKit candidates *)
         begin match Lwt.state packagekit#status with
         | Lwt.Return `Ok | Lwt.Fail _ -> super#get_package_impls query;
@@ -244,7 +244,7 @@ module Debian = struct
                   let package_state = `Uninstalled Impl.({distro_size = None; distro_install_info = ("apt-get install", package_name)}) in
                   self#add_package_implementation ~package_state ~version ~machine ~quick_test:None ~distro_name query
               | None ->
-                  query.problem (Printf.sprintf "%s: not known to apt-cache" package_name)
+                  Query.problem query "%s: not known to apt-cache" package_name
             with Not_found -> ()  (* We haven't checked yet *)
         end;
         (* Add installed packages by querying dpkg. *)
@@ -278,8 +278,9 @@ module Debian = struct
                 Lwt.return ()
 
       method! private add_package_implementation ?id ?main query ~version ~machine ~quick_test ~package_state ~distro_name =
+        let package_name = Query.package query in
         let version =
-          match query.package_name, version with
+          match package_name, version with
           | ("openjdk-6-jre" | "openjdk-7-jre"), (([major], Version.Pre) :: (minor, mmod) :: rest) ->
             (* Debian marks all Java versions as pre-releases
                See: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=685276 *)
@@ -352,7 +353,8 @@ module RPM = struct
         super#get_package_impls query;
 
         (* Add installed packages by querying rpm *)
-        let infos, quick_test = Distro_cache.get cache query.package_name in
+        let package_name = Query.package query in
+        let infos, quick_test = Distro_cache.get cache package_name in
         infos |> List.iter (fun (version, machine) ->
           self#add_package_implementation ~package_state:`Installed ~version ~machine ~quick_test ~distro_name query
         )
@@ -374,7 +376,7 @@ module RPM = struct
       method! private add_package_implementation ?id ?main query ~version ~machine ~quick_test ~package_state ~distro_name =
         let version =
           (* OpenSUSE uses _, Fedora uses . *)
-          let package_name = query.package_name |> String.map (function '_' -> '.' | x -> x) in
+          let package_name = Query.package query |> String.map (function '_' -> '.' | x -> x) in
           match package_name with
           | "java-1.6.0-openjdk" | "java-1.7.0-openjdk"
           | "java-1.6.0-openjdk-devel" | "java-1.7.0-openjdk-devel" ->
@@ -446,7 +448,7 @@ module ArchLinux = struct
         super#get_package_impls query;
 
         (* Check the local package database *)
-        let package_name = query.package_name in
+        let package_name = Query.package query in
         log_debug "Looking up distribution packages for %s" package_name;
         let items = get_entries () in
         match StringMap.find package_name items with
@@ -495,7 +497,8 @@ module Mac = struct
       val check_host_python = true
 
       method get_package_impls query =
-        match query.package_name with
+        let package_name = Query.package query in
+        match package_name with
         | "openjdk-6-jre" | "openjdk-6-jdk" -> self#find_java "1.6" "6" query
         | "openjdk-7-jre" | "openjdk-7-jdk" -> self#find_java "1.7" "7" query
         | "openjdk-8-jre" | "openjdk-8-jdk" -> self#find_java "1.8" "8" query
@@ -503,8 +506,8 @@ module Mac = struct
         | "gnupg2" -> self#find_program "/usr/local/bin/gpg2" query
         | "make" -> self#find_program "/usr/bin/make" query
         | package_name ->
-            if StringMap.is_empty !(query.results) then
-              query.problem (Printf.sprintf "%s: Unknown Darwin/OS X package" package_name)
+            if StringMap.is_empty (Query.results query) then
+              Query.problem query "%s: Unknown Darwin/OS X package" package_name
             (* else we have MacPorts results *)
 
       method private find_program main query =
@@ -512,7 +515,8 @@ module Mac = struct
           let x_ok = try Unix.access main [Unix.X_OK]; true with Unix.Unix_error _ -> false in
           if x_ok then (
             let (_host_os, host_machine) = Arch.platform config.system in
-            try_cleanup_distro_version_warn (get_version main) query.package_name |> if_some (fun version ->
+            let package_name = Query.package query in
+            try_cleanup_distro_version_warn (get_version main) package_name |> if_some (fun version ->
               self#add_package_implementation
                 ~main
                 ~package_state:`Installed
@@ -601,7 +605,8 @@ module Mac = struct
       method! match_name name = super#match_name name || darwin#match_name name
 
       method private get_package_impls query =
-        let infos, quick_test = Distro_cache.get cache query.package_name in
+        let package_name = Query.package query in
+        let infos, quick_test = Distro_cache.get cache package_name in
         infos |> List.iter (fun (version, machine) ->
           self#add_package_implementation ~package_state:`Installed ~version ~machine ~quick_test ~distro_name query
         );
@@ -638,8 +643,7 @@ module Win = struct
       val id_prefix = "package:windows"
 
       method private get_package_impls query =
-        let package_name = query.package_name in
-        match package_name with
+        match Query.package query with
         | "openjdk-6-jre" -> self#find_java "Java Runtime Environment" "1.6" "6" query
         | "openjdk-6-jdk" -> self#find_java "Java Development Kit"     "1.6" "6" query
         | "openjdk-7-jre" -> self#find_java "Java Runtime Environment" "1.7" "7" query
@@ -654,8 +658,8 @@ module Win = struct
         | "netfx-client" ->
             self#find_netfx "v4\\Client" "4.0" query;
             self#find_netfx_release "v4\\Client" 378389 "4.5" query;
-        | _ ->
-            query.problem (Printf.sprintf "%s: Unknown Windows package" package_name)
+        | package_name ->
+            Query.problem query "%s: Unknown Windows package" package_name
 
       method check_for_candidates ~ui:_ _feed = Lwt.return ()
 
@@ -759,8 +763,9 @@ module Win = struct
         check_cache id_prefix elem cache || super#is_installed elem
 
       method private get_package_impls query =
-        match Distro_cache.get cache query.package_name with
-        | [], _ -> query.problem (Printf.sprintf "%s: Unknown Cygwin package" query.package_name)
+        let package_name = Query.package query in
+        match Distro_cache.get cache package_name with
+        | [], _ -> Query.problem query "%s: Unknown Cygwin package" package_name
         | infos, quick_test ->
         infos |> List.iter (fun (version, machine) ->
           self#add_package_implementation ~package_state:`Installed ~version ~machine ~quick_test ~distro_name query
@@ -783,14 +788,15 @@ module Ports = struct
       val check_host_python = true
 
       method! private get_package_impls query =
+        let package_name = Query.package query in
         pkg_db |> iter_dir config.system (fun pkgname ->
           let pkgdir = pkg_db +/ pkgname in
           if U.is_dir config.system pkgdir then (
             if Str.string_match re_name_version pkgname 0 then (
               let name = Str.matched_group 1 pkgname in
               let version = Str.matched_group 2 pkgname in
-              if name = query.package_name then (
-                try_cleanup_distro_version_warn version query.package_name |> if_some (fun version ->
+              if name = package_name then (
+                try_cleanup_distro_version_warn version package_name |> if_some (fun version ->
                   let (_host_os, host_machine) = Arch.platform config.system in
                   self#add_package_implementation
                     ~package_state:`Installed
@@ -802,7 +808,7 @@ module Ports = struct
                 )
               )
             ) else (
-              query.problem (Printf.sprintf "Cannot parse version from Ports package named '%s'" pkgname)
+              Query.problem query "Cannot parse version from Ports package named '%s'" pkgname
             )
           )
         )
@@ -828,7 +834,8 @@ module Gentoo = struct
 
         let re_version_start = Str.regexp "-[0-9]" in
 
-        match Str.bounded_split_delim U.re_slash query.package_name 2 with
+        let package_name = Query.package query in
+        match Str.bounded_split_delim U.re_slash package_name 2 with
         | [category; leafname] ->
             let category_dir = pkgdir +/ category in
             let match_prefix = leafname ^ "-" in
@@ -842,7 +849,7 @@ module Gentoo = struct
                 match (try Some (Str.search_forward re_version_start name 0) with Not_found -> None) with
                 | None -> log_warning "Cannot parse version from Gentoo package named '%s'" name
                 | Some i ->
-                  try_cleanup_distro_version_warn (U.string_tail name (i + 1)) query.package_name |> if_some (fun version ->
+                  try_cleanup_distro_version_warn (U.string_tail name (i + 1)) package_name |> if_some (fun version ->
                     let machine =
                       if category = "app-emulation" && U.starts_with name "emul-" then (
                         match Str.bounded_split_delim U.re_dash name 4 with
@@ -880,12 +887,13 @@ module Slackware = struct
 
       method! private get_package_impls query =
         (* Add any PackageKit candidates *)
+        let package_name = Query.package query in
         super#get_package_impls query;
         packages_dir |> iter_dir config.system (fun entry ->
           match Str.bounded_split_delim U.re_dash entry 4 with
-          | [name; version; arch; build] when name = query.package_name ->
+          | [name; version; arch; build] when name = package_name ->
               let machine = Arch.parse_machine (Support.System.canonical_machine arch) in
-              try_cleanup_distro_version_warn (version ^ "-" ^ build) query.package_name |> if_some (fun version ->
+              try_cleanup_distro_version_warn (version ^ "-" ^ build) package_name |> if_some (fun version ->
               self#add_package_implementation
                 ~package_state:`Installed
                 ~version
