@@ -29,7 +29,7 @@ let get_unavailable_selections config ?distro sels =
     | Selections.PackageSelection ->
         match distro with
         | None -> false
-        | Some (distro:#Distro.distribution) -> not @@ distro#is_installed_quick elem
+        | Some distro -> not @@ Distro.is_installed distro elem
   in
   sels |> Selections.iter (fun role sel ->
     if needs_download sel then (
@@ -156,7 +156,7 @@ let solve_with_downloads config distro fetcher ~(watcher:#Progress.watcher) requ
             | Some (master_feed, _) ->
                 let distro_f = `Distribution_feed f in
                 if not (already_seen distro_f) then (
-                    add_download distro_f (distro#check_for_candidates ~ui:watcher master_feed >|= fun () () ->
+                    add_download distro_f (Distro.check_for_candidates distro ~ui:watcher master_feed >|= fun () () ->
                       feed_provider#forget_distro f
                     )
                 )
@@ -279,7 +279,7 @@ let download_selections config distro fetcher ~include_packages ~(feed_provider:
         match feed_url with
         | `Local_feed _ -> Lwt.return ()
         | `Distribution_feed master_feed_url ->
-            get_latest_feed master_feed_url >>= distro#check_for_candidates ~ui:fetcher#ui
+            get_latest_feed master_feed_url >>= Distro.check_for_candidates distro ~ui:fetcher#ui
         | `Remote_feed _ as feed_url ->
             get_latest_feed feed_url >|= ignore in
 

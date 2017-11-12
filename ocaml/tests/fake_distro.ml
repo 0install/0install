@@ -19,4 +19,4 @@ let fake_packagekit status =
 
 let make config =
   let packagekit = lazy (fake_packagekit `Ok) in
-  Zeroinstall.Distro_impls.generic_distribution ~packagekit config
+  Zeroinstall.Distro_impls.generic_distribution ~packagekit config |> Zeroinstall.Distro.of_provider

@@ -42,7 +42,7 @@ val get_selections_no_updates : #filesystem -> app -> Selections.t
  * If they're usable but stale, spawn a background update but return immediately. *)
 val get_selections_may_update :
   < config : config; distro :
-    Distro.distribution;
+    Distro.t;
     make_fetcher : Progress.watcher -> Fetch.fetcher;
     ui : Ui.ui_handler; ..> ->
   app -> Selections.t Lwt.t

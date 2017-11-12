@@ -107,7 +107,7 @@ let linux_multi_scope_filter = { Scope_filter.
   may_compile = false;
 }
 
-class fake_feed_provider system (distro:Distro.distribution option) =
+class fake_feed_provider system (distro:Distro.provider option) =
   let ifaces = Hashtbl.create 10 in
 
   object (_ : #Feed_provider.feed_provider)

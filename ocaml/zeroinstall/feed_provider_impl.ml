@@ -10,7 +10,7 @@ module FeedMap = Feed_url.FeedMap
 
 (** Provides feeds to the [Impl_provider.impl_provider] during a solve. Afterwards, it can be used to
     find out which feeds were used (and therefore may need updating). *)
-class feed_provider config (distro:Distro.distribution) =
+class feed_provider config distro =
   object (self : #Feed_provider.feed_provider)
     val mutable cache = FeedMap.empty
     val mutable distro_cache : Feed_provider.distro_impls FeedMap.t = FeedMap.empty
@@ -35,7 +35,7 @@ class feed_provider config (distro:Distro.distribution) =
         let problems = ref [] in
         let problem msg = problems := msg :: !problems in
         let result =
-          let impls = distro#get_impls_for_feed ~problem feed in
+          let impls = Distro.get_impls_for_feed distro ~problem feed in
           let overrides = Feed.load_feed_overrides config url in
           {Feed_provider.impls; overrides; problems = !problems} in
         distro_cache <- FeedMap.add master_feed_url result distro_cache;

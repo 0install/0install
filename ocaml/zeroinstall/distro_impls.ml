@@ -899,7 +899,8 @@ module Slackware = struct
     end
 end
 
-let get_host_distribution ~packagekit config : Distro.distribution =
+let get_host_distribution ~packagekit config =
+  Distro.of_provider @@
   let exists = config.system#file_exists in
   match Sys.os_type with
   | "Unix" ->

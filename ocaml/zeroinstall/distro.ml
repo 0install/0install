@@ -56,10 +56,24 @@ let make_query feed elem elem_props results problem = {
 type quick_test_condition = Exists | UnchangedSince of float
 type quick_test = (Support.Common.filepath * quick_test_condition)
 
+class type virtual provider =
+  object
+    method match_name : string -> bool
+    method is_installed_quick : Selections.selection -> bool
+    method get_impls_for_feed :
+      ?init:(Impl.distro_implementation Support.Common.StringMap.t) ->
+      problem:(string -> unit) ->
+      Feed.feed ->
+      Impl.distro_implementation Support.Common.StringMap.t
+    method virtual check_for_candidates : 'a. ui:(#Packagekit.ui as 'a) -> Feed.feed -> unit Lwt.t
+    method install_distro_packages : 'a. (#Packagekit.ui as 'a) -> string -> (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `Ok | `Cancel ] Lwt.t
+    method is_valid_package_name : string -> bool
+  end
+
 class virtual distribution config =
   let system = config.system in
   let host_python = Host_python.make system in
-  object (self)
+  object (self : #provider)
     val virtual distro_name : string
     val virtual check_host_python : bool
     val system_paths = ["/usr/bin"; "/bin"; "/usr/sbin"; "/sbin"]
@@ -226,7 +240,11 @@ class virtual distribution config =
            (String.concat "\n- " names))
   end
 
-let install_distro_packages (distro:distribution) ui impls : [ `Ok | `Cancel ] Lwt.t =
+type t = distribution
+
+let of_provider t = (t :> distribution)
+
+let install_distro_packages (t:t) ui impls : [ `Ok | `Cancel ] Lwt.t =
   let groups = ref StringMap.empty in
   impls |> List.iter (fun impl ->
     let `Package_impl {Impl.package_state; _} = impl.Impl.impl_type in
@@ -241,7 +259,11 @@ let install_distro_packages (distro:distribution) ui impls : [ `Ok | `Cancel ] L
   let rec loop = function
     | [] -> Lwt.return `Ok
     | (typ, items) :: groups ->
-        distro#install_distro_packages ui typ items >>= function
+        t#install_distro_packages ui typ items >>= function
         | `Ok -> loop groups
         | `Cancel -> Lwt.return `Cancel in
   !groups |> StringMap.bindings |> loop
+
+let get_impls_for_feed t = t#get_impls_for_feed
+let check_for_candidates (t:t) ~ui feed = t#check_for_candidates ~ui feed
+let is_installed t = t#is_installed_quick

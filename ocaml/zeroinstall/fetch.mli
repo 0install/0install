@@ -24,4 +24,4 @@ class type fetcher =
   end
 
 (** Create a fetcher for this platform. *)
-val make : General.config -> Trust.trust_db -> Distro.distribution -> Downloader.download_pool -> #Progress.watcher -> fetcher
+val make : General.config -> Trust.trust_db -> Distro.t -> Downloader.download_pool -> #Progress.watcher -> fetcher

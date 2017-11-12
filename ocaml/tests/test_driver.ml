@@ -44,7 +44,7 @@ let make_packagekit get_distro_candidates =
     method install_packages _ui _names = failwith "install_packages"
   end
 
-let fake_fetcher config handler (distro:Zeroinstall.Distro.distribution) =
+let fake_fetcher config handler (distro:Zeroinstall.Distro.t) =
   let fetcher =
     object
       method download_and_import_feed (`Remote_feed url) =
@@ -218,7 +218,7 @@ let suite = "driver">::: [
       | name -> failwith name in
 
     let packagekit = lazy (make_packagekit get_distro_candidates) in
-    let distro = Distro_impls.generic_distribution ~packagekit config in
+    let distro = Distro_impls.generic_distribution ~packagekit config |> Distro.of_provider in
     let tools = fake_fetcher config handler distro in
     let (ready, result, _fp) = Driver.solve_with_downloads config tools#distro tools#fetcher ~watcher:tools#ui#watcher reqs ~force:true ~update_local:true |> Lwt_main.run in
     if not ready then
@@ -247,7 +247,7 @@ let suite = "driver">::: [
       U.copy_file config.system (Test_0install.feed_dir +/ name) (cache_path_for config @@ `Remote_feed ("http://foo/" ^ name)) 0o644 in
     import "Binary.xml";
     let distro =
-      object (_ : Distro.distribution)
+      Distro.of_provider @@ object (_ : Distro.provider)
         method is_valid_package_name _ = true
         method is_installed_quick = failwith "is_installed"
         method get_impls_for_feed ?init:_ ~problem:_ _feed = StringMap.empty
