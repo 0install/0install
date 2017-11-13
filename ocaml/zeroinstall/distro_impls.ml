@@ -27,7 +27,7 @@ class virtual packagekit_distro ~(packagekit:Packagekit.packagekit Lazy.t) confi
           let pk_query = packagekit#get_impls package_name in
           pk_query.Packagekit.problems |> List.iter (fun x -> Query.problem query "%s" x);
           pk_query.Packagekit.results |> List.iter (fun info ->
-            let {Packagekit.version; Packagekit.machine; Packagekit.installed; Packagekit.retrieval_method} = info in
+            let {Packagekit.version; machine; installed; retrieval_method} = info in
             let package_state =
               if installed then `Installed
               else `Uninstalled retrieval_method in
@@ -162,7 +162,7 @@ module Debian = struct
         Lwt.return ()
       ) in
 
-    (* Returns information about this package, or ["-"] if it's not installed. *)
+    (* Returns information about this package, or [] if it's not installed. *)
     let query_dpkg package_name =
       let results = ref [] in
       U.finally_do Unix.close (Unix.openfile Support.System.dev_null [Unix.O_WRONLY] 0)
@@ -237,15 +237,14 @@ module Debian = struct
         | Lwt.Sleep -> ()   (* Only use apt-cache once we know PackageKit is missing *)
         | Lwt.Return (`Unavailable _) ->
             (* Add apt-cache candidates if we're not using PackageKit *)
-            try
-              match Hashtbl.find apt_cache package_name with
-              | Some {version; machine; size = _} ->
-                  let machine = Arch.parse_machine machine in
-                  let package_state = `Uninstalled Impl.({distro_size = None; distro_install_info = ("apt-get install", package_name)}) in
-                  self#add_package_implementation ~package_state ~version ~machine ~quick_test:None ~distro_name query
-              | None ->
-                  Query.problem query "%s: not known to apt-cache" package_name
-            with Not_found -> ()  (* We haven't checked yet *)
+            match Hashtbl.find apt_cache package_name with
+            | exception Not_found -> ()  (* We haven't checked yet *)
+            | Some {version; machine; size = _} ->
+                let machine = Arch.parse_machine machine in
+                let package_state = `Uninstalled Impl.({distro_size = None; distro_install_info = ("apt-get install", package_name)}) in
+                self#add_package_implementation ~package_state ~version ~machine ~quick_test:None ~distro_name query
+            | None ->
+                Query.problem query "%s: not known to apt-cache" package_name
         end;
         (* Add installed packages by querying dpkg. *)
         let infos, quick_test = Distro_cache.get cache package_name in
