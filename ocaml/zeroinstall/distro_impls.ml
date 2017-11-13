@@ -112,55 +112,97 @@ module Debian = struct
     | Unix.WEXITED _ -> ()
     | status -> Support.System.check_exit_status status
 
-  type apt_cache_entry = {
-    version : Version.t;
-    machine : string;
-    size : Int64.t option;
-  }
+  module Apt_cache : sig
+    type t
+    (** An in-memory cache of results from apt-cache. *)
+
+    type entry = {
+      version : Version.t;
+      machine : Arch.machine option;
+      size : Int64.t option;
+    }
+
+    val make : unit -> t
+    (** [make ()] is a fresh empty cache. *)
+
+    val update : t -> system -> string list -> unit Lwt.t
+    (** [update t system packages] runs apt-cache on each package and stores the results in [t]. *)
+
+    val cached_result : t -> string -> [`Available of entry | `Unavailable | `Not_checked]
+    (** [cached_result t package] is the currently stored result for [package], if any.
+        Returns [`Unavailable] if "apt-cache" didn't know about the package, or [`Not_checked] if
+        we haven't asked yet. *)
+
+    val is_available : t -> string -> bool
+    (** [is_available t package] is [true] iff the package is known to be available. *)
+  end = struct
+    type entry = {
+      version : Version.t;
+      machine : Arch.machine option;
+      size : Int64.t option;
+    }
+
+    type t = (string, [`Available of entry | `Unavailable]) Hashtbl.t
+
+    let make () = Hashtbl.create 10
+
+    let run system package =
+      Lwt.catch
+        (fun () ->
+           let stderr = if Support.Logging.will_log Support.Logging.Debug then None else Some `Dev_null in
+           Lwt_process.pread ?stderr (U.make_command system ["apt-cache"; "--no-all-versions"; "show"; "--"; package]) >>= fun out ->
+           let machine = ref None in
+           let version = ref None in
+           let size = ref None in
+           let stream = U.stream_of_lines out in
+           begin try
+               while true do
+                 let line = Stream.next stream |> String.trim in
+                 if U.starts_with line "Version: " then (
+                   version := try_cleanup_distro_version_warn (U.string_tail line 9 |> String.trim) package
+                 ) else if U.starts_with line "Architecture: " then (
+                   machine := Some (Support.System.canonical_machine (U.string_tail line 14 |> String.trim))
+                 ) else if U.starts_with line "Size: " then (
+                   size := Some (Int64.of_string (U.string_tail line 6 |> String.trim))
+                 )
+               done
+             with Stream.Failure -> ()
+           end;
+           match !version, !machine with
+           | Some version, Some machine ->
+             let machine = Arch.parse_machine machine in
+             Lwt.return (`Available {version; machine; size = !size})
+           | _ -> Lwt.return `Unavailable
+        )
+        (function
+          | Lwt.Canceled as ex -> Lwt.fail ex
+          | ex ->
+            log_warning ~ex "'apt-cache show %s' failed" package;
+            Lwt.return `Unavailable
+        )
+
+    let update t system package_names =
+      package_names |> Lwt_list.iter_s (fun package ->
+        run system package >>= fun result ->
+        (* (multi-arch support? can there be multiple candidates?) *)
+        Hashtbl.replace t package result;
+        Lwt.return ()
+      )
+
+    let cached_result t package_name =
+      match Hashtbl.find t package_name with
+      | exception Not_found -> `Not_checked
+      | x -> (x :> [`Available of entry | `Unavailable | `Not_checked])
+
+    let is_available t package_name =
+      match cached_result t package_name with
+      | `Available _ -> true
+      | `Unavailable | `Not_checked -> false
+  end
 
   let debian_distribution ?(status_file=dpkg_db_status) ~packagekit config =
-    let apt_cache = Hashtbl.create 10 in
+    let apt_cache = Apt_cache.make () in
     let system = config.system in
-
-    (* Populate [apt_cache] with the results. *)
-    let query_apt_cache package_names =
-      package_names |> Lwt_list.iter_s (fun package ->
-        (* Check to see whether we could get a newer version using apt-get *)
-        Lwt.catch
-          (fun () ->
-            let stderr = if Support.Logging.will_log Support.Logging.Debug then None else Some `Dev_null in
-            Lwt_process.pread ?stderr (U.make_command system ["apt-cache"; "--no-all-versions"; "show"; "--"; package]) >>= fun out ->
-            let machine = ref None in
-            let version = ref None in
-            let size = ref None in
-            let stream = U.stream_of_lines out in
-            begin try
-              while true do
-                let line = Stream.next stream |> String.trim in
-                if U.starts_with line "Version: " then (
-                  version := try_cleanup_distro_version_warn (U.string_tail line 9 |> String.trim) package
-                ) else if U.starts_with line "Architecture: " then (
-                  machine := Some (Support.System.canonical_machine (U.string_tail line 14 |> String.trim))
-                ) else if U.starts_with line "Size: " then (
-                  size := Some (Int64.of_string (U.string_tail line 6 |> String.trim))
-                )
-              done
-            with Stream.Failure -> () end;
-            match !version, !machine with
-            | Some version, Some machine -> Lwt.return (Some {version; machine; size = !size})
-            | _ -> Lwt.return None
-          )
-          (function
-            | Lwt.Canceled -> Lwt.return None
-            | ex ->
-              log_warning ~ex "'apt-cache show %s' failed" package;
-              Lwt.return None
-          )
-        >>= fun result ->
-        (* (multi-arch support? can there be multiple candidates?) *)
-        Hashtbl.replace apt_cache package result;
-        Lwt.return ()
-      ) in
 
     (* Returns information about this package, or [] if it's not installed. *)
     let query_dpkg package_name =
@@ -237,13 +279,13 @@ module Debian = struct
         | Lwt.Sleep -> ()   (* Only use apt-cache once we know PackageKit is missing *)
         | Lwt.Return (`Unavailable _) ->
             (* Add apt-cache candidates if we're not using PackageKit *)
-            match Hashtbl.find apt_cache package_name with
-            | exception Not_found -> ()  (* We haven't checked yet *)
-            | Some {version; machine; size = _} ->
-                let machine = Arch.parse_machine machine in
-                let package_state = `Uninstalled Impl.({distro_size = None; distro_install_info = ("apt-get install", package_name)}) in
+            match Apt_cache.cached_result apt_cache package_name with
+            | `Not_checked -> ()
+            | `Available {Apt_cache.version; machine; size = _} ->
+                let package_state = `Uninstalled {Impl.distro_size = None;
+                                                  distro_install_info = ("apt-get install", package_name)} in
                 self#add_package_implementation ~package_state ~version ~machine ~quick_test:None ~distro_name query
-            | None ->
+            | `Unavailable ->
                 Query.problem query "%s: not known to apt-cache" package_name
         end;
         (* Add installed packages by querying dpkg. *)
@@ -257,19 +299,18 @@ module Debian = struct
         | [] -> Lwt.return ()
         | matches ->
             let packagekit = Lazy.force packagekit in
-            let package_names = matches |> List.map (fun (elem, _props) -> (Element.package elem)) in
-
+            let package_names = matches |> List.map (fun (elem, _props) -> Element.package elem) in
             (* Check apt-cache to see whether we have the pacakges. If PackageKit isn't available, we'll use these
              * results directly. If it is available, we'll use these results to filter the PackageKit query, because
              * it doesn't like queries for missing packages (it tends to abort the query early and miss some results). *)
-            let apt = query_apt_cache package_names in
+            let apt = Apt_cache.update apt_cache system package_names in
             packagekit#status >>= fun pkgkit_status ->
             apt >>= fun () ->
             match pkgkit_status with
             | `Ok ->
                 let hint = Feed_url.format_url feed.Feed.url in
                 package_names
-                |> List.filter (Hashtbl.mem apt_cache)
+                |> List.filter (Apt_cache.is_available apt_cache)
                 |> packagekit#check_for_candidates ~ui ~hint
             | `Unavailable _ ->
                 (* No PackageKit. Use apt-cache directly. *)

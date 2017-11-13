@@ -278,52 +278,54 @@ let make lang_spec =
       | Lwt.Fail ex -> { results = []; problems = [Printexc.to_string ex] }     (* Fetch failed *)
       | Lwt.Return packages -> packages
 
-    (** Request information about this package from PackageKit. *)
-    method check_for_candidates ~ui ~hint package_names =
-      Lazy.force proxy >>= function
-      | `Unavailable _ -> Lwt.return ()
-      | `Ok proxy ->
-        with_simple_progress @@ fun progress ->
+    (** Request information about these packages from PackageKit. *)
+    method check_for_candidates ~ui ~hint = function
+      | [] -> Lwt.return ()
+      | package_names ->
+        Lazy.force proxy >>= function
+        | `Unavailable _ -> Lwt.return ()
+        | `Ok proxy ->
+          with_simple_progress @@ fun progress ->
           Lwt.catch (fun () ->
-            let waiting_for = ref [] in
+              let waiting_for = ref [] in
 
-            let cancel () = !waiting_for |> List.iter Lwt.cancel; Lwt.return () in
-            ui#monitor Downloader.({cancel; url = "(packagekit query)"; progress; hint = Some hint});
+              let cancel () = !waiting_for |> List.iter Lwt.cancel; Lwt.return () in
+              ui#monitor Downloader.({cancel; url = "(packagekit query)"; progress; hint = Some hint});
 
-            log_info "Querying PackageKit for '%s'" (String.concat ", " package_names);
+              log_info "Querying PackageKit for '%s'" (String.concat ", " package_names);
 
-            let do_batch () =
-              let next = next_batch in
-              next_batch <- [];
-              if next <> [] then
-                U.async (fun () -> fetch_batch proxy next) in
+              let do_batch () =
+                let next = next_batch in
+                next_batch <- [];
+                if next <> [] then
+                  U.async (fun () -> fetch_batch proxy next) in
 
-            (* Create a promise for each package and add it to [candidates].
-             * Pass the resolvers to fetch_batch (in groups of up to [max_batch_size]).
-             * If we're already fetching, just take the existing promise.
-             *)
-            package_names |> List.iter (fun name ->
-              match Candidates.ensure_fetching candidates name with
-              | `In_progress existing_task ->
-                waiting_for := lwt_wait_for existing_task :: !waiting_for
-              | `New_task (task, waker) ->
-                waiting_for := lwt_wait_for task :: !waiting_for;
-                next_batch <- (name, waker) :: next_batch;
-                if List.length next_batch = max_batch_size then do_batch ()
-            );
+              (* Create a promise for each package and add it to [candidates].
+               * Pass the resolvers to fetch_batch (in groups of up to [max_batch_size]).
+               * If we're already fetching, just take the existing promise.
+              *)
+              package_names |> List.iter (fun name ->
+                  match Candidates.ensure_fetching candidates name with
+                  | `In_progress existing_task ->
+                    waiting_for := lwt_wait_for existing_task :: !waiting_for
+                  | `New_task (task, waker) ->
+                    waiting_for := lwt_wait_for task :: !waiting_for;
+                    next_batch <- (name, waker) :: next_batch;
+                    if List.length next_batch = max_batch_size then do_batch ()
+                );
 
-            (* Yield briefly, so that other packages can be added to the final batch. *)
-            Lwt_main.yield () >>= fun () ->
-            (* (note: next_batch might also have become empty, if someone else added our items to their batch) *)
-            do_batch ();
+              (* Yield briefly, so that other packages can be added to the final batch. *)
+              Lwt_main.yield () >>= fun () ->
+              (* (note: next_batch might also have become empty, if someone else added our items to their batch) *)
+              do_batch ();
 
-            Lwt.join !waiting_for
-          ) (function
-            | Lwt.Canceled -> Lwt.return ()
-            | ex ->
-              log_warning ~ex "Error querying PackageKit";
-              Lwt.return ()
-          )
+              Lwt.join !waiting_for
+            ) (function
+              | Lwt.Canceled -> Lwt.return ()
+              | ex ->
+                log_warning ~ex "Error querying PackageKit";
+                Lwt.return ()
+            )
 
     method install_packages (ui:#ui) items : [ `Ok | `Cancel ] Lwt.t =
       let packagekit_ids = items |> List.map (fun (_impl, rm) -> get_packagekit_id rm) in
