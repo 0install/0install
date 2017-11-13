@@ -37,10 +37,8 @@ class type virtual provider =
 
     (** Get the native implementations (installed or candidates for installation) for this feed.
      * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one.
-     * @param init add the results to this map, rather than starting with an empty one
      * @param problem called to add warnings or notes about problems, for diagnostics *)
     method get_impls_for_feed :
-      ?init:(Impl.distro_implementation Support.Common.StringMap.t) ->
       problem:(string -> unit) ->
       Feed.feed ->
       Impl.distro_implementation Support.Common.StringMap.t
@@ -121,10 +119,8 @@ type t
 val of_provider : #provider -> t
 
 (** Get the native implementations (installed or candidates for installation) for this feed.
-    @param init add the results to this map, rather than starting with an empty one
     @param problem called to add warnings or notes about problems, for diagnostics *)
 val get_impls_for_feed : t -> 
-  ?init:(Impl.distro_implementation Support.Common.StringMap.t) ->
   problem:(string -> unit) ->
   Feed.feed ->
   Impl.distro_implementation Support.Common.StringMap.t

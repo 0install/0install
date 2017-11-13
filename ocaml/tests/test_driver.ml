@@ -250,7 +250,7 @@ let suite = "driver">::: [
       Distro.of_provider @@ object (_ : Distro.provider)
         method is_valid_package_name _ = true
         method is_installed = failwith "is_installed"
-        method get_impls_for_feed ?init:_ ~problem:_ _feed = StringMap.empty
+        method get_impls_for_feed ~problem:_ _feed = StringMap.empty
         method check_for_candidates = raise_safe "Unexpected check_for_candidates"
         method install_distro_packages = raise_safe "install_distro_packages"
         method match_name = (=) "dummy"

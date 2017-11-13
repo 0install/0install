@@ -74,7 +74,6 @@ class type virtual provider =
     method match_name : string -> bool
     method is_installed : Selections.selection -> bool
     method get_impls_for_feed :
-      ?init:(Impl.distro_implementation Support.Common.StringMap.t) ->
       problem:(string -> unit) ->
       Feed.feed ->
       Impl.distro_implementation Support.Common.StringMap.t
@@ -185,8 +184,8 @@ class virtual distribution config =
 
     (** Get the native implementations (installed or candidates for installation) for this feed.
      * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one. *)
-    method get_impls_for_feed ?(init=StringMap.empty) ~problem (feed:Feed.feed) : Impl.distro_implementation StringMap.t =
-      let results = ref init in
+    method get_impls_for_feed ~problem (feed:Feed.feed) : Impl.distro_implementation StringMap.t =
+      let results = ref StringMap.empty in
 
       if check_host_python then (
         Host_python.get host_python feed.Feed.url |> List.iter (fun (id, impl) -> results := StringMap.add id impl !results)
@@ -263,7 +262,7 @@ let install_distro_packages (t:t) ui impls : [ `Ok | `Cancel ] Lwt.t =
         | `Cancel -> Lwt.return `Cancel in
   !groups |> StringMap.bindings |> loop
 
-let get_impls_for_feed t = t#get_impls_for_feed
+let get_impls_for_feed (t:t) ~problem feed = t#get_impls_for_feed ~problem feed
 let check_for_candidates (t:t) ~ui feed = t#check_for_candidates ~ui feed
 
 let is_installed (t:t) config elem =
