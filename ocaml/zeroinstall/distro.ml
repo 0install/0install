@@ -227,8 +227,6 @@ class virtual distribution config =
         ) else None
       )
 
-    method virtual check_for_candidates : 'a. ui:(#Packagekit.ui as 'a) -> Feed.feed -> unit Lwt.t
-
     method install_distro_packages : 'a. (#Packagekit.ui as 'a) -> string ->
         (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `Ok | `Cancel ] Lwt.t =
       fun ui typ items ->
