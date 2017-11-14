@@ -113,14 +113,6 @@ let check_cache id_prefix elem cache =
   List.exists matches (fst (Distro_cache.get cache package))
 
 module Debian = struct
-  let dpkg_db_status = "/var/lib/dpkg/status"
-
-  (* It's OK if dpkg-query returns a non-zero exit status. *)
-  let error_ok child_pid =
-    match snd (Support.System.waitpid_non_intr child_pid) with
-    | Unix.WEXITED _ -> ()
-    | status -> Support.System.check_exit_status status
-
   module Apt_cache : sig
     type t
     (** An in-memory cache of results from apt-cache. *)
@@ -217,39 +209,56 @@ module Debian = struct
       | `Unavailable | `Not_checked -> false
   end
 
-  let debian_distribution ?(status_file=dpkg_db_status) ~packagekit config =
-    let apt_cache = Apt_cache.make () in
-    let system = config.system in
+  module Dpkg : sig
+    val db_status : filepath
+    (** The location of the status file. *)
+
+    val query : #processes -> string -> (Version.t * Arch.machine option) list
+    (** [query system package_name] returns information about installed packages named [package_name]. *)
+  end = struct
+    let db_status = "/var/lib/dpkg/status"
+
+    (* It's OK if dpkg-query returns a non-zero exit status. *)
+    let error_ok child_pid =
+      match snd (Support.System.waitpid_non_intr child_pid) with
+      | Unix.WEXITED _ -> ()
+      | status -> Support.System.check_exit_status status
+
+    let with_dev_null fn =
+      U.finally_do Unix.close (Unix.openfile Support.System.dev_null [Unix.O_WRONLY] 0) fn
 
     (* Returns information about this package, or [] if it's not installed. *)
-    let query_dpkg package_name =
+    let query system package_name =
       let results = ref [] in
-      U.finally_do Unix.close (Unix.openfile Support.System.dev_null [Unix.O_WRONLY] 0)
-        (fun dev_null ->
-          ["dpkg-query"; "-W"; "--showformat=${Version}\t${Architecture}\t${Status}\n"; "--"; package_name]
-            |> U.check_output ~reaper:error_ok ~stderr:(`FD dev_null) system (fun ch  ->
-              try
-                while true do
-                  let line = input_line ch in
-                  match Str.bounded_split_delim U.re_tab line 3 with
-                  | [] -> ()
-                  | [version; debarch; status] ->
-                      if U.ends_with status " installed" then (
-                        let debarch =
-                          try U.string_tail debarch (String.rindex debarch '-' + 1)
-                          with Not_found -> debarch in
-                        match try_cleanup_distro_version_warn version package_name with
-                        | None -> ()
-                        | Some clean_version ->
-                            let r = (clean_version, (Arch.parse_machine (Support.System.canonical_machine (String.trim debarch)))) in
-                            results := r :: !results
-                      )
-                  | _ -> log_warning "Can't parse dpkg output: '%s'" line
-                done
-              with End_of_file -> ()
-            )
+      with_dev_null @@ fun dev_null ->
+      ["dpkg-query"; "-W"; "--showformat=${Version}\t${Architecture}\t${Status}\n"; "--"; package_name]
+      |> U.check_output ~reaper:error_ok ~stderr:(`FD dev_null) system (fun ch  ->
+          try
+            while true do
+              let line = input_line ch in
+              match Str.bounded_split_delim U.re_tab line 3 with
+              | [] -> ()
+              | [version; debarch; status] ->
+                if U.ends_with status " installed" then (
+                  let debarch =
+                    try U.string_tail debarch (String.rindex debarch '-' + 1)
+                    with Not_found -> debarch in
+                  match try_cleanup_distro_version_warn version package_name with
+                  | None -> ()
+                  | Some clean_version ->
+                    let r = (clean_version, (Arch.parse_machine (Support.System.canonical_machine (String.trim debarch)))) in
+                    results := r :: !results
+                )
+              | _ -> log_warning "Can't parse dpkg output: '%s'" line
+            done
+          with End_of_file -> ()
         );
-      !results in
+      !results
+  end
+
+  let debian_distribution ?(status_file=Dpkg.db_status) ~packagekit config =
+    let apt_cache = Apt_cache.make () in
+    let system = config.system in
 
     let fixup_java_main impl java_version =
       let java_arch =
@@ -278,7 +287,7 @@ module Debian = struct
 
       val distro_name = "Debian"
       val id_prefix = "package:deb"
-      val cache = Distro_cache.create_lazy config ~cache_leaf:"dpkg-status2.cache" ~source:status_file ~if_missing:query_dpkg
+      val cache = Distro_cache.create_lazy config ~cache_leaf:"dpkg-status2.cache" ~source:status_file ~if_missing:(Dpkg.query system)
 
       (* If we added apt_cache results AND package kit is unavailable, this is set
        * so that we include them in the results. Otherwise, we just take the PackageKit results. *)
@@ -979,7 +988,7 @@ let get_host_distribution ~packagekit config =
   match Sys.os_type with
   | "Unix" ->
       let is_debian =
-        match config.system#stat Debian.dpkg_db_status with
+        match config.system#stat Debian.Dpkg.db_status with
         | Some info when info.Unix.st_size > 0 -> true
         | _ -> false in
 
