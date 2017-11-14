@@ -283,6 +283,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
         refresh_loop ()
       | _ -> Lwt.return () in
     let refresh_thread = refresh_loop () in
+    Lwt.on_failure refresh_thread (fun ex -> log_warning ~ex "refresh_thread crashed");
 
     (* Wait for user to click Cancel or Run *)
     user_response >>= fun response ->

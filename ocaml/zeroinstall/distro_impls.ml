@@ -10,6 +10,15 @@ module U = Support.Utils
 
 open Distro
 
+let with_simple_progress fn =
+  let progress, set_progress = Lwt_react.S.create (Int64.zero, None, false) in
+  Lwt.finalize
+    (fun () -> fn progress)
+    (fun () ->
+       set_progress (Int64.zero, None, true);
+       Lwt.return ()
+    )
+
 (** Base class for platforms that can use PackageKit *)
 class virtual packagekit_distro ~(packagekit:Packagekit.packagekit Lazy.t) config =
   object (self)
@@ -125,7 +134,7 @@ module Debian = struct
     val make : unit -> t
     (** [make ()] is a fresh empty cache. *)
 
-    val update : t -> system -> string list -> unit Lwt.t
+    val update : t -> system -> string list -> [`Ok | `Cancelled] Lwt.t
     (** [update t system packages] runs apt-cache on each package and stores the results in [t]. *)
 
     val cached_result : t -> string -> [`Available of entry | `Unavailable | `Not_checked]
@@ -182,12 +191,20 @@ module Debian = struct
         )
 
     let update t system package_names =
-      package_names |> Lwt_list.iter_s (fun package ->
-        run system package >>= fun result ->
-        (* (multi-arch support? can there be multiple candidates?) *)
-        Hashtbl.replace t package result;
-        Lwt.return ()
-      )
+      Lwt.catch
+        (fun () ->
+           package_names |> Lwt_list.iter_s (fun package ->
+               run system package >>= fun result ->
+               (* (multi-arch support? can there be multiple candidates?) *)
+               Hashtbl.replace t package result;
+               Lwt.return ()
+             )
+           >|= fun () -> `Ok
+        )
+        (function
+          | Lwt.Canceled -> Lwt.return `Cancelled
+          | ex -> Lwt.fail ex
+        )
 
     let cached_result t package_name =
       match Hashtbl.find t package_name with
@@ -298,21 +315,30 @@ module Debian = struct
         match Distro.get_matching_package_impls self feed with
         | [] -> Lwt.return ()
         | matches ->
+            let hint = Feed_url.format_url feed.Feed.url in
             let packagekit = Lazy.force packagekit in
             let package_names = matches |> List.map (fun (elem, _props) -> Element.package elem) in
             (* Check apt-cache to see whether we have the pacakges. If PackageKit isn't available, we'll use these
              * results directly. If it is available, we'll use these results to filter the PackageKit query, because
              * it doesn't like queries for missing packages (it tends to abort the query early and miss some results). *)
-            let apt = Apt_cache.update apt_cache system package_names in
+            let apt =
+              with_simple_progress (fun progress ->
+                  let apt = Apt_cache.update apt_cache system package_names in
+                  let cancel () = Lwt.cancel apt; Lwt.return () in
+                  ui#monitor {Downloader.cancel; url = "apt-cache"; progress; hint = Some hint};
+                  apt
+                )
+            in
             packagekit#status >>= fun pkgkit_status ->
-            apt >>= fun () ->
-            match pkgkit_status with
+            apt >>= function
+            | `Cancelled -> Lwt.return ()
             | `Ok ->
-                let hint = Feed_url.format_url feed.Feed.url in
+              match pkgkit_status with
+              | `Ok ->
                 package_names
                 |> List.filter (Apt_cache.is_available apt_cache)
                 |> packagekit#check_for_candidates ~ui ~hint
-            | `Unavailable _ ->
+              | `Unavailable _ ->
                 (* No PackageKit. Use apt-cache directly. *)
                 use_apt_cache_results <- true;
                 Lwt.return ()
