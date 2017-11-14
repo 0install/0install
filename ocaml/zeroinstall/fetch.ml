@@ -100,7 +100,7 @@ let native_path_within_base (system:system) ~tmpdir crossplatform_path =
 exception Aborted
 exception Try_mirror of string  (* An error where we should try the mirror (i.e. a network problem) *)
 
-class fetcher config (trust_db:Trust.trust_db) (distro:Distro.distribution) (download_pool:Downloader.download_pool) (ui:#Progress.watcher) =
+class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.download_pool) (ui:#Progress.watcher) =
   let downloader = download_pool#with_monitor ui#monitor in
 
   let trust_dialog_lock = Lwt_mutex.create () in      (* Only show one trust dialog at a time *)

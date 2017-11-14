@@ -206,7 +206,7 @@ let suite = "distro">::: [
 
     fake_system#set_spawn_handler (Some Fake_system.real_spawn_handler);
 
-    let distro = Distro_impls.generic_distribution ~packagekit config in
+    let distro = Distro_impls.generic_distribution ~packagekit config |> Distro.of_provider in
 
     let open Impl in
     let is_host (id, _impl) = U.starts_with id "package:host:" in
@@ -217,7 +217,7 @@ let suite = "distro">::: [
     let root = Q.parse_input None @@ Xmlm.make_input (`String (0, test_feed)) |> Element.parse_feed in
     let feed = F.parse system root None in
     let () =
-      let impls = distro#get_impls_for_feed ~problem:failwith feed in
+      let impls = Distro.get_impls_for_feed distro ~problem:failwith feed in
       let host_python = find_host impls in
       let python_run =
         try StringMap.find_nf "run" host_python.props.commands
@@ -228,7 +228,7 @@ let suite = "distro">::: [
     let root = Q.parse_input None @@ Xmlm.make_input (`String (0, test_gobject_feed)) |> Element.parse_feed in
     let feed = F.parse system root None in
 
-    let impls = distro#get_impls_for_feed ~problem:failwith feed in
+    let impls = Distro.get_impls_for_feed distro ~problem:failwith feed in
     let host_gobject =
       try impls |> StringMap.bindings |> List.find is_host |> snd
       with Not_found -> skip_if true "No host python-gobject found"; assert false in
@@ -244,7 +244,7 @@ let suite = "distro">::: [
       ~attrs:(Q.AttrMap.singleton "interface" "http://repo.roscidus.com/python/python")
       ~child_nodes:[sel] |> Element.parse_selections in
     match Element.selections sels with
-    | [sel] -> assert (distro#is_installed_quick sel)
+    | [sel] -> assert (Distro.is_installed distro config sel)
     | _ -> assert false
   );
 
@@ -324,8 +324,8 @@ let suite = "distro">::: [
     Unix.putenv "PATH" (dpkgdir ^ ":" ^ old_path);
     fake_system#putenv "PATH" (dpkgdir ^ ":" ^ old_path);
     fake_system#set_spawn_handler (Some Fake_system.real_spawn_handler);
-    let deb = Distro_impls.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") ~packagekit config in
-    begin match to_impl_list @@ deb#get_impls_for_feed ~problem:failwith feed with
+    let deb = Distro_impls.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") ~packagekit config |> Distro.of_provider in
+    begin match to_impl_list @@ Distro.get_impls_for_feed deb ~problem:failwith feed with
     | [impl] ->
         Fake_system.assert_str_equal "package:deb:python-bittorrent:3.4.2-10-2:*" (Impl.get_attr_ex "id" impl);
         assert_equal ~msg:"Stability" Stability.Packaged impl.Impl.stability;
@@ -365,7 +365,7 @@ let suite = "distro">::: [
 
     (* Part II *)
     let gimp_feed = get_feed "<package-implementation package='gimp'/>" in
-    deb#get_impls_for_feed ~problem:failwith gimp_feed |> assert_equal StringMap.empty;
+    Distro.get_impls_for_feed deb ~problem:failwith gimp_feed |> assert_equal StringMap.empty;
 
     (* Initially, we only get information about the installed version... *)
     let bt_feed = get_feed "<package-implementation package='python-bittorrent'>\n\
@@ -373,17 +373,16 @@ let suite = "distro">::: [
                                   <version not-before='3'/>\n\
                                 </restricts>\n\
                                 </package-implementation>" in
-    deb#get_impls_for_feed ~problem:failwith bt_feed |> to_impl_list |> List.length |> assert_equal 1;
-
+    Distro.get_impls_for_feed deb ~problem:failwith bt_feed |> to_impl_list |> List.length |> assert_equal 1;
 
     Fake_system.fake_log#reset;
 
     (* Tell distro to fetch information about candidates... *)
-    Lwt_main.run (deb#check_for_candidates ~ui:Fake_system.null_ui bt_feed);
+    Lwt_main.run (Distro.check_for_candidates deb ~ui:Fake_system.null_ui bt_feed);
 
     (* Now we see the uninstalled package *)
     let compare_version a b = compare a.Impl.parsed_version b.Impl.parsed_version in
-    begin match to_impl_list @@ deb#get_impls_for_feed ~problem:failwith bt_feed |> List.sort compare_version with
+    begin match to_impl_list @@ Distro.get_impls_for_feed deb ~problem:failwith bt_feed |> List.sort compare_version with
     | [installed; uninstalled] as impls ->
         (* Check restriction appears for both candidates *)
         impls |> List.iter (fun impl ->
@@ -399,7 +398,7 @@ let suite = "distro">::: [
     end;
 
     let feed = get_feed "<package-implementation package='libxcomposite-dev'/>" in
-    begin match to_impl_list @@ deb#get_impls_for_feed ~problem:failwith feed with
+    begin match to_impl_list @@ Distro.get_impls_for_feed deb ~problem:failwith feed with
     | [libxcomposite] ->
         Fake_system.assert_str_equal "0.3.1-1" @@ Impl.get_attr_ex "version" libxcomposite;
         Fake_system.assert_str_equal "i386" @@ Arch.format_machine_or_star libxcomposite.Impl.machine
@@ -408,14 +407,14 @@ let suite = "distro">::: [
 
     (* Java is special... *)
     let feed = get_feed "<package-implementation package='openjdk-7-jre'/>" in
-    begin match to_impl_list @@ deb#get_impls_for_feed ~problem:failwith feed with
+    begin match to_impl_list @@ Distro.get_impls_for_feed deb ~problem:failwith feed with
     | [impl] -> Fake_system.assert_str_equal "7.3-2.1.1-3" @@ Impl.get_attr_ex "version" impl
     | _ -> assert false end;
 
     (* Check the disk cache works *)
     fake_system#set_spawn_handler None;
-    let deb = Distro_impls.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") ~packagekit config in
-    begin match to_impl_list @@ deb#get_impls_for_feed ~problem:failwith feed with
+    let deb = Distro_impls.Debian.debian_distribution ~status_file:(dpkgdir +/ "status") ~packagekit config |> Distro.of_provider in
+    begin match to_impl_list @@ Distro.get_impls_for_feed deb ~problem:failwith feed with
     | [impl] -> Fake_system.assert_str_equal "7.3-2.1.1-3" @@ Impl.get_attr_ex "version" impl
     | _ -> assert false end;
 
@@ -440,7 +439,7 @@ let suite = "distro">::: [
         val id_prefix = "package:test"
 
         method private get_package_impls query =
-          match query.Distro.package_name with
+          match Distro.Query.package query with
           | "foo" ->
               self#add_package_implementation
                 ~main:"foo"

@@ -10,7 +10,7 @@
 (** Find the best selections for these requirements and return them if available without downloading. 
  * Returns None if we need to refresh feeds or download any implementations. *)
 val quick_solve :
-  < config : General.config; distro : Distro.distribution; .. > ->
+  < config : General.config; distro : Distro.t; .. > ->
   Requirements.t -> Selections.t option
 
 (** Run the solver, then download any feeds that are missing or that need to be
@@ -27,7 +27,7 @@ val quick_solve :
             provider used (which will have cached all the feeds used in the solve).
     *)
 val solve_with_downloads :
-  General.config -> Distro.distribution -> Fetch.fetcher ->
+  General.config -> Distro.t -> Fetch.fetcher ->
   watcher:#Progress.watcher ->
   Requirements.t ->
   force:bool ->
@@ -46,11 +46,11 @@ val download_and_import_feed :
  * @param feed_provider it's more efficient to reuse the provider returned by [solve_with_downloads], if possible
  *)
 val download_selections :
-  General.config -> Distro.distribution ->
+  General.config -> Distro.t ->
   Fetch.fetcher Lazy.t ->
   include_packages:bool ->
   feed_provider:Feed_provider.feed_provider ->
   Selections.t -> [ `Aborted_by_user | `Success ] Lwt.t
 
 (** If [distro] is set then <package-implementation>s are included. Otherwise, they are ignored. *)
-val get_unavailable_selections : General.config -> ?distro:Distro.distribution -> Selections.t -> Selections.selection list
+val get_unavailable_selections : General.config -> ?distro:Distro.t -> Selections.t -> Selections.selection list

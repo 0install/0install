@@ -105,15 +105,15 @@ let create_impl system ~local_dir state node =
         let retrieval_methods = Element.retrieval_methods node in
         `Cache_impl { digests = Stores.get_digests node; retrieval_methods; } in
 
-  let impl = {
-    qdom = (node :> [ `Implementation | `Package_impl ] Element.t);
-    props = {!s with requires = List.rev !s.requires};
-    os;
-    machine;
-    stability;
-    parsed_version = Version.parse (get_prop FeedAttr.version);
-    impl_type;
-  } in
+  let impl =
+    Impl.make
+      ~elem:node
+      ~props:{!s with requires = List.rev !s.requires}
+      ~os ~machine
+      ~stability
+      ~version:(Version.parse (get_prop FeedAttr.version))
+      impl_type
+  in
   (id, impl)
 
 let process_group_properties ~local_dir state item =

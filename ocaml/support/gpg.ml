@@ -10,6 +10,19 @@ module U = Utils
 
 let spf = Printf.sprintf
 
+let gpg_lock = Lwt_mutex.create ()
+(* gnupg does not work reliably when multiple processes are using the keyring at once (at least on OS X).
+   Example error without the lock:
+
+   warning: Feed http://0install.net/2006/interfaces/0publish: Failed to check feed signature:
+   Error checking signature for 'http://0install.net/2006/interfaces/0publish': GPG failed:
+   gpg: starting migration from earlier GnuPG versions
+   gpg: porting secret keys from '/Users/travis/.gnupg/secring.gpg' to gpg-agent
+   gpg: migration succeeded
+   gpg: can't open '/Users/travis/.gnupg/pubring.gpg'
+   gpg: keydb_get_keyblock failed: Value not found
+ *)
+
 type fingerprint = string
 type timestamp = float
 
@@ -109,6 +122,7 @@ let run_gpg_full system ?stdin args =
  * If the command returns an error, report stderr as the error (on success, stderr is discarded).
  *)
 let run_gpg system ?stdin args =
+  Lwt_mutex.with_lock gpg_lock @@ fun () ->
   run_gpg_full system ?stdin args >>= fun (stdout, stderr, status) ->
   if stdout <> "" then log_info "GPG: output:\n%s" (String.trim stdout);
   if stderr <> "" then log_info "GPG: warnings:\n%s" (String.trim stderr);

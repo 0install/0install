@@ -70,7 +70,7 @@ type tools = <
   config : Zeroinstall.General.config;
   ui : Zeroinstall.Ui.ui_handler;
   download_pool : Zeroinstall.Downloader.download_pool;
-  distro : Zeroinstall.Distro.distribution;
+  distro : Zeroinstall.Distro.t;
   make_fetcher : Zeroinstall.Progress.watcher -> Zeroinstall.Fetch.fetcher;
   trust_db : Zeroinstall.Trust.trust_db;
   set_use_gui : [`Yes | `No | `Auto] -> unit;

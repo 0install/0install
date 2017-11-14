@@ -36,15 +36,15 @@ let test ?(package="gnupg") ?(expected_problems=[]) config fake_system =
     | [] -> assert_failure (Printf.sprintf "Unexpected problem: %s" msg) in
   let system = (fake_system :> system) in
   let packagekit = lazy (Zeroinstall.Packagekit.make (Support.Locale.LangMap.choose config.langs |> fst)) in
-  let distro = Distro_impls.ArchLinux.arch_distribution ~packagekit config in
+  let distro = Distro_impls.ArchLinux.arch_distribution ~packagekit config |> Distro.of_provider in
   let feed = Test_feed.feed_of_xml system (Printf.sprintf "\
 <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface' uri='http://example.com/gpg'>\n\
   <name>Gpg</name>\n\
   <package-implementation package='%s'/>\n\
 </interface>" package) in
-  distro#check_for_candidates ~ui:Fake_system.null_ui feed |> Lwt_main.run;
+  Distro.check_for_candidates distro ~ui:Fake_system.null_ui feed |> Lwt_main.run;
   log_info "done check_for_candidates";
-  let impls = distro#get_impls_for_feed ~problem feed |> Test_distro.to_impl_list in
+  let impls = Distro.get_impls_for_feed distro ~problem feed |> Test_distro.to_impl_list in
   impls |> List.iter (function
     | {Impl.impl_type = `Package_impl {Impl.package_state = `Uninstalled rm; _}; _} ->
         assert_equal (Some (Int64.of_int 100)) rm.Impl.distro_size;

@@ -1,4 +1,4 @@
-(* Copyright (C) 2013, Thomas Leonard
+(* Copyright (C) 2017, Thomas Leonard
  * See the README file for details, or visit http://0install.net.
  *)
 
@@ -35,31 +35,69 @@ let get_matching_package_impls distro feed =
   );
   !best_impls
 
-type query = {
-  elem : [`Package_impl] Element.t; (* The <package-element> which generated this query *)
-  package_name : string;            (* The 'package' attribute on the <package-element> *)
-  elem_props : Impl.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
-  feed : Feed.feed;                 (* The feed containing the <package-element> *)
-  results : Impl.distro_implementation Support.Common.StringMap.t ref;
-  problem : string -> unit;
-}
+module Query = struct
+  type t = {
+    elem : [`Package_impl] Element.t; (* The <package-element> which generated this query *)
+    package_name : string;            (* The 'package' attribute on the <package-element> *)
+    elem_props : Impl.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
+    feed : Feed.feed;                 (* The feed containing the <package-element> *)
+    results : Impl.distro_implementation Support.Common.StringMap.t ref;
+    problem : string -> unit;
+  }
 
-let make_query feed elem elem_props results problem = {
-  elem;
-  package_name = Element.package elem;
-  elem_props;
-  feed;
-  results;
-  problem;
-}
+  let make feed elem elem_props results problem = {
+    elem;
+    package_name = Element.package elem;
+    elem_props;
+    feed;
+    results;
+    problem;
+  }
+
+  let package t = t.package_name
+
+  let problem t fmt =
+    fmt |> Support.Logging.kasprintf @@ fun msg ->
+    t.problem msg
+
+  let add_result t id impl =
+    t.results := StringMap.add id impl !(t.results)
+
+  let results t = !(t.results)
+end
 
 type quick_test_condition = Exists | UnchangedSince of float
-type quick_test = (Support.Common.filepath * quick_test_condition)
+type quick_test = (filepath * quick_test_condition)
+
+class type virtual provider =
+  object
+    method match_name : string -> bool
+    method is_installed : Selections.selection -> bool
+    method get_impls_for_feed :
+      problem:(string -> unit) ->
+      Feed.feed ->
+      Impl.distro_implementation Support.Common.StringMap.t
+    method virtual check_for_candidates : 'a. ui:(#Packagekit.ui as 'a) -> Feed.feed -> unit Lwt.t
+    method install_distro_packages : 'a. (#Packagekit.ui as 'a) -> string -> (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `Ok | `Cancel ] Lwt.t
+    method is_valid_package_name : string -> bool
+  end
+
+(* We may add a command, or modify the existing main executable path. *)
+let with_main_path path props =
+  let open Impl in
+  let run_command =
+    match StringMap.find "run" props.commands with
+    | Some command ->
+      (* Keep any existing bindings and dependencies *)
+      {command with command_qdom = Element.make_command ~path ~source_hint:None "run"}
+    | None ->
+      make_command "run" path in
+  {props with commands = StringMap.add "run" run_command props.commands}
 
 class virtual distribution config =
   let system = config.system in
   let host_python = Host_python.make system in
-  object (self)
+  object (self : #provider)
     val virtual distro_name : string
     val virtual check_host_python : bool
     val system_paths = ["/usr/bin"; "/bin"; "/usr/sbin"; "/sbin"]
@@ -89,26 +127,15 @@ class virtual distribution config =
           | Some new_main -> run.command_qdom <- Element.make_command ~path:new_main ~source_hint:None "run"
 
     (** Convenience wrapper for [add_result] that builds a new implementation from the given attributes. *)
-    method private add_package_implementation ?id ?main (query:query) ~version ~machine ~quick_test ~package_state ~distro_name =
+    method private add_package_implementation ?id ?main (query:Query.t) ~version ~machine ~quick_test ~package_state ~distro_name =
       let version_str = Version.to_string version in
-      let id = id |? lazy (Printf.sprintf "%s:%s:%s:%s" id_prefix query.package_name version_str (Arch.format_machine_or_star machine)) in
-      let props = query.elem_props in
-      let elem = query.elem in
-
+      let { Query.package_name; elem_props = props; elem; _ } = query in
+      let id = id |? lazy (Printf.sprintf "%s:%s:%s:%s" id_prefix package_name version_str (Arch.format_machine_or_star machine)) in
       let props =
         match main with
         | None -> props
-        | Some path ->
-            (* We may add or modify the main executable path. *)
-            let open Impl in
-            let run_command =
-              match StringMap.find "run" props.commands with
-              | Some command ->
-                  {command with command_qdom = Element.make_command ~path ~source_hint:None "run"}
-              | None ->
-                  make_command "run" path in
-            {props with commands = StringMap.add "run" run_command props.commands} in
-
+        | Some path -> with_main_path path props
+      in
       let new_attrs = ref props.Impl.attrs in
       let set name value =
         new_attrs := Q.AttrMap.add_no_ns name value !new_attrs in
@@ -124,26 +151,23 @@ class virtual distribution config =
           | Exists -> ()
           | UnchangedSince mtime ->
               set FeedAttr.quick_test_mtime (Int64.of_float mtime |> Int64.to_string) end;
-
-      let open Impl in
-      let impl = {
-        qdom = (elem :> [ `Implementation | `Package_impl ] Element.t);
-        os = None;
-        machine;
-        stability = Stability.Packaged;
-        props = {props with attrs = !new_attrs};
-        parsed_version = version;
-        impl_type = `Package_impl { package_state; package_distro = distro_name };
-      } in
-
+      let impl =
+        Impl.make
+          ~elem
+          ~os:None
+          ~machine
+          ~stability:Stability.Packaged
+          ~props:{props with Impl.attrs = !new_attrs}
+          ~version
+          (`Package_impl { Impl.package_state; package_distro = distro_name })
+      in
       if package_state = `Installed then self#fixup_main impl;
-
-      query.results := StringMap.add id impl !(query.results)
+      Query.add_result query id impl
 
     (** Test whether this <selection> element is still valid. The default implementation tries to load the feed from the
      * feed cache, calls [distribution#get_impls_for_feed] on it and checks whether the required implementation ID is in the
      * returned map. Override this if you can provide a more efficient implementation. *)
-    method private is_installed elem =
+    method is_installed elem =
       let master_feed =
         match Element.from_feed elem with
         | None -> Element.interface elem |> Feed_url.parse_non_distro (* (for very old selections documents) *)
@@ -160,23 +184,10 @@ class virtual distribution config =
           | None -> false
           | Some {Impl.impl_type = `Package_impl {Impl.package_state; _}; _} -> package_state = `Installed
 
-    method is_installed_quick elem =
-      match Element.quick_test_file elem with
-      | None ->
-          let package_name = Element.package elem in
-          self#is_valid_package_name package_name && self#is_installed elem
-      | Some file ->
-          match system#stat file with
-          | None -> false
-          | Some info ->
-              match Element.quick_test_mtime elem with
-              | None -> true      (* quick-test-file exists and we don't care about the time *)
-              | Some required_mtime -> (Int64.of_float info.Unix.st_mtime) = required_mtime
-
     (** Get the native implementations (installed or candidates for installation) for this feed.
      * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one. *)
-    method get_impls_for_feed ?(init=StringMap.empty) ~problem (feed:Feed.feed) : Impl.distro_implementation StringMap.t =
-      let results = ref init in
+    method get_impls_for_feed ~problem (feed:Feed.feed) : Impl.distro_implementation StringMap.t =
+      let results = ref StringMap.empty in
 
       if check_host_python then (
         Host_python.get host_python feed.Feed.url |> List.iter (fun (id, impl) -> results := StringMap.add id impl !results)
@@ -186,11 +197,11 @@ class virtual distribution config =
       | [] -> !results
       | matches ->
           matches |> List.iter (fun (elem, props) ->
-            self#get_package_impls (make_query feed elem props results problem);
+            self#get_package_impls (Query.make feed elem props results problem);
           );
           !results
 
-    method virtual private get_package_impls : query -> unit
+    method virtual private get_package_impls : Query.t -> unit
 
     (** Called when an installed package is added, or when installation completes. This is useful to fix up the main value.
         The default implementation checks that main exists, and searches [system_paths] for
@@ -216,8 +227,6 @@ class virtual distribution config =
         ) else None
       )
 
-    method virtual check_for_candidates : 'a. ui:(#Packagekit.ui as 'a) -> Feed.feed -> unit Lwt.t
-
     method install_distro_packages : 'a. (#Packagekit.ui as 'a) -> string ->
         (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `Ok | `Cancel ] Lwt.t =
       fun ui typ items ->
@@ -229,7 +238,11 @@ class virtual distribution config =
            (String.concat "\n- " names))
   end
 
-let install_distro_packages (distro:distribution) ui impls : [ `Ok | `Cancel ] Lwt.t =
+type t = distribution
+
+let of_provider t = (t :> distribution)
+
+let install_distro_packages (t:t) ui impls : [ `Ok | `Cancel ] Lwt.t =
   let groups = ref StringMap.empty in
   impls |> List.iter (fun impl ->
     let `Package_impl {Impl.package_state; _} = impl.Impl.impl_type in
@@ -244,7 +257,23 @@ let install_distro_packages (distro:distribution) ui impls : [ `Ok | `Cancel ] L
   let rec loop = function
     | [] -> Lwt.return `Ok
     | (typ, items) :: groups ->
-        distro#install_distro_packages ui typ items >>= function
+        t#install_distro_packages ui typ items >>= function
         | `Ok -> loop groups
         | `Cancel -> Lwt.return `Cancel in
   !groups |> StringMap.bindings |> loop
+
+let get_impls_for_feed (t:t) ~problem feed = t#get_impls_for_feed ~problem feed
+let check_for_candidates (t:t) ~ui feed = t#check_for_candidates ~ui feed
+
+let is_installed (t:t) config elem =
+  match Element.quick_test_file elem with
+  | None ->
+      let package_name = Element.package elem in
+      t#is_valid_package_name package_name && t#is_installed elem
+  | Some file ->
+      match config.system#stat file with
+      | None -> false
+      | Some info ->
+          match Element.quick_test_mtime elem with
+          | None -> true      (* quick-test-file exists and we don't care about the time *)
+          | Some required_mtime -> (Int64.of_float info.Unix.st_mtime) = required_mtime

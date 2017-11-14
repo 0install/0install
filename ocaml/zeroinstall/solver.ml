@@ -65,20 +65,18 @@ module CoreModel = struct
   let compare_version a b = compare a.Impl.parsed_version b.Impl.parsed_version
 
   let dummy_impl =
-    let open Impl in {
-      qdom = Element.make_impl Qdom.AttrMap.empty;
-      os = None;
-      machine = None;
-      stability = Stability.Testing;
-      props = {
+    Impl.make
+      ~elem:(Element.make_impl Qdom.AttrMap.empty)
+      ~os:None ~machine:None
+      ~stability:Stability.Testing
+      ~props:{ Impl.
         attrs = AttrMap.empty;
         requires = [];
         commands = StringMap.empty;   (* (not used; we can provide any command) *)
         bindings = [];
-      };
-      parsed_version = Version.parse "0";
-      impl_type = `Local_impl "/dummy";
-    }
+      }
+      ~version:(Version.parse "0")
+      (`Local_impl "/dummy")
 
   let dummy_command = { Impl.
     command_qdom = Element.make_command ~source_hint:None "dummy-command";

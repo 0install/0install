@@ -1,4 +1,4 @@
-(* Copyright (C) 2013, Thomas Leonard
+(* Copyright (C) 2017, Thomas Leonard
  * See the README file for details, or visit http://0install.net.
  *)
 
@@ -10,6 +10,15 @@ module U = Support.Utils
 
 open Distro
 
+let with_simple_progress fn =
+  let progress, set_progress = Lwt_react.S.create (Int64.zero, None, false) in
+  Lwt.finalize
+    (fun () -> fn progress)
+    (fun () ->
+       set_progress (Int64.zero, None, true);
+       Lwt.return ()
+    )
+
 (** Base class for platforms that can use PackageKit *)
 class virtual packagekit_distro ~(packagekit:Packagekit.packagekit Lazy.t) config =
   object (self)
@@ -17,17 +26,17 @@ class virtual packagekit_distro ~(packagekit:Packagekit.packagekit Lazy.t) confi
 
     method private get_package_impls query =
       let packagekit = Lazy.force packagekit in
-      let package_name = query.package_name in
-      let pk_unavailable reason = query.problem (Printf.sprintf "%s: %s" package_name reason) in
+      let package_name = Query.package query in
+      let pk_unavailable reason = Query.problem query "%s: %s" package_name reason in
       match Lwt.state packagekit#status with
       | Lwt.Fail ex -> pk_unavailable (Printexc.to_string ex)
       | Lwt.Sleep -> pk_unavailable "Waiting for PackageKit..."
       | Lwt.Return (`Unavailable reason) -> pk_unavailable reason
       | Lwt.Return `Ok ->
           let pk_query = packagekit#get_impls package_name in
-          pk_query.Packagekit.problems |> List.iter query.problem;
+          pk_query.Packagekit.problems |> List.iter (fun x -> Query.problem query "%s" x);
           pk_query.Packagekit.results |> List.iter (fun info ->
-            let {Packagekit.version; Packagekit.machine; Packagekit.installed; Packagekit.retrieval_method} = info in
+            let {Packagekit.version; machine; installed; retrieval_method} = info in
             let package_state =
               if installed then `Installed
               else `Uninstalled retrieval_method in
@@ -104,93 +113,152 @@ let check_cache id_prefix elem cache =
   List.exists matches (fst (Distro_cache.get cache package))
 
 module Debian = struct
-  let dpkg_db_status = "/var/lib/dpkg/status"
+  module Apt_cache : sig
+    type t
+    (** An in-memory cache of results from apt-cache. *)
 
-  (* It's OK if dpkg-query returns a non-zero exit status. *)
-  let error_ok child_pid =
-    match snd (Support.System.waitpid_non_intr child_pid) with
-    | Unix.WEXITED _ -> ()
-    | status -> Support.System.check_exit_status status
+    type entry = {
+      version : Version.t;
+      machine : Arch.machine option;
+      size : Int64.t option;
+    }
 
-  type apt_cache_entry = {
-    version : Version.t;
-    machine : string;
-    size : Int64.t option;
-  }
+    val make : unit -> t
+    (** [make ()] is a fresh empty cache. *)
 
-  let debian_distribution ?(status_file=dpkg_db_status) ~packagekit config =
-    let apt_cache = Hashtbl.create 10 in
-    let system = config.system in
+    val update : t -> system -> string list -> [`Ok | `Cancelled] Lwt.t
+    (** [update t system packages] runs apt-cache on each package and stores the results in [t]. *)
 
-    (* Populate [apt_cache] with the results. *)
-    let query_apt_cache package_names =
-      package_names |> Lwt_list.iter_s (fun package ->
-        (* Check to see whether we could get a newer version using apt-get *)
-        Lwt.catch
-          (fun () ->
-            let stderr = if Support.Logging.will_log Support.Logging.Debug then None else Some `Dev_null in
-            Lwt_process.pread ?stderr (U.make_command system ["apt-cache"; "--no-all-versions"; "show"; "--"; package]) >>= fun out ->
-            let machine = ref None in
-            let version = ref None in
-            let size = ref None in
-            let stream = U.stream_of_lines out in
-            begin try
-              while true do
-                let line = Stream.next stream |> String.trim in
-                if U.starts_with line "Version: " then (
-                  version := try_cleanup_distro_version_warn (U.string_tail line 9 |> String.trim) package
-                ) else if U.starts_with line "Architecture: " then (
-                  machine := Some (Support.System.canonical_machine (U.string_tail line 14 |> String.trim))
-                ) else if U.starts_with line "Size: " then (
-                  size := Some (Int64.of_string (U.string_tail line 6 |> String.trim))
-                )
-              done
-            with Stream.Failure -> () end;
-            match !version, !machine with
-            | Some version, Some machine -> Lwt.return (Some {version; machine; size = !size})
-            | _ -> Lwt.return None
-          )
-          (function
-            | Lwt.Canceled -> Lwt.return None
-            | ex ->
-              log_warning ~ex "'apt-cache show %s' failed" package;
-              Lwt.return None
-          )
-        >>= fun result ->
-        (* (multi-arch support? can there be multiple candidates?) *)
-        Hashtbl.replace apt_cache package result;
-        Lwt.return ()
-      ) in
+    val cached_result : t -> string -> [`Available of entry | `Unavailable | `Not_checked]
+    (** [cached_result t package] is the currently stored result for [package], if any.
+        Returns [`Unavailable] if "apt-cache" didn't know about the package, or [`Not_checked] if
+        we haven't asked yet. *)
 
-    (* Returns information about this package, or ["-"] if it's not installed. *)
-    let query_dpkg package_name =
+    val is_available : t -> string -> bool
+    (** [is_available t package] is [true] iff the package is known to be available. *)
+  end = struct
+    type entry = {
+      version : Version.t;
+      machine : Arch.machine option;
+      size : Int64.t option;
+    }
+
+    type t = (string, [`Available of entry | `Unavailable]) Hashtbl.t
+
+    let make () = Hashtbl.create 10
+
+    let run system package =
+      Lwt.catch
+        (fun () ->
+           let stderr = if Support.Logging.will_log Support.Logging.Debug then None else Some `Dev_null in
+           Lwt_process.pread ?stderr (U.make_command system ["apt-cache"; "--no-all-versions"; "show"; "--"; package]) >>= fun out ->
+           let machine = ref None in
+           let version = ref None in
+           let size = ref None in
+           let stream = U.stream_of_lines out in
+           begin try
+               while true do
+                 let line = Stream.next stream |> String.trim in
+                 if U.starts_with line "Version: " then (
+                   version := try_cleanup_distro_version_warn (U.string_tail line 9 |> String.trim) package
+                 ) else if U.starts_with line "Architecture: " then (
+                   machine := Some (Support.System.canonical_machine (U.string_tail line 14 |> String.trim))
+                 ) else if U.starts_with line "Size: " then (
+                   size := Some (Int64.of_string (U.string_tail line 6 |> String.trim))
+                 )
+               done
+             with Stream.Failure -> ()
+           end;
+           match !version, !machine with
+           | Some version, Some machine ->
+             let machine = Arch.parse_machine machine in
+             Lwt.return (`Available {version; machine; size = !size})
+           | _ -> Lwt.return `Unavailable
+        )
+        (function
+          | Lwt.Canceled as ex -> Lwt.fail ex
+          | ex ->
+            log_warning ~ex "'apt-cache show %s' failed" package;
+            Lwt.return `Unavailable
+        )
+
+    let update t system package_names =
+      Lwt.catch
+        (fun () ->
+           package_names |> Lwt_list.iter_s (fun package ->
+               run system package >>= fun result ->
+               (* (multi-arch support? can there be multiple candidates?) *)
+               Hashtbl.replace t package result;
+               Lwt.return ()
+             )
+           >|= fun () -> `Ok
+        )
+        (function
+          | Lwt.Canceled -> Lwt.return `Cancelled
+          | ex -> Lwt.fail ex
+        )
+
+    let cached_result t package_name =
+      match Hashtbl.find t package_name with
+      | exception Not_found -> `Not_checked
+      | x -> (x :> [`Available of entry | `Unavailable | `Not_checked])
+
+    let is_available t package_name =
+      match cached_result t package_name with
+      | `Available _ -> true
+      | `Unavailable | `Not_checked -> false
+  end
+
+  module Dpkg : sig
+    val db_status : filepath
+    (** The location of the status file. *)
+
+    val query : #processes -> string -> (Version.t * Arch.machine option) list
+    (** [query system package_name] returns information about installed packages named [package_name]. *)
+  end = struct
+    let db_status = "/var/lib/dpkg/status"
+
+    (* It's OK if dpkg-query returns a non-zero exit status. *)
+    let error_ok child_pid =
+      match snd (Support.System.waitpid_non_intr child_pid) with
+      | Unix.WEXITED _ -> ()
+      | status -> Support.System.check_exit_status status
+
+    let with_dev_null fn =
+      U.finally_do Unix.close (Unix.openfile Support.System.dev_null [Unix.O_WRONLY] 0) fn
+
+    (* Returns information about this package, or [] if it's not installed. *)
+    let query system package_name =
       let results = ref [] in
-      U.finally_do Unix.close (Unix.openfile Support.System.dev_null [Unix.O_WRONLY] 0)
-        (fun dev_null ->
-          ["dpkg-query"; "-W"; "--showformat=${Version}\t${Architecture}\t${Status}\n"; "--"; package_name]
-            |> U.check_output ~reaper:error_ok ~stderr:(`FD dev_null) system (fun ch  ->
-              try
-                while true do
-                  let line = input_line ch in
-                  match Str.bounded_split_delim U.re_tab line 3 with
-                  | [] -> ()
-                  | [version; debarch; status] ->
-                      if U.ends_with status " installed" then (
-                        let debarch =
-                          try U.string_tail debarch (String.rindex debarch '-' + 1)
-                          with Not_found -> debarch in
-                        match try_cleanup_distro_version_warn version package_name with
-                        | None -> ()
-                        | Some clean_version ->
-                            let r = (clean_version, (Arch.parse_machine (Support.System.canonical_machine (String.trim debarch)))) in
-                            results := r :: !results
-                      )
-                  | _ -> log_warning "Can't parse dpkg output: '%s'" line
-                done
-              with End_of_file -> ()
-            )
+      with_dev_null @@ fun dev_null ->
+      ["dpkg-query"; "-W"; "--showformat=${Version}\t${Architecture}\t${Status}\n"; "--"; package_name]
+      |> U.check_output ~reaper:error_ok ~stderr:(`FD dev_null) system (fun ch  ->
+          try
+            while true do
+              let line = input_line ch in
+              match Str.bounded_split_delim U.re_tab line 3 with
+              | [] -> ()
+              | [version; debarch; status] ->
+                if U.ends_with status " installed" then (
+                  let debarch =
+                    try U.string_tail debarch (String.rindex debarch '-' + 1)
+                    with Not_found -> debarch in
+                  match try_cleanup_distro_version_warn version package_name with
+                  | None -> ()
+                  | Some clean_version ->
+                    let r = (clean_version, (Arch.parse_machine (Support.System.canonical_machine (String.trim debarch)))) in
+                    results := r :: !results
+                )
+              | _ -> log_warning "Can't parse dpkg output: '%s'" line
+            done
+          with End_of_file -> ()
         );
-      !results in
+      !results
+  end
+
+  let debian_distribution ?(status_file=Dpkg.db_status) ~packagekit config =
+    let apt_cache = Apt_cache.make () in
+    let system = config.system in
 
     let fixup_java_main impl java_version =
       let java_arch =
@@ -219,7 +287,7 @@ module Debian = struct
 
       val distro_name = "Debian"
       val id_prefix = "package:deb"
-      val cache = Distro_cache.create_lazy config ~cache_leaf:"dpkg-status2.cache" ~source:status_file ~if_missing:query_dpkg
+      val cache = Distro_cache.create_lazy config ~cache_leaf:"dpkg-status2.cache" ~source:status_file ~if_missing:(Dpkg.query system)
 
       (* If we added apt_cache results AND package kit is unavailable, this is set
        * so that we include them in the results. Otherwise, we just take the PackageKit results. *)
@@ -230,22 +298,21 @@ module Debian = struct
 
       method! private get_package_impls query =
         let packagekit = Lazy.force packagekit in
-        let package_name = query.package_name in
+        let package_name = Query.package query in
         (* Add any PackageKit candidates *)
         begin match Lwt.state packagekit#status with
         | Lwt.Return `Ok | Lwt.Fail _ -> super#get_package_impls query;
         | Lwt.Sleep -> ()   (* Only use apt-cache once we know PackageKit is missing *)
         | Lwt.Return (`Unavailable _) ->
             (* Add apt-cache candidates if we're not using PackageKit *)
-            try
-              match Hashtbl.find apt_cache package_name with
-              | Some {version; machine; size = _} ->
-                  let machine = Arch.parse_machine machine in
-                  let package_state = `Uninstalled Impl.({distro_size = None; distro_install_info = ("apt-get install", package_name)}) in
-                  self#add_package_implementation ~package_state ~version ~machine ~quick_test:None ~distro_name query
-              | None ->
-                  query.problem (Printf.sprintf "%s: not known to apt-cache" package_name)
-            with Not_found -> ()  (* We haven't checked yet *)
+            match Apt_cache.cached_result apt_cache package_name with
+            | `Not_checked -> ()
+            | `Available {Apt_cache.version; machine; size = _} ->
+                let package_state = `Uninstalled {Impl.distro_size = None;
+                                                  distro_install_info = ("apt-get install", package_name)} in
+                self#add_package_implementation ~package_state ~version ~machine ~quick_test:None ~distro_name query
+            | `Unavailable ->
+                Query.problem query "%s: not known to apt-cache" package_name
         end;
         (* Add installed packages by querying dpkg. *)
         let infos, quick_test = Distro_cache.get cache package_name in
@@ -257,29 +324,38 @@ module Debian = struct
         match Distro.get_matching_package_impls self feed with
         | [] -> Lwt.return ()
         | matches ->
+            let hint = Feed_url.format_url feed.Feed.url in
             let packagekit = Lazy.force packagekit in
-            let package_names = matches |> List.map (fun (elem, _props) -> (Element.package elem)) in
-
+            let package_names = matches |> List.map (fun (elem, _props) -> Element.package elem) in
             (* Check apt-cache to see whether we have the pacakges. If PackageKit isn't available, we'll use these
              * results directly. If it is available, we'll use these results to filter the PackageKit query, because
              * it doesn't like queries for missing packages (it tends to abort the query early and miss some results). *)
-            let apt = query_apt_cache package_names in
+            let apt =
+              with_simple_progress (fun progress ->
+                  let apt = Apt_cache.update apt_cache system package_names in
+                  let cancel () = Lwt.cancel apt; Lwt.return () in
+                  ui#monitor {Downloader.cancel; url = "apt-cache"; progress; hint = Some hint};
+                  apt
+                )
+            in
             packagekit#status >>= fun pkgkit_status ->
-            apt >>= fun () ->
-            match pkgkit_status with
+            apt >>= function
+            | `Cancelled -> Lwt.return ()
             | `Ok ->
-                let hint = Feed_url.format_url feed.Feed.url in
+              match pkgkit_status with
+              | `Ok ->
                 package_names
-                |> List.filter (Hashtbl.mem apt_cache)
+                |> List.filter (Apt_cache.is_available apt_cache)
                 |> packagekit#check_for_candidates ~ui ~hint
-            | `Unavailable _ ->
+              | `Unavailable _ ->
                 (* No PackageKit. Use apt-cache directly. *)
                 use_apt_cache_results <- true;
                 Lwt.return ()
 
       method! private add_package_implementation ?id ?main query ~version ~machine ~quick_test ~package_state ~distro_name =
+        let package_name = Query.package query in
         let version =
-          match query.package_name, version with
+          match package_name, version with
           | ("openjdk-6-jre" | "openjdk-7-jre"), (([major], Version.Pre) :: (minor, mmod) :: rest) ->
             (* Debian marks all Java versions as pre-releases
                See: http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=685276 *)
@@ -352,7 +428,8 @@ module RPM = struct
         super#get_package_impls query;
 
         (* Add installed packages by querying rpm *)
-        let infos, quick_test = Distro_cache.get cache query.package_name in
+        let package_name = Query.package query in
+        let infos, quick_test = Distro_cache.get cache package_name in
         infos |> List.iter (fun (version, machine) ->
           self#add_package_implementation ~package_state:`Installed ~version ~machine ~quick_test ~distro_name query
         )
@@ -374,7 +451,7 @@ module RPM = struct
       method! private add_package_implementation ?id ?main query ~version ~machine ~quick_test ~package_state ~distro_name =
         let version =
           (* OpenSUSE uses _, Fedora uses . *)
-          let package_name = query.package_name |> String.map (function '_' -> '.' | x -> x) in
+          let package_name = Query.package query |> String.map (function '_' -> '.' | x -> x) in
           match package_name with
           | "java-1.6.0-openjdk" | "java-1.7.0-openjdk"
           | "java-1.6.0-openjdk-devel" | "java-1.7.0-openjdk-devel" ->
@@ -446,7 +523,7 @@ module ArchLinux = struct
         super#get_package_impls query;
 
         (* Check the local package database *)
-        let package_name = query.package_name in
+        let package_name = Query.package query in
         log_debug "Looking up distribution packages for %s" package_name;
         let items = get_entries () in
         match StringMap.find package_name items with
@@ -495,7 +572,8 @@ module Mac = struct
       val check_host_python = true
 
       method get_package_impls query =
-        match query.package_name with
+        let package_name = Query.package query in
+        match package_name with
         | "openjdk-6-jre" | "openjdk-6-jdk" -> self#find_java "1.6" "6" query
         | "openjdk-7-jre" | "openjdk-7-jdk" -> self#find_java "1.7" "7" query
         | "openjdk-8-jre" | "openjdk-8-jdk" -> self#find_java "1.8" "8" query
@@ -503,8 +581,8 @@ module Mac = struct
         | "gnupg2" -> self#find_program "/usr/local/bin/gpg2" query
         | "make" -> self#find_program "/usr/bin/make" query
         | package_name ->
-            if StringMap.is_empty !(query.results) then
-              query.problem (Printf.sprintf "%s: Unknown Darwin/OS X package" package_name)
+            if StringMap.is_empty (Query.results query) then
+              Query.problem query "%s: Unknown Darwin/OS X package" package_name
             (* else we have MacPorts results *)
 
       method private find_program main query =
@@ -512,7 +590,8 @@ module Mac = struct
           let x_ok = try Unix.access main [Unix.X_OK]; true with Unix.Unix_error _ -> false in
           if x_ok then (
             let (_host_os, host_machine) = Arch.platform config.system in
-            try_cleanup_distro_version_warn (get_version main) query.package_name |> if_some (fun version ->
+            let package_name = Query.package query in
+            try_cleanup_distro_version_warn (get_version main) package_name |> if_some (fun version ->
               self#add_package_implementation
                 ~main
                 ~package_state:`Installed
@@ -601,7 +680,8 @@ module Mac = struct
       method! match_name name = super#match_name name || darwin#match_name name
 
       method private get_package_impls query =
-        let infos, quick_test = Distro_cache.get cache query.package_name in
+        let package_name = Query.package query in
+        let infos, quick_test = Distro_cache.get cache package_name in
         infos |> List.iter (fun (version, machine) ->
           self#add_package_implementation ~package_state:`Installed ~version ~machine ~quick_test ~distro_name query
         );
@@ -638,8 +718,7 @@ module Win = struct
       val id_prefix = "package:windows"
 
       method private get_package_impls query =
-        let package_name = query.package_name in
-        match package_name with
+        match Query.package query with
         | "openjdk-6-jre" -> self#find_java "Java Runtime Environment" "1.6" "6" query
         | "openjdk-6-jdk" -> self#find_java "Java Development Kit"     "1.6" "6" query
         | "openjdk-7-jre" -> self#find_java "Java Runtime Environment" "1.7" "7" query
@@ -654,8 +733,8 @@ module Win = struct
         | "netfx-client" ->
             self#find_netfx "v4\\Client" "4.0" query;
             self#find_netfx_release "v4\\Client" 378389 "4.5" query;
-        | _ ->
-            query.problem (Printf.sprintf "%s: Unknown Windows package" package_name)
+        | package_name ->
+            Query.problem query "%s: Unknown Windows package" package_name
 
       method check_for_candidates ~ui:_ _feed = Lwt.return ()
 
@@ -759,8 +838,9 @@ module Win = struct
         check_cache id_prefix elem cache || super#is_installed elem
 
       method private get_package_impls query =
-        match Distro_cache.get cache query.package_name with
-        | [], _ -> query.problem (Printf.sprintf "%s: Unknown Cygwin package" query.package_name)
+        let package_name = Query.package query in
+        match Distro_cache.get cache package_name with
+        | [], _ -> Query.problem query "%s: Unknown Cygwin package" package_name
         | infos, quick_test ->
         infos |> List.iter (fun (version, machine) ->
           self#add_package_implementation ~package_state:`Installed ~version ~machine ~quick_test ~distro_name query
@@ -783,14 +863,15 @@ module Ports = struct
       val check_host_python = true
 
       method! private get_package_impls query =
+        let package_name = Query.package query in
         pkg_db |> iter_dir config.system (fun pkgname ->
           let pkgdir = pkg_db +/ pkgname in
           if U.is_dir config.system pkgdir then (
             if Str.string_match re_name_version pkgname 0 then (
               let name = Str.matched_group 1 pkgname in
               let version = Str.matched_group 2 pkgname in
-              if name = query.package_name then (
-                try_cleanup_distro_version_warn version query.package_name |> if_some (fun version ->
+              if name = package_name then (
+                try_cleanup_distro_version_warn version package_name |> if_some (fun version ->
                   let (_host_os, host_machine) = Arch.platform config.system in
                   self#add_package_implementation
                     ~package_state:`Installed
@@ -802,7 +883,7 @@ module Ports = struct
                 )
               )
             ) else (
-              query.problem (Printf.sprintf "Cannot parse version from Ports package named '%s'" pkgname)
+              Query.problem query "Cannot parse version from Ports package named '%s'" pkgname
             )
           )
         )
@@ -828,7 +909,8 @@ module Gentoo = struct
 
         let re_version_start = Str.regexp "-[0-9]" in
 
-        match Str.bounded_split_delim U.re_slash query.package_name 2 with
+        let package_name = Query.package query in
+        match Str.bounded_split_delim U.re_slash package_name 2 with
         | [category; leafname] ->
             let category_dir = pkgdir +/ category in
             let match_prefix = leafname ^ "-" in
@@ -842,7 +924,7 @@ module Gentoo = struct
                 match (try Some (Str.search_forward re_version_start name 0) with Not_found -> None) with
                 | None -> log_warning "Cannot parse version from Gentoo package named '%s'" name
                 | Some i ->
-                  try_cleanup_distro_version_warn (U.string_tail name (i + 1)) query.package_name |> if_some (fun version ->
+                  try_cleanup_distro_version_warn (U.string_tail name (i + 1)) package_name |> if_some (fun version ->
                     let machine =
                       if category = "app-emulation" && U.starts_with name "emul-" then (
                         match Str.bounded_split_delim U.re_dash name 4 with
@@ -880,12 +962,13 @@ module Slackware = struct
 
       method! private get_package_impls query =
         (* Add any PackageKit candidates *)
+        let package_name = Query.package query in
         super#get_package_impls query;
         packages_dir |> iter_dir config.system (fun entry ->
           match Str.bounded_split_delim U.re_dash entry 4 with
-          | [name; version; arch; build] when name = query.package_name ->
+          | [name; version; arch; build] when name = package_name ->
               let machine = Arch.parse_machine (Support.System.canonical_machine arch) in
-              try_cleanup_distro_version_warn (version ^ "-" ^ build) query.package_name |> if_some (fun version ->
+              try_cleanup_distro_version_warn (version ^ "-" ^ build) package_name |> if_some (fun version ->
               self#add_package_implementation
                 ~package_state:`Installed
                 ~version
@@ -899,12 +982,13 @@ module Slackware = struct
     end
 end
 
-let get_host_distribution ~packagekit config : Distro.distribution =
+let get_host_distribution ~packagekit config =
+  Distro.of_provider @@
   let exists = config.system#file_exists in
   match Sys.os_type with
   | "Unix" ->
       let is_debian =
-        match config.system#stat Debian.dpkg_db_status with
+        match config.system#stat Debian.Dpkg.db_status with
         | Some info when info.Unix.st_size > 0 -> true
         | _ -> false in
 

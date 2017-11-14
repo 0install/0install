@@ -1,11 +1,11 @@
-(* Copyright (C) 2013, Thomas Leonard
+(* Copyright (C) 2017, Thomas Leonard
  * See the README file for details, or visit http://0install.net.
  *)
 
 (** Platform-specific code for interacting with distribution package managers. *)
 
 (** Create a suitable distribution object for this system. *)
-val get_host_distribution : packagekit:(Packagekit.packagekit Lazy.t) -> General.config -> Distro.distribution
+val get_host_distribution : packagekit:(Packagekit.packagekit Lazy.t) -> General.config -> Distro.t
 
 (** {2 The following are exposed only for unit-testing} *)
 

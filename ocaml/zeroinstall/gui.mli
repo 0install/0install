@@ -68,6 +68,6 @@ val get_bug_report_details : General.config -> role:Solver.role -> (bool * Solve
  * @raise Safe_exception on failure. *)
 val send_bug_report : Sigs.iface_uri -> string -> string Lwt.t
 
-val run_test : General.config -> Distro.distribution -> (Selections.t -> string Lwt.t) -> (bool * Solver.Model.t) -> string Lwt.t
+val run_test : General.config -> Distro.t -> (Selections.t -> string Lwt.t) -> (bool * Solver.Model.t) -> string Lwt.t
 
 val generate_feed_description : General.config -> Trust.trust_db -> Feed.feed -> Feed.feed_overrides -> feed_description Lwt.t
