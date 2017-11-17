@@ -43,9 +43,3 @@ val set_crash_logs_handler : (entry list -> unit) -> unit
  * If there is no handler, or the log is empty, does nothing. This is called automatically
  * after logging at level Warning. *)
 val dump_crash_log : ?ex:exn -> unit -> unit
-
-(** Like [Format.kasprintf], but for older versions of OCaml. *)
-val kasprintf : (string -> 'a) -> ('b, Format.formatter, unit, 'a) format4 -> 'b
-
-(** Like [Format.asprintf], but for older versions of OCaml. *)
-val asprintf : ('a, Format.formatter, unit, string) format4 -> 'a

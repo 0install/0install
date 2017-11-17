@@ -62,18 +62,8 @@ let console_handler ?ex level msg =
 
 let handler = ref console_handler
 
-let kasprintf k fmt =
-  let b = Buffer.create 512 in
-  let ppf = Format.formatter_of_buffer b in
-  let cb f =
-    Format.pp_print_flush f ();
-    k (Buffer.contents b) in
-  Format.kfprintf cb ppf fmt
-
-let asprintf fmt = kasprintf (fun s -> s) fmt
-
 let log level ?ex fmt =
-  kasprintf (fun msg ->
+  Format.kasprintf (fun msg ->
     if level >= !threshold then
       !handler ?ex level msg;
     match !crash_log with

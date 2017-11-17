@@ -255,7 +255,7 @@ let get_site t domain =
     site
 
 let network_failure fmt =
-  fmt |> Support.Logging.kasprintf @@ fun msg -> Lwt.return (`Network_failure msg)
+  fmt |> Format.kasprintf @@ fun msg -> Lwt.return (`Network_failure msg)
 
 let catch_cancel task =
   Lwt.catch (fun () -> task)

@@ -57,7 +57,7 @@ module Query = struct
   let package t = t.package_name
 
   let problem t fmt =
-    fmt |> Support.Logging.kasprintf @@ fun msg ->
+    fmt |> Format.kasprintf @@ fun msg ->
     t.problem msg
 
   let add_result t id impl =
