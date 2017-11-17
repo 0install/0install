@@ -57,7 +57,7 @@ module CoreModel = struct
     command : command_name option;
   }
 
-  let impl_to_string impl = Support.Logging.asprintf "%a-%a" Version.fmt impl.Impl.parsed_version Impl.fmt impl
+  let impl_to_string impl = Format.asprintf "%a-%a" Version.fmt impl.Impl.parsed_version Impl.fmt impl
   let id_of_impl impl = Impl.get_attr_ex FeedAttr.id impl
   let command_to_string command = Element.show_with_loc command.Impl.command_qdom
   let describe_problem = Impl_provider.describe_problem

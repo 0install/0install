@@ -350,7 +350,7 @@ let slice ~start ?stop lst =
       in take from_start (stop - start)
 
 let print (system:system) fmt =
-  Logging.kasprintf system#print_string (fmt ^^ "@.")
+  Format.kasprintf system#print_string (fmt ^^ "@.")
 
 let realpath (system:#filesystem) path =
   let (+/) = Filename.concat in   (* Faster version, since we know the path is relative *)

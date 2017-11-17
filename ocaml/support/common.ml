@@ -27,7 +27,7 @@ module Platform =
 
 (** Convenient way to create a new [Safe_exception] with no initial context. *)
 let raise_safe fmt =
-  fmt |> Logging.kasprintf @@ fun msg ->
+  fmt |> Format.kasprintf @@ fun msg ->
   raise (Safe_exception (msg, ref []))
 
 module StringMap = struct
@@ -150,7 +150,7 @@ let with_error_info note f =
     (function
       | Safe_exception (_, old_contexts) as ex ->
         let writer fmt =
-          fmt |> Logging.kasprintf (fun context -> old_contexts := context :: !old_contexts) in
+          fmt |> Format.kasprintf (fun context -> old_contexts := context :: !old_contexts) in
         note writer;
         raise ex
       | ex -> Lwt.fail ex

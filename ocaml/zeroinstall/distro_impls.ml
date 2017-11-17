@@ -107,7 +107,7 @@ let check_cache id_prefix elem cache =
   let package = Element.package elem in
   let sel_id = Element.id elem in
   let matches (installed_version, machine) =
-    let installed_id = Support.Logging.asprintf "%s:%s:%a:%s" id_prefix package Version.fmt installed_version (Arch.format_machine_or_star machine) in
+    let installed_id = Format.asprintf "%s:%s:%a:%s" id_prefix package Version.fmt installed_version (Arch.format_machine_or_star machine) in
     (* log_warning "Want %s %s, have %s" package sel_id installed_id; *)
     sel_id = installed_id in
   List.exists matches (fst (Distro_cache.get cache package))

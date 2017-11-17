@@ -13,7 +13,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
 
   let format_role f role = Format.pp_print_string f (Model.Role.to_string role)
 
-  let spf = Support.Logging.asprintf
+  let spf = Format.asprintf
 
   (* Why a particular implementation was rejected. This could be because the model rejected it,
      or because it conflicts with something else in the example (partial) solution. *)
