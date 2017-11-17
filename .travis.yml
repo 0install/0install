@@ -12,6 +12,7 @@ env:
     - OCAML_VERSION=4.03
     - OCAML_VERSION=4.04
     - OCAML_VERSION=4.05
+    - OCAML_VERSION=4.06
 os:
   - linux
   - osx
