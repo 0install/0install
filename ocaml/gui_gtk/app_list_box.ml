@@ -282,9 +282,7 @@ let create config ~gui ~tools ~add_app =
 
   view#event#connect#button_press ==> (fun bev ->
     let module B = GdkEvent.Button in
-    let path_unsafe = view#get_path_at_pos (B.x bev |> truncate) (B.y bev |> truncate) in
-    (* (a bug in lablgtk means the "option" part is missing) *)
-    let path : Gtk.tree_path option = Obj.magic path_unsafe in
+    let path : Gtk.tree_path option = view#get_path_at_pos (B.x bev |> truncate) (B.y bev |> truncate) in
     match GdkEvent.get_type bev, B.button bev, path with
     | `TWO_BUTTON_PRESS, 1, Some path ->
         let row = model#get_iter path in
