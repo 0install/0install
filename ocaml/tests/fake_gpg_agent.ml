@@ -31,9 +31,26 @@ let handle_connection client =
       | ex -> Lwt.fail ex
     )
 
+let get_socket_dir gpg_dir =
+  Unix.putenv "GNUPGHOME" gpg_dir;
+  let ch = Unix.open_process_in "gpgconf --list-dirs 2>/dev/null" in
+  U.finally_do close_in ch @@ fun ch ->
+  let rec aux () =
+    let line = input_line ch in
+    match Str.bounded_split_delim U.re_colon line 2 with
+    | ["socketdir"; value] -> value
+    | _ -> aux ()
+  in
+  try
+    aux ()
+  with End_of_file ->
+    log_debug "No socketdir found in gpgconf output";
+    gpg_dir
+
 let run gpg_dir =
+  let socket_dir = get_socket_dir gpg_dir in
   let socket = Lwt_unix.(socket PF_UNIX SOCK_STREAM 0) in
-  Unix.bind (Lwt_unix.unix_file_descr socket) (Lwt_unix.ADDR_UNIX (gpg_dir +/ "S.gpg-agent"));
+  Unix.bind (Lwt_unix.unix_file_descr socket) (Lwt_unix.ADDR_UNIX (socket_dir +/ "S.gpg-agent"));
   Lwt_unix.set_close_on_exec socket;
   Lwt_unix.listen socket 5;
   let rec aux () =
