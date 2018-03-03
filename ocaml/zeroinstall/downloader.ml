@@ -40,7 +40,10 @@ let is_redirect connection =
 
 (** Download the contents of [url] into [ch].
  * This runs in a separate (either Lwt or native) thread. *)
-let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.zero) ~progress connection ch url =
+let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.zero) ~progress connection ch = function
+  | url when U.starts_with url "https://downloads.sourceforge.net/#!" ->
+    Lwt.return (`Network_failure "SourceForge is currently in Disaster Recovery mode (unusable)")
+  | url ->
   let skip_bytes = ref (Int64.to_int start_offset) in
   let error_buffer = ref "" in
   Lwt.catch (fun () ->

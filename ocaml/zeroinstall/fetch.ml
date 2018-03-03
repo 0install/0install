@@ -396,6 +396,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
           (* There are two mirror systems in use here. First, we try our [mirror_url]. If that fails too,
            * we raise [Try_mirror] to try the other strategy. *)
           let mirror_url = mirror_url |? lazy (raise (Try_mirror primary_msg)) in
+          log_info "Download failed: %s" primary_msg;
           log_warning "Primary download failed; trying mirror URL '%s'..." mirror_url;
           Downloader.download downloader ~switch ?size ~hint:feed mirror_url >>= function
           | `Aborted_by_user -> raise Aborted
