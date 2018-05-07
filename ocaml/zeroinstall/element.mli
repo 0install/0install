@@ -99,6 +99,7 @@ val classify_retrieval : [`Archive | `File | `Recipe] t ->
   | `Recipe of [`Recipe] t ]
 val dest_opt : [`Archive] t -> filepath option
 val dest : [< `File | `Rename] t -> filepath
+val executable : [< `File] t -> bool option
 val extract : [`Archive] t -> filepath option
 val start_offset : [`Archive] t -> int64 option
 val mime_type : [`Archive] t -> string option

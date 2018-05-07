@@ -456,11 +456,12 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
                           ~destdir:basedir ?extract ~mime_type
                       )
                   )
-              | DownloadStep {url; size; download_type = FileDownload dest} ->
+              | DownloadStep {url; size; download_type = FileDownload {FileDownload.dest; executable}} ->
                   url |> download_file ~switch ?size ~start_offset:Int64.zero ~feed ~may_use_mirror:false (fun tmpfile ->
                     let dest = native_path_within_base dest in
+                    let mode = if executable then 0o755 else 0o644 in
                     U.makedirs real_system (Filename.dirname dest) 0o755;
-                    U.copy_file real_system tmpfile dest 0o644;
+                    U.copy_file real_system tmpfile dest mode;
                     system#bypass_dryrun#set_mtime dest 0.0;
                     Lwt.return ()
                   )

@@ -244,6 +244,7 @@ let size elem =
   with _ -> raise_safe "Invalid size '%s'" s
 
 let dest = ZI.get_attribute "dest"
+let executable = bool_opt ("", "executable")
 let rename_source = ZI.get_attribute "source"
 let dest_opt = ZI.get_attribute_opt "dest"
 let extract = ZI.get_attribute_opt "extract"

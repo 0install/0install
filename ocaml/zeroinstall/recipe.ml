@@ -1,4 +1,4 @@
-(* Copyright (C) 2013, Thomas Leonard
+(* Copyright (C) 2018, Thomas Leonard
  * See the README file for details, or visit http://0install.net.
  *)
 
@@ -13,8 +13,21 @@ type archive_options = {
   mime_type : string option;
 }
 
+module FileDownload = struct
+  type t = {
+    dest : string;
+    executable : bool;
+  }
+
+  let parse elem =
+    {
+      dest = Element.dest elem;
+      executable = Element.executable elem |> default false;
+    }
+end
+
 type download_type =
-  | FileDownload of string    (* dest *)
+  | FileDownload of FileDownload.t
   | ArchiveDownload of archive_options
 
 type download = {
@@ -53,7 +66,7 @@ let parse_archive elem = DownloadStep {
 let parse_file_elem elem = DownloadStep {
   url = Element.href elem;
   size = Some (Element.size elem);
-  download_type = FileDownload (Element.dest elem);
+  download_type = FileDownload (FileDownload.parse elem);
 }
 
 let parse_rename elem = RenameStep {

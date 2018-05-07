@@ -164,6 +164,11 @@ let suite = "fetch">::: [
 
     try_recipe ~digest:("sha1new", "266fdd7055606c28b299ddc77902b81d500ce946") "<remove path='rootfile'/>";
     try_recipe ~error:"Illegal path '\\.'" "<remove path='.'/>";
+
+    try_recipe ~digest:("sha256new", "JKORWC7SE5HS2GHWK5EU2PNMXTKUOQOODGT72WNI3CI3FSBL6QYA")
+               "<file href='runnable/go.sh' dest='start.sh' executable='false' size='52'/>";
+    try_recipe ~digest:("sha256new", "DOUCL455ISDBNZ5JITFFDNCTOWHRFH3JMOPU2VSOOXSEZTIAQUUQ")
+               "<file href='runnable/go.sh' dest='start.sh' executable='true' size='52'/>";
   );
 
   "local-archive">:: Fake_system.with_fake_config (fun (config, fake_system) ->

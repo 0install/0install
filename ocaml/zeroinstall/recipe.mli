@@ -11,8 +11,15 @@ type archive_options = {
   mime_type : string option;
 }
 
+module FileDownload : sig
+  type t = {
+    dest : string;
+    executable : bool;
+  }
+end
+
 type download_type =
-  | FileDownload of string    (* dest *)
+  | FileDownload of FileDownload.t
   | ArchiveDownload of archive_options
 
 type download = {
