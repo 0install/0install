@@ -13,3 +13,6 @@ env:
 os:
   - linux
   - osx
+addons:
+  apt:
+    update: true
