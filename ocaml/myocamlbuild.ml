@@ -166,6 +166,8 @@ let () =
         match get_info "lwt.glib" with
           | Some {version; dir = lwt_dir} -> (* Lwt 3 < 3 *)
             print_endline "Linking with old lwt.glib structure";
+            flag ["compile"] (S [A"-package"; A"lwt.preemptive"]);
+            flag ["link"] (S [A"-package"; A"lwt.preemptive"]);
             flag ["library"; "shared"; "native"; "link_gtk"] (S [A"-thread"; A (gtk_dir / "lablgtk.cmxa"); A (lwt_dir / "lwt-glib.cmxa")]);
             flag ["library"; "byte"; "link_gtk"] (S [A"-thread"; A (gtk_dir / "lablgtk.cma"); A (lwt_dir / "lwt-glib.cma")]);
           | None ->   (* Lwt >= 3 *)
