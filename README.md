@@ -49,7 +49,7 @@ The easiest way to get the dependencies is using [OPAM](http://opam.ocamlpro.com
 
     $ opam sw 4.04.0
     $ eval `opam config env`
-    $ opam install cppo yojson xmlm ounit lwt_react ocurl obus lablgtk lwt_glib sha
+    $ opam install cppo yojson xmlm ounit lwt_react ocurl obus lablgtk lwt_glib sha cppo_ocamlbuild
 
 Note: some of these are optional:
 
