@@ -110,7 +110,7 @@ class virtual distribution config =
     method is_valid_package_name name =
       if Str.string_match valid_package_name name 0 then true
       else (
-        log_info "Ignoring invalid distribution package name '%s'" name;
+        log_info "Ignoring invalid (on current platform) distribution package name '%s'" name;
         false
       )
 
