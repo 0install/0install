@@ -11,3 +11,9 @@ install:
 
 build_script:
   - call %CYG_ROOT%\bin\bash.exe -l %APPVEYOR_BUILD_FOLDER%\appveyor-opam.sh
+  - call %CYG_ROOT%\bin\bash.exe -l -c 'opam install 0install'
+  - mv %CYG_ROOT%\home\appveyor\.opam %APPVEYOR_BUILD_FOLDER%\opam
+
+artifacts:
+  - name: Binaries
+    path: 'opam\*\bin\0*'
