@@ -1,6 +1,44 @@
 #!/bin/sh
 set -eu
 
+command_exists() {
+  type $1 > /dev/null 2> /dev/null
+}
+
+install_prompt() {
+  echo "Press ENTER to install it now using '$*'. Press Ctrl+C to cancel."
+  read _
+  $*
+}
+
+install_package() {
+  if command_exists sudo && [ "$(id -u)" -ne "0" ]; then
+    install_prompt sudo $*
+  else
+    install_prompt $*
+  fi
+}
+
+if command_exists ldconfig; then
+  if ! ldconfig -p | grep -q 'libcurl.so'; then
+    echo "libcurl is required by 0install but is currently not installed on your system."
+    if command_exists emerge; then
+      install_package emerge libcurl-compat
+    elif command_exists apt-get; then
+      install_package apt-get install libcurl3
+    elif command_exists yast; then
+      install_package yast -i libcurl
+    elif command_exists urpmi; then
+      install_package urpmi libcurl
+    elif command_exists yum; then
+      install_package yum install libcurl
+    else
+      echo "Please install it and then run this script again."
+      exit 1
+    fi
+  fi
+fi
+
 cd `dirname $0`/files
 
 echo Testing binary...
