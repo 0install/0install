@@ -28,6 +28,9 @@ let expand_arg arg env =
 
 type arg_parent = [`Command | `Runner | `For_each] Element.t
 
+(* This is a work-around for https://caml.inria.fr/mantis/view.php?id=7824 in OCaml 4.07.0 *)
+let as_arg_parent x = (x :> arg_parent)
+
 (* Return a list of string arguments by expanding <arg> and <for-each> children of [elem] *)
 let get_args elem env =
   let rec get_args_loop elem =
@@ -47,11 +50,11 @@ let get_args elem env =
           | x::xs ->
               let old = Env.get env "item" in
               Env.put env "item" x;
-              let new_args = get_args_loop (node :> arg_parent) in
+              let new_args = get_args_loop (as_arg_parent node) in
               old |> if_some (Env.put env "item");
               new_args @ (loop xs) in
         loop (Str.split_delim (Str.regexp_string separator) source)
-  in get_args_loop (elem :> arg_parent)
+  in get_args_loop (as_arg_parent elem)
 
 let find_ex role impls =
   Selections.RoleMap.find role impls
