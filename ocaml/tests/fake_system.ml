@@ -536,14 +536,7 @@ let assert_raises_safe_lwt expected_msg fn =
       | ex -> Lwt.fail ex
     )
 
-let temp_dir_name =
-  (* Filename.get_temp_dir_name doesn't exist under 3.12 *)
-  U.realpath real_system
-    begin try Sys.getenv "TEMP" with Not_found ->
-      match Sys.os_type with
-        | "Unix" | "Cygwin" -> "/tmp"
-        | "Win32" -> "."
-        | _ -> failwith "temp_dir_name: unknown filesystem" end
+let temp_dir_name = Filename.get_temp_dir_name ()
 
 let with_tmpdir fn () =
   U.finally_do reset_env ()
