@@ -34,6 +34,7 @@ let python_test_code =
   "    import gobject\n" ^
   "  if gobject.__file__.startswith('<'):\n" ^
   "    path = gobject.__path__    # Python 3\n" ^
+  "    if not isinstance(path, str): path = path[0]\n" ^
   "    if type(path) is bytes:\n" ^
   "        path = path.decode(sys.getfilesystemencoding())\n" ^
   "  else:\n" ^
