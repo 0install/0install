@@ -61,6 +61,8 @@ type dep_info = {
   dep_required_commands : command_name list;
 }
 
+let as_map t = t.index
+
 let re_initial_slash = Str.regexp "^/"
 let re_package = Str.regexp "^package:"
 

@@ -2,10 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(** <command> elements *)
-
 open Support.Common
-module Q = Support.Qdom
 module U = Support.Utils
 
 let re_template = Str.regexp ("\\$\\(\\$\\|\\([a-zA-Z_][a-zA-Z0-9_]*\\)\\|{[^}]*}\\)")
@@ -26,42 +23,40 @@ let expand_arg arg env =
   | m -> Env.get_exn env (remove_braces m) in
   Str.global_substitute re_template expand template
 
-type arg_parent = [`Command | `Runner | `For_each] Element.t
-
-(* This is a work-around for https://caml.inria.fr/mantis/view.php?id=7824 in OCaml 4.07.0 *)
-let as_arg_parent x = (x :> arg_parent)
-
-(* Return a list of string arguments by expanding <arg> and <for-each> children of [elem] *)
-let get_args elem env =
-  let rec get_args_loop elem =
-    List.fold_right (fun child args ->
-      match child with
-      | `Arg child -> (expand_arg child env) :: args
-      | `For_each child -> (expand_foreach child env) @ args
-    ) (Element.arg_children elem) []
-  and expand_foreach node env =
-    let item_from = Element.item_from node in
+(* [values ~env node] is the list of values to iterate over for <for-each> element [node]. *)
+let values ~env node =
+  match Env.get env (Element.item_from node) with
+  | None -> []
+  | Some source ->
     let separator = default path_sep (Element.separator node) in
-    match Env.get env item_from with
-    | None -> []
-    | Some source ->
-        let rec loop = function
-          | [] -> []
-          | x::xs ->
-              let old = Env.get env "item" in
-              Env.put env "item" x;
-              let new_args = get_args_loop (as_arg_parent node) in
-              old |> if_some (Env.put env "item");
-              new_args @ (loop xs) in
-        loop (Str.split_delim (Str.regexp_string separator) source)
-  in get_args_loop (as_arg_parent elem)
+    Str.split_delim (Str.regexp_string separator) source
+
+let with_env env name value fn =
+  let old = Env.get env name in
+  Env.put env name value;
+  let r = fn ~env in
+  old |> if_some (Env.put env "item");
+  r
+
+let ( >>= ) x f = List.concat (List.map f x)
+
+(* Expand an <arg> or <for-each> element to a list of arguments. *)
+let rec expand ~env = function
+  | `Arg node ->
+    [expand_arg node env]
+  | `For_each node ->
+    let specs = Element.arg_children node in
+    values ~env node >>= fun value ->
+    specs >>= fun spec ->
+    with_env env "item" value (expand spec)
+
+let get_args elem env =
+  Element.arg_children elem >>= expand ~env
 
 let find_ex role impls =
   Selections.RoleMap.find role impls
   |? lazy (raise_safe "Missing a selection for role '%s'" (Selections.Role.to_string role))
 
-(* Build up the argv array to execute this command.
-   In --dry-run mode, don't complain if the target doesn't exist. *)
 let rec build_command ?main ?(dry_run=false) impls req env : string list =
   try
     let (command_sel, command_impl_path) = find_ex req.Selections.role impls in

@@ -55,6 +55,11 @@ val get_selected_ex : role -> t -> selection
 (** Convert a selections document to XML in the latest format. *)
 val as_xml : t -> Support.Qdom.element
 
+(** Return all bindings *)
+val collect_bindings : t -> (role * Element.binding) list
+
+(** [as_map t] is the map of the selections in [t]. *)
+val as_map : t -> selection RoleMap.t
 
 (** {2 Selection elements} *)
 
@@ -69,6 +74,3 @@ val get_feed : selection -> Sigs.feed_url
 
 (** Get the globally unique ID of this selection (feed + ID) *)
 val get_id : selection -> Feed_url.global_id
-
-(* Return all bindings *)
-val collect_bindings : t -> (role * Element.binding) list

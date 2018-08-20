@@ -96,17 +96,14 @@ let do_exec_binding dry_run builder env impls (role, {Binding.exec_type; Binding
 
 (* Make a map from InterfaceURIs to the selected <selection> and (for non-native packages) paths *)
 let make_selection_map system stores sels =
-  let map = ref Selections.RoleMap.empty in
-  sels |> Selections.iter (fun role sel ->
+  Selections.as_map sels |> Selections.RoleMap.mapi (fun role sel ->
     let path =
       try Selections.get_path system stores sel
       with Stores.Not_stored msg ->
         raise_safe "Missing implementation for '%s' %s: %s" (Selections.Role.to_string role) (Element.version sel) msg
     in
-    let value = (sel, path) in
-    map := Selections.RoleMap.add role value !map
-  );
-  !map
+    (sel, path)
+  )
 
 let get_exec_args config ?main sels args =
   let env = Env.create config.system#environment in
