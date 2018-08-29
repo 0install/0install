@@ -140,7 +140,7 @@ your $fpath (e.g. /usr/local/share/zsh/site-functions).
 For fish-shell users, add the full path to share/fish/completions to
 $fish_complete_path.
 
-These completion scripts are installed automatically by "make install".
+These completion scripts are installed automatically by "make install", unless breakage has occurred and nothing of that sort happens instead.
 
 
 QUICK START
