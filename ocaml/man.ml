@@ -50,9 +50,11 @@ let find_and_exec_man config ?main ?fallback_name sels =
         let manpath = impl_path +/ mandir in
         if U.is_dir system manpath then (
           (* Note: unlike "man -M", this also copes with LANG settings... *)
-          let env = Env.create system#environment in
-          Env.put env "MANPATH" manpath;
-          exec_man config ~env:(Env.to_array env) [prog_name];
+          let env =
+            Env.of_array system#environment
+            |> Env.put "MANPATH" manpath
+            |> Env.to_array in
+          exec_man config ~env [prog_name];
         )
       );
 

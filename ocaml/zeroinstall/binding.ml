@@ -75,7 +75,7 @@ let calc_new_value name mode value env =
       | Append ->
           log_info "%s=...%s%s" name separator value;
           old ^ separator ^ value in
-    match Env.get env name with
+    match Env.get name env with
       | Some v -> add_to v                  (* add to current value of variable *)
       | None -> match default with
         | Some d -> add_to d                (* or to the specified default *)
@@ -86,7 +86,7 @@ let calc_new_value name mode value env =
               value
 
 let do_env_binding env sel {var_name; mode; source} =
-  let add value = Env.put env var_name (calc_new_value var_name mode value env) in
+  let add value = env := Env.put var_name (calc_new_value var_name mode value !env) !env in
   match source with
   | Value v -> add v
   | InsertPath i -> match Lazy.force sel with
@@ -95,4 +95,4 @@ let do_env_binding env sel {var_name; mode; source} =
 
 let prepend name value separator env =
   let mode = Add {pos = Prepend; default = None; separator} in
-  Env.put env name (calc_new_value name mode value env)
+  env := Env.put name (calc_new_value name mode value !env) !env

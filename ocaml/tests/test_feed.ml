@@ -16,6 +16,10 @@ let feed_of_xml system xml =
   let root = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None |> Element.parse_feed in
   F.parse system root None
 
+let make_env k = function
+  | None -> Env.empty
+  | Some v -> Env.empty |> Env.put k v
+
 let suite = "feed">::: [
   "langs">:: (fun () ->
     let (_config, fake_system) = Fake_system.get_fake_config None in
@@ -163,14 +167,10 @@ let suite = "feed">::: [
                 | _ -> assert false
               );
 
-              let env = Env.create [| |] in
-
               let check ?old binding =
-                begin match old with
-                | None -> Env.unset env "PATH"
-                | Some old -> Env.put env "PATH" old end;
+                let env = ref @@ make_env "PATH" old in
                 B.do_env_binding env (lazy ((), Some "/impl")) binding;
-                Env.get_exn env "PATH" in
+                Env.get_exn "PATH" !env in
 
               Fake_system.assert_str_equal "/impl/bin:/bin:/usr/bin" @@ check b0;
               Fake_system.assert_str_equal "/impl/bin:current" @@ check b0 ~old:"current";
@@ -189,10 +189,9 @@ let suite = "feed">::: [
     } in
 
     let check ?impl ?old binding =
-      let env = Env.create [| |] in
-      old |> if_some (Env.put env binding.B.var_name);
+      let env = ref @@ make_env binding.B.var_name old in
       B.do_env_binding env (lazy ((), impl)) binding;
-      Env.get_exn env binding.B.var_name in
+      Env.get_exn binding.B.var_name !env in
 
     Fake_system.assert_str_equal "/impl/lib:/usr/lib" @@ check prepend ~impl:"/impl" ~old:"/usr/lib";
     Fake_system.assert_str_equal "/impl/lib" @@ check prepend ~impl:"/impl";

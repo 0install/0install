@@ -20,23 +20,16 @@ let expand_arg arg env =
   let expand s = match (Str.matched_group 1 s) with
   | "$" -> "$"
   | "" | "{}" -> Element.raise_elem "Empty variable name in template '%s' in" template arg
-  | m -> Env.get_exn env (remove_braces m) in
+  | m -> Env.get_exn (remove_braces m) env in
   Str.global_substitute re_template expand template
 
 (* [values ~env node] is the list of values to iterate over for <for-each> element [node]. *)
 let values ~env node =
-  match Env.get env (Element.item_from node) with
+  match Env.get (Element.item_from node) env with
   | None -> []
   | Some source ->
     let separator = default path_sep (Element.separator node) in
     Str.split_delim (Str.regexp_string separator) source
-
-let with_env env name value fn =
-  let old = Env.get env name in
-  Env.put env name value;
-  let r = fn ~env in
-  old |> if_some (Env.put env "item");
-  r
 
 let ( >>= ) x f = List.concat (List.map f x)
 
@@ -48,10 +41,12 @@ let rec expand ~env = function
     let specs = Element.arg_children node in
     values ~env node >>= fun value ->
     specs >>= fun spec ->
-    with_env env "item" value (expand spec)
+    expand spec ~env:(Env.put "item" value env)
 
 let get_args elem env =
-  Element.arg_children elem >>= expand ~env
+  try
+    Element.arg_children elem >>= expand ~env
+  with Safe_exception _ as ex -> reraise_with_context ex "... expanding %a" Element.pp elem
 
 let find_ex role impls =
   Selections.RoleMap.find role impls

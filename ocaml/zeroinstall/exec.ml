@@ -32,7 +32,7 @@ class launcher_builder config script =
       let envname = "zeroinstall_runenv_" ^ name in
       let value = to_string json in
       log_info "%s=%s" envname value;
-      Env.put env envname value
+      env := Env.put envname value !env
   end
 
 (** We can't use interpreted bytecode as a #! interpreter, so use a shell script instead. *)
@@ -84,13 +84,13 @@ let do_exec_binding dry_run builder env impls (role, {Binding.exec_type; Binding
   );
 
   let req = {Selections.command = Some command; role} in
-  let command_argv = Command.build_command ~dry_run impls req env in
+  let command_argv = Command.build_command ~dry_run impls req !env in
 
   let () = match exec_type with
   | Binding.InPath -> Binding.prepend "PATH" exec_dir path_sep env
   | Binding.InVar ->
       log_info "%s=%s" name exec_path;
-      Env.put env name exec_path in
+      env := Env.put name exec_path !env in
 
   builder#setenv name command_argv env
 
@@ -106,7 +106,7 @@ let make_selection_map system stores sels =
   )
 
 let get_exec_args config ?main sels args =
-  let env = Env.create config.system#environment in
+  let env = ref @@ Env.of_array config.system#environment in
   let impls = make_selection_map config.system config.stores sels in
   let bindings = Selections.collect_bindings sels in
   let launcher_builder = get_launcher_builder config in
@@ -126,6 +126,7 @@ let get_exec_args config ?main sels args =
 
   (* Do <executable-in-*> bindings *)
   List.iter (do_exec_binding config.dry_run launcher_builder env impls) exec_bindings;
+  let env = !env in
 
   let prog_args = (Command.build_command ?main ~dry_run:config.dry_run impls (Selections.requirements sels) env) @ args in
 

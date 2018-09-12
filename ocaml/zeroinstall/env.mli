@@ -8,9 +8,11 @@ open Support.Common
 
 type t
 
-val create : string array -> t
-val put : t -> varname -> string -> unit
-val get : t -> varname -> string option
-val get_exn : t -> varname -> string
-val unset : t -> varname -> unit
+val empty : t
+val put : varname -> string -> t -> t
+val get : varname -> t -> string option
+val get_exn : varname -> t -> string
+val unset : varname -> t -> t
+
+val of_array : string array -> t
 val to_array : t -> string array
