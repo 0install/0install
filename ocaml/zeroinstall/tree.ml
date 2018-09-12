@@ -2,35 +2,25 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(** Getting the dependency tree from a selections document. *)
-
 open Support.Common
 open General
 
 module U = Support.Utils
 
-class indenter (printer : string -> unit) =
-  object
-    val mutable indentation = ""
-
-    method print msg =
-      printer (indentation ^ msg ^ "\n")
-
-    method with_indent extra (fn:unit -> unit) =
-      let old = indentation in
-      indentation <- indentation ^ extra;
-      fn ();
-      indentation <- old
-  end
-
 module Make (Model : Sigs.SELECTIONS) = struct
+  type node =
+    Model.Role.t * [
+      | `Problem
+      | `Selected of Model.impl * node list
+    ]
+
   (** Convert selections as a dependency tree (as displayed by "0install show",
    * etc). If multiple components share a dependency, only the first one is
    * included. *)
-  let as_tree result =
+  let as_tree result : node =
     let seen = ref Model.RoleMap.empty in
 
-    let rec build_node role ~essential =
+    let rec build_node role ~essential : node option =
       if Model.RoleMap.mem role !seen then None
       else (
         let sel = Model.get_selected role result in
@@ -81,44 +71,36 @@ end
 
 module SelectionsTree = Make(Selections)
 
-let print config printer sels =
-  let requires_compilation impl =
-    if Element.requires_compilation impl = Some true then " (requires compilation)"
-    else "" in
+let pp_path config f impl =
+  match Selections.get_source impl with
+  | Selections.PackageSelection -> Format.fprintf f "(%s)" @@ Element.id impl
+  | Selections.LocalSelection path -> Format.pp_print_string f path
+  | Selections.CacheSelection digests ->
+    match Stores.lookup_maybe config.system digests config.stores with
+    | None -> Format.pp_print_string f "(not cached)"
+    | Some path -> Format.pp_print_string f path
 
-  let first = ref true in
-  let indenter = new indenter printer in
-  let printf fmt =
-    let do_print msg = indenter#print (msg:string) in
-    Printf.ksprintf do_print fmt in
+let pp_spacer_line f () =
+  Format.pp_print_cut f ();
+  Format.pp_print_cut f ()
 
-    let rec print_node (role, details) =
-      if !first then
-        first := false
-      else
-        printf "";
+let requires_compilation impl =
+  if Element.requires_compilation impl = Some true then " (requires compilation)"
+  else ""
 
-      printf "- URI: %s" (Selections.Role.to_string role);
-      indenter#with_indent "  " (fun () ->
-        match details with
-        | `Problem ->
-            printf "No selected version";
-        | `Selected (impl, children) ->
-            (* printf "ID: %s" (ZI.get_attribute "id" impl); *)
-            printf "Version: %s%s" (Element.version impl) (requires_compilation impl);
-            (* print indent + "  Command:", command *)
-            let path = match Selections.get_source impl with
-              | Selections.PackageSelection -> Printf.sprintf "(%s)" @@ Element.id impl
-              | Selections.LocalSelection path -> path
-              | Selections.CacheSelection digests ->
-                  match Stores.lookup_maybe config.system digests config.stores with
-                  | None -> "(not cached)"
-                  | Some path -> path in
-
-            printf "Path: %s" path;
-
-            List.iter print_node children;
+let print config f sels =
+  let rec print_node f (role, details) =
+    Format.fprintf f "- @[<v>URI: %s@,%a@]" (Selections.Role.to_string role) pp_details details
+  and pp_details f = function
+    | `Problem ->
+      Format.fprintf f "No selected version"
+    | `Selected (impl, children) ->
+      (* Format.fprintf f "@,ID: %s" (ZI.get_attribute "id" impl); *)
+      Format.fprintf f "Version: %s%s" (Element.version impl) (requires_compilation impl);
+      Format.fprintf f "@,Path: %a" (pp_path config) impl;
+      if children <> [] then (
+        pp_spacer_line f ();
+        Format.pp_print_list ~pp_sep:pp_spacer_line print_node f children
       )
-    in
-
-    print_node @@ SelectionsTree.as_tree sels
+  in
+  print_node f @@ SelectionsTree.as_tree sels

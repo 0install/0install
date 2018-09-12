@@ -281,7 +281,9 @@ let get_bug_report_details config ~role (ready, results) =
   add "0install version %s\n" About.version;
 
   if ready then (
-    Tree.print config (Buffer.add_string b) sels
+    let f = Format.formatter_of_buffer b in
+    Tree.print config f sels;
+    Format.pp_print_newline f ()
   ) else (
     Buffer.add_string b @@ Solver.get_failure_reason config results
   );

@@ -200,9 +200,7 @@ let suite = "selections">::: [
   "source-sel">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     let feed = Test_0install.feed_dir +/ "source-sel.xml" in
     let sels = Q.parse_file config.system feed |> Selections.create in
-    let b = Buffer.create 100 in
-    Tree.print config (Buffer.add_string b) sels;
-    Buffer.contents b |> assert_str_equal
+    Format.asprintf "%a@." (Tree.print config) sels |> assert_str_equal
        "- URI: /test/BuildDepSource.xml\
       \n  Version: 1\
       \n  Path: /test\

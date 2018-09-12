@@ -12,7 +12,7 @@ module Selections = Zeroinstall.Selections
 module Apps = Zeroinstall.Apps
 
 let show_human config sels =
-  Zeroinstall.Tree.print config config.system#print_string sels
+  Format.fprintf config.system#std_formatter "%a@." (Zeroinstall.Tree.print config) sels
 
 let show_xml sels =
   let out = Xmlm.make_output @@ `Channel stdout in
