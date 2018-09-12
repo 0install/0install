@@ -57,62 +57,63 @@ let find_ex role impls =
   Selections.RoleMap.find role impls
   |? lazy (raise_safe "Missing a selection for role '%s'" (Selections.Role.to_string role))
 
+(* [command_rel_path command] is the "path" attribute on the <command> element, if any.
+   If [main] is given, this overrides the path. *)
+let command_rel_path ?main command =
+  let path = Element.path command in
+  match main, path with
+  | None, path -> path
+  | Some main, _ when U.starts_with main "/" -> Some (U.string_tail main 1)   (* --main=/foo *)
+  | Some main, Some path -> Some (Filename.dirname path +/ main)              (* --main=foo *)
+  | Some main, None -> raise_safe "Can't use a relative replacement main (%s) when there is no original one!" main
+
+(* The absolute path of the executable to run for <command>, if any (ignoring any <runner>). *)
+let command_exe ?main ~dry_run ~impl_path command =
+  match command_rel_path ?main command with
+  | None -> None
+  | Some path -> (* Make it absolute *)
+    let command_path =
+      match impl_path, Filename.is_relative path with
+      | Some dir, true -> Filename.concat dir path  (* 0install impl *)
+      | None,    false -> path                      (* PackageSelection *)
+      | Some _,  false -> Element.raise_elem "Absolute path '%s' in" path command
+      | None,     true -> Element.raise_elem "Relative 'path' in " command
+    in
+    if Sys.file_exists command_path || dry_run then
+      Some command_path
+    else if on_windows && Sys.file_exists (command_path ^ ".exe") then
+      Some (command_path ^ ".exe")
+    else
+      Element.raise_elem "Path '%s' does not exist: see" command_path command
+
+let ( @? ) x xs =
+  match x with
+  | None -> xs
+  | Some x -> x :: xs
+
 let rec build_command ?main ?(dry_run=false) impls req env : string list =
+  let {Selections.command; role} = req in
   try
-    let (command_sel, command_impl_path) = find_ex req.Selections.role impls in
+    let (command_sel, impl_path) = find_ex role impls in
     let command =
-      match req.Selections.command with
+      match command with
       | None -> Element.make_command ~source_hint:(Some command_sel) "run"
       | Some command_name -> Element.get_command_ex command_name command_sel in
-    let command_rel_path =
-      let path = Element.path command in
-      match main, path with
-      | None, path -> path
-      | Some main, _ when (U.starts_with main "/") -> Some (U.string_tail main 1)   (* --main=/foo *)
-      | Some main, Some path -> Some (Filename.dirname path +/ main)                (* --main=foo *)
-      | Some main, None -> raise_safe "Can't use a relative replacement main (%s) when there is no original one!" main in
-
+    let command_exe = command_exe ?main ~dry_run ~impl_path command in
     (* args for the first command *)
     let command_args = get_args command env in
-    let args = (match command_rel_path with
-      | None -> command_args
-      | Some command_rel_path ->
-          let command_path =
-            match command_impl_path with
-            | None -> (   (* PackageSelection *)
-              if Filename.is_relative command_rel_path then
-                Element.raise_elem "Relative 'path' in " command
-              else
-                command_rel_path
-            )
-            | Some dir -> (
-              if Filename.is_relative command_rel_path then
-                Filename.concat dir command_rel_path
-              else
-                Element.raise_elem "Absolute path '%s' in" command_rel_path command
-            )
-          in
-            if Sys.file_exists command_path || dry_run then
-              command_path :: command_args
-            else if on_windows && Sys.file_exists (command_path ^ ".exe") then
-              (command_path ^ ".exe") :: command_args
-            else
-              Element.raise_elem "Path '%s' does not exist: see" command_path command
-    ) in
-
+    let args = command_exe @? command_args in
     (* recursively process our runner, if any *)
     match Element.get_runner command with
-    | None -> (
-        if command_rel_path = None then
-          Element.raise_elem "Missing 'path' on command with no <runner>: " command
-        else
-          args
-      )
+    | None when command_exe = None ->
+      Element.raise_elem "Missing 'path' on command with no <runner>: " command
+    | None ->
+      args
     | Some runner ->
-        let runner_args = get_args runner env in
-        let runner_command_name = default "run" (Element.command runner) in
-        (* note: <runner> is always binary *)
-        let runner_role = {Selections.iface = Element.interface runner; source = false} in
-        let runner_req = {Selections.command = Some runner_command_name; role = runner_role} in
-        (build_command ~dry_run impls runner_req env) @ runner_args @ args
-  with Safe_exception _ as ex -> reraise_with_context ex "... building command for %s" (Selections.(Role.to_string req.role))
+      let runner_args = get_args runner env in
+      let runner_command_name = Element.command runner |> default "run" in
+      (* note: <runner> is always binary *)
+      let runner_role = {Selections.iface = Element.interface runner; source = false} in
+      let runner_req = {Selections.command = Some runner_command_name; role = runner_role} in
+      build_command ~dry_run impls runner_req env @ runner_args @ args
+  with Safe_exception _ as ex -> reraise_with_context ex "... building command for %s" (Selections.(Role.to_string role))
