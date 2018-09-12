@@ -37,8 +37,8 @@ let list_all_feeds config =
       results := StringSet.add uri !results in
   let scan_dir path =
     match system#readdir path with
-    | Problem _ -> ()
-    | Success files -> Array.iter check_leaf files in
+    | Error _ -> ()
+    | Ok files -> Array.iter check_leaf files in
   List.iter scan_dir (Paths.Cache.(all_paths feeds) config.paths);
   !results
 
@@ -47,7 +47,7 @@ let load_iface_config config uri : interface_config =
   let get_site_feeds dir =
     if config.system#file_exists dir then (
       match config.system#readdir dir with
-      | Success items ->
+      | Ok items ->
           items |> U.filter_map_array (fun impl ->
             if U.starts_with impl "." then None
             else (
@@ -62,7 +62,7 @@ let load_iface_config config uri : interface_config =
               )
             )
           )
-      | Problem ex ->
+      | Error ex ->
           log_warning ~ex "Failed to read '%s'" dir;
           []
     ) else []

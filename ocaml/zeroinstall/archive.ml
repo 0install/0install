@@ -194,8 +194,8 @@ let extract_dmg config ~dstdir ?extract archive =
     Lwt.finalize (fun () ->
       let files =
         match system#readdir mountpoint with
-        | Problem ex -> raise ex
-        | Success items ->
+        | Error ex -> raise ex
+        | Ok items ->
             Array.to_list items
             |> List.filter ((<>) ".Trashes")
             |> List.map ((^) (mountpoint ^ "/")) in
@@ -252,8 +252,8 @@ let extract_rpm config ~dstdir ?extract archive =
   let rec set_mtimes dir =
     system#set_mtime dir 0.0;
     match system#readdir dir with
-    | Problem ex -> raise ex
-    | Success items ->
+    | Error ex -> raise ex
+    | Ok items ->
         items |> Array.iter (fun item ->
           let path = dir +/ item in
           if U.is_dir system path then set_mtimes path
@@ -293,8 +293,8 @@ let unpack config tmpfile dstdir ?extract ~mime_type : unit Lwt.t =
 (** Move each item in [srcdir] into [dstdir]. Symlinks are copied as is. Does not follow any symlinks in [destdir]. *)
 let rec move_no_follow system srcdir dstdir =
   match system#readdir srcdir with
-  | Problem ex -> raise ex
-  | Success items ->
+  | Error ex -> raise ex
+  | Ok items ->
       items |> Array.iter (fun item ->
         assert (item <> "." && item <> "..");
 

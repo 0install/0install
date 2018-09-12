@@ -62,8 +62,8 @@ let suite = "stores">::: [
       Fake_system.assert_str_equal "target" (Fake_system.expect @@ fake_system#readlink (expected_path +/ "subdir" +/ "mylink"));
       U.rmtree config.system ~even_if_locked:true expected_path;
       match fake_system#readdir other_store with
-      | Problem ex -> raise ex
-      | Success items -> Fake_system.equal_str_lists [] @@ Array.to_list items in
+      | Error ex -> raise ex
+      | Ok items -> Fake_system.equal_str_lists [] @@ Array.to_list items in
 
     let check ~system =
       if system then

@@ -111,8 +111,8 @@ module RealSystem (U : UnixType) =
           Unix.symlink target newlink
 
         method readdir path =
-          try Success (Sys.readdir path)
-          with Sys_error _ as ex -> Problem ex
+          try Ok (Sys.readdir path)
+          with Sys_error _ as ex -> Error ex
 
         method lstat path =
           try Some (Unix.lstat path)

@@ -25,8 +25,8 @@ let rec size_of_item system path =
       | Unix.S_CHR | Unix.S_BLK | Unix.S_FIFO | Unix.S_SOCK -> log_warning "Bad file kind for %s" path; 0L
       | Unix.S_DIR ->
           match system#readdir path with
-          | Success items -> items |> Array.fold_left (fun acc item -> Int64.add acc (size_of_item system (path +/ item))) 0L
-          | Problem ex -> log_warning ~ex "Can't scan %s" path; 0L
+          | Ok items -> items |> Array.fold_left (fun acc item -> Int64.add acc (size_of_item system (path +/ item))) 0L
+          | Error ex -> log_warning ~ex "Can't scan %s" path; 0L
 
 (** Get the size for an implementation. Get the size from the .manifest if possible. *)
 let size_of_impl (system:system) path : Int64.t =
@@ -415,8 +415,8 @@ let open_cache_explorer config =
           with Not_found ->
             let extra =
               match config.system#readdir dir with
-              | Problem ex -> ["error:" ^ Printexc.to_string ex]
-              | Success items -> ["files:" ^ (Array.to_list items |> String.concat ",")] in
+              | Error ex -> ["error:" ^ Printexc.to_string ex]
+              | Ok items -> ["files:" ^ (Array.to_list items |> String.concat ",")] in
             ("-", dir, extra, true, true) end
       | paths ->
           (Printf.sprintf "(%d selected items)" (List.length paths), "", [], true, false) in

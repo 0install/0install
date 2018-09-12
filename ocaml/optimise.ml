@@ -118,8 +118,8 @@ let optimise system impl_dir =
 
   let dirs =
     match system#readdir impl_dir with
-    | Problem ex -> raise ex
-    | Success items -> items in
+    | Error ex -> raise ex
+    | Ok items -> items in
   let total = Array.length dirs in
   let msg = ref "" in
   let clear () =

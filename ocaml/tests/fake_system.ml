@@ -245,7 +245,7 @@ class fake_system ?(portable_base=true) tmpdir =
     method readdir path =
       try
         match StringMap.find_nf path !extra_files with
-        | Dir (_mode, items) -> Success (Array.of_list items)
+        | Dir (_mode, items) -> Ok (Array.of_list items)
         | _ -> failwith "Not a directory"
       with Not_found -> real_system#readdir (check_read path)
 

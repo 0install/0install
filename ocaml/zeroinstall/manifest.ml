@@ -65,8 +65,8 @@ let generate_manifest (system:#filesystem) alg root =
     );
     let items =
       match system#readdir full with
-      | Problem ex -> raise ex
-      | Success items -> items in
+      | Error ex -> raise ex
+      | Ok items -> items in
     Array.sort String.compare items;
 
     let dirs = items |> U.filter_map_array (fun leaf ->

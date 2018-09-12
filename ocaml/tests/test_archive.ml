@@ -22,8 +22,8 @@ let assert_manifest system required tmpdir =
 
   let rec check_perms dir =
     match system#readdir dir with
-    | Problem ex -> raise ex
-    | Success items ->
+    | Error ex -> raise ex
+    | Ok items ->
         items |> Array.iter (fun f ->
           let full = dir +/ f in
           let info = system#lstat full |? lazy (failwith "lstat") in

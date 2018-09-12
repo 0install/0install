@@ -96,9 +96,9 @@ let try_cleanup_distro_version_warn version package_name =
 
 let iter_dir system fn path =
   match system#readdir path with
-  | Problem ex when U.is_dir system path -> raise ex
-  | Problem ex -> log_debug ~ex "Failed to read directory '%s'" path
-  | Success items -> items |> Array.iter fn
+  | Error ex when U.is_dir system path -> raise ex
+  | Error ex -> log_debug ~ex "Failed to read directory '%s'" path
+  | Ok items -> items |> Array.iter fn
 
 (** Lookup [elem]'s package in the cache. Generate the ID(s) for the cached implementations and check that one of them
     matches the [id] attribute on [elem].
@@ -497,7 +497,7 @@ module ArchLinux = struct
       match config.system#stat packages_dir with
       | Some info when info.Unix.st_mtime > last_read -> (
           match config.system#readdir packages_dir with
-          | Success items ->
+          | Ok items ->
               let add map entry =
                 match parse_dirname entry with
                 | Some (name, version) -> StringMap.add name version map
@@ -505,7 +505,7 @@ module ArchLinux = struct
               let new_items = Array.fold_left add StringMap.empty items in
               entries := (info.Unix.st_mtime, new_items);
               new_items
-          | Problem ex ->
+          | Error ex ->
               log_warning ~ex "Can't read packages dir '%s'!" packages_dir;
               items
       )

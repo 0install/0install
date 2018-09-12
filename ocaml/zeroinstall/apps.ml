@@ -255,8 +255,8 @@ let list_app_names config =
       if Str.string_match re_app_name name 0 then
         results := StringSet.add name !results in
     match system#readdir path with
-    | Problem _ -> ()
-    | Success files -> Array.iter check_app files in
+    | Error _ -> ()
+    | Ok files -> Array.iter check_app files in
   List.iter scan_dir (Paths.Config.(all_paths apps) config.paths);
   StringSet.elements !results
 
@@ -388,8 +388,8 @@ let destroy config app =
 let get_history config app =
   let re_date = Str.regexp "selections-\\([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]\\).xml" in
   match config.system#readdir app with
-  | Problem ex -> raise ex
-  | Success items ->
+  | Error ex -> raise ex
+  | Ok items ->
       let snapshots = ref [] in
       for i = Array.length items - 1 downto 0 do
         let item = items.(i) in

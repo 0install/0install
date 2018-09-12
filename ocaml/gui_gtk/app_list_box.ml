@@ -27,8 +27,8 @@ let discover_existing_apps config =
     let apps_dir = data_path +/ "applications" in
     if system#file_exists apps_dir then (
       match system#readdir apps_dir with
-      | Problem ex -> log_warning ~ex "Failed to scan directory '%s'" apps_dir
-      | Success items ->
+      | Error ex -> log_warning ~ex "Failed to scan directory '%s'" apps_dir
+      | Ok items ->
           items |> Array.iter (fun desktop_file ->
             if U.starts_with desktop_file "zeroinstall-" && U.ends_with desktop_file ".desktop" then (
               let full = apps_dir +/ desktop_file in

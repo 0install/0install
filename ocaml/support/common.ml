@@ -4,10 +4,6 @@
 
 (** Common types and functions. This module is intended to be opened. *)
 
-type 'a result =
-  | Success of 'a
-  | Problem of exn
-
 type filepath = string
 type varname = string
 
@@ -61,7 +57,7 @@ class type filesystem =
     method hardlink : filepath -> filepath -> unit
     method rename : filepath -> filepath -> unit
 
-    method readdir : filepath -> string array result
+    method readdir : filepath -> (string array, exn) result
     method chmod : filepath -> Unix.file_perm -> unit
     method set_mtime : filepath -> float -> unit
     method symlink : target:filepath -> newlink:filepath -> unit

@@ -65,12 +65,12 @@ let get_available_digests (system:#filesystem) stores =
   let digests = Hashtbl.create 1000 in
   let scan_dir dir =
     match system#readdir dir with
-    | Success items ->
+    | Ok items ->
         for i = 0 to Array.length items - 1 do
           Hashtbl.add digests items.(i) dir
         done
-    | Problem (Sys_error _) -> ()
-    | Problem _ -> log_debug "Can't scan %s" dir
+    | Error (Sys_error _) -> ()
+    | Error _ -> log_debug "Can't scan %s" dir
     in
   List.iter scan_dir stores;
   digests
@@ -134,8 +134,8 @@ let make_tmp_dir (system:#filesystem) = function
  * Permissions on the new copies will be 555 or 444. mtimes are copied. *)
 let rec copy_tree system srcdir dstdir =
   match system#readdir srcdir with
-  | Problem ex -> raise ex
-  | Success items ->
+  | Error ex -> raise ex
+  | Ok items ->
       items |> Array.iter (fun item ->
         assert (item <> "." && item <> "..");
 
@@ -240,8 +240,8 @@ let rec fixup_permissions (system:#filesystem) path =
 
       if info.Unix.st_kind = Unix.S_DIR then (
         match system#readdir path with
-        | Problem ex -> raise ex
-        | Success items ->
+        | Error ex -> raise ex
+        | Ok items ->
             items |> Array.iter (fun item ->
               fixup_permissions system (path +/ item)
             )

@@ -304,10 +304,10 @@ let rmtree ~even_if_locked (sys:#filesystem) root =
             if even_if_locked then
               sys#chmod path 0o700;
             match sys#readdir path with
-            | Success files ->
+            | Ok files ->
                 Array.iter (fun leaf -> rmtree @@ path +/ leaf) files;
                 sys#rmdir path
-            | Problem ex -> raise_safe "Can't read directory '%s': %s" path (Printexc.to_string ex)
+            | Error ex -> raise_safe "Can't read directory '%s': %s" path (Printexc.to_string ex)
       ) in
     rmtree root
   with Safe_exception _ as ex -> reraise_with_context ex "... trying to delete directory %s" root

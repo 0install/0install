@@ -61,8 +61,8 @@ let find_and_exec_man config ?main ?fallback_name sels =
       let manpages = ref [] in
       let rec walk path =
         match system#readdir path with
-        | Problem ex -> log_warning ~ex "Can't read directory '%s'" path
-        | Success items ->
+        | Error ex -> log_warning ~ex "Can't read directory '%s'" path
+        | Ok items ->
             ArrayLabels.iter items ~f:(fun item ->
               let full_path = path +/ item in
               match system#lstat full_path with

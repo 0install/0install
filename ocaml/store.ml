@@ -79,8 +79,8 @@ let handle_audit options flags args =
     if U.is_dir system dir then Some (
       let items =
         match system#readdir dir with
-        | Problem ex -> raise ex
-        | Success items -> items in
+        | Error ex -> raise ex
+        | Ok items -> items in
       Array.sort String.compare items;
       (dir, items)
     ) else if args <> [] then (
