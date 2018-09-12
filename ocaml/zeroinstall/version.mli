@@ -40,4 +40,4 @@ val strip_modifier : t -> t
 val try_cleanup_distro_version : string -> t option
 
 (** Formatter for [%a] format strings. *)
-val fmt : Format.formatter -> t -> unit
+val pp : Format.formatter -> t -> unit

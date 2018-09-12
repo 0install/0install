@@ -124,4 +124,4 @@ val is_retrievable_without_network : cache_impl -> bool
 val get_id : _ t -> Feed_url.global_id
 
 (** Formats the XML element and location, for debug logging with [%a]. *)
-val fmt : Format.formatter -> _ t -> unit
+val pp : Format.formatter -> _ t -> unit

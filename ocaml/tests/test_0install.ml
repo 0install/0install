@@ -528,7 +528,7 @@ let suite = "0install">::: [
     let sels = A.get_selections_may_update tools app |> Lwt_main.run in
     let printer xs =
       let pp_sep f () = Format.pp_print_string f "; " in
-      Format.asprintf "[%a]" (Format.pp_print_list ~pp_sep Element.fmt) xs
+      Format.asprintf "[%a]" (Format.pp_print_list ~pp_sep Element.pp) xs
     in
     assert_equal ~printer [] @@ Zeroinstall.Driver.get_unavailable_selections config ~distro sels;
     assert_equal 400.0 (A.get_times system app).A.last_solve;

@@ -74,7 +74,7 @@ let to_string parsed =
 
   String.concat "" (List.map format_seg parsed)
 
-let fmt f v = Format.pp_print_string f (to_string v)
+let pp f v = Format.pp_print_string f (to_string v)
 
 let re_pipe = Str.regexp_string "|"
 let re_range = Str.regexp "^\\(.*\\)\\(\\.\\.!?\\)\\(.*\\)$"

@@ -195,7 +195,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
 
     let url_in_feed = Element.uri_exn new_root in
     if url_in_feed <> feed_url then
-      raise_safe "URL mismatch in feed:\n%s expected\n%s given in 'uri' attribute on %a" feed_url url_in_feed Element.fmt new_root;
+      raise_safe "URL mismatch in feed:\n%s expected\n%s given in 'uri' attribute on %a" feed_url url_in_feed Element.pp new_root;
 
     (* Load the old XML *)
     let cache_path = Feed_cache.get_save_cache_path config feed in
@@ -615,7 +615,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
         | {Impl.impl_type = `Cache_impl info; _} ->
             (* Choose the best digest algorithm we support *)
             if info.Impl.digests = [] then (
-              raise_safe "No digests at all! (so can't choose best) on %a" Impl.fmt impl
+              raise_safe "No digests at all! (so can't choose best) on %a" Impl.pp impl
             );
             let digest = Stores.best_digest info.Impl.digests in
 

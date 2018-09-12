@@ -248,7 +248,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
       | `Local_impl path -> config.system#file_exists path
       | `Cache_impl {digests;_} -> Stores.check_available cached_digests digests
     with Safe_exception _ as ex ->
-      log_warning ~ex "Can't test whether impl is available: %a" Impl.fmt impl;
+      log_warning ~ex "Can't test whether impl is available: %a" Impl.pp impl;
       false in
 
   let get_feed_if_useful ~problem want_source feed_import =

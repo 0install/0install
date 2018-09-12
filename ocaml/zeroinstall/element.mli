@@ -195,7 +195,7 @@ val log_elem : Support.Logging.level -> ('a, unit, string, _ t -> unit) format4 
 val show_with_loc : _ t -> string
 
 (** Formatter that uses [show_with_loc]. *)
-val fmt : Format.formatter -> _ t -> unit
+val pp : Format.formatter -> _ t -> unit
 
 val as_xml : _ t -> Support.Qdom.element
 

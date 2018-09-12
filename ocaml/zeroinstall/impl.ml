@@ -119,7 +119,7 @@ let make_distribtion_restriction distros =
   end
 
 let get_attr_ex name impl =
-  AttrMap.get_no_ns name impl.props.attrs |? lazy (raise_safe "Missing '%s' attribute for %a" name Element.fmt impl.qdom)
+  AttrMap.get_no_ns name impl.props.attrs |? lazy (raise_safe "Missing '%s' attribute for %a" name Element.pp impl.qdom)
 
 let parse_version_element elem =
   let before = Element.before elem in
@@ -261,7 +261,7 @@ let existing_source = function
 let get_command_opt command_name impl = StringMap.find command_name impl.props.commands
 
 let get_command_ex command_name impl : command =
-  StringMap.find command_name impl.props.commands |? lazy (raise_safe "Command '%s' not found in %a" command_name Element.fmt impl.qdom)
+  StringMap.find command_name impl.props.commands |? lazy (raise_safe "Command '%s' not found in %a" command_name Element.pp impl.qdom)
 
 (** The list of languages provided by this implementation. *)
 let get_langs impl =
@@ -282,4 +282,4 @@ let get_id impl =
   let feed_url = get_attr_ex FeedAttr.from_feed impl in
   Feed_url.({feed = Feed_url.parse feed_url; id = get_attr_ex FeedAttr.id impl})
 
-let fmt f impl = Format.pp_print_string f (Element.show_with_loc impl.qdom)
+let pp f impl = Format.pp_print_string f (Element.show_with_loc impl.qdom)
