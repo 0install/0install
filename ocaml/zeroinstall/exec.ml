@@ -100,7 +100,7 @@ let make_selection_map system stores sels =
     let path =
       try Selections.get_path system stores sel
       with Stores.Not_stored msg ->
-        raise_safe "Missing implementation for '%s' %s: %s" (Selections.Role.to_string role) (Element.version sel) msg
+        raise_safe "Missing implementation for '%a' %s: %s" Selections.Role.pp role (Element.version sel) msg
     in
     (sel, path)
   )
@@ -117,7 +117,7 @@ let get_exec_args config ?main sels args =
       | Binding.EnvironmentBinding b ->
           let sel = lazy (
             Selections.RoleMap.find role impls
-            |? lazy (raise_safe "Missing role '%s' in selections!" (Selections.Role.to_string role))
+            |? lazy (raise_safe "Missing role '%a' in selections!" Selections.Role.pp role)
           ) in
           Binding.do_env_binding env sel b; None
       | Binding.ExecutableBinding b -> Some (role, b)

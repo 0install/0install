@@ -33,7 +33,7 @@ let get_unavailable_selections config ?distro sels =
   in
   sels |> Selections.iter (fun role sel ->
     if needs_download sel then (
-      Element.log_elem Support.Logging.Info "Missing selection of %s:" (Selections.Role.to_string role) sel;
+      log_info "Missing selection of %a: %a" Selections.Role.pp role Element.pp sel;
       missing := sel :: !missing
     )
   );

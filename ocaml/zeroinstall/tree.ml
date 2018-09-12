@@ -90,7 +90,7 @@ let requires_compilation impl =
 
 let print config f sels =
   let rec print_node f (role, details) =
-    Format.fprintf f "- @[<v>URI: %s@,%a@]" (Selections.Role.to_string role) pp_details details
+    Format.fprintf f "- @[<v>URI: %a@,%a@]" Selections.Role.pp role pp_details details
   and pp_details f = function
     | `Problem ->
       Format.fprintf f "No selected version"

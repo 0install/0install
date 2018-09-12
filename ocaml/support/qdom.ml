@@ -195,6 +195,9 @@ let log_elem level =
     Logging.log level "%s %s" s (show_with_loc elem)
   in Printf.ksprintf do_log
 
+let pp_with_loc f elem =
+  Format.pp_print_string f (show_with_loc elem)
+
 let simple_content element =
   if element.child_nodes = [] then
     element.last_text_inside

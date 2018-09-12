@@ -22,7 +22,7 @@ let debug = false
 module type USER =
   sig
     type t
-    val to_string : t -> string
+    val pp : Format.formatter -> t -> unit
   end
 
 module VarID :
@@ -50,7 +50,7 @@ module MakeSAT(User : USER) =
     let log_debug fmt =
       let do_print msg =
         print_endline ("sat: " ^ msg) in
-      Printf.ksprintf do_print fmt
+      Format.kasprintf do_print fmt
 
     type sign = Pos | Neg
 
@@ -68,7 +68,7 @@ module MakeSAT(User : USER) =
         calc_reason_for : lit -> lit list;
 
         (* For debugging *)
-        to_string : string;
+        pp : Format.formatter -> unit;
       >
 
     (** The reason why a literal is set. *)
@@ -138,9 +138,9 @@ module MakeSAT(User : USER) =
       mutable set_to_false : bool;     (* we are finishing up by setting everything else to False *)
     }
 
-    let string_of_reason = function
-      | Clause clause -> clause#to_string
-      | External msg -> msg
+    let pp_reason f = function
+      | Clause clause -> clause#pp f
+      | External msg -> Format.pp_print_string f msg
 
     let neg = function
       | (Pos, var) -> (Neg, var)
@@ -196,14 +196,16 @@ module MakeSAT(User : USER) =
       }
 
     (* For nicer log_debug messages *)
-    let name_lit (sign, var) =
-      let name = User.to_string var.obj in
+    let name_lit f (sign, var) =
       match sign with
-      | Pos -> name
-      | Neg -> Printf.sprintf "not(%s)" name
+      | Pos -> User.pp f var.obj
+      | Neg -> Format.fprintf f "not(%a)" User.pp var.obj
 
-    let string_of_lits lits =
-      "[" ^ (String.concat ", " (List.map name_lit lits)) ^ "]"
+    let pp_comma_sep f () = Format.pp_print_string f ", "
+
+    let pp_lits f lits =
+      Format.fprintf f "[%a]"
+        (Format.pp_print_list ~pp_sep:pp_comma_sep name_lit) lits
 
     let lit_value (sign, var) =
       match sign with
@@ -217,24 +219,27 @@ module MakeSAT(User : USER) =
     let get_user_data_for_lit lit =
       (var_of_lit lit).obj
 
+    let pp_lit_assignment f l =
+      let info = var_of_lit l in
+      Format.fprintf f "%a=%s"
+        User.pp info.obj
+        (string_of_value info.value)
+
+    let pp_lit_reason f lit =
+      match (var_of_lit lit).reason with
+      | None -> Format.pp_print_string f "no reason (BUG)"
+      | Some (External reason) -> Format.pp_print_string f reason
+      | Some (Clause c) ->
+          let reason = c#calc_reason_for lit in
+          let pp_sep f () = Format.pp_print_string f " && " in
+          Format.pp_print_list ~pp_sep pp_lit_assignment f reason
+
     (* Why is [lit] assigned the way it is? For debugging. *)
     let explain_reason lit =
-      let show_lit_assignment l =
-        let info = var_of_lit l in
-        (User.to_string info.obj) ^ "=" ^ (string_of_value info.value) in
       let value = lit_value lit in
       if value = Undecided then "undecided!"
       else (
-        let info = var_of_lit lit in
-        let reason =
-          match info.reason with
-          | None -> "no reason (BUG)"
-          | Some (External reason) -> reason
-          | Some (Clause c) ->
-              let reason = c#calc_reason_for lit in
-              String.concat " && " (List.map show_lit_assignment reason)
-        in
-        Printf.sprintf "%s => %s" reason (show_lit_assignment lit)
+        Format.asprintf "%a => %a" pp_lit_reason lit pp_lit_assignment lit
       )
 
     let get_decision_level problem = List.length problem.trail_lim
@@ -250,7 +255,7 @@ module MakeSAT(User : USER) =
        [reason] is the clause that is asserting this.
        @return [false] if this immediately causes a conflict. *)
     let enqueue problem lit reason =
-      if debug then log_debug "enqueue: %s (%s)" (name_lit lit) (string_of_reason reason);
+      if debug then log_debug "enqueue: %a (%a)" name_lit lit pp_reason reason;
       let old_value = lit_value lit in
       match old_value with
       | False -> false      (* Conflict *)
@@ -408,8 +413,10 @@ module MakeSAT(User : USER) =
             ) in
           get_cause 0
 
-        method to_string =
-          Printf.sprintf "<some: %s>" (String.concat ", " (Array.to_list (Array.map name_lit lits)))
+        method pp f =
+          let pp_sep f () = Format.pp_print_string f ", " in
+          Format.fprintf f "<some: %a>"
+            (Format.pp_print_list ~pp_sep name_lit) (Array.to_list lits)
       end
 
     exception Conflict
@@ -444,7 +451,7 @@ module MakeSAT(User : USER) =
 
           (* If we later backtrack, unset current *)
           let undo lit =
-            if debug then log_debug "(backtracking: no longer selected %s)" (name_lit lit);
+            if debug then log_debug "(backtracking: no longer selected %a)" name_lit lit;
             begin match !current with
             | Some l -> assert (lit_equal lit l)
             | None -> assert false end;
@@ -459,13 +466,13 @@ module MakeSAT(User : USER) =
               | True when not (lit_equal l lit) ->
                   (* Due to queuing, we might get called with current = None
                      and two versions already selected. *)
-                  if debug then log_debug "CONFLICT: already selected %s" (name_lit l);
+                  if debug then log_debug "CONFLICT: already selected %a" name_lit l;
                   raise Conflict
               | Undecided ->
                 (* Since one of our lits is already true, all unknown ones
                    can be set to False. *)
                 if not (enqueue problem (neg l) (Clause (self :> clause))) then (
-                  if debug then log_debug "CONFLICT: enqueue failed for %s" (name_lit (neg l));
+                  if debug then log_debug "CONFLICT: enqueue failed for %a" name_lit (neg l);
                   raise Conflict    (* Can't happen, since we already checked we're Undecided *)
                 )
               | _ -> ()
@@ -499,14 +506,12 @@ module MakeSAT(User : USER) =
         method get_selected =
           !current
 
-        method to_string =
-          Printf.sprintf "<at most one: %s>" (string_of_lits lits)
+        method pp f =
+          Format.fprintf f "<at most one: %a>" pp_lits lits
       end
 
     let get_best_undecided clause = clause#best_undecided
     let get_selected clause = clause#get_selected
-
-    let string_of_clause clause = clause#to_string
 
     (* Returns the new clause if one was added, [AddedFact true] if none was added
        because this clause is trivially True, or [AddedFact false] if the clause
@@ -608,7 +613,7 @@ module MakeSAT(User : USER) =
 
       clause
 
-    let analyse problem original_cause =
+    let analyse problem (original_cause : clause) =
       (* After trying some assignments, we've discovered a conflict.
          e.g.
          - we selected A then B then C
@@ -661,7 +666,10 @@ module MakeSAT(User : USER) =
          causes back, adding anything decided before this level to [learnt]. When
          we get bored, return the literal we were processing at the time. *)
       let rec follow_causes p_reason outcome =
-        if debug then log_debug "because %s => %s" (String.concat " and " (List.map name_lit p_reason)) outcome;
+        if debug then (
+          let pp_sep f () = Format.pp_print_string f " and " in
+          log_debug "because %a => %s" (Format.pp_print_list ~pp_sep name_lit) p_reason outcome
+        );
 
         (* p_reason is in the form (A and B and ...) *)
 
@@ -733,8 +741,8 @@ module MakeSAT(User : USER) =
           | Some (External msg) -> failwith msg   (* Can't happen *)
           | None -> failwith "No reason!" in      (* Can't happen *)
           let p_reason = cause#calc_reason_for p in
-          let outcome = name_lit p in
-          if debug then log_debug "why did %s lead to %s?" cause#to_string outcome;
+          let outcome = Format.asprintf "%a" name_lit p in
+          if debug then log_debug "why did %t lead to %s?" cause#pp outcome;
           follow_causes p_reason outcome
         ) else (
           (* If counter = 0 then we still have one more
@@ -746,7 +754,7 @@ module MakeSAT(User : USER) =
         ) in
 
       (* Start with all the literals involved in the conflict. *)
-      if debug then log_debug "why did %s lead to conflict?" original_cause#to_string;
+      if debug then log_debug "why did %t lead to conflict?" original_cause#pp;
       let p = follow_causes original_cause#calc_reason "conflict" in
       assert (!counter = 0);
 
@@ -756,7 +764,10 @@ module MakeSAT(User : USER) =
          directly to the learnt clause. *)
       let learnt = neg p :: !learnt in
 
-      if debug then log_debug "learnt: %s" (String.concat " or " (List.map name_lit learnt));
+      if debug then (
+        let pp_sep f () = Format.pp_print_string f " or " in
+        log_debug "learnt: %a" (Format.pp_print_list ~pp_sep name_lit) learnt
+      );
 
       (learnt, !btlevel)
 
@@ -805,10 +816,12 @@ module MakeSAT(User : USER) =
                         (* Printf.printf "%s -> false\n" (name_lit undecided); *)
                         (Neg, undecided)
                   ) in
-                if debug then log_debug "TRYING: %s" (name_lit lit);
+                if debug then log_debug "TRYING: %a" name_lit lit;
                 let old = lit_value lit in
                 if old <> Undecided then
-                  failwith ("Decider chose already-decided variable: " ^ (name_lit lit) ^ " was " ^ (string_of_value old));
+                  failwith (Format.asprintf "Decider chose already-decided variable: %a was %s"
+                              name_lit lit
+                              (string_of_value old));
                 problem.trail_lim <- List.length problem.trail :: problem.trail_lim;
                 let r = enqueue problem lit (External "considering") in
                 assert r

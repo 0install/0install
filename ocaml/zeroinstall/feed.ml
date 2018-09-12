@@ -89,7 +89,7 @@ let create_impl system ~local_dir state node =
 
   let (os, machine) =
     try Arch.parse_arch @@ default "*-*" @@ AttrMap.get_no_ns "arch" !s.attrs
-    with Safe_exception _ as ex -> reraise_with_context ex "... processing %s" (Element.show_with_loc node) in
+    with Safe_exception _ as ex -> reraise_with_context ex "... processing %a" Element.pp node in
 
   let stability =
     match AttrMap.get_no_ns FeedAttr.stability !s.attrs with

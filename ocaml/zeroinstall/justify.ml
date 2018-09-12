@@ -80,7 +80,7 @@ let justify_preference test_sels wanted q_role wanted_id ~old_sels candidates =
   let changes = ref [] in
   let add fmt =
     let do_add msg = changes := msg :: !changes in
-    Printf.ksprintf do_add fmt in
+    Format.kasprintf do_add fmt in
 
   old_sels |> Selections.iter (fun old_role old_sel ->
     if Selections.Role.compare old_role q_role <> 0 || not used_impl then (
@@ -89,15 +89,15 @@ let justify_preference test_sels wanted q_role wanted_id ~old_sels candidates =
           let old_version = Element.version old_sel in
           let new_version = Element.version new_sel in
           if old_version <> new_version then
-            add "%s: %s to %s" (Selections.Role.to_string old_role) old_version new_version
+            add "%a: %s to %s" Selections.Role.pp old_role old_version new_version
           else (
             let old_id = Element.id old_sel in
             let new_id = Element.id new_sel in
             if old_id <> new_id then
-              add "%s: %s to %s" (Selections.Role.to_string old_role) old_id new_id
+              add "%a: %s to %s" Selections.Role.pp old_role old_id new_id
           )
       | None ->
-          add "%s: no longer used" (Selections.Role.to_string old_role)
+          add "%a: no longer used" Selections.Role.pp old_role
     )
   );
 

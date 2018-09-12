@@ -19,11 +19,11 @@ let show_changes (system:system) old_selections new_selections =
   |> if_some (Selections.iter (fun role old_sel ->
     match Selections.get_selected role new_selections with
     | None ->
-        print "No longer used: %s" (Selections.Role.to_string role);
+        print "No longer used: %a" Selections.Role.pp role;
         changes := true
     | Some new_sel ->
         if (v old_sel) <> (v new_sel) then (
-          print "%s: %s -> %s" (Selections.Role.to_string role) (v old_sel) (v new_sel);
+          print "%a: %s -> %s" Selections.Role.pp role (v old_sel) (v new_sel);
           changes := true
         )
   ));
@@ -31,7 +31,7 @@ let show_changes (system:system) old_selections new_selections =
   new_selections |> Selections.iter (fun role new_sel ->
     let old_sel = old_selections |> pipe_some (Selections.get_selected role) in
     if old_sel = None then (
-      print "%s: new -> %s" (Selections.Role.to_string role) (v new_sel);
+      print "%a: new -> %s" Selections.Role.pp role (v new_sel);
       changes := true
     )
   );

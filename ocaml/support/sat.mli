@@ -7,7 +7,7 @@
 module type USER =
   sig
     type t
-    val to_string : t -> string
+    val pp : Format.formatter -> t -> unit
   end
 
 module MakeSAT :
@@ -74,11 +74,6 @@ module MakeSAT :
 
       type reason = Clause of clause | External of string
 
-      val string_of_clause : clause -> string
-      val string_of_reason : reason -> string
-      val string_of_value : var_value -> string
-      val name_lit : lit -> string
-      val string_of_lits : lit list -> string
       val lit_value : lit -> var_value
       val get_user_data_for_lit : lit -> User.t
       val explain_reason : lit -> string

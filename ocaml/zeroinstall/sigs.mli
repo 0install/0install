@@ -25,7 +25,7 @@ module type CORE_MODEL = sig
      * If two dependencies require the same role then they will both
      * get the same implementation. *)
     type t
-    val to_string : t -> string
+    val pp : Format.formatter -> t -> unit
     val compare : t -> t -> int
   end
 
@@ -95,8 +95,8 @@ module type SOLVER_INPUT = sig
   (** A restriction limits which implementations can fill a role. *)
   type restriction
 
-  val impl_to_string : impl -> string
-  val command_to_string : command -> string
+  val pp_impl : Format.formatter -> impl -> unit
+  val pp_command : Format.formatter -> command -> unit
 
   (** The list of candidates to fill a role. *)
   val implementations : Role.t -> role_information

@@ -11,7 +11,7 @@ module U = Support.Utils
 module Make (Model : Sigs.SOLVER_RESULT) = struct
   module RoleMap = Model.RoleMap
 
-  let format_role f role = Format.pp_print_string f (Model.Role.to_string role)
+  let format_role = Model.Role.pp
 
   let spf = Format.asprintf
 

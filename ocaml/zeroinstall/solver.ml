@@ -27,9 +27,9 @@ module CoreModel = struct
      * This allows e.g. using an old version of a compiler to compile the source for the
      * new version (which requires selecting two different versions of the same interface). *)
     type t = role
-    let to_string = function
-      | {iface; source = false; _} -> iface
-      | {iface; source = true; _} -> iface ^ "#source"
+    let pp f = function
+      | {iface; source = false; _} -> Format.pp_print_string f iface
+      | {iface; source = true; _} -> Format.fprintf f "%s#source" iface
 
     (* Sort the interfaces by URI so we have a stable output. *)
     let compare role_a role_b =
@@ -57,9 +57,9 @@ module CoreModel = struct
     command : command_name option;
   }
 
-  let impl_to_string impl = Format.asprintf "%a-%a" Version.pp impl.Impl.parsed_version Impl.pp impl
+  let pp_impl f impl = Format.fprintf f "%a-%a" Version.pp impl.Impl.parsed_version Impl.pp impl
   let id_of_impl impl = Impl.get_attr_ex FeedAttr.id impl
-  let command_to_string command = Element.show_with_loc command.Impl.command_qdom
+  let pp_command f command = Element.pp f command.Impl.command_qdom
   let describe_problem = Impl_provider.describe_problem
 
   let compare_version a b = compare a.Impl.parsed_version b.Impl.parsed_version

@@ -25,9 +25,9 @@ type role = {
 module Role = struct
   type t = role
 
-  let to_string = function
-    | {iface; source = false} -> iface
-    | {iface; source = true} -> iface ^ "#source"
+  let pp f = function
+    | {iface; source = false} -> Format.pp_print_string f iface
+    | {iface; source = true} -> Format.fprintf f "%s#source" iface
 
   (* Sort the interfaces by URI so we have a stable output. *)
   let compare role_a role_b =
@@ -99,7 +99,7 @@ let get_selected role sels = RoleMap.find role sels.index
 
 let get_selected_ex role sels =
   get_selected role sels
-  |? lazy (raise_safe "Role '%s' not found in selections!" (Role.to_string role))
+  |? lazy (raise_safe "Role '%a' not found in selections!" Role.pp role)
 
 let root_role sels =
   let iface = root_iface sels in
@@ -112,7 +112,7 @@ let root_role sels =
 
 let root_sel sels =
   let role = root_role sels in
-  get_selected role sels |? lazy (raise_safe "Can't find a selection for the root (%s)!" (Role.to_string role))
+  get_selected role sels |? lazy (raise_safe "Can't find a selection for the root (%a)!" Role.pp role)
 
 let requirements sels = {role = root_role sels; command = root_command sels}
 
@@ -179,7 +179,7 @@ let collect_bindings t =
 
   t |> iter (fun role node ->
     try process_impl role node
-    with Safe_exception _ as ex -> reraise_with_context ex "... getting bindings from selection %s" (Role.to_string role)
+    with Safe_exception _ as ex -> reraise_with_context ex "... getting bindings from selection %a" Role.pp role
   );
   List.rev !bindings
 

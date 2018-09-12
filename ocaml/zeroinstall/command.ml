@@ -55,7 +55,7 @@ let get_args elem env =
 
 let find_ex role impls =
   Selections.RoleMap.find role impls
-  |? lazy (raise_safe "Missing a selection for role '%s'" (Selections.Role.to_string role))
+  |? lazy (raise_safe "Missing a selection for role '%a'" Selections.Role.pp role)
 
 (* [command_rel_path command] is the "path" attribute on the <command> element, if any.
    If [main] is given, this overrides the path. *)
@@ -116,4 +116,4 @@ let rec build_command ?main ?(dry_run=false) impls req env : string list =
       let runner_role = {Selections.iface = Element.interface runner; source = false} in
       let runner_req = {Selections.command = Some runner_command_name; role = runner_role} in
       build_command ~dry_run impls runner_req env @ runner_args @ args
-  with Safe_exception _ as ex -> reraise_with_context ex "... building command for %s" (Selections.(Role.to_string role))
+  with Safe_exception _ as ex -> reraise_with_context ex "... building command for %a" Selections.Role.pp role

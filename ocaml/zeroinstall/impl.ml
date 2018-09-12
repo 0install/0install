@@ -282,4 +282,4 @@ let get_id impl =
   let feed_url = get_attr_ex FeedAttr.from_feed impl in
   Feed_url.({feed = Feed_url.parse feed_url; id = get_attr_ex FeedAttr.id impl})
 
-let pp f impl = Format.pp_print_string f (Element.show_with_loc impl.qdom)
+let pp f impl = Element.pp f impl.qdom

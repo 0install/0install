@@ -271,11 +271,11 @@ let get_bug_report_details config ~role (ready, results) =
   let b = Buffer.create 1000 in
   let add fmt =
     let do_add msg = Buffer.add_string b msg in
-    Printf.ksprintf do_add fmt in
+    Format.kasprintf do_add fmt in
 
-  add "Problem with %s\n" (Solver.Model.Role.to_string role);
+  add "Problem with %a\n" Solver.Model.Role.pp role;
   if role <> root_role then
-    add "  (while attempting to run %s)\n" (Solver.Model.Role.to_string root_role);
+    add "  (while attempting to run %a)\n" Solver.Model.Role.pp root_role;
   add "\n";
 
   add "0install version %s\n" About.version;

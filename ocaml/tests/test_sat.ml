@@ -13,7 +13,7 @@ module Q = Support.Qdom
 module StringData =
   struct
     type t = string
-    let to_string s = s
+    let pp = Format.pp_print_string
     let unused = "unused"
   end
 

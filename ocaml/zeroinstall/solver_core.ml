@@ -94,11 +94,11 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
         | CommandElem of Model.command
         | MachineGroup of string
         | Role of Model.Role.t
-      let to_string = function
-        | ImplElem impl -> Model.impl_to_string impl
-        | CommandElem command -> Model.command_to_string command
-        | MachineGroup name -> name
-        | Role role -> Model.Role.to_string role
+      let pp f = function
+        | ImplElem impl -> Model.pp_impl f impl
+        | CommandElem command -> Model.pp_command f command
+        | MachineGroup name -> Format.pp_print_string f name
+        | Role role -> Model.Role.pp f role
     end
 
   module S = Support.Sat.MakeSAT(SolverData)

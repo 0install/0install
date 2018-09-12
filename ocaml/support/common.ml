@@ -134,7 +134,7 @@ let reraise_with_context ex fmt =
     | _ -> Printf.eprintf "warning: Attempt to add note '%s' to non-Safe_exception!" context
     in
     raise ex
-  in Printf.ksprintf do_raise fmt
+  in Format.kasprintf do_raise fmt
 
 (** [with_error_info note f] is [f ()], except that if it raises [Safe_exception] then
     we call [note writer] and add whatever is passed to writer to the context. *)
