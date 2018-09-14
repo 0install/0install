@@ -153,13 +153,6 @@ let () =
         failwith "ocurl is too old - need 0.7.1 or later"
     end;
 
-    let have_sha = get_info "sha" <> None in
-
-    if not have_sha then (
-      flag ["compile"] (S [A"-package"; A"ssl"]);
-      flag ["link"] (S [A"-package"; A"ssl"]);
-    );
-
     begin match gtk_dir with
       | None -> ()
       | Some gtk_dir ->
@@ -179,16 +172,6 @@ let () =
             flag ["library"; "shared"; "native"; "link_gtk"] (S [A"-thread"; A (gtk_dir / "lablgtk.cmxa"); A (lwt_dir / "lwt_glib.cmxa")]);
             flag ["library"; "byte"; "link_gtk"] (S [A"-thread"; A (gtk_dir / "lablgtk.cma"); A (lwt_dir / "lwt_glib.cma")]);
     end;
-
-    if have_sha then (
-      (* Use "sha" package instead of libcrypto *)
-      flag ["cppo"] (S [A "-D"; A "HAVE_SHA"]);
-      flag ["compile"; "link_crypto"] (S [A"-ccopt"; A"-DHAVE_SHA"]);
-      flag ["compile"; "ocaml"] (S [A"-package"; A"sha"]);
-      flag ["link"] (S [A"-package"; A"sha"]);
-    ) else (
-      print_endline "sha (ocaml-sha) not found; using OpenSSL instead"
-    );
 
     if on_windows then
       flag ["cppo"] (S [A "-D"; A "WINDOWS"]);

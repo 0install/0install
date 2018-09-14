@@ -17,8 +17,6 @@ class type digest_context =
     method to_bin : string
   end
 
-#ifdef HAVE_SHA
-
 (* Implementation using the "sha" package *)
 
 module type DIGEST =
@@ -44,34 +42,6 @@ let create = function
   | "sha1" -> make_context (module Sha1)
   | "sha256" -> make_context (module Sha256)
   | x -> raise_safe "Unknown digest type '%s'" x
-
-#else
-
-(* Implementation using openssl *)
-
-type evp_context
-external evp_md_ctx_init : string -> evp_context = "ocaml_EVP_MD_CTX_init"
-external evp_digest_update : evp_context -> string -> unit = "ocaml_DigestUpdate"
-external evp_digest_final_ex : evp_context -> string = "ocaml_DigestFinal_ex"
-
-let hex_chars = "0123456789abcdef"
-
-let create alg =
-  let ctx = evp_md_ctx_init alg in
-  object
-    method update = evp_digest_update ctx
-    method to_bin = evp_digest_final_ex ctx
-    method to_hex =
-      let raw_digest = evp_digest_final_ex ctx in
-      let str_digest = Bytes.create (String.length raw_digest * 2) in
-      for i = 0 to String.length raw_digest - 1 do
-        Bytes.set str_digest (i * 2) hex_chars.[(Char.code raw_digest.[i] land 0xf0) lsr 4];
-        Bytes.set str_digest (i * 2 + 1) hex_chars.[Char.code raw_digest.[i] land 0xf];
-      done;
-      Bytes.to_string str_digest
-  end
-
-#endif
 
 let hex_digest ctx = ctx#to_hex
 let update ctx = ctx#update
