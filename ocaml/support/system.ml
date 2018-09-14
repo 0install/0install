@@ -6,9 +6,10 @@ open Common
 
 module type UnixType = module type of Unix
 
-(** OCaml's Unix.utimes is broken (doesn't work for times in the interval [0,1), so use our own C function. *)
-(* Note: fixed in OCaml 4.03 *)
-external set_mtime : string -> float -> unit = "ocaml_set_mtime"
+let set_mtime path t =
+  (* Note: can't use 0.0 for the atime, as that will fail if [t = 0.0]. *)
+  Unix.utimes path (Unix.gettimeofday ()) t
+
 external uname : unit -> Platform.t = "ocaml_0install_uname"
 
 let wrap_unix_errors fn =
