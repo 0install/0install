@@ -22,9 +22,7 @@ type ctype = Add | Prefix
 let list_all_interfaces = Feed_cache.list_all_feeds (* (close enough) *)
 
 (** There is one subclass of this for each supported shell. *)
-class virtual completer command config =
-  let print_endline s = config.system#print_string (s ^ "\n") in
-
+class virtual completer ~print_endline command config =
   object (self)
     val config = config
 
@@ -185,9 +183,9 @@ let complete_arg config (completer:completer) pre = function
   | ["store"; "verify"] -> complete_digest completer pre ~value:true; completer#add_files pre
   | _ -> ()
 
-class bash_completer command config =
+class bash_completer ~print_endline command config =
   object (self : #completer)
-    inherit completer command config as super
+    inherit completer ~print_endline command config as super
 
     val mutable current = ""
 
@@ -235,9 +233,9 @@ class bash_completer command config =
       
   end
 
-class fish_completer command config =
+class fish_completer ~print_endline command config =
   object (self)
-    inherit completer command config as super
+    inherit completer ~print_endline command config as super
 
     val mutable response_prefix = ""
 
@@ -256,9 +254,9 @@ class fish_completer command config =
     method! add ctype value = super#add ctype (response_prefix ^ value)
   end
 
-class zsh_completer command config =
+class zsh_completer ~print_endline command config =
   object
-    inherit fish_completer command config as super
+    inherit fish_completer ~print_endline command config as super
 
     method !get_cword = super#get_cword - 1
   end
@@ -339,7 +337,7 @@ let get_possible_options args node =
   let _, node, _ = Command_tree.lookup node args in
   Command_tree.set_of_option_names node |> StringSet.elements
 
-let handle_complete config = function
+let handle_complete ~stdout config = function
   | (shell :: prog :: raw_args) -> (
       let command =
         let prog = Filename.basename prog in
@@ -347,10 +345,11 @@ let handle_complete config = function
         else if Support.Utils.starts_with prog "0store" then `Store
         else if Support.Utils.starts_with prog "0desktop" then `Desktop
         else `Install in
+      let print_endline s = Format.fprintf stdout "%s@." s in
       let completer = match shell with
-      | "bash" -> new bash_completer command config
-      | "fish" -> new fish_completer command config
-      | "zsh" -> new zsh_completer command config
+      | "bash" -> new bash_completer ~print_endline command config
+      | "fish" -> new fish_completer ~print_endline command config
+      | "zsh" -> new zsh_completer ~print_endline command config
       | x -> failwith @@ "Unsupported shell: " ^ x in
 
       let raw_args =

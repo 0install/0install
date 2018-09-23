@@ -16,7 +16,9 @@ let handle (CommandObj (help, handler, valid_options)) options raw_options comma
   try handler options flags args
   with Usage_error status ->
     let command = String.concat " " command_path in
-    Common_options.show_help options.Options.config.system valid_options (command ^ " [OPTIONS] " ^ (help |> default "")) ignore;
+    Common_options.show_help options.Options.config.system
+      valid_options (command ^ " [OPTIONS] " ^ (help |> default ""))
+      options.Options.stdout ignore;
     raise (System_exit status)
 
 let options (CommandObj (_, _, options)) = (options :> (Options.zi_option, _) opt_spec list)

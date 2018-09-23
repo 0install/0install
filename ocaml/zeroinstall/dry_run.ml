@@ -21,8 +21,6 @@ class dryrun_system (underlying:system) =
     (* Read-only operations: pass though *)
     method argv = underlying#argv
     method isatty = underlying#isatty
-    method print_string = underlying#print_string
-    method std_formatter = underlying#std_formatter
     method time = underlying#time
     method with_open_in = underlying#with_open_in
     method readdir = underlying#readdir

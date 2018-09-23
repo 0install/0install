@@ -79,6 +79,7 @@ type tools = <
 >
 
 type global_settings = {
+  stdout : Format.formatter;
   config : Zeroinstall.General.config;
   tools : tools;
   mutable verbosity : int;

@@ -23,7 +23,7 @@ let do_complete (system:fake_system) shell args cword =
   let cword = if shell = "zsh" then cword + 1 else cword in
   system#putenv "COMP_CWORD" @@ string_of_int cword;
   system#set_argv @@ Array.of_list ("0install" :: "_complete" :: shell :: "0install" :: args);
-  system#collect_output @@ fun () -> Main.start (system :> system)
+  Fake_system.collect_output @@ fun stdout -> Main.main ~stdout (system :> system)
 
 let suite =
   "completion">:: with_tmpdir (fun tmpdir ->

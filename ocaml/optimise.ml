@@ -124,15 +124,11 @@ let optimise system impl_dir =
   let msg = ref "" in
   let clear () =
     let blank = String.make (String.length !msg) ' ' in
-    system#print_string @@ "\r" ^ blank ^ "\r";
-    flush stdout in
-
+    Printf.printf "\r%s\r%!" blank
+  in
   dirs |> Array.iteri (fun i impl ->
     clear ();
-    let msg = Printf.sprintf "[%d / %d] Reading manifests..." i total in
-    system#print_string msg;
-    flush stdout;
-
+    Printf.printf "[%d / %d] Reading manifests...%!" i total;
     try optimise_impl system stats first_copy ~tmpfile impl_dir impl
     with Safe_exception (msg, _) -> clear (); log_warning "Skipping '%s': %s" impl msg
   );
@@ -159,7 +155,7 @@ let handle options flags args =
     raise_safe "Cache directory should be named 'implementations', not '%s' (in '%s')" impl_name cache_dir
   );
 
-  let print fmt = Support.Utils.print config.system fmt in
+  let print fmt = Format.fprintf options.stdout (fmt ^^ "@.") in
   print "Optimising %s" cache_dir;
 
   let {uniq_size; dup_size; already_linked; man_size} = optimise config.system cache_dir in

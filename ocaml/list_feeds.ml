@@ -18,12 +18,11 @@ let handle options flags args =
   | [iface] ->
       let iface = Generic_select.canonical_iface_uri options.config.system iface in
       let iface_config = FC.load_iface_config options.config iface in
-      let print_string = options.config.system#print_string in
       begin match iface_config.FC.extra_feeds with
-      | [] -> print_string "(no feeds)\n"
+      | [] -> Format.fprintf options.stdout "(no feeds)@."
       | extra_feeds ->
           extra_feeds |> List.iter (fun {F.feed_src; _} ->
-            print_string (Zeroinstall.Feed_url.format_url feed_src ^ "\n");
+            Format.fprintf options.stdout "%s@." (Zeroinstall.Feed_url.format_url feed_src);
           )
       end
   | _ -> raise (Support.Argparse.Usage_error 1)

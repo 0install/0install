@@ -19,7 +19,8 @@ let exec_man config ?env args =
   ) else config.system#exec ?env ~search_path:true args
 
 (** Exec the man command to show the man-page for this interface. Never returns. *)
-let find_and_exec_man config ?main ?fallback_name sels =
+let find_and_exec_man ~stdout config ?main ?fallback_name sels =
+  let printf f = Format.fprintf stdout f in
   let interface_uri = Zeroinstall.Selections.((root_role sels).iface) in
   let selected_impl = Zeroinstall.Selections.root_sel sels in
   let system = config.system in
@@ -87,10 +88,10 @@ let find_and_exec_man config ?main ?fallback_name sels =
             ) in
       walk impl_path;
 
-      system#print_string @@ Printf.sprintf "No matching manpage was found for '%s' (%s)\n" (default "(no fallback)" fallback_name) interface_uri;
+      printf "No matching manpage was found for '%s' (%s)@." (default "(no fallback)" fallback_name) interface_uri;
       if !manpages <> [] then (
-        system#print_string "These non-matching man-pages were found, however:\n";
-        List.iter (fun n -> system#print_string @@ n ^ "\n") !manpages;
+        printf "@[<v>These non-matching man-pages were found, however:@,%a@]@."
+          Format.(pp_print_list ~pp_sep:pp_print_cut pp_print_string) !manpages
       );
       raise (System_exit 1)
 
@@ -124,6 +125,6 @@ let handle options flags args =
                 | None -> raise_safe "App '%s' not installed!" app_name
                 | Some app ->
                     (Zeroinstall.Apps.get_selections_no_updates options.config.system app, None) in
-          find_and_exec_man options.config ?main ~fallback_name:arg sels
+          find_and_exec_man ~stdout:options.stdout options.config ?main ~fallback_name:arg sels
   )
   | _ -> exec_man config args

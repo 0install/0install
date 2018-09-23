@@ -239,7 +239,9 @@ let make_solver_test test_elem =
       (* Selections.as_xml actual_sels |> Q.reindent |> Q.to_utf8 |> print_endline; *)
       assert (ZI.tag (Selections.as_xml actual_sels) = Some "selections");
       if ready then (
-        let changed = Whatchanged.show_changes (fake_system :> system) (Some (Selections.create !expected_selections)) actual_sels in
+        let changed =
+          Fake_system.check_no_output @@ fun stdout ->
+          Whatchanged.show_changes stdout (Some (Selections.create !expected_selections)) actual_sels in
         if changed then
           let sels = Selections.as_xml actual_sels |> Q.reindent |> Q.to_utf8 in
           assert_failure (Printf.sprintf "Ready, but not as expected. Got:\n" ^ sels)

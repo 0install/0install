@@ -226,9 +226,9 @@ let pp_commands parents fmt commands =
     | _ -> Format.fprintf fmt "0install%s %s@," parents command
   )
 
-let show_group_help config parents group =
+let show_group_help config parents f group =
   let top_options = show_version_options @ common_options in
-  Common_options.show_help config.system top_options "COMMAND [OPTIONS]" (fun fmt ->
+  Common_options.show_help config.system top_options "COMMAND [OPTIONS]" f (fun fmt ->
     let parents = String.concat "" (List.map ((^) " ") parents) in
     Format.fprintf fmt "Try --help with one of these:@\n@\n@[<v2>  %a@]@."
       (pp_commands parents) group
@@ -241,7 +241,7 @@ let handle_no_command options flags args =
     | `Help -> exit_status := 0
     | #common_option as o -> Common_options.process_common_option options o
   );
-  show_group_help options.config [] commands;
+  show_group_help options.config [] options.stdout commands;
   raise (System_exit !exit_status)
 
 let no_command = (make_command_hidden handle_no_command @@ common_options @ show_version_options)
@@ -267,9 +267,10 @@ let make_tools config =
     method release = !pool |> if_some (fun pool -> pool#release)
   end
 
-let get_default_options config =
+let get_default_options ~stdout config =
   let options = {
     config;
+    stdout;
     verbosity = 0;
     tools = make_tools config;
   } in
@@ -278,12 +279,12 @@ let get_default_options config =
 let release_options options =
   options.tools#release
 
-let handle config raw_args =
+let handle ~stdout config raw_args =
   let (raw_options, args, complete) = read_args spec raw_args in
   assert (complete = CompleteNothing);
 
   Support.Utils.finally_do release_options
-    (get_default_options config)
+    (get_default_options ~stdout config)
     (fun options ->
       let command_path, subcommand, command_args =
         match args with
@@ -292,9 +293,9 @@ let handle config raw_args =
         | command_args -> lookup (make_group commands) command_args in
       match subcommand with
       | Group subgroup ->
-          show_group_help config command_path subgroup;
+          show_group_help config command_path options.stdout subgroup;
           raise (System_exit 1)
       | Command subcommand ->
           try Command_tree.handle subcommand options raw_options command_path command_args
-          with ShowVersion -> Common_options.show_version config.system
+          with ShowVersion -> Common_options.show_version options.stdout config.system
     )

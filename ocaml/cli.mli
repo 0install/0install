@@ -19,5 +19,5 @@ val store_commands : Command_tree.commands
 val no_command : Command_tree.node
 
 val spec : (Options.zi_option, Options.zi_arg_type) Support.Argparse.argparse_spec
-val get_default_options : Zeroinstall.General.config -> Options.global_settings
-val handle : Zeroinstall.General.config -> string list -> unit
+val get_default_options : stdout:Format.formatter -> Zeroinstall.General.config -> Options.global_settings
+val handle : stdout:Format.formatter -> Zeroinstall.General.config -> string list -> unit

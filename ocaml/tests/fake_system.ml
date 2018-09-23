@@ -142,6 +142,20 @@ let src_dir = Filename.dirname ocaml_dir
 let tests_dir = ocaml_dir +/ "tests"
 let test_0install = U.realpath real_system (build_dir +/ "0install")
 
+let collect_output fn =
+  let b = Buffer.create 100 in
+  let f = Format.formatter_of_buffer b in
+  fn f;
+  Buffer.contents b
+
+let check_no_output fn =
+  let b = Buffer.create 100 in
+  let f = Format.formatter_of_buffer b in
+  let r = fn f in
+  let out = Buffer.contents b in
+  if out = "" then r
+  else assert_failure (Printf.sprintf "Expected no output, but got %S" out)
+
 class fake_system ?(portable_base=true) tmpdir =
   let extra_files : dentry StringMap.t ref = ref StringMap.empty in
   let hidden_files = ref StringSet.empty in
@@ -188,27 +202,9 @@ class fake_system ?(portable_base=true) tmpdir =
   object (self : #system)
     val now = ref @@ 101. *. days
     val mutable env = StringMap.empty
-    val mutable stdout = None
     val mutable spawn_handler = None
     val mutable allow_spawn_detach = false
     val mutable device_boundary = None    (* Reject renames across here to simulate a mount *)
-
-    method collect_output (fn : unit -> unit) =
-      let old_stdout = stdout in
-      let b = Buffer.create 100 in
-      stdout <- Some b;
-      U.finally_do (fun () -> stdout <- old_stdout) () fn;
-      Buffer.contents b
-
-    method print_string s =
-      match stdout with
-      | None -> real_system#print_string s
-      | Some b -> Buffer.add_string b s
-
-    method std_formatter =
-      match stdout with
-      | None -> real_system#std_formatter
-      | Some b -> Format.formatter_of_buffer b
 
     val mutable argv = [| test_0install |]
 
@@ -314,7 +310,8 @@ class fake_system ?(portable_base=true) tmpdir =
         (* For testing, we run in-process to allow tests interceptors to work, etc. *)
         if List.hd argv <> test_0install then raise_safe "spawn_detach with %s (not %s)" (List.hd argv) test_0install;
         let config = Zeroinstall.Config.get_default_config (self :> system) test_0install in
-        Cli.handle config (List.tl argv)
+        let devnull = Format.formatter_of_buffer (Buffer.create 100) in
+        Cli.handle ~stdout:devnull config (List.tl argv)
       ) else raise (Would_spawn (search_path, env, argv))
 
     method create_process ?env args new_stdin new_stdout new_stderr =

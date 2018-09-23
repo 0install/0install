@@ -14,7 +14,10 @@ let assert_str_equal = Fake_system.assert_str_equal
 
 let get_sels config fake_system uri =
   fake_system#set_argv [| Test_0install.test_0install; "select"; "--xml"; uri|];
-  let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
+  let output = Fake_system.capture_stdout (fun () ->
+      let stdout = Format.std_formatter in
+      Main.main ~stdout config.system
+    ) in
   `String (0, output) |> Xmlm.make_input |> Q.parse_input None |> Selections.create
 
 let get_bindings sels =
@@ -39,7 +42,10 @@ let suite = "selections">::: [
     import "Source.xml";
     import "Compiler.xml";
     fake_system#set_argv [| Test_0install.test_0install; "select"; "--xml";  "--command=compile"; "--source"; "http://foo/Source.xml" |];
-    let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
+    let output = Fake_system.capture_stdout (fun () ->
+        let stdout = Format.std_formatter in
+        Main.main ~stdout config.system
+      ) in
     let old_sels = `String (0, output) |> Xmlm.make_input |> Q.parse_input None in
     let old_sels = {old_sels with
       Q.child_nodes = old_sels.Q.child_nodes |> List.map (fun sel ->
@@ -169,7 +175,10 @@ let suite = "selections">::: [
     let runnable = Test_0install.feed_dir +/ "runnable" +/ "Runnable.xml" in
 
     fake_system#set_argv [| Test_0install.test_0install; "download"; "--offline"; "--xml"; runexec|];
-    let output = Fake_system.capture_stdout (fun () -> Main.main config.system) in
+    let output = Fake_system.capture_stdout (fun () ->
+        let stdout = Format.std_formatter in
+        Main.main ~stdout config.system
+      ) in
     let s3 = `String (0, output) |> Xmlm.make_input |> Q.parse_input None |> Selections.create in
 
     let runnable_impl = Selections.get_selected_ex (binary runnable) s3 in

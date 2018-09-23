@@ -82,8 +82,10 @@ let as_list flags =
 let test_option_parsing () =
   Support.Logging.threshold := Support.Logging.Warning;
 
-  let config, fake_system = get_fake_config None in
+  let config, _fake_system = get_fake_config None in
   let open Options in
+
+  let stdout = Buffer.create 100 in
 
   let p_full raw_args =
     let (raw_options, args, complete) = Support.Argparse.read_args Cli.spec raw_args in
@@ -95,7 +97,7 @@ let test_option_parsing () =
     | Command_tree.Group _ -> assert false
     | Command_tree.Command subcommand ->
     let flags = Support.Argparse.parse_options (Command_tree.options subcommand) raw_options in
-    let options = Cli.get_default_options config in
+    let options = Cli.get_default_options ~stdout:(Format.formatter_of_buffer stdout) config in
     let process = function
       | #common_option as flag -> Common_options.process_common_option options flag
       | _ -> () in
@@ -133,11 +135,13 @@ let test_option_parsing () =
   with Safe_exception ("Error!", ctx) ->
     assert_str_equal "... processing option '-w'" (List.hd !ctx) end;
 
-  let v = fake_system#collect_output (fun () -> (
+  Buffer.reset stdout;
+  begin
     try ignore @@ p ["-c"; "--version"]; assert false;
     with System_exit 0 -> ()
-  ))
-  in assert (Str.string_match (Str.regexp_string "0install (zero-install)") v 0);
+  end;
+  let v = Buffer.contents stdout in
+  assert (Str.string_match (Str.regexp_string "0install (zero-install)") v 0);
 
   let _, flags, args = p_full ["--version"; "1.2"; "run"; "foo"] in
   equal_str_lists ["run"; "foo"] args;
@@ -168,7 +172,9 @@ let test_run_fake tmpdir =
     else "tests/test_selections.xml"
   ) in
   fake_system#add_file sels_path sels_path;
-  try Cli.handle config ["run"; sels_path; "--"; "--arg"]; assert false
+  try
+    Fake_system.check_no_output @@ fun stdout ->
+    Cli.handle ~stdout config ["run"; sels_path; "--"; "--arg"]; assert false
   with Fake_system.Would_exec (search, _env, args) ->
     assert (not search);
     if on_windows then equal_str_lists ["c:\\cygwin\\bin\\env.exe"; "my-prog"; "Hello World"; "--"; "--arg"] args

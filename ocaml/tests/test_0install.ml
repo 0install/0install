@@ -94,8 +94,9 @@ let run_0install ?stdin ?(binary=test_0install) ?(include_stderr=false) fake_sys
     Fake_system.fake_log#reset;
     fake_system#set_argv @@ Array.of_list (binary :: args);
     Fake_system.capture_stdout ~include_stderr (fun () ->
-      try Main.main (fake_system : Fake_system.fake_system :> system); assert (exit = 0)
-      with System_exit n -> assert_equal ~msg:"exit code" n exit
+        let stdout = Format.std_formatter in
+        try Main.main ~stdout (fake_system : Fake_system.fake_system :> system); assert (exit = 0)
+        with System_exit n -> assert_equal ~msg:"exit code" n exit
     )
   ) in
   match stdin with
@@ -130,13 +131,13 @@ let suite = "0install">::: [
 
     (* In --offline mode we select from the cached feed *)
     fake_system#set_argv [| test_0install; "-o"; "select"; "http://example.com:8000/Hello.xml" |];
-    let output = fake_system#collect_output (fun () -> Main.main system) in
+    let output = Fake_system.collect_output (fun stdout -> Main.main ~stdout system) in
     assert (U.starts_with output "- URI: http://example.com:8000/Hello.xml");
 
     (* In online mode, we spawn a background process because we don't have a last-checked timestamp *)
     fake_system#set_argv [| test_0install; "select"; "http://example.com:8000/Hello.xml" |];
     let () =
-      try failwith @@ fake_system#collect_output (fun () -> Main.main system)
+      try failwith @@ Fake_system.collect_output (fun stdout -> Main.main ~stdout system)
       with Fake_system.Would_spawn (_, _, args) ->
         Fake_system.equal_str_lists
          ["select"; "--refresh"; "--console"; "-v"; "--command"; "run"; "http://example.com:8000/Hello.xml"]
@@ -144,7 +145,7 @@ let suite = "0install">::: [
 
     (* Download succeeds (does nothing, as it's already cached *)
     fake_system#set_argv [| test_0install; "-o"; "download"; "http://example.com:8000/Hello.xml" |];
-    let output = fake_system#collect_output (fun () -> Main.main system) in
+    let output = Fake_system.collect_output (fun stdout -> Main.main ~stdout system) in
     assert_str_equal "" output;
 
     (* Use --console --offline --refresh to force us to use the Python *)
@@ -153,7 +154,7 @@ let suite = "0install">::: [
     fake_system#set_spawn_handler (Some my_spawn_handler);
     fake_system#set_argv [| test_0install; "-cor"; "download"; "http://example.com:8000/Hello.xml"; "--version"; "2" |];
     let () =
-      try Main.main system; assert false
+      try Fake_system.check_no_output (fun stdout -> Main.main ~stdout system); assert false
       with Safe_exception (msg, _) ->
         assert_str_equal (
           "Can't find all required implementations:\n" ^
@@ -172,8 +173,8 @@ let suite = "0install">::: [
 
     let run ?(exit=0) args =
       fake_system#set_argv @@ Array.of_list (test_0install :: "--console" :: args);
-      fake_system#collect_output (fun () ->
-        try Main.main system; assert (exit = 0)
+      Fake_system.collect_output (fun stdout ->
+        try Main.main ~stdout system; assert (exit = 0)
         with System_exit n -> assert_equal ~msg:"exit code" n exit
       ) in
 
@@ -582,8 +583,8 @@ let suite = "0install">::: [
     let binary_iface = "http://foo/Binary.xml" in
     let run ?(exit=0) args =
       fake_system#set_argv @@ Array.of_list (test_0install :: "--console" :: args);
-      fake_system#collect_output (fun () ->
-        try Main.main config.system; assert (exit = 0)
+      Fake_system.collect_output (fun stdout ->
+        try Main.main ~stdout config.system; assert (exit = 0)
         with System_exit n -> assert_equal ~msg:"exit code" n exit
       ) in
 

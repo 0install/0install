@@ -37,11 +37,10 @@ let with_config system prog fn =
     let config = Zeroinstall.Config.get_default_config system prog in
     fn {config with dry_run = true}
 
-let main (system:system) : unit =
+let main ~stdout (system:system) : unit =
   begin match system#getenv "ZEROINSTALL_CRASH_LOGS" with
   | Some dir when dir <> "" -> Support.Logging.set_crash_logs_handler (crash_handler system dir)
   | _ -> () end;
-
   match Array.to_list system#argv with
   | [] -> assert false
   | prog :: args ->
@@ -49,28 +48,28 @@ let main (system:system) : unit =
       match String.lowercase_ascii @@ Filename.basename prog with
       | "0launch" | "0launch.exe" ->
           begin match args with
-          | "_complete" :: args -> Completion.handle_complete config args
-          | args -> Cli.handle config ("run" :: args) end
+          | "_complete" :: args -> Completion.handle_complete ~stdout config args
+          | args -> Cli.handle ~stdout config ("run" :: args) end
       | "0store" | "0store.exe" -> begin
           match args with
-          | "_complete" :: args -> Completion.handle_complete config args
-          | args -> Cli.handle config ("store" :: args) end
+          | "_complete" :: args -> Completion.handle_complete ~stdout config args
+          | args -> Cli.handle ~stdout config ("store" :: args) end
       | "0install" | "0install.exe" -> begin
           match args with
-          | "_complete" :: args -> Completion.handle_complete config args
+          | "_complete" :: args -> Completion.handle_complete ~stdout config args
           | "runenv" :: runenv_args -> Runenv_shared.runenv system runenv_args
-          | raw_args -> Cli.handle config raw_args end
+          | raw_args -> Cli.handle ~stdout config raw_args end
       | "0desktop" | "0desktop.exe" -> begin
           match args with
-          | "_complete" :: args -> Completion.handle_complete config args
-          | args -> Cli.handle config ("_desktop" :: args) end
+          | "_complete" :: args -> Completion.handle_complete ~stdout config args
+          | args -> Cli.handle ~stdout config ("_desktop" :: args) end
       | "0alias" | "0alias.exe" ->
-          Cli.handle config ("_alias" :: args)
+          Cli.handle ~stdout config ("_alias" :: args)
       | "0store-secure-add" -> Secureadd.handle config args
       | name -> raise_safe "Unknown command '%s': must be invoked as '0install' or '0launch'" name
 
 let start system =
-  Support.Utils.handle_exceptions main system
+  Support.Utils.handle_exceptions (main ~stdout:Format.std_formatter) system
 
 let start_if_not_windows system =
   if Sys.os_type <> "Win32" then (

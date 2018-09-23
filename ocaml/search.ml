@@ -39,7 +39,7 @@ let handle options flags args =
 
             Msg.check_tag "results" root;
 
-            let print fmt = Support.Utils.print config.system fmt in
+            let print fmt = Format.fprintf options.stdout (fmt ^^ "@.") in
 
             let first = ref true in
             root |> Msg.iter ~name:"result" (fun child ->

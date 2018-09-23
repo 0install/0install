@@ -18,10 +18,9 @@ let handle options flags args =
   );
   match args with
   | [feed_url] ->
-      let print fmt = Support.Utils.print config.system fmt in
-      print "Feed '%s':" feed_url;
+      Format.fprintf options.stdout "Feed '%s':@." feed_url;
       let user_import = G.canonical_feed_url config.system feed_url in
-      Add_feed.edit_feeds_interactive config `Remove user_import
+      Add_feed.edit_feeds_interactive ~stdout:options.stdout config `Remove user_import
   | [iface; feed_src] ->
       let iface = G.canonical_iface_uri config.system iface in
       let feed_src = G.canonical_feed_url config.system feed_src in

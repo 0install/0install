@@ -10,10 +10,10 @@ open Support.Common
 module U = Support.Utils
 module Selections = Zeroinstall.Selections
 
-let show_changes (system:system) old_selections new_selections =
+let show_changes f old_selections new_selections =
   let changes = ref false in
   let v sel = Zeroinstall.Element.version sel in
-  let print fmt = Support.Utils.print system fmt in
+  let print fmt = Format.fprintf f (fmt ^^ "@.") in
 
   old_selections
   |> if_some (Selections.iter (fun role old_sel ->
@@ -42,7 +42,7 @@ let show_app_changes options ~full app =
   let module A = Zeroinstall.Apps in
   let config = options.config in
   let system = config.system in
-  let print fmt = U.print system fmt in
+  let print fmt = Format.fprintf options.stdout (fmt ^^ "@.") in
 
   match A.get_history config app with
   | [] -> raise_safe "Invalid application: no selections found! Try '0install destroy %s'" (Filename.basename app)
@@ -79,7 +79,7 @@ let show_app_changes options ~full app =
             | x -> Support.System.check_exit_status x
           ) else (
             let old_sels = Zeroinstall.Selections.load_selections system @@ get_selections_path previous in
-            let changes = show_changes system (Some old_sels) current_sels in
+            let changes = show_changes options.stdout (Some old_sels) current_sels in
             if not changes then
               print "No changes to versions (use --full to see all changes)."
           );

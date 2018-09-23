@@ -211,7 +211,8 @@ let suite = "fetch">::: [
     ];
     let xml =
       Fake_system.capture_stdout (fun () ->
-        Main.main config.system
+          let stdout = Format.std_formatter in
+          Main.main ~stdout config.system
       ) in
 
     let sels = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None |> Zeroinstall.Selections.create in

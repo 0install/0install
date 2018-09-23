@@ -13,8 +13,8 @@ module F = Zeroinstall.Feed
 module G = Generic_select
 module FC = Zeroinstall.Feed_cache
 
-let edit_feeds config iface mode new_import =
-  let print fmt = Support.Utils.print config.system fmt in
+let edit_feeds f config iface mode new_import =
+  let print fmt = Format.fprintf f (fmt ^^ "@.") in
   let iface_config = FC.load_iface_config config iface in
   let extra_feeds =
     match mode with
@@ -29,9 +29,9 @@ let edit_feeds config iface mode new_import =
   else
     print "(no feeds)"
 
-let edit_feeds_interactive config (mode:[`Add | `Remove]) feed_url =
+let edit_feeds_interactive ~stdout config (mode:[`Add | `Remove]) feed_url =
   let (`Remote_feed url | `Local_feed url) = feed_url in
-  let print fmt = Support.Utils.print config.system fmt in
+  let print f = Format.fprintf stdout (f ^^ "@.") in
   let feed = FC.get_cached_feed config feed_url |? lazy (failwith "Feed still not cached!") in
   let new_import = F.make_user_import feed_url in
   match F.get_feed_targets feed with
@@ -62,8 +62,7 @@ let edit_feeds_interactive config (mode:[`Add | `Remove]) feed_url =
 
       print "";
       while true do
-        config.system#print_string "Enter a number, or CTRL-C to cancel [1]: ";
-        flush stdout;
+        Format.fprintf stdout "Enter a number, or CTRL-C to cancel [1]: %!";
         let choice = input_line stdin in
         let i =
           if choice = "" then 1
@@ -73,7 +72,7 @@ let edit_feeds_interactive config (mode:[`Add | `Remove]) feed_url =
           ) in
 
         if i > 0 && i <= List.length !interfaces then (
-          edit_feeds config (List.nth !interfaces (i - 1)) mode new_import;
+          edit_feeds stdout config (List.nth !interfaces (i - 1)) mode new_import;
           raise (System_exit 0)
         );
         print "Invalid number. Try again. (1 to %d)" (List.length !interfaces)
@@ -87,7 +86,7 @@ let handle options flags args =
   );
   match args with
   | [new_feed] ->
-      let print fmt = Support.Utils.print config.system fmt in
+      let print fmt = Format.fprintf options.stdout (fmt ^^ "@.") in
       print "Feed '%s':" new_feed;
       let new_feed = G.canonical_feed_url config.system new_feed in
 
@@ -97,8 +96,7 @@ let handle options flags args =
         | `Remote_feed _ as feed ->
             let missing = FC.get_cached_feed config feed = None in
             if missing || (config.network_use <> Offline && FC.is_stale config feed) then (
-              print "Downloading feed; please wait...";
-              flush stdout;
+              Format.fprintf options.stdout "Downloading feed; please wait... %!";
               try
                 let fetcher = tools#make_fetcher tools#ui#watcher in
                 match Zeroinstall.Driver.download_and_import_feed fetcher feed |> Lwt_main.run with
@@ -116,7 +114,7 @@ let handle options flags args =
               raise_safe "Local feed file '%s' does not exist" path;
             feed in
 
-      edit_feeds_interactive config `Add feed
+      edit_feeds_interactive ~stdout:options.stdout config `Add feed
   | [iface; feed_src] ->
       let iface = G.canonical_iface_uri config.system iface in
       let feed_src = G.canonical_feed_url config.system feed_src in

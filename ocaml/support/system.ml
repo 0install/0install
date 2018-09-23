@@ -79,8 +79,6 @@ module RealSystem (U : UnixType) =
       object (self : #system)
         method argv = Sys.argv
         method isatty = Unix.isatty
-        method print_string = print_string
-        method std_formatter = Format.std_formatter
         method time = Unix.time ()
         method mkdir = Unix.mkdir
         method file_exists = Sys.file_exists

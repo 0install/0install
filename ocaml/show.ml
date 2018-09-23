@@ -11,23 +11,24 @@ module Qdom = Support.Qdom
 module Selections = Zeroinstall.Selections
 module Apps = Zeroinstall.Apps
 
-let show_human config sels =
-  Format.fprintf config.system#std_formatter "%a@." (Zeroinstall.Tree.print config) sels
+let show_human config f sels =
+  Format.fprintf f "%a@." (Zeroinstall.Tree.print config) sels
 
 let show_xml sels =
   let out = Xmlm.make_output @@ `Channel stdout in
   Qdom.reindent sels |> Qdom.output out;
   output_string stdout "\n"
 
-let show_restrictions (system:system) r =
+let pp_restrictions f =
+  StringMap.iter @@ fun iface expr ->
+  Format.fprintf f "@,%s: %s" iface expr
+
+let show_restrictions f r =
   let open Zeroinstall.Requirements in
-  let print = Support.Utils.print in
   if r.extra_restrictions <> StringMap.empty then (
-    print system "User-provided restrictions in force:";
-    let show iface expr =
-      print system "  %s: %s" iface expr in
-    StringMap.iter show r.extra_restrictions;
-    system#print_string "\n"
+    Format.fprintf f
+      "@[<v2>User-provided restrictions in force:%a@]@.@."
+      pp_restrictions r.extra_restrictions
   )
 
 let handle options flags args =
@@ -48,15 +49,15 @@ let handle options flags args =
       | Some app_path ->
           let r = Apps.get_requirements system app_path in
           if not !s_xml && not !s_root then
-            show_restrictions system r;
+            show_restrictions options.stdout r;
           Apps.get_selections_no_updates system app_path
       | None ->
           Selections.load_selections config.system arg in
 
       match (!s_root, !s_xml) with
-      | (true, false) -> system#print_string (Selections.((root_role sels).iface) ^ "\n")
+      | (true, false) -> Format.fprintf options.stdout "%s@." Selections.((root_role sels).iface)
       | (false, true) -> show_xml (Selections.as_xml sels)
-      | (false, false) -> show_human config sels
+      | (false, false) -> show_human config options.stdout sels
       | (true, true) -> raise_safe "Can't use --xml with --root"
   )
   | _ -> raise (Support.Argparse.Usage_error 1)

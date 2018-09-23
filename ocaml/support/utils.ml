@@ -349,9 +349,6 @@ let slice ~start ?stop lst =
             | (x::xs) -> x :: take xs (i - 1)
       in take from_start (stop - start)
 
-let print (system:system) fmt =
-  Format.kasprintf system#print_string (fmt ^^ "@.")
-
 let realpath (system:#filesystem) path =
   let (+/) = Filename.concat in   (* Faster version, since we know the path is relative *)
 

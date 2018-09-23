@@ -40,10 +40,10 @@ let increase_verbosity options =
     L.threshold := L.Debug
   )
 
-let show_version system =
+let show_version f system =
   let prog = Filename.basename system#argv.(0) in
   let prog = if Support.Utils.starts_with prog "0launch" then "0launch" else "0install" in
-  Format.fprintf system#std_formatter
+  Format.fprintf f
     "%s (zero-install) %s@,\
      Copyright (C) 2016 Thomas Leonard@\n\
      This program comes with ABSOLUTELY NO WARRANTY,@ \
@@ -53,13 +53,13 @@ let show_version system =
      For more information about these matters, see the file named COPYING.@."
      prog Zeroinstall.About.version
 
-let show_help (system:system) valid_options help extra_fn =
+let show_help (system:system) valid_options help f extra_fn =
   let prog = Filename.basename system#argv.(0) in
   let usage =
     if Support.Utils.starts_with prog "0launch" then "[OPTIONS] URI [ARGS]"
     else if Support.Utils.starts_with prog "0desktop" then "[OPTIONS] [URI]"
     else help in
-  Format.fprintf system#std_formatter "Usage: %s %s@.@\n%t%a@."
+  Format.fprintf f "Usage: %s %s@.@\n%t%a@."
     prog usage extra_fn
     (Support.Argparse.pp_options format_type) valid_options
 
@@ -70,6 +70,6 @@ let process_common_option options =
   | `DryRun -> if not config.dry_run then raise Retry_with_dryrun
   | `Verbose -> increase_verbosity options
   | `WithStore store -> add_store options store
-  | `ShowVersion -> show_version config.system; raise (System_exit 0)
+  | `ShowVersion -> show_version options.stdout config.system; raise (System_exit 0)
   | `NetworkUse u -> config.network_use <- u
   | `Help -> raise (Support.Argparse.Usage_error 0)

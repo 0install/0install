@@ -91,8 +91,6 @@ class type system =
     inherit environment
 
     method argv : string array
-    method print_string : string -> unit
-    method std_formatter : Format.formatter
     method time : float
     method isatty : Unix.file_descr -> bool
 

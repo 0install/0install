@@ -47,13 +47,14 @@ let get_newest options feed_provider reqs =
   );
   !best
 
-let check_replacement system = function
+let check_replacement f = function
   | None -> ()
   | Some (feed, _) ->
       match feed.F.replacement with
       | None -> ()
       | Some replacement ->
-          Support.Utils.print system "Warning: interface %s has been replaced by %s" (Zeroinstall.Feed_url.format_url feed.F.url) replacement
+        Format.fprintf f "Warning: interface %s has been replaced by %s@."
+          (Zeroinstall.Feed_url.format_url feed.F.url) replacement
 
 let check_for_updates options reqs old_sels =
   let tools = options.tools in
@@ -62,13 +63,12 @@ let check_for_updates options reqs old_sels =
   | `Aborted_by_user -> raise (System_exit 1)
   | `Success new_sels ->
       let config = options.config in
-      let system = config.system in
-      let print fmt = Support.Utils.print system fmt in
+      let print fmt = Format.fprintf options.stdout (fmt ^^ "@.") in
       let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider options.config tools#distro in
-      check_replacement system @@ feed_provider#get_feed (Zeroinstall.Feed_url.master_feed_of_iface reqs.R.interface_uri);
+      check_replacement options.stdout @@ feed_provider#get_feed (Zeroinstall.Feed_url.master_feed_of_iface reqs.R.interface_uri);
       let root_sel = Selections.root_sel new_sels in
       let root_version = Zeroinstall.Element.version root_sel in
-      let changes = Whatchanged.show_changes system old_sels new_sels ||
+      let changes = Whatchanged.show_changes options.stdout old_sels new_sels ||
         match old_sels with
         | None -> true
         | Some old_sels ->

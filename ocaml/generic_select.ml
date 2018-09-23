@@ -253,7 +253,7 @@ let handle options flags arg ?test_callback for_op =
     match select_opts.output with
     | Output_none -> ()
     | Output_XML -> Show.show_xml (Zeroinstall.Selections.as_xml sels)
-    | Output_human -> Show.show_human config sels in
+    | Output_human -> Show.show_human config options.stdout sels in
 
   let do_select requirements =
     log_info "Getting new selections for %s" arg;
@@ -276,10 +276,10 @@ let handle options flags arg ?test_callback for_op =
       (* note: pass use_gui here once we support foreground updates for apps in OCaml *)
       let old_sels = get_app_sels path in
       let new_sels = if select_opts.must_select then do_select reqs else old_sels in
-      Show.show_restrictions config.system reqs;
-      Show.show_human config new_sels;
-      if Whatchanged.show_changes config.system (Some old_sels) new_sels || reqs <> old_reqs then
-        U.print config.system "(note: use '0install update' instead to save the changes)";
+      Show.show_restrictions options.stdout reqs;
+      Show.show_human config options.stdout new_sels;
+      if Whatchanged.show_changes options.stdout (Some old_sels) new_sels || reqs <> old_reqs then
+        Format.fprintf options.stdout "(note: use '0install update' instead to save the changes)@.";
       new_sels
   | (App (path, _old_reqs), reqs) ->
       let new_sels =

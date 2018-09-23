@@ -22,7 +22,8 @@ let run_0install (fake_system:Fake_system.fake_system) args =
   fake_system#set_argv @@ Array.of_list (Fake_system.test_0install :: args);
   Fake_system.capture_stdout ~include_stderr:false (fun () ->
     try
-      Main.main (fake_system : Fake_system.fake_system :> system);
+      let stdout = Format.std_formatter in
+      Main.main ~stdout (fake_system : Fake_system.fake_system :> system);
       assert false
     with Fake_system.Did_exec -> ()
   )

@@ -39,7 +39,7 @@ let handle_find options flags args =
       let config = options.config in
       begin try
         let path = Stores.lookup_any config.system [digest] config.stores in
-        config.system#print_string (path ^ "\n")
+        Format.fprintf options.stdout "%s@." path
       with Zeroinstall.Stores.Not_stored msg ->
         raise_safe "%s" msg end
   | _ -> raise (Support.Argparse.Usage_error 1)
@@ -49,7 +49,7 @@ let handle_verify options flags args =
   let config = options.config in
   let system = config.system in
   let verify dir digest =
-    let print fmt = Support.Utils.print config.system fmt in
+    let print fmt = Format.fprintf options.stdout (fmt ^^ "@.") in
     print "Verifying %s" dir;
     Manifest.verify system ~digest dir;
     print "OK" in
@@ -91,7 +91,7 @@ let handle_audit options flags args =
 
   let total = audit_ls |> List.fold_left (fun acc (_, items) -> acc + Array.length items) 0 in
 
-  let print fmt = Support.Utils.print config.system fmt in
+  let print fmt = Format.fprintf options.stdout (fmt ^^ "@.") in
 
   let verified = ref 0 in
   let failures = ref [] in
@@ -112,11 +112,11 @@ let handle_audit options flags args =
       | Some digest ->
           try
             let msg = Printf.sprintf "[%d / %d] Verifying %s" !i total required_digest_str in
-            system#print_string msg;
+            print_string msg;
             flush stdout;
             Manifest.verify system path ~digest;
             let blank = String.make (String.length msg) ' ' in
-            system#print_string @@ "\r" ^ blank ^ "\r";
+            Printf.printf "\r%s\r" blank;
             incr verified;
           with Safe_exception (msg, _) ->
             print "";
@@ -149,14 +149,14 @@ let handle_manifest options flags args =
     | _ -> raise (Support.Argparse.Usage_error 1) in
   let system = options.config.system in
   let manifest_contents = Manifest.generate_manifest system alg dir in
-  system#print_string manifest_contents;
+  Format.fprintf options.stdout "%s%!" manifest_contents;
   let digest = (alg, Manifest.hash_manifest alg manifest_contents) |> Manifest.format_digest in
-  system#print_string (digest ^ "\n")
+  Format.fprintf options.stdout "%s@." digest
 
 let handle_list options flags args =
   Support.Argparse.iter_options flags (Common_options.process_common_option options);
   if args <> [] then raise (Support.Argparse.Usage_error 1);
-  let print fmt = Support.Utils.print options.config.system fmt in
+  let print fmt = Format.fprintf options.stdout (fmt ^^ "@.") in
   match options.config.stores with
   | [] -> print "No stores configured!"
   | user :: system_stores ->
@@ -221,10 +221,10 @@ let handle_digest options flags args =
 
   let do_manifest dir =
     let manifest_contents = Manifest.generate_manifest system !alg dir in
-    if !show_manifest then system#print_string manifest_contents;
+    if !show_manifest then Format.fprintf options.stdout "%s%!" manifest_contents;
     if !show_digest then (
       let digest = (!alg, Manifest.hash_manifest !alg manifest_contents) |> Manifest.format_digest in
-      system#print_string (digest ^ "\n")
+      Format.fprintf options.stdout "%s@." digest
     ) in
 
   let do_archive ?extract archive =

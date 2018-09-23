@@ -5,7 +5,6 @@
 (** The "0install list" command *)
 
 open Options
-open Zeroinstall.General
 open Support.Common
 
 let handle options flags args =
@@ -24,4 +23,4 @@ let handle options flags args =
           with Not_found -> false)
     | _ -> raise (Support.Argparse.Usage_error 1) in
 
-  results |> StringSet.iter (fun item -> options.config.system#print_string (item ^ "\n"))
+  results |> StringSet.iter (fun item -> Format.fprintf options.stdout "%s@." item)
