@@ -135,7 +135,7 @@ let load_iface_config config uri : interface_config =
         match Paths.Config.(first (user_overrides uri)) config.paths with
         | None -> { stability_policy = None; extra_feeds = distro_feeds @ site_feeds }
         | Some path -> load path
-  with Safe_exn.T _ as ex -> reraise_with_context ex "... reading configuration settings for interface %s" uri
+  with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... reading configuration settings for interface %s" uri
 
 let add_import_elem feed_import =
   match feed_import.Feed.feed_type with
@@ -182,7 +182,7 @@ let get_cached_feed config = function
           let root = Q.parse_file config.system path |> Element.parse_feed in
           let feed = Feed.parse config.system root None in
           if feed.Feed.url = remote_feed then Some feed
-          else raise_safe "Incorrect URL in cached feed - expected '%s' but found '%s'" url (Feed_url.format_url feed.Feed.url)
+          else Safe_exn.failf "Incorrect URL in cached feed - expected '%s' but found '%s'" url (Feed_url.format_url feed.Feed.url)
 
 let get_last_check_attempt config url =
   match Paths.Cache.(first (last_check_attempt url)) config.paths with

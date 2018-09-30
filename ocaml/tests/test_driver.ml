@@ -253,14 +253,14 @@ let suite = "driver">::: [
         method is_valid_package_name _ = true
         method is_installed = failwith "is_installed"
         method get_impls_for_feed ~problem:_ _feed = StringMap.empty
-        method check_for_candidates = raise_safe "Unexpected check_for_candidates"
-        method install_distro_packages = raise_safe "install_distro_packages"
+        method check_for_candidates = Safe_exn.failf "Unexpected check_for_candidates"
+        method install_distro_packages = Safe_exn.failf "install_distro_packages"
         method match_name = (=) "dummy"
       end in
     let reqs = Requirements.run "http://foo/Binary.xml" in
     let fetcher =
       object
-        method download_and_import_feed (`Remote_feed url) = raise_safe "download_and_import_feed: %s" url
+        method download_and_import_feed (`Remote_feed url) = Safe_exn.failf "download_and_import_feed: %s" url
         method download_impls = failwith "download_impls"
         method import_feed = failwith "import_feed"
         method download_icon = failwith "download_icon"

@@ -32,7 +32,7 @@ let parse_mod = function
   | "-rc" -> Rc
   | "-" -> Dash
   | "-post" -> Post
-  | x -> raise_safe "Invalid version modifier '%s'" x
+  | x -> Safe_exn.failf "Invalid version modifier '%s'" x
 
 let string_of_mod = function
   | Pre -> "-pre"
@@ -43,7 +43,7 @@ let string_of_mod = function
 let parse version_string =
   let int64_of_string s =
     try Int64.of_string s
-    with Failure _ -> raise_safe "Cannot parse '%s' as a 64-bit integer (in '%s')" s version_string in
+    with Failure _ -> Safe_exn.failf "Cannot parse '%s' as a 64-bit integer (in '%s')" s version_string in
 
   let parse_dotted d =
     let parts = Str.split_delim re_dot d in
@@ -53,7 +53,7 @@ let parse version_string =
   let parts = Str.full_split re_version_mod version_string in
 
   let rec process = function
-    | [Text _; Delim "-"] -> raise_safe "Version ends with a dash: '%s'" version_string
+    | [Text _; Delim "-"] -> Safe_exn.failf "Version ends with a dash: '%s'" version_string
     | Text d :: Delim m :: xs -> (parse_dotted d, parse_mod m) :: process xs
     | [Text d] -> [(parse_dotted d, Dash)]          (* Ends with a number *)
     | Delim _ as d :: xs -> process @@ Text "" :: d :: xs
@@ -62,7 +62,7 @@ let parse version_string =
 
   let parsed = process parts in
 
-  if parsed = [] then raise_safe "Empty version string!";
+  if parsed = [] then Safe_exn.failf "Empty version string!";
 
   parsed
 
@@ -101,7 +101,7 @@ let parse_range s =
       | v -> Some v in
 
     if high <> "" && sep <> "..!" then (
-      raise_safe "End of range must be exclusive (use '..!%s', not '..%s')" high high
+      Safe_exn.failf "End of range must be exclusive (use '..!%s', not '..%s')" high high
     ) else (
       make_range_restriction (none_if_empty low) (none_if_empty high)
     )
@@ -117,7 +117,7 @@ let parse_expr s =
   try
     let tests = List.map parse_range (Str.split_delim re_pipe s) in
     fun v -> List.exists (fun t -> t v) tests
-  with Safe_exn.T _ as ex -> reraise_with_context ex "... parsing version expression '%s'" s
+  with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... parsing version expression '%s'" s
 
 (** Any distribution-provided version number is capped to this.
  * Prevents them wrapping around (very large numbers are usually hashes anyway).

@@ -6,6 +6,7 @@
 
 open Options
 open Zeroinstall.General
+open Support
 open Support.Common
 
 module Q = Support.Qdom
@@ -17,7 +18,7 @@ let import_feed options arg =
   let system = options.config.system in
 
   if not (system#file_exists arg) then
-    raise_safe "File '%s' does not exist" arg;
+    Safe_exn.failf "File '%s' does not exist" arg;
 
   log_info "Importing from file '%s'" arg;
   let xml = U.read_file system arg in
@@ -25,7 +26,7 @@ let import_feed options arg =
   let url = ZI.get_attribute FeedAttr.uri root in
   let parsed_url = match Zeroinstall.Feed_url.parse_non_distro url with
     | `Remote_feed _ as url -> url
-    | `Local_feed _ -> raise_safe "Invalid URI '%s' on feed" url in
+    | `Local_feed _ -> Safe_exn.failf "Invalid URI '%s' on feed" url in
 
   log_info "Importing feed %s" url;
 

@@ -28,7 +28,7 @@ let parse_digest_from prefixes digest =
       let value = U.string_tail digest (String.length prefix) in
       Some (alg, value)
     ) else None
-  ) |? lazy (raise_safe "Unknown digest type '%s'" digest)
+  ) |? lazy (Safe_exn.failf "Unknown digest type '%s'" digest)
 
 let parse_digest = parse_digest_from strict_digest_prefixes
 let parse_digest_loose = parse_digest_from lenient_digest_prefixes
@@ -39,7 +39,7 @@ let generate_manifest (system:#filesystem) alg root =
     match alg with
     | "sha1" | "sha1new" -> "sha1"
     | "sha256" | "sha256new" -> "sha256"
-    | _ -> raise_safe "Unknown manifest digest algorithm '%s'" alg in
+    | _ -> Safe_exn.failf "Unknown manifest digest algorithm '%s'" alg in
 
   let manifest = Buffer.create 1000 in
 
@@ -48,7 +48,7 @@ let generate_manifest (system:#filesystem) alg root =
        is possible, we require that filenames don't contain newlines.
        Otherwise, you could name a file so that the part after the \n
        would be interpreted as another line in the manifest. *)
-    if String.contains sub '\n' then raise_safe "Newline in filename '%s'" sub;
+    if String.contains sub '\n' then Safe_exn.failf "Newline in filename '%s'" sub;
     assert (sub.[0] = '/');
 
     let rel_path = U.string_tail sub 1 in
@@ -57,7 +57,7 @@ let generate_manifest (system:#filesystem) alg root =
     if rel_path <> "" then (
       Buffer.add_string manifest "D ";
       if old then (
-        let info = system#lstat full |? lazy (raise_safe "File '%s' no longer exists!" full) in
+        let info = system#lstat full |? lazy (Safe_exn.failf "File '%s' no longer exists!" full) in
         Buffer.add_string manifest (Int64.of_float info.Unix.st_mtime |> Int64.to_string);
         Buffer.add_char manifest ' ';
       );
@@ -72,7 +72,7 @@ let generate_manifest (system:#filesystem) alg root =
 
     let dirs = items |> U.filter_map_array (fun leaf ->
       let path = root +/ rel_path +/ leaf in
-      let info = system#lstat path |? lazy (raise_safe "File '%s' no longer exists!" path) in
+      let info = system#lstat path |? lazy (Safe_exn.failf "File '%s' no longer exists!" path) in
       match info.Unix.st_kind with
       | Unix.S_REG when leaf = ".manifest" && rel_path = "" -> None
       | Unix.S_REG ->
@@ -95,7 +95,7 @@ let generate_manifest (system:#filesystem) alg root =
           Buffer.add_char manifest '\n';
           None
       | Unix.S_LNK ->
-          let target = system#readlink path |? lazy (raise_safe "Failed to read symlink '%s'" path) in
+          let target = system#readlink path |? lazy (Safe_exn.failf "Failed to read symlink '%s'" path) in
           let d = H.create hash_name in
           H.update d target;
           (* Note: Can't use utime on symlinks, so skip mtime *)
@@ -113,7 +113,7 @@ let generate_manifest (system:#filesystem) alg root =
             let sub = if rel_path = "" then sub else sub ^ "/" in
             loop (sub ^ leaf); None
           ) else Some leaf
-      | _ -> raise_safe "Not a regular file/directory/symlink '%s'" path
+      | _ -> Safe_exn.failf "Not a regular file/directory/symlink '%s'" path
     ) in
 
     let sub = if rel_path = "" then sub else sub ^ "/" in
@@ -131,7 +131,7 @@ let hash_manifest alg manifest_contents =
     match alg with
     | "sha1" | "sha1new" -> "sha1"
     | "sha256" | "sha256new" -> "sha256"
-    | _ -> raise_safe "Unknown manifest digest algorithm '%s'" alg in
+    | _ -> Safe_exn.failf "Unknown manifest digest algorithm '%s'" alg in
   let digest = H.create hash_name in
   H.update digest manifest_contents;
   match alg with
@@ -146,7 +146,7 @@ let add_manifest_file system alg dir =
   try
     let mfile = dir +/ ".manifest" in
     if system#lstat mfile <> None then  (* lstat to cope with symlinks *)
-      raise_safe "Directory '%s' already contains a .manifest file!" dir;
+      Safe_exn.failf "Directory '%s' already contains a .manifest file!" dir;
 
     let manifest_contents = generate_manifest system alg dir in
 
@@ -156,7 +156,7 @@ let add_manifest_file system alg dir =
     );
     system#chmod dir 0o555;
     hash_manifest alg manifest_contents
-  with Safe_exn.T _ as ex -> reraise_with_context ex "... adding .manifest file in %s" dir
+  with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... adding .manifest file in %s" dir
 
 let algorithm_names = [
   "sha1";
@@ -187,7 +187,7 @@ let parse_manifest_line ~old line : (string * inode) =
     | 'D' -> 2
     | 'S' -> 4
     | 'X' | 'F' -> 5
-    | _ -> raise_safe "Malformed manifest line: '%s'" line in
+    | _ -> Safe_exn.failf "Malformed manifest line: '%s'" line in
   let parts = Str.bounded_split_delim U.re_space line n_parts in
   match parts with
   | ["D"; mtime; name] when old -> (name, `Dir (Some (float_of_string mtime)))
@@ -195,7 +195,7 @@ let parse_manifest_line ~old line : (string * inode) =
   | ["S"; hash; size; name] -> (name, `Symlink (hash, Int64.of_string size))
   | ["X" | "F" as ty; hash; mtime; size; name] ->
       (name, `File (ty = "X", hash, float_of_string mtime, Int64.of_string size))
-  | _ -> raise_safe "Malformed manifest line: '%s'" line
+  | _ -> Safe_exn.failf "Malformed manifest line: '%s'" line
 
 (* This is really only useful for [diff].
  * We return a list of tuples (path, line), making it easy for the diff code to compare the
@@ -351,7 +351,7 @@ let copy_with_verify (system:#filesystem) src dst ~digest ~required_hash ~mode =
   let actual = H.hex_digest digest in
   if actual <> required_hash then (
     system#unlink dst;
-    raise_safe "Copy failed: file '%s' has wrong digest (may have been tampered with)\n\
+    Safe_exn.failf "Copy failed: file '%s' has wrong digest (may have been tampered with)\n\
                 Expected: %s\n\
                 Actual:   %s"
                 src required_hash actual
@@ -365,16 +365,16 @@ let rec copy_subtree system hash_name req_tree src_dir dst_dir =
     match inode with
     | `Symlink (required_hash, size) ->
         let required_size = Int64.to_int size in
-        let target = system#readlink src_path |? lazy (raise_safe "Not a symlink '%s'" src_path) in
+        let target = system#readlink src_path |? lazy (Safe_exn.failf "Not a symlink '%s'" src_path) in
         let actual_size = String.length target in
         if actual_size <> required_size then (
-          raise_safe "Symlink '%s' has wrong size (%d bytes, but should be %d according to manifest)"
+          Safe_exn.failf "Symlink '%s' has wrong size (%d bytes, but should be %d according to manifest)"
             src_path actual_size required_size
         );
         let symlink_digest = H.create hash_name in
         H.update symlink_digest target;
         if H.hex_digest symlink_digest <> required_hash then (
-          raise_safe "Symlink '%s' has wrong target (digest should be %s according to manifest)"
+          Safe_exn.failf "Symlink '%s' has wrong target (digest should be %s according to manifest)"
             src_path required_hash
         );
         system#symlink ~target ~newlink:dst_path
@@ -384,12 +384,12 @@ let rec copy_subtree system hash_name req_tree src_dir dst_dir =
         system#chmod dst_path 0o555;
     | `File (x, required_hash, mtime, size) ->
         match system#lstat src_path with
-        | None -> raise_safe "Required source file '%s' does not exist!" src_path
+        | None -> Safe_exn.failf "Required source file '%s' does not exist!" src_path
         | Some info ->
             let required_size = Int64.to_int size in
             let actual_size = info.Unix.st_size in
             if actual_size <> required_size then (
-              raise_safe "File '%s' has wrong size (%d bytes, but should be %d according to manifest)"
+              Safe_exn.failf "File '%s' has wrong size (%d bytes, but should be %d according to manifest)"
                 src_path actual_size required_size
             );
             let digest = H.create hash_name in
@@ -402,11 +402,11 @@ let copy_tree_with_verify system source target manifest_data required_digest =
   let required_digest_str = format_digest required_digest in
   let alg, _ = required_digest in
   if alg = "sha1" then
-    raise_safe "Sorry, the 'sha1' algorithm does not support copying.";
+    Safe_exn.failf "Sorry, the 'sha1' algorithm does not support copying.";
 
   let manifest_digest = (alg, hash_manifest alg manifest_data) in
   if manifest_digest <> required_digest then (
-    raise_safe "Manifest has been tampered with!\n\
+    Safe_exn.failf "Manifest has been tampered with!\n\
                 Manifest digest: %s\n\
                 Directory name : %s" (format_digest manifest_digest) required_digest_str
   );
@@ -423,7 +423,7 @@ let copy_tree_with_verify system source target manifest_data required_digest =
       match alg with
       | "sha1" | "sha1new" -> "sha1"
       | "sha256" | "sha256new" -> "sha256"
-      | _ -> raise_safe "Unknown manifest digest algorithm '%s'" alg in
+      | _ -> Safe_exn.failf "Unknown manifest digest algorithm '%s'" alg in
     try
       copy_subtree system hash_name req_tree source tmp_dir;
       let mfile = tmp_dir +/ ".manifest" in

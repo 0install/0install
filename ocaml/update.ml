@@ -7,6 +7,7 @@
 open Zeroinstall
 open Zeroinstall.General
 open Options
+open Support
 open Support.Common
 
 module Selections = Zeroinstall.Selections
@@ -214,11 +215,11 @@ let handle_bg options flags args =
 
       method confirm_keys _feed_url _xml =
         need_gui := true;
-        raise_safe "need to switch to GUI to confirm keys"
+        Safe_exn.failf "need to switch to GUI to confirm keys"
 
       method confirm msg =
         need_gui := true;
-        raise_safe "need to switch to GUI to confirm distro package install: %s" msg
+        Safe_exn.failf "need to switch to GUI to confirm distro package install: %s" msg
 
       method impl_added_to_store = ()
     end in
@@ -265,7 +266,7 @@ let handle_bg options flags args =
                   log_info "Background update: GUI unavailable; downloading with no UI";
                   match Zeroinstall.Driver.download_selections ~include_packages:true ~feed_provider config distro (lazy fetcher) new_sels |> Lwt_main.run with
                   | `Success -> new_sels
-                  | `Aborted_by_user -> raise_safe "Aborted by user"
+                  | `Aborted_by_user -> Safe_exn.failf "Aborted by user"
                 )
           ) else new_sels in
 

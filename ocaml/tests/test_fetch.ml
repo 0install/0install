@@ -148,9 +148,9 @@ let suite = "fetch">::: [
         assert (error = None);
       with Safe_exn.T e ->
         let msg = Safe_exn.msg e in
-        let error = error |? lazy (raise_safe "Unexpected error '%s'" msg) in
+        let error = error |? lazy (Safe_exn.failf "Unexpected error '%s'" msg) in
         if not (Str.string_match (Str.regexp error) msg 0) then (
-          raise_safe "Expected error '%s' but got '%s'" error msg
+          Safe_exn.failf "Expected error '%s' but got '%s'" error msg
         ) in
 
     try_recipe ~digest:("sha1new", "d025d1e5c68d349f8106002e821968a5832ff008") "<rename source='rootfile' dest='somefile'/>";
@@ -204,9 +204,9 @@ let suite = "fetch">::: [
             assert (config.system#file_exists (path +/ testfile));
       with Safe_exn.T e ->
         let msg = Safe_exn.msg e in
-        let error = error |? lazy (raise_safe "Unexpected error '%s'" msg) in
+        let error = error |? lazy (Safe_exn.failf "Unexpected error '%s'" msg) in
         if not (Str.string_match (Str.regexp error) msg 0) then (
-          raise_safe "Expected error '%s' but got '%s'" error msg
+          Safe_exn.failf "Expected error '%s' but got '%s'" error msg
         ) in
 
     fake_system#set_argv @@ Array.of_list [

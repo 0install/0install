@@ -2,7 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-open Support.Common
+open Support
 module U = Support.Utils
 
 type local_feed = [`Local_feed of Support.Common.filepath]
@@ -13,8 +13,8 @@ type parsed_feed_url = [`Distribution_feed of non_distro_feed | non_distro_feed]
 let parse_non_distro url =
   if U.path_is_absolute url then `Local_feed url
   else if U.starts_with url "http://" || U.starts_with url "https://" then `Remote_feed url
-  else if U.starts_with url "distribution:" then raise_safe "Can't use a distribution feed here! ('%s')" url
-  else raise_safe "Invalid feed URL '%s'" url
+  else if U.starts_with url "distribution:" then Safe_exn.failf "Can't use a distribution feed here! ('%s')" url
+  else Safe_exn.failf "Invalid feed URL '%s'" url
 
 let parse url =
   if U.starts_with url "distribution:" then `Distribution_feed (U.string_tail url 13 |> parse_non_distro)

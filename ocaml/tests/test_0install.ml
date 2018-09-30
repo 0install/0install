@@ -41,7 +41,7 @@ let handle_download_impls config pending_digests impls =
               if StringSet.mem digest_str !pending_digests then Some digest_str else None
             ) in
           match digest_str with
-          | None -> raise_safe "Digest not expected!"
+          | None -> Safe_exn.failf "Digest not expected!"
           | Some digest_str ->
               pending_digests := StringSet.remove digest_str !pending_digests;
               let user_store = List.hd config.stores in
@@ -54,7 +54,7 @@ let handle_download_impls config pending_digests impls =
 let impl_from_json config = (function
   | `Assoc [("id", `String id); ("from-feed", `String feed_url)] ->
       let parsed = Zeroinstall.Feed_url.parse_non_distro feed_url in
-      let feed = Zeroinstall.Feed_cache.get_cached_feed config parsed |? lazy (raise_safe "Not cached: %s" feed_url) in
+      let feed = Zeroinstall.Feed_cache.get_cached_feed config parsed |? lazy (Safe_exn.failf "Not cached: %s" feed_url) in
       StringMap.find_safe id feed.F.implementations
   | _ -> assert false
 )
@@ -560,7 +560,7 @@ let suite = "0install">::: [
       Fake_system.fake_log#assert_contains "Still not connected to network. Giving up on background update.";
       match Fake_system.fake_log#pop_warnings with
       | [ w ] -> assert_contains "Error starting background check for updates" w
-      | ws -> raise_safe "Got %d warnings" (List.length ws) in
+      | ws -> Safe_exn.failf "Got %d warnings" (List.length ws) in
 
     (* Selections changed, but no download required *)
     let data = U.read_file system local_copy in

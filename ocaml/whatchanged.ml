@@ -6,6 +6,7 @@
 
 open Options
 open Zeroinstall.General
+open Support
 open Support.Common
 module U = Support.Utils
 module Selections = Zeroinstall.Selections
@@ -45,7 +46,7 @@ let show_app_changes options ~full app =
   let print fmt = Format.fprintf options.stdout (fmt ^^ "@.") in
 
   match A.get_history config app with
-  | [] -> raise_safe "Invalid application: no selections found! Try '0install destroy %s'" (Filename.basename app)
+  | [] -> Safe_exn.failf "Invalid application: no selections found! Try '0install destroy %s'" (Filename.basename app)
   | current :: history ->
       let times = A.get_times system app in
       if times.A.last_check_time <> 0.0 then
@@ -97,7 +98,7 @@ let handle options flags args =
   match args with
   | [name] -> (
       match Zeroinstall.Apps.lookup_app options.config name with
-      | None -> raise_safe "No such application '%s'" name
+      | None -> Safe_exn.failf "No such application '%s'" name
       | Some app -> show_app_changes options ~full:!full app
   )
   | _ -> raise (Support.Argparse.Usage_error 1)

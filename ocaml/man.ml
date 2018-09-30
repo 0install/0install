@@ -5,6 +5,7 @@
 (** The "0install man" command *)
 
 open Options
+open Support
 open Support.Common
 open Zeroinstall.General
 module U = Support.Utils
@@ -122,7 +123,7 @@ let handle options flags args =
             )
             | Some (AppLauncher app_name) ->
                 match Zeroinstall.Apps.lookup_app options.config app_name with
-                | None -> raise_safe "App '%s' not installed!" app_name
+                | None -> Safe_exn.failf "App '%s' not installed!" app_name
                 | Some app ->
                     (Zeroinstall.Apps.get_selections_no_updates options.config.system app, None) in
           find_and_exec_man ~stdout:options.stdout options.config ?main ~fallback_name:arg sels

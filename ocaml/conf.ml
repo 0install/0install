@@ -6,6 +6,7 @@
 
 open Options
 open Zeroinstall.General
+open Support
 open Support.Common
 
 module U = Support.Utils
@@ -23,27 +24,27 @@ let parse_bool s =
   match String.lowercase_ascii s with
   | "true" -> true
   | "false" -> false
-  | _ -> raise_safe "Expected 'true' or 'false' but got '%s'" s
+  | _ -> Safe_exn.failf "Expected 'true' or 'false' but got '%s'" s
 
 let parse_network_use = function
   | "full" -> Full_network
   | "minimal" -> Minimal_network
   | "off-line" -> Offline
-  | other -> raise_safe "Invalid network use type '%s'" other
+  | other -> Safe_exn.failf "Invalid network use type '%s'" other
 
 let parse_interval value =
   if value = "0" then 0.0 else (
     let l = String.length value in
     if l < 2 then
-      raise_safe "Bad interval '%s' (use e.g. '7d')" value;
+      Safe_exn.failf "Bad interval '%s' (use e.g. '7d')" value;
       let value, unt = String.sub value 0 (l - 1), U.string_tail value (l - 1) in
-      let value = try float_of_string value with Failure _ -> raise_safe "Invalid number '%s'" value in
+      let value = try float_of_string value with Failure _ -> Safe_exn.failf "Invalid number '%s'" value in
       match unt with
       | "s" -> value
       | "m" -> value *. minutes
       | "h" -> value *. hours
       | "d" -> value *. days
-      | _ -> raise_safe "Unknown unit '%s' - use e.g. 5d for 5 days" unt
+      | _ -> Safe_exn.failf "Unknown unit '%s' - use e.g. 5d for 5 days" unt
   )
 
 (* e.g. 120 -> "2m" *)
@@ -69,7 +70,7 @@ let parse_key = function
   | "freshness" -> Freshness
   | "help_with_testing" -> Help_with_testing
   | "auto_approve_keys" -> Auto_approve_keys
-  | key -> raise_safe "Unknown setting name '%s'" key
+  | key -> Safe_exn.failf "Unknown setting name '%s'" key
 
 let format_key = function
   | Network_use -> "network_use"

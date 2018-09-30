@@ -128,7 +128,7 @@ let create_lazy config ~cache_leaf ~source ~if_missing =
           values |> List.iter (add_entry ch key)
         )
       )
-    with Safe_exn.T _ as ex -> reraise_with_context ex "... writing cache %s" data.cache_path in
+    with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... writing cache %s" data.cache_path in
   fun key ->
     ensure_valid config data;
     let entries =

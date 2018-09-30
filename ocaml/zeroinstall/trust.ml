@@ -5,6 +5,7 @@
 (** Keeping track of which keys we trust *)
 
 open General
+open Support
 open Support.Common
 module Basedir = Support.Basedir
 module G = Support.Gpg
@@ -162,4 +163,4 @@ let domain_from_url (`Remote_feed url) =
   if Str.string_match re_domain url 0 then
     Str.matched_group 2 url
   else
-    raise_safe "Failed to parse HTTP URL '%s'" url
+    Safe_exn.failf "Failed to parse HTTP URL '%s'" url

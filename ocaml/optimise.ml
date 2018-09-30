@@ -17,7 +17,7 @@ let are_already_linked (system:system) a b =
   | Some ai, Some bi ->
       ai.Unix.st_dev = bi.Unix.st_dev &&
       ai.Unix.st_ino = bi.Unix.st_ino
-  | _ -> raise_safe "Missing files comparing %s and %s" a b
+  | _ -> Safe_exn.failf "Missing files comparing %s and %s" a b
 
 let are_byte_identical (system:system) a b =
   a |> system#with_open_in [Open_rdonly;Open_binary] (fun ia ->
@@ -38,7 +38,7 @@ let link (system:system) a b ~tmpfile =
     log_warning "Files should be identical, but they're not!\n%s\n%s" a b
   ) else (
     let b_dir = Filename.dirname b in
-    let b_dir_info = system#lstat b_dir |? lazy (raise_safe "Can't lstat %s!" b_dir) in
+    let b_dir_info = system#lstat b_dir |? lazy (Safe_exn.failf "Can't lstat %s!" b_dir) in
     let old_mode = b_dir_info.Unix.st_perm in
     system#chmod b_dir (old_mode lor 0o200);	(* Need write access briefly *)
     U.finally_do (fun () -> system#chmod b_dir old_mode) ()
@@ -110,7 +110,7 @@ let optimise system impl_dir =
   (* Find an unused filename we can used during linking *)
   let tmpfile =
     let rec mktmp = function
-      | 0 -> raise_safe "Failed to generate temporary file name!"
+      | 0 -> Safe_exn.failf "Failed to generate temporary file name!"
       | n ->
           let tmppath = impl_dir +/ Printf.sprintf "optimise-%x" (Random.int 0x3fffffff) in
           if system#file_exists tmppath then mktmp (n - 1)
@@ -148,12 +148,12 @@ let handle options flags args =
     | _ -> raise (Support.Argparse.Usage_error 1) in
 
   if not (U.is_dir system cache_dir) then (
-    raise_safe "Not a directory: '%s'" cache_dir
+    Safe_exn.failf "Not a directory: '%s'" cache_dir
   );
 
   let impl_name = Filename.basename cache_dir in
   if impl_name <> "implementations" then (
-    raise_safe "Cache directory should be named 'implementations', not '%s' (in '%s')" impl_name cache_dir
+    Safe_exn.failf "Cache directory should be named 'implementations', not '%s' (in '%s')" impl_name cache_dir
   );
 
   let print fmt = Format.fprintf options.stdout (fmt ^^ "@.") in

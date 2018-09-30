@@ -93,7 +93,7 @@ let read_args ?(cword) (spec : ('a,'b) argparse_spec) input_args =
           (* We are completing elsewhere; just skip unknown options *)
           ()
         ) else (
-          raise_safe "Unknown option '%s'" opt
+          Safe_exn.failf "Unknown option '%s'" opt
         )
     | Some handler ->
         let command = match !args with
@@ -130,7 +130,7 @@ let read_args ?(cword) (spec : ('a,'b) argparse_spec) input_args =
         | Some _ -> None in
         handle_option (Stream.from value_stream) key ~carg;
         if cword = None && not !consumed_value then
-          raise_safe "Option does not take an argument in '%s'" opt
+          Safe_exn.failf "Option does not take an argument in '%s'" opt
     | _ -> handle_option stream opt ~carg:(args_to_cword ()) in
 
   let handle_short_option opt =
@@ -194,17 +194,17 @@ let parse_options valid_options raw_options =
   let parse_option = function
     | (name, values) ->
         match StringMap.find name map with
-        | None -> raise_safe "Option '%s' is not valid here" name
+        | None -> Safe_exn.failf "Option '%s' is not valid here" name
         | Some reader ->
             try (name, reader#parse values)
-            with Safe_exn.T _ as ex -> reraise_with_context ex "... processing option '%s'" name in
+            with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... processing option '%s'" name in
 
   List.map parse_option raw_options
 
 let iter_options options fn =
   let process (actual_opt, value) =
     try fn value
-    with Safe_exn.T _ as ex -> reraise_with_context ex "... processing option '%s'" actual_opt
+    with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... processing option '%s'" actual_opt
   in List.iter process options
 
 (** {2 Handy wrappers for option handlers} *)
@@ -235,7 +235,7 @@ class ['a,'b] one_arg arg_type (fn : string -> 'a) =
         method read opt_name _command stream ~completion =
           match Stream.peek stream with
           | None when completion <> None -> [""]
-          | None -> raise_safe "Missing value for option %s" opt_name
+          | None -> Safe_exn.failf "Missing value for option %s" opt_name
           | Some next -> Stream.junk stream; [next]
       end
   end
@@ -251,7 +251,7 @@ class ['a,'b] two_arg arg1_type arg2_type (fn : string -> string -> 'a) =
         method read opt_name _command stream ~completion =
           match Stream.npeek 2 stream with
           | [_; _] as pair -> Stream.junk stream; Stream.junk stream; pair
-          | _ when completion = None -> raise_safe "Missing value for option %s" opt_name
+          | _ when completion = None -> Safe_exn.failf "Missing value for option %s" opt_name
           | [x] -> Stream.junk stream; [x; ""]
           | _ -> [""; ""]
 

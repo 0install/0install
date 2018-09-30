@@ -100,7 +100,7 @@ let get_selected role sels = RoleMap.find role sels.index
 
 let get_selected_ex role sels =
   get_selected role sels
-  |? lazy (raise_safe "Role '%a' not found in selections!" Role.pp role)
+  |? lazy (Safe_exn.failf "Role '%a' not found in selections!" Role.pp role)
 
 let root_role sels =
   let iface = root_iface sels in
@@ -113,7 +113,7 @@ let root_role sels =
 
 let root_sel sels =
   let role = root_role sels in
-  get_selected role sels |? lazy (raise_safe "Can't find a selection for the root (%a)!" Role.pp role)
+  get_selected role sels |? lazy (Safe_exn.failf "Can't find a selection for the root (%a)!" Role.pp role)
 
 let requirements sels = {role = root_role sels; command = root_command sels}
 
@@ -180,7 +180,7 @@ let collect_bindings t =
 
   t |> iter (fun role node ->
     try process_impl role node
-    with Safe_exn.T _ as ex -> reraise_with_context ex "... getting bindings from selection %a" Role.pp role
+    with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... getting bindings from selection %a" Role.pp role
   );
   List.rev !bindings
 

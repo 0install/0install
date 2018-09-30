@@ -4,6 +4,7 @@
 
 (** Environment variables (generic support code) *)
 
+open Support
 open Support.Common
 
 type t = string StringMap.t
@@ -24,7 +25,7 @@ let get = StringMap.find
 let get_exn k t =
   match get k t with
   | Some v -> v
-  | None -> raise_safe "Environment variable %S not set" k
+  | None -> Safe_exn.failf "Environment variable %S not set" k
 
 let to_array t =
   let len = StringMap.cardinal t in

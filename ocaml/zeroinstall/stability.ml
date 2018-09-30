@@ -2,7 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-open Support.Common
+open Support
 
 type t =
   | Insecure
@@ -15,7 +15,7 @@ type t =
 
 let of_string ~from_user s =
   let if_from_user l =
-    if from_user then l else raise_safe "Stability '%s' not allowed here" s in
+    if from_user then l else Safe_exn.failf "Stability '%s' not allowed here" s in
   match s with
   | "insecure" -> Insecure
   | "buggy" -> Buggy
@@ -24,7 +24,7 @@ let of_string ~from_user s =
   | "stable" -> Stable
   | "packaged" -> if_from_user Packaged
   | "preferred" -> if_from_user Preferred
-  | x -> raise_safe "Unknown stability level '%s'" x
+  | x -> Safe_exn.failf "Unknown stability level '%s'" x
 
 let to_string = function
   | Insecure -> "insecure"

@@ -77,24 +77,24 @@ let with_stores_tmpdir config fn =
    Resolving to base itself is also an error. *)
 let native_path_within_base (system:system) ~tmpdir crossplatform_path =
   if U.starts_with crossplatform_path "/" then (
-    raise_safe "Path %s is absolute!" crossplatform_path
+    Safe_exn.failf "Path %s is absolute!" crossplatform_path
   );
   let rec loop base = function
     | [] -> base
     | (""::xs) -> loop base xs
     | ("."::xs) -> loop base xs
-    | (".."::_) -> raise_safe "Found '..' in path '%s' - disallowed" crossplatform_path
+    | (".."::_) -> Safe_exn.failf "Found '..' in path '%s' - disallowed" crossplatform_path
     | (x::xs) ->
         if String.contains x '\\' then
-          raise_safe "Illegal character '\\' in path '%s' - disallowed" crossplatform_path;
+          Safe_exn.failf "Illegal character '\\' in path '%s' - disallowed" crossplatform_path;
         let new_base = base +/ x in
         match system#lstat new_base with
         | Some {Unix.st_kind = (Unix.S_DIR | Unix.S_REG); _} -> loop new_base xs
-        | Some _ -> raise_safe "Refusing to follow non-file non-dir item '%s'" new_base
+        | Some _ -> Safe_exn.failf "Refusing to follow non-file non-dir item '%s'" new_base
         | None -> loop new_base xs in
   let resolved = Str.split_delim U.re_slash crossplatform_path |> loop tmpdir in
   if resolved = tmpdir then
-    raise_safe "Illegal path '%s'" crossplatform_path
+    Safe_exn.failf "Illegal path '%s'" crossplatform_path
   else
     resolved
 
@@ -123,7 +123,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
 
     if sigs = [] then (
       let extra = if messages = "" then "" else "\n" ^ messages in
-      raise_safe "No signatures found on feed %s!%s" feed extra
+      Safe_exn.failf "No signatures found on feed %s!%s" feed extra
     );
 
     let any_imported = ref false in
@@ -140,7 +140,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
 
       U.with_switch (fun switch ->
         Downloader.download downloader ~switch ~hint:feed_url key_url >>= function
-        | `Network_failure msg -> raise_safe "%s" msg
+        | `Network_failure msg -> Safe_exn.failf "%s" msg
         | `Aborted_by_user -> raise Aborted
         | `Tmpfile tmpfile ->
             let contents = U.read_file system tmpfile in
@@ -196,7 +196,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
 
     let url_in_feed = Element.uri_exn new_root in
     if url_in_feed <> feed_url then
-      raise_safe "URL mismatch in feed:\n%s expected\n%s given in 'uri' attribute on %a" feed_url url_in_feed Element.pp new_root;
+      Safe_exn.failf "URL mismatch in feed:\n%s expected\n%s given in 'uri' attribute on %a" feed_url url_in_feed Element.pp new_root;
 
     (* Load the old XML *)
     let cache_path = Feed_cache.get_save_cache_path config feed in
@@ -233,7 +233,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
       | Some old_xml ->
           G.verify gpg old_xml >>= fun (old_sigs, warnings) ->
           match trust_db#oldest_trusted_sig (Trust.domain_from_url feed) old_sigs with
-          | None -> raise_safe "Can't check signatures of currently cached feed %s" warnings
+          | None -> Safe_exn.failf "Can't check signatures of currently cached feed %s" warnings
           | Some old_modified when old_modified > timestamp ->
               `Replay_attack (feed_url, old_modified, timestamp) |> Lwt.return
           | Some _ -> save_new_xml ()
@@ -253,7 +253,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
       let extra =
         if messages = "" then ""
         else "\nMessages from GPG:\n" ^ messages in
-      raise_safe "No valid signatures found on '%s'. Signatures:%s%s"
+      Safe_exn.failf "No valid signatures found on '%s'. Signatures:%s%s"
         feed_url (List.map format_sig sigs |> String.concat "") extra
     );
 
@@ -316,7 +316,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
   (* We've just downloaded the new version of the feed to a temporary file. Check signature and import it into the cache. *)
   let import_feed ~mirror_used feed xml =
     download_missing_keys ~use_mirror:mirror_used feed xml >>= function
-    | `Problem msg -> raise_safe "Failed to check feed signature: %s" msg
+    | `Problem msg -> Safe_exn.failf "Failed to check feed signature: %s" msg
     | `Aborted_by_user -> Lwt.return `Aborted_by_user
     | `Success (sigs, messages) ->
         match trust_db#oldest_trusted_sig (Trust.domain_from_url feed) sigs with
@@ -367,11 +367,11 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
     | `Problem msg -> `Problem (msg, None) |> Lwt.return in
 
   let download_local_file feed size fn url =
-    let size = size |? lazy (raise_safe "Missing size (BUG)!") in   (* Only missing for mirror downloads, which are never local *)
+    let size = size |? lazy (Safe_exn.failf "Missing size (BUG)!") in   (* Only missing for mirror downloads, which are never local *)
     match feed with
     | `Distribution_feed _ -> assert false
     | `Remote_feed feed_url ->
-        raise_safe "Relative URL '%s' in non-local feed '%s'" url feed_url
+        Safe_exn.failf "Relative URL '%s' in non-local feed '%s'" url feed_url
     | `Local_feed feed_path ->
         let path = Filename.dirname feed_path +/ url in
         match system#stat path with
@@ -381,8 +381,8 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
             if actual_size = expected_size then
               lazy (fn path) |> Lwt.return
             else
-              raise_safe "Wrong size for %s: feed says %d, but actually %d bytes" path expected_size actual_size;
-        | None -> raise_safe "Local file '%s' does not exist" path in
+              Safe_exn.failf "Wrong size for %s: feed says %d, but actually %d bytes" path expected_size actual_size;
+        | None -> Safe_exn.failf "Local file '%s' does not exist" path in
 
   let download_file ~switch ~start_offset ~feed ?size ~may_use_mirror fn url =
     if Str.string_match (Str.regexp "[a-z]+://") url 0 then (
@@ -475,7 +475,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
                     Lwt.return ()
                   with Unix.Unix_error (Unix.ENOENT, _, _) as ex ->
                     log_info ~ex "Failed to rename %s -> %s" source dest;
-                    raise_safe "<rename> source '%s' does not exist" source
+                    Safe_exn.failf "<rename> source '%s' does not exist" source
               ) |> Lwt.return
               | RemoveStep {remove} -> lazy (
                   let path = native_path_within_base remove in
@@ -513,14 +513,14 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
         | `Success -> Lwt.return ()
         | `Aborted_by_user -> raise Aborted
         | `Network_failure orig_msg ->
-            let mirror_download = Mirror.for_impl config impl |? lazy (raise_safe "%s" orig_msg) in
+            let mirror_download = Mirror.for_impl config impl |? lazy (Safe_exn.failf "%s" orig_msg) in
             log_info "%s: trying implementation mirror at %s" orig_msg (config.mirror |> default "-");
             download ~may_use_mirror:false mirror_download >>= function
             | `Aborted_by_user -> raise Aborted
             | `Success -> Lwt.return ()
             | `Network_failure mirror_msg ->
                 log_info "Error from mirror: %s" mirror_msg;
-                raise_safe "%s" orig_msg
+                Safe_exn.failf "%s" orig_msg
       ) in
 
   object
@@ -612,17 +612,17 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
               log_warning "Package '%s' already installed; skipping" (Impl.get_id impl).Feed_url.id
             else
               package_impls := impl :: !package_impls
-        | {Impl.impl_type = `Local_impl path; _} -> raise_safe "Can't fetch a missing local impl (%s from %s)!" path (Feed_url.format_url feed)
+        | {Impl.impl_type = `Local_impl path; _} -> Safe_exn.failf "Can't fetch a missing local impl (%s from %s)!" path (Feed_url.format_url feed)
         | {Impl.impl_type = `Cache_impl info; _} ->
             (* Choose the best digest algorithm we support *)
             if info.Impl.digests = [] then (
-              raise_safe "No digests at all! (so can't choose best) on %a" Impl.pp impl
+              Safe_exn.failf "No digests at all! (so can't choose best) on %a" Impl.pp impl
             );
             let digest = Stores.best_digest info.Impl.digests in
 
             (* Pick the first retrieval method we understand *)
             match info.Impl.retrieval_methods |> U.first_match Recipe.parse_retrieval_method with
-            | None -> raise_safe ("Implementation %s of interface %s cannot be downloaded " ^^
+            | None -> Safe_exn.failf ("Implementation %s of interface %s cannot be downloaded " ^^
                                   "(no download locations given in feed!)") id (Feed_url.format_url feed)
             | Some rm -> zi_impls := (impl, digest, rm) :: !zi_impls
       );
@@ -651,7 +651,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
     method import_feed (feed_url:[`Remote_feed of Sigs.feed_url]) xml =
       import_feed ~mirror_used:None feed_url xml >>= function
       | `Ok _ -> Lwt.return ()
-      | (`Aborted_by_user | `No_trusted_keys | `Replay_attack _) as r -> raise_safe "%s" (string_of_result r)
+      | (`Aborted_by_user | `No_trusted_keys | `Replay_attack _) as r -> Safe_exn.failf "%s" (string_of_result r)
 
     method download_icon (feed_url:Feed_url.non_distro_feed) icon_url =
       let modification_time =
@@ -661,7 +661,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
 
       U.with_switch (fun switch ->
         Downloader.download_if_unmodified downloader ~switch ?modification_time ~hint:feed_url icon_url >|= function
-        | `Network_failure msg -> raise_safe "%s" msg
+        | `Network_failure msg -> Safe_exn.failf "%s" msg
         | `Aborted_by_user -> ()
         | `Unmodified -> ()
         | `Tmpfile tmpfile ->
@@ -743,4 +743,4 @@ let make config trust_db distro download_pool ui =
   | None -> fetcher
   | Some command ->
       try new external_fetcher command fetcher
-      with Safe_exn.T _ as ex -> reraise_with_context ex "... handling $ZEROINSTALL_EXTERNAL_FETCHER"
+      with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... handling $ZEROINSTALL_EXTERNAL_FETCHER"

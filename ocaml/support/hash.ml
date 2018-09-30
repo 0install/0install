@@ -4,8 +4,6 @@
 
 (** Secure hashes. *)
 
-open Common
-
 class type digest_context =
   object
     method update : string -> unit
@@ -41,7 +39,7 @@ let make_context (module D : DIGEST) =
 let create = function
   | "sha1" -> make_context (module Sha1)
   | "sha256" -> make_context (module Sha256)
-  | x -> raise_safe "Unknown digest type '%s'" x
+  | x -> Safe_exn.failf "Unknown digest type '%s'" x
 
 let hex_digest ctx = ctx#to_hex
 let update ctx = ctx#update

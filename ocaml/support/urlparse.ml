@@ -2,8 +2,6 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-open Common
-
 module U = Utils
 
 let rec norm_url_path base rel =
@@ -24,7 +22,7 @@ let split_path url =
       with Not_found -> "/" in
     (netloc, path)
   ) else (
-    raise_safe "Invalid base URL '%s'" url
+    Safe_exn.failf "Invalid base URL '%s'" url
   )
 
 (* foo?bar -> ("foo", "?bar") *)

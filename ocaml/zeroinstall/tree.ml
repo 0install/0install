@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open Support
 open Support.Common
 open General
 
@@ -40,7 +41,7 @@ module Make (Model : Sigs.SELECTIONS) = struct
 
                 Model.selected_commands result role |> List.iter (fun command_name ->
                   let command = Model.get_command impl command_name
-                    |? lazy (raise_safe "BUG: Missing selected command '%s'!" (command_name : Model.command_name :> string)) in
+                    |? lazy (Safe_exn.failf "BUG: Missing selected command '%s'!" (command_name : Model.command_name :> string)) in
                   let command_deps, _self_commands = Model.command_requires role command in
                   deps := command_deps @ !deps
                 );

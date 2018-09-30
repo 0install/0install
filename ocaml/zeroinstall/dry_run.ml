@@ -4,6 +4,7 @@
 
 (** Helpers for --dry-run mode. *)
 
+open Support
 open Support.Common
 
 (** Log a message saying what we would have done. *)
@@ -14,7 +15,7 @@ let log fmt =
 
 (** Wrap a system and prevent all changes (writes). This is used with --dry-run to prevent accidents. *)
 class dryrun_system (underlying:system) =
-  let reject msg = raise_safe "Bug: '%s' called in --dry-run mode" msg in
+  let reject msg = Safe_exn.failf "Bug: '%s' called in --dry-run mode" msg in
   object (_ : #system)
     val mutable fake_dirs = StringMap.empty
 

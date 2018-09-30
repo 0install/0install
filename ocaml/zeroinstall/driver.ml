@@ -210,7 +210,7 @@ let download_and_import_feed fetcher url =
     )
     | `Problem (msg, None) -> (
         match !update with
-        | None -> raise_safe "%s" msg
+        | None -> Safe_exn.failf "%s" msg
         | Some update ->
             (* Primary failed but we got an update from the mirror *)
             log_warning "Feed %s: %s" feed_url msg;
@@ -236,7 +236,7 @@ let download_selections config distro fetcher ~include_packages ~(feed_provider:
     let format_sel sel =
       Element.interface sel ^ " " ^ Element.version sel in
     let items = missing |> List.map format_sel |> String.concat ", " in
-    raise_safe "Can't download as in offline mode:\n%s" items
+    Safe_exn.failf "Can't download as in offline mode:\n%s" items
   ) else (
     (* We're missing some. For each one, get the feed it came from
      * and find the corresponding <implementation> in that. This will
@@ -250,13 +250,13 @@ let download_selections config distro fetcher ~include_packages ~(feed_provider:
     (* Return the latest version of this feed, refreshing if possible. *)
     let get_latest_feed = function
       | `Local_feed path as parsed_feed_url ->
-        let (feed, _) = feed_provider#get_feed parsed_feed_url |? lazy (raise_safe "Missing local feed '%s'" path) in
+        let (feed, _) = feed_provider#get_feed parsed_feed_url |? lazy (Safe_exn.failf "Missing local feed '%s'" path) in
         Lwt.return feed
       | `Remote_feed feed_url as parsed_feed_url ->
           download_and_import_feed fetcher parsed_feed_url >>= function
           | `Aborted_by_user -> raise Aborted_by_user
           | `No_update ->
-              let (feed, _) = feed_provider#get_feed parsed_feed_url |? lazy (raise_safe "Missing feed '%s'" feed_url) in
+              let (feed, _) = feed_provider#get_feed parsed_feed_url |? lazy (Safe_exn.failf "Missing feed '%s'" feed_url) in
               Lwt.return feed
           | `Success new_root ->
               let feed = Feed.parse config.system new_root None in
@@ -292,7 +292,7 @@ let download_selections config distro fetcher ~include_packages ~(feed_provider:
         try
           get_impl ()
         with Not_found ->
-          raise_safe "Implementation '%s' not found in feed '%s'" id (Feed_url.format_url feed_url) in
+          Safe_exn.failf "Implementation '%s' not found in feed '%s'" id (Feed_url.format_url feed_url) in
 
     Lwt.catch
       (fun () -> missing |> List.map impl_of_sel |> collect_ex >>= fetcher#download_impls)

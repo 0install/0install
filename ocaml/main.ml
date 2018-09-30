@@ -5,6 +5,7 @@
 (** The main executable *)
 
 open Zeroinstall.General
+open Support
 open Support.Common
 module U = Support.Utils
 
@@ -66,7 +67,7 @@ let main ~stdout (system:system) : unit =
       | "0alias" | "0alias.exe" ->
           Cli.handle ~stdout config ("_alias" :: args)
       | "0store-secure-add" -> Secureadd.handle config args
-      | name -> raise_safe "Unknown command '%s': must be invoked as '0install' or '0launch'" name
+      | name -> Safe_exn.failf "Unknown command '%s': must be invoked as '0install' or '0launch'" name
 
 let start system =
   Support.Utils.handle_exceptions (main ~stdout:Format.std_formatter) system

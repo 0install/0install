@@ -121,7 +121,7 @@ let best_digest digests =
   | Some (_score, best) -> best
   | None ->
       let algs = digests |> List.map fst |> String.concat ", " in
-      raise_safe "None of the candidate digest algorithms (%s) is supported" algs
+      Safe_exn.failf "None of the candidate digest algorithms (%s) is supported" algs
 
 let make_tmp_dir (system:#filesystem) = function
   | store :: _ ->
@@ -129,7 +129,7 @@ let make_tmp_dir (system:#filesystem) = function
       U.makedirs system store mode;
       system#chmod store mode;  (* arg to makedirs not sufficient; must clear setgid too *)
       U.make_tmp_dir system ~mode store
-  | _ -> raise_safe "No stores configured!"
+  | _ -> Safe_exn.failf "No stores configured!"
 
 (** Copy the contents of [srcdir] into [dstdir] (which must be empty).
  * Permissions on the new copies will be 555 or 444. mtimes are copied. *)
@@ -142,7 +142,7 @@ let rec copy_tree system srcdir dstdir =
 
         let src_path = srcdir +/ item in
         let dst_path = dstdir +/ item in
-        let src_info = system#lstat src_path |? lazy (raise_safe "Path '%s' has disappeared!" src_path) in
+        let src_info = system#lstat src_path |? lazy (Safe_exn.failf "Path '%s' has disappeared!" src_path) in
 
         begin match src_info.Unix.st_kind with
         | Unix.S_DIR ->
@@ -155,9 +155,9 @@ let rec copy_tree system srcdir dstdir =
             U.copy_file system src_path dst_path mode;
             system#set_mtime dst_path src_info.Unix.st_mtime
         | Unix.S_LNK ->
-            let linkto = system#readlink src_path |? lazy (raise_safe "Failed to read symlink target '%s'" src_path) in
+            let linkto = system#readlink src_path |? lazy (Safe_exn.failf "Failed to read symlink target '%s'" src_path) in
             system#symlink ~target:linkto ~newlink:dst_path
-        | _ -> raise_safe "Not a regular file/directory/symlink '%s'" src_path end;
+        | _ -> Safe_exn.failf "Not a regular file/directory/symlink '%s'" src_path end;
       )
 
 (** Rename or move [tmpdir] as [store]/[digest]. The digest is not checked here.
@@ -227,13 +227,13 @@ let add_with_helper config required_digest tmpdir =
   )
 
 let rec fixup_permissions (system:#filesystem) path =
-  let info = system#lstat path |? lazy (raise_safe "Path '%s' has disappeared!" path) in
+  let info = system#lstat path |? lazy (Safe_exn.failf "Path '%s' has disappeared!" path) in
   match info.Unix.st_kind with
   | Unix.S_LNK -> ()
   | Unix.S_DIR | Unix.S_REG ->
       let mode = info.Unix.st_perm in
       if mode land 0o777 <> mode then (
-        raise_safe "Unsafe mode: extracted file '%s' had special bits set in mode '%o'" path mode
+        Safe_exn.failf "Unsafe mode: extracted file '%s' had special bits set in mode '%o'" path mode
       );
       let desired_mode = if (mode land 0o111) <> 0 || info.Unix.st_kind = Unix.S_DIR then 0o555 else 0o444 in
       if mode <> desired_mode then
@@ -247,13 +247,13 @@ let rec fixup_permissions (system:#filesystem) path =
               fixup_permissions system (path +/ item)
             )
       )
-  | _ -> raise_safe "Not a regular file/directory/symlink '%s'" path
+  | _ -> Safe_exn.failf "Not a regular file/directory/symlink '%s'" path
 
 let add_manifest_and_verify system required_digest tmpdir =
   let (alg, required_value) = required_digest in
   let actual_value = Manifest.add_manifest_file system alg tmpdir in
   if (actual_value <> required_value) then (
-    raise_safe "Incorrect manifest -- archive is corrupted.\n\
+    Safe_exn.failf "Incorrect manifest -- archive is corrupted.\n\
                 Required digest: %s\n\
                 Actual digest: %s" (Manifest.format_digest required_digest) (Manifest.format_digest (alg, actual_value))
   )
@@ -267,7 +267,7 @@ let check_manifest_and_rename config required_digest tmpdir =
   fixup_permissions config.system tmpdir;
   add_manifest_and_verify config.system required_digest tmpdir;
   match config.stores with
-  | [] -> raise_safe "No stores configured!"
+  | [] -> Safe_exn.failf "No stores configured!"
   | [user_store] -> add_to_store config user_store required_digest tmpdir; Lwt.return ()
   | user_store :: system_store :: _ ->
       try

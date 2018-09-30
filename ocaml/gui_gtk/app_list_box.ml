@@ -76,14 +76,14 @@ let show_help config sel =
   let path =
     if U.starts_with id "package:" then (
       match help_dir with
-      | None -> raise_safe "No doc-dir specified for package implementation"
+      | None -> Safe_exn.failf "No doc-dir specified for package implementation"
       | Some help_dir ->
           if Filename.is_relative help_dir then
-            raise_safe "Package doc-dir must be absolute! (got '%s')" help_dir
+            Safe_exn.failf "Package doc-dir must be absolute! (got '%s')" help_dir
           else
             help_dir
     ) else (
-      let path = Selections.get_path system config.stores sel |? lazy (raise_safe "BUG: not cached!") in
+      let path = Selections.get_path system config.stores sel |? lazy (Safe_exn.failf "BUG: not cached!") in
       match help_dir with
       | Some help_dir -> path +/ help_dir
       | None ->
@@ -153,7 +153,7 @@ let maybe_with_terminal system feed args =
             if terminal = "gnome-terminal" then Some [path; "-x"]
             else Some [path; "-e"]
           )
-        ) |? lazy (raise_safe "Can't find a suitable terminal emulator") in
+        ) |? lazy (Safe_exn.failf "Can't find a suitable terminal emulator") in
       terminal_args @ args
     )
   ) else args
@@ -173,7 +173,7 @@ let run config dialog tools gui uri =
           | `Aborted_by_user -> Lwt.return ()
           | `Success sels ->
             let feed_url = Feed_url.master_feed_of_iface uri in
-            let feed = FC.get_cached_feed config feed_url |? lazy (raise_safe "BUG: feed still not cached! %s" uri) in
+            let feed = FC.get_cached_feed config feed_url |? lazy (Safe_exn.failf "BUG: feed still not cached! %s" uri) in
             let exec args ~env = config.system#spawn_detach ~env (maybe_with_terminal tools#config.system feed args) in
             match Exec.execute_selections config ~exec sels [] with
             | `Ok () -> Lwt_unix.sleep 0.5
@@ -235,16 +235,16 @@ let create config ~gui ~tools ~add_app =
   let delete_item = GMenu.menu_item ~packing:menu#add ~label:"Delete" () in
 
   run_item#connect#activate ==> (fun () ->
-    run config dialog tools gui (!menu_iface |? lazy (raise_safe "BUG: no selected item!"))
+    run config dialog tools gui (!menu_iface |? lazy (Safe_exn.failf "BUG: no selected item!"))
   );
 
   help_item#connect#activate ==> (fun () ->
-    let uri = !menu_iface |? lazy (raise_safe "BUG: no selected item!") in
+    let uri = !menu_iface |? lazy (Safe_exn.failf "BUG: no selected item!") in
     Gtk_utils.async ~parent:dialog (fun () -> show_help_for_iface tools ~gui uri)
   );
 
   edit_item#connect#activate ==> (fun () ->
-    let uri = !menu_iface |? lazy (raise_safe "BUG: no selected item!") in
+    let uri = !menu_iface |? lazy (Safe_exn.failf "BUG: no selected item!") in
     let reqs = Requirements.run uri in
     Gtk_utils.async ~parent:dialog (fun () ->
       gui#run_solver tools `Download_only reqs ~refresh:false >|= ignore
@@ -267,7 +267,7 @@ let create config ~gui ~tools ~add_app =
                   begin
                     try config.system#unlink path
                     with Unix.Unix_error (Unix.EACCES, _, _) ->
-                      raise_safe "Permission denied. You may be able to remove the entry manually with:\n\
+                      Safe_exn.failf "Permission denied. You may be able to remove the entry manually with:\n\
                                   sudo rm '%s'" path
                   end;
                   model#remove row |> ignore

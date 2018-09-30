@@ -4,6 +4,7 @@
 
 (* A dummy PackageKit for unit-tests *)
 
+open Support
 open Support.Common
 module U = Support.Utils
 
@@ -115,7 +116,7 @@ let start version : (unit -> unit) Lwt.t =
               D.OBus_signal.emit s_Details2 obj ("gnupg;2.0.22;x86_64;arch", "License", Int32.zero, "detail", "http://foo", Int64.of_int 100)
             else
               D.OBus_signal.emit s_Details1 obj ("gnupg;2.0.22;x86_64;arch", "License", "Category", "detail", "http://foo", Int64.of_int 100)
-        | id -> raise_safe "Bad ID '%s'" id
+        | id -> Safe_exn.failf "Bad ID '%s'" id
       ) >>= fun () ->
       let runtime = Int32.of_int 5 in
       if version >= [| 0;8;1 |] then (

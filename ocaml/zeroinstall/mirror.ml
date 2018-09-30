@@ -4,6 +4,7 @@
 
 (** Support functions for using mirror servers *)
 
+open Support
 open Support.Common
 open General
 
@@ -16,15 +17,15 @@ let re_remote_feed = Str.regexp "^\\(https?\\)://\\([^/]*@\\)?\\([^/:]+\\)\\(:[^
 (* The algorithm from 0mirror. *)
 let get_feed_dir (`Remote_feed feed) =
   if String.contains feed '#' then (
-    raise_safe "Invalid URL '%s'" feed
+    Safe_exn.failf "Invalid URL '%s'" feed
   ) else (
     let scheme, rest = U.split_pair re_scheme_sep feed in
     if not (String.contains rest '/') then
-      raise_safe "Missing / in %s" feed;
+      Safe_exn.failf "Missing / in %s" feed;
     let domain, rest = U.split_pair U.re_slash rest in
     [scheme; domain; rest] |> List.iter (fun part ->
       if part = "" || U.starts_with part "." then
-        raise_safe "Invalid URL '%s'" feed
+        Safe_exn.failf "Invalid URL '%s'" feed
     );
     String.concat "/" ["feeds"; scheme; domain; escape_slashes rest]
   )

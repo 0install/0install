@@ -3,6 +3,7 @@
  *)
 
 open Zeroinstall.General
+open Support
 open Support.Common
 open OUnit
 open Zeroinstall
@@ -385,8 +386,8 @@ let suite = "solver">::: [
         val distro_name = "dummy"
         val check_host_python = false
         method! private is_installed = failwith "is_installed"
-        method check_for_candidates = raise_safe "Unexpected check_for_candidates"
-        method! install_distro_packages = raise_safe "install_distro_packages"
+        method check_for_candidates = Safe_exn.failf "Unexpected check_for_candidates"
+        method! install_distro_packages = Safe_exn.failf "install_distro_packages"
         method private get_package_impls query =
           let machine = Some Arch.x86_64 in
           self#add_package_implementation

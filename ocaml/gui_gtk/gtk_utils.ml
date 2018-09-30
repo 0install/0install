@@ -4,6 +4,7 @@
 
 (** Some helper functions for GTK. *)
 
+open Support
 open Support.Common
 open Gtk_common
 
@@ -93,7 +94,7 @@ let sanity_check_iface uri =
      U.ends_with uri ".rpm" ||
      U.ends_with uri ".deb" ||
      U.ends_with uri ".tgz" then (
-   raise_safe "This URI (%s) looks like an archive, not a 0install feed. Make sure you're using the feed link!" uri
+   Safe_exn.failf "This URI (%s) looks like an archive, not a 0install feed. Make sure you're using the feed link!" uri
   )
 
 let combo ~(table:GPack.table) ~top ~label ~choices ~to_string ~value ~callback ~tooltip =

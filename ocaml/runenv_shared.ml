@@ -18,4 +18,4 @@ let runenv (system:system) args =
       let open Yojson.Basic in
       let envargs = Util.convert_each Util.to_string (from_string s) in
       system#exec (envargs @ args)
-    with Safe_exn.T _ as ex -> reraise_with_context ex "... launching %s" arg0
+    with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... launching %s" arg0

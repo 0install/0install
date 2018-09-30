@@ -6,6 +6,7 @@
 
 open Options
 open Zeroinstall.General
+open Support
 open Support.Common
 open Support.Argparse
 
@@ -18,7 +19,7 @@ class ['a, 'b] ambiguous_no_arg (actual:'a) reader =
     method get_reader = reader
     method parse = function
       | [] -> actual
-      | _ -> raise_safe "Option takes no arguments in this context"
+      | _ -> Safe_exn.failf "Option takes no arguments in this context"
   end
 
 class ['a, 'b] ambiguous_one_arg (actual:'a) (reader:'b option_reader) =
@@ -26,7 +27,7 @@ class ['a, 'b] ambiguous_one_arg (actual:'a) (reader:'b option_reader) =
     method get_reader = reader
     method parse = function
       | [x] -> actual x
-      | _ -> raise_safe "Option takes one argument in this context"
+      | _ -> Safe_exn.failf "Option takes one argument in this context"
   end
 
 exception ShowVersion

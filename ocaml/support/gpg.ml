@@ -66,7 +66,7 @@ let get_gnupg_options system =
         | None ->
             match U.find_in_path system "gpg2" with
             | Some path -> path
-            | None -> raise_safe "Can't find gpg or gpg2 in $PATH!" in
+            | None -> Safe_exn.failf "Can't find gpg or gpg2 in $PATH!" in
 
   let gnupg_options = [gpg_path; "--no-secmem-warning"] in
 
@@ -130,7 +130,7 @@ let run_gpg system ?stdin args =
   | Unix.WEXITED 0 -> Lwt.return stdout
   | status ->
       if stderr = "" then System.check_exit_status status;
-      raise_safe "GPG failed: %s" stderr
+      Safe_exn.failf "GPG failed: %s" stderr
 
 (** Run "gpg --import" with this data as stdin. *)
 let import_key system key_data =
@@ -164,7 +164,7 @@ let find_sig_end xml =
 
   let end_marker_index = last_non_ws - 4 in
   if String.sub xml end_marker_index 4 <> "\n-->" then
-    raise_safe "Bad signature block: last line is not end-of-comment";
+    Safe_exn.failf "Bad signature block: last line is not end-of-comment";
 
   let rec skip_padding last =
     match xml.[last - 1] with
@@ -223,19 +223,19 @@ let verify (system:system) xml =
   if not (U.starts_with xml "<?xml ") then (
     let len = min 120 (String.length xml) in
     let start = String.sub xml 0 len |> String.escaped in
-    raise_safe "This is not a Zero Install feed! It should be an XML document, but it starts:\n%s" start
+    Safe_exn.failf "This is not a Zero Install feed! It should be an XML document, but it starts:\n%s" start
   ) else (
     let index =
       try Str.search_backward re_xml_comment_start xml (String.length xml)
       with Not_found ->
-        raise_safe "No signature block in XML. Maybe this file isn't signed?" in
+        Safe_exn.failf "No signature block in XML. Maybe this file isn't signed?" in
 
     let sig_start = String.index_from xml index '\n' in
     let sig_end = find_sig_end xml in
     let base64_data = String.sub xml sig_start (sig_end - sig_start) |> Str.global_replace re_newline "" in
     let sig_data =
       try Base64.str_decode base64_data
-      with Base64.Invalid_char -> raise_safe "Invalid characters found in base 64 encoded signature" in
+      with Base64.Invalid_char -> Safe_exn.failf "Invalid characters found in base 64 encoded signature" in
 
     let tmp = Filename.temp_file "0install-" "-gpg" in
     Lwt.finalize

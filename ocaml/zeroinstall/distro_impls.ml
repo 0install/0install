@@ -5,6 +5,7 @@
 (** Interacting with distribution package managers. *)
 
 open General
+open Support
 open Support.Common
 module U = Support.Utils
 
@@ -657,7 +658,7 @@ module Mac = struct
                   ) else log_debug "Failed to match version '%s'" version
               | [_package; _version; _extra] -> ()
               | [_package; _version] -> ()
-              | _ -> raise_safe "Invalid port output: '%s'" line
+              | _ -> Safe_exn.failf "Invalid port output: '%s'" line
             )
           done
         with End_of_file -> ()
@@ -695,7 +696,7 @@ end
 
 module Win = struct
   let windows_distribution config =
-    let api = !Support.Windows_api.windowsAPI |? lazy (raise_safe "Failed to load Windows support module!") in
+    let api = !Support.Windows_api.windowsAPI |? lazy (Safe_exn.failf "Failed to load Windows support module!") in
 
     let read_hklm_reg reader =
       let open Support.Windows_api in
@@ -918,7 +919,7 @@ module Gentoo = struct
             category_dir |> iter_dir config.system (fun filename ->
               if U.starts_with filename match_prefix && is_digit (filename.[String.length match_prefix]) then (
                 let pf_path = category_dir +/ filename +/ "PF"in
-                let pf_mtime = (config.system#lstat pf_path |? lazy (raise_safe "Missing '%s' file!" pf_path)).Unix.st_mtime in
+                let pf_mtime = (config.system#lstat pf_path |? lazy (Safe_exn.failf "Missing '%s' file!" pf_path)).Unix.st_mtime in
                 let name = pf_path|> config.system#with_open_in [Open_rdonly] input_line |> String.trim in
 
                 match (try Some (Str.search_forward re_version_start name 0) with Not_found -> None) with

@@ -15,13 +15,13 @@ external uname : unit -> Platform.t = "ocaml_0install_uname"
 let wrap_unix_errors fn =
   try fn ()
   with Unix.Unix_error (errno, s1, s2) ->
-    raise_safe "%s(%s): %s" s1 s2 (Unix.error_message errno)
+    Safe_exn.failf "%s(%s): %s" s1 s2 (Unix.error_message errno)
 
 let check_exit_status = function
   | Unix.WEXITED 0 -> ()
-  | Unix.WEXITED code -> raise_safe "Child returned error exit status %d" code
-  | Unix.WSIGNALED signal -> raise_safe "Child aborted (signal %d)" signal
-  | Unix.WSTOPPED signal -> raise_safe "Child is currently stopped (signal %d)" signal
+  | Unix.WEXITED code -> Safe_exn.failf "Child returned error exit status %d" code
+  | Unix.WSIGNALED signal -> Safe_exn.failf "Child aborted (signal %d)" signal
+  | Unix.WSTOPPED signal -> Safe_exn.failf "Child is currently stopped (signal %d)" signal
 
 (* From Unix.ml (not exported) *)
 let rec waitpid_non_intr pid =
@@ -91,7 +91,7 @@ module RealSystem (U : UnixType) =
               | Some env -> Unix.create_process_env (List.hd args) (Array.of_list args) env new_stdin new_stdout new_stderr
             )
           with Safe_exn.T _ as ex ->
-            reraise_with_context ex "... trying to create sub-process '%s'"
+            Safe_exn.reraise_with ex "... trying to create sub-process '%s'"
               (Logging.format_argv_for_logging args)
 
         method unlink = Unix.unlink
@@ -129,14 +129,14 @@ module RealSystem (U : UnixType) =
         method with_open_in open_flags fn file =
           let (ch:in_channel) =
             try open_in_gen open_flags 0 file
-            with Sys_error msg -> raise_safe "Open failed: %s" msg in
+            with Sys_error msg -> Safe_exn.failf "Open failed: %s" msg in
           Utils.finally_do close_in ch fn
 
         (** [with_open_out fn file] opens [file] for writing, calls [fn handle], and then closes it again. *)
         method with_open_out open_flags ~mode fn file =
           let (ch:out_channel) =
             try open_out_gen open_flags mode file
-            with Sys_error msg -> raise_safe "Open failed: %s" msg in
+            with Sys_error msg -> Safe_exn.failf "Open failed: %s" msg in
           Utils.finally_do close_out ch fn
 
         (** A safer, more friendly version of the [Unix.exec*] calls.
@@ -175,7 +175,7 @@ module RealSystem (U : UnixType) =
             )
           with Safe_exn.T _ as ex ->
             let cmd = String.concat " " argv in
-            reraise_with_context ex "... trying to exec: %s" cmd
+            Safe_exn.reraise_with ex "... trying to exec: %s" cmd
 
         (* The child's stderr is /dev/null, unless debug logging is on. *)
         method spawn_detach ?(search_path = false) ?env argv =
@@ -210,14 +210,14 @@ module RealSystem (U : UnixType) =
             )
           with Safe_exn.T _ as ex ->
             let cmd = String.concat " " argv in
-            reraise_with_context ex "... trying to spawn: %s" cmd
+            Safe_exn.reraise_with ex "... trying to spawn: %s" cmd
 
         (** Create and open a new text file, call [fn chan] on it, and rename it over [path] on success. *)
         method atomic_write open_flags ~mode fn path =
           let dir = Filename.dirname path in
           let (tmpname, ch) =
             try Filename.open_temp_file ~mode:open_flags ~temp_dir:dir "tmp-" ".new"
-            with Sys_error msg -> raise_safe "open_temp_file failed: %s" msg
+            with Sys_error msg -> Safe_exn.failf "open_temp_file failed: %s" msg
           in
           let result = Utils.finally_do close_out ch fn in
           try
@@ -226,7 +226,7 @@ module RealSystem (U : UnixType) =
               Unix.rename tmpname path
             );
             result
-          with Safe_exn.T _ as ex -> reraise_with_context ex "... trying to write '%s'" path
+          with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... trying to write '%s'" path
 
         method hardlink = Unix.link
 

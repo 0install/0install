@@ -4,6 +4,7 @@
 
 (** Escaping and unescaping strings. *)
 
+open Support
 open Support.Common
 module U = Support.Utils
 
@@ -88,7 +89,7 @@ let escape_interface_uri uri =
       let path = U.string_tail rest (i + 1) in
       [underscore_escape host; underscore_escape path]
     with Not_found ->
-      raise_safe "Invalid URL '%s' (missing third slash)" uri in
+      Safe_exn.failf "Invalid URL '%s' (missing third slash)" uri in
 
   if U.starts_with uri "http://" then
     "http" :: (handle_rest @@ U.string_tail uri 7)
@@ -96,6 +97,6 @@ let escape_interface_uri uri =
     "http" :: (handle_rest @@ U.string_tail uri 8)
   else (
     if not (U.path_is_absolute uri) then
-      raise_safe "Invalid interface path '%s' (not absolute)" uri;
+      Safe_exn.failf "Invalid interface path '%s' (not absolute)" uri;
     "file" :: [underscore_escape @@U.string_tail uri 1]
   )

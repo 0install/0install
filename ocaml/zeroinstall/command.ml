@@ -47,11 +47,11 @@ let rec expand ~env = function
 let get_args elem env =
   try
     Element.arg_children elem >>= expand ~env
-  with Safe_exn.T _ as ex -> reraise_with_context ex "... expanding %a" Element.pp elem
+  with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... expanding %a" Element.pp elem
 
 let find_ex role impls =
   Selections.RoleMap.find role impls
-  |? lazy (raise_safe "Missing a selection for role '%a'" Selections.Role.pp role)
+  |? lazy (Safe_exn.failf "Missing a selection for role '%a'" Selections.Role.pp role)
 
 (* [command_rel_path command] is the "path" attribute on the <command> element, if any.
    If [main] is given, this overrides the path. *)
@@ -61,7 +61,7 @@ let command_rel_path ?main command =
   | None, path -> path
   | Some main, _ when U.starts_with main "/" -> Some (U.string_tail main 1)   (* --main=/foo *)
   | Some main, Some path -> Some (Filename.dirname path +/ main)              (* --main=foo *)
-  | Some main, None -> raise_safe "Can't use a relative replacement main (%s) when there is no original one!" main
+  | Some main, None -> Safe_exn.failf "Can't use a relative replacement main (%s) when there is no original one!" main
 
 (* The absolute path of the executable to run for <command>, if any (ignoring any <runner>). *)
 let command_exe ?main ~dry_run ~impl_path command =
@@ -112,4 +112,4 @@ let rec build_command ?main ?(dry_run=false) impls req env : string list =
       let runner_role = {Selections.iface = Element.interface runner; source = false} in
       let runner_req = {Selections.command = Some runner_command_name; role = runner_role} in
       build_command ~dry_run impls runner_req env @ runner_args @ args
-  with Safe_exn.T _ as ex -> reraise_with_context ex "... building command for %a" Selections.Role.pp role
+  with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... building command for %a" Selections.Role.pp role

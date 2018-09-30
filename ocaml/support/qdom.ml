@@ -83,7 +83,7 @@ let parse_input source_name i = try (
 
   let get_hint ns =
     try Hashtbl.find prefix_hints ns
-    with Not_found -> raise_safe "BUG: missing prefix '%s'" ns in
+    with Not_found -> Safe_exn.failf "BUG: missing prefix '%s'" ns in
 
   (* This is a dummy mapping for non-namespaced documents. It shouldn't be used, because the
    * root must be non-namespaced too in that case, and therefore "" will be the default namespace
@@ -141,15 +141,15 @@ let parse_input source_name i = try (
   | [root], "" -> root
   | _ -> failwith("Expected single root node in XML")
 ) with Xmlm.Error ((line, col), err) ->
-  raise_safe "[%d:%d] %s" line col (Xmlm.error_message err)
+  Safe_exn.failf "[%d:%d] %s" line col (Xmlm.error_message err)
 
 let parse_file (system:#filesystem) ?name path =
   try path |> system#with_open_in [Open_rdonly; Open_binary] (fun ch ->
     parse_input (Some (name |> default path)) (Xmlm.make_input (`Channel ch))
   )
   with
-  | Safe_exn.T _ as ex -> reraise_with_context ex "... parsing XML document %s" path
-  | Sys_error msg -> raise_safe "Error parsing XML document '%s': %s" path msg
+  | Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... parsing XML document %s" path
+  | Sys_error msg -> Safe_exn.failf "Error parsing XML document '%s': %s" path msg
 
 (** Helper functions. *)
 
@@ -187,7 +187,7 @@ end
 
 let raise_elem fmt =
   let do_raise s elem : 'b =
-    raise_safe "%s %s" s @@ show_with_loc elem
+    Safe_exn.failf "%s %s" s @@ show_with_loc elem
   in Printf.ksprintf do_raise fmt
 
 let log_elem level =

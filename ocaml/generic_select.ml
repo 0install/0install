@@ -5,6 +5,7 @@
 (** Selecting and downloading: common code for select/download/update/run *)
 
 open Zeroinstall.General
+open Support
 open Support.Common
 open Options
 open Zeroinstall
@@ -38,7 +39,7 @@ let canonical_iface_uri (system:system) arg =
   let starts = U.starts_with arg in
   if starts "http://" || starts "https://" then (
     if not (String.contains_from arg (String.index arg '/' + 2) '/') then
-      raise_safe "Missing / after hostname in URI '%s'" arg;
+      Safe_exn.failf "Missing / after hostname in URI '%s'" arg;
     arg
   ) else if starts "alias:" then (
     let alias = U.string_tail arg 6 in
@@ -50,13 +51,13 @@ let canonical_iface_uri (system:system) arg =
 
     match Launcher.parse_script system path with
     | Some (Launcher.AliasScript info) -> info.Launcher.uri
-    | _ -> raise_safe "Not an alias script: '%s'" path
+    | _ -> Safe_exn.failf "Not an alias script: '%s'" path
   ) else (
     let path = U.realpath system @@ if starts "file:///" then (
       U.string_tail arg 7
     ) else if starts "file:" then (
         if arg.[5] = '/' then
-          raise_safe "Use file:///path for absolute paths, not %s" arg;
+          Safe_exn.failf "Use file:///path for absolute paths, not %s" arg;
         U.string_tail arg 5
     ) else (
       arg
@@ -74,9 +75,9 @@ let canonical_iface_uri (system:system) arg =
     if system#file_exists path then
       path
     else if is_alias () then
-      raise_safe "Bad interface name '%s'.\n(hint: try 'alias:%s' instead)" arg arg
+      Safe_exn.failf "Bad interface name '%s'.\n(hint: try 'alias:%s' instead)" arg arg
     else
-      raise_safe "Bad interface name '%s'.\n(doesn't start with 'http:', and doesn't exist as a local file '%s' either)" arg path
+      Safe_exn.failf "Bad interface name '%s'.\n(doesn't start with 'http:', and doesn't exist as a local file '%s' either)" arg path
   )
 
 (** Convert a feed URL from the user to canonical form.
@@ -87,14 +88,14 @@ let canonical_feed_url (system:system) arg =
   let url =
     if starts "http://" || starts "https://" then (
       if not (String.contains_from arg (String.index arg '/' + 2) '/') then
-        raise_safe "Missing / after hostname in URL '%s'" arg;
+        Safe_exn.failf "Missing / after hostname in URL '%s'" arg;
       arg
     ) else (
       if starts "file:///" then (
         U.string_tail arg 7
       ) else if starts "file:" then (
           if arg.[5] = '/' then
-            raise_safe "Use file:///path for absolute paths, not %s" arg;
+            Safe_exn.failf "Use file:///path for absolute paths, not %s" arg;
           U.string_tail arg 5
       ) else (
         arg
@@ -143,7 +144,7 @@ let resolve_target config flags arg =
           | None -> Support.Qdom.raise_elem "Not a 0install document (wrong namespace on root element): " root
           | Some "selections" -> Zeroinstall.Selections.create root |> is_selections
           | Some "interface" | Some "feed" -> is_interface ()
-          | Some x -> raise_safe "Unexpected root element <%s>" x
+          | Some x -> Safe_exn.failf "Unexpected root element <%s>" x
 
 (** Update all the feeds needed to solve for these requirements in a background process. *)
 let spawn_background_update config reqs mode =
@@ -301,7 +302,7 @@ let handle options flags arg ?test_callback for_op =
           let fetcher = lazy (tools#make_fetcher tools#ui#watcher) in
           match Zeroinstall.Driver.download_selections ~feed_provider ~include_packages:false config tools#distro fetcher old_sels |> Lwt_main.run with
           | `Success -> old_sels
-          | `Aborted_by_user -> raise_safe "Aborted by user"
+          | `Aborted_by_user -> Safe_exn.failf "Aborted by user"
         )
       ) in
       maybe_show_sels new_sels;

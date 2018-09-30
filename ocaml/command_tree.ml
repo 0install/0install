@@ -3,6 +3,7 @@
  *)
 
 open Zeroinstall.General
+open Support
 open Support.Common
 open Support.Argparse
 
@@ -53,7 +54,7 @@ let assoc key items =
 let rec lookup node args =
   match node, args with
   | Group items, name :: args ->
-      let subnode = assoc name items |? lazy (raise_safe "Unknown 0install sub-command '%s': try --help" name) in
+      let subnode = assoc name items |? lazy (Safe_exn.failf "Unknown 0install sub-command '%s': try --help" name) in
       let prefix, node, args = lookup subnode args in
       (name :: prefix, node, args)
   | _ -> ([], node, args)

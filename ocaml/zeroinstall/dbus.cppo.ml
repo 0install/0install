@@ -4,7 +4,8 @@
 
 (** Convenience functions for D-BUS. This module can be imported even if D-BUS support isn't available. *)
 
-open Support.Common
+open Support
+open Common
 
 #ifdef HAVE_DBUS
 module OBus_bus = OBus_bus
@@ -61,7 +62,7 @@ let session ?switch:_ () =
 let system ?switch:_ () =
   return (`Error "0install was compiled without D-BUS support")
 
-let no_dbus _ = raise_safe "No D-BUS!"
+let no_dbus _ = Safe_exn.failf "No D-BUS!"
 
 (* Always call [session] first. If you get None, don't use Notification. *)
 module Notification =

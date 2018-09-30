@@ -5,6 +5,7 @@
 (** The "0install add" command *)
 
 open Options
+open Support
 open Support.Common
 
 module Apps = Zeroinstall.Apps
@@ -44,7 +45,7 @@ let handle options flags args =
               Apps.set_selections options.config app sels ~touch_last_checked:true;
               Apps.integrate_shell options.config app pet_name
       )
-      | (G.Selections _, _) -> raise_safe "'%s' is a selections document, not an interface URI" arg
-      | (G.App _, _) -> raise_safe "'%s' is an app, not an interface URI" arg
+      | (G.Selections _, _) -> Safe_exn.failf "'%s' is a selections document, not an interface URI" arg
+      | (G.App _, _) -> Safe_exn.failf "'%s' is an app, not an interface URI" arg
   )
   | _ -> raise (Support.Argparse.Usage_error 1)

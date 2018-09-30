@@ -5,6 +5,7 @@
 (** The "0install show" command *)
 
 open Zeroinstall.General
+open Support
 open Support.Common
 open Options
 module Qdom = Support.Qdom
@@ -58,6 +59,6 @@ let handle options flags args =
       | (true, false) -> Format.fprintf options.stdout "%s@." Selections.((root_role sels).iface)
       | (false, true) -> show_xml (Selections.as_xml sels)
       | (false, false) -> show_human config options.stdout sels
-      | (true, true) -> raise_safe "Can't use --xml with --root"
+      | (true, true) -> Safe_exn.failf "Can't use --xml with --root"
   )
   | _ -> raise (Support.Argparse.Usage_error 1)

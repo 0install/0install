@@ -4,6 +4,7 @@
 
 (** Low-level download interface *)
 
+open Support
 open Support.Common
 
 module U = Support.Utils
@@ -124,7 +125,7 @@ let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.
             size |> if_some (fun expected ->
                 let expected = Int64.to_float expected in
                 if expected <> actual_size then
-                  raise_safe "Downloaded archive has incorrect size.\n\
+                  Safe_exn.failf "Downloaded archive has incorrect size.\n\
                               URL: %s\n\
                               Expected: %.0f bytes\n\
                               Received: %.0f bytes" url expected actual_size
@@ -177,7 +178,7 @@ module Site = struct
   let schedule_download t ~cancelled ?if_slow ?size ?modification_time ?start_offset ~progress ch url =
     log_debug "Scheduling download of %s" url;
     if not (List.exists (U.starts_with url) ["http://"; "https://"; "ftp://"]) then (
-      raise_safe "Invalid scheme in URL '%s'" url
+      Safe_exn.failf "Invalid scheme in URL '%s'" url
     );
 
     Lwt_pool.use t.pool (fun r ->

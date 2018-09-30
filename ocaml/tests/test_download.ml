@@ -35,7 +35,7 @@ let parse_sels xml =
     |> Q.parse_input None
     |> Zeroinstall.Selections.create
   with Safe_exn.T _ as ex ->
-    reraise_with_context ex "... parsing %s" xml
+    Safe_exn.reraise_with ex "... parsing %s" xml
 
 let get_sel_path config sel =
   match Zeroinstall.Selections.get_source sel with
@@ -248,7 +248,7 @@ let suite = "download">::: [
        \\[dry-run] would store implementation as .*/cache/implementations/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a\n\
        \\[dry-run] would execute: .*HelloWorld/main Hello\n" in
     if not (Str.string_match (Str.regexp expected) out 0) then
-      raise_safe "No match. Got:\n%s" out;
+      Safe_exn.failf "No match. Got:\n%s" out;
   );
 
   "import">:: Server.with_server (fun (config, fake_system) server ->
@@ -311,7 +311,7 @@ let suite = "download">::: [
     Lwt_main.run @@ deb#check_for_candidates ~ui:Fake_system.null_ui feed;
     begin match Test_distro.to_impl_list @@ deb#get_impls_for_feed ~problem:failwith feed with
     | [_impl1; _impl2] -> ()
-    | items -> raise_safe "Got %d!" (List.length items) end;
+    | items -> Safe_exn.failf "Got %d!" (List.length items) end;
 
     Unix.putenv "PATH" old_path;
   );
@@ -484,7 +484,7 @@ let suite = "download">::: [
     let get_mtime path =
       match system#lstat path with
       | Some info -> info.Unix.st_mtime
-      | None -> raise_safe "Missing '%s'" path in
+      | None -> Safe_exn.failf "Missing '%s'" path in
 
     (* Not time for a background update yet *)
     config.freshness <- Some 1000.0;
@@ -827,7 +827,7 @@ let suite = "download">::: [
         `Bool false
       ] >>= begin function
       | `WithXML (`List [`String "ok"], xml) -> Lwt.return xml
-      | x -> raise_safe "Bad reply %a" Json_connection.pp_opt_xml x
+      | x -> Safe_exn.failf "Bad reply %a" Json_connection.pp_opt_xml x
       end >>= fun xml ->
       let sels = Selections.create xml in
       let impl = Selections.(get_selected (root_role sels) sels) |> expect in

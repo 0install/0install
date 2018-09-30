@@ -49,7 +49,7 @@ let make_no_gui connection : Ui.ui_handler =
             ) in
             JC.invoke connection "confirm-keys" [`String (Zeroinstall.Feed_url.format_url feed_url); `Assoc json_infos] >>= function
             | `List confirmed_keys -> confirmed_keys |> List.map Yojson.Basic.Util.to_string |> Lwt.return
-            | _ -> raise_safe "Invalid response"
+            | _ -> Safe_exn.failf "Invalid response"
           )
           (fun () ->
             !pending_tasks |> List.iter Lwt.cancel;
@@ -60,7 +60,7 @@ let make_no_gui connection : Ui.ui_handler =
         JC.invoke connection "confirm" [`String message] >>= function
         | `String "ok" -> Lwt.return `Ok
         | `String "cancel" -> Lwt.return `Cancel
-        | json -> raise_safe "Invalid response '%a'" JC.pp_opt_xml json
+        | json -> Safe_exn.failf "Invalid response '%a'" JC.pp_opt_xml json
     end in
 
   (ui :> Zeroinstall.Ui.ui_handler)
@@ -68,7 +68,7 @@ let make_no_gui connection : Ui.ui_handler =
 let make_ui config connection use_gui : Zeroinstall.Ui.ui_handler =
   let use_gui =
     match use_gui, config.dry_run with
-    | `Yes, true -> raise_safe "Can't use GUI with --dry-run"
+    | `Yes, true -> Safe_exn.failf "Can't use GUI with --dry-run"
     | (`Auto | `No), true -> `No
     | use_gui, false -> use_gui in
 
@@ -163,7 +163,7 @@ let wrap_for_2_6 next (op, args) =
 
 let run_slave config tools ~from_peer ~to_peer ~requested_api_version =
   if requested_api_version < Version.parse "2.6" then
-    raise_safe "Minimum supported API version is 2.6";
+    Safe_exn.failf "Minimum supported API version is 2.6";
   let api_version = min requested_api_version Zeroinstall.About.parsed_version in
   let make_handler connection =
     let ui = make_ui config connection tools#use_gui in

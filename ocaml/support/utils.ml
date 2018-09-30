@@ -66,14 +66,14 @@ let makedirs (system:#filesystem) path mode =
     match system#stat path with
     | Some info ->
         if info.Unix.st_kind = Unix.S_DIR then ()
-        else raise_safe "Not a directory: %s" path
+        else Safe_exn.failf "Not a directory: %s" path
     | None ->
         let parent = (Filename.dirname path) in
         assert (path <> parent);
         loop parent;
         system#mkdir path mode in
   try loop path
-  with Safe_exn.T _ as ex -> reraise_with_context ex "... creating directory %s" path
+  with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... creating directory %s" path
 
 let starts_with str prefix =
   let ls = String.length str in
@@ -179,7 +179,7 @@ let abspath (system:#filesystem) path =
 let getenv_ex system name =
   match system#getenv name with
   | Some value -> value
-  | None -> raise_safe "Environment variable '%s' not set" name
+  | None -> Safe_exn.failf "Environment variable '%s' not set" name
 
 let re_dash = Str.regexp_string "-"
 let re_slash = Str.regexp_string "/"
@@ -209,7 +209,7 @@ let find_in_path (system:system) name =
 let find_in_path_ex system name =
   match find_in_path system name with
   | Some path -> path
-  | None -> raise_safe "Not found in $PATH: %s" name
+  | None -> Safe_exn.failf "Not found in $PATH: %s" name
 
 let check_output ?env ?stderr ?reaper (system:#processes) fn (argv:string list) =
   try
@@ -252,12 +252,12 @@ let check_output ?env ?stderr ?reaper (system:#processes) fn (argv:string list) 
           ~ctx:["... trying to read output of: " ^ cmd]
   | Safe_exn.T _ as ex ->
       let cmd = Logging.format_argv_for_logging argv in
-      reraise_with_context ex "... trying to read output of: %s" cmd
+      Safe_exn.reraise_with ex "... trying to read output of: %s" cmd
 
 let split_pair re str =
   match Str.bounded_split_delim re str 2 with
   | [key; value] -> (key, value)
-  | [_] -> raise_safe "Not a pair '%s'" str
+  | [_] -> Safe_exn.failf "Not a pair '%s'" str
   | _ -> assert false
 
 let re_section = Str.regexp "^[ \t]*\\[[ \t]*\\([^]]*\\)[ \t]*\\][ \t]*$"
@@ -300,10 +300,10 @@ let rmtree ~even_if_locked (sys:#filesystem) root =
             | Ok files ->
                 Array.iter (fun leaf -> rmtree @@ path +/ leaf) files;
                 sys#rmdir path
-            | Error ex -> raise_safe "Can't read directory '%s': %s" path (Printexc.to_string ex)
+            | Error ex -> Safe_exn.failf "Can't read directory '%s': %s" path (Printexc.to_string ex)
       ) in
     rmtree root
-  with Safe_exn.T _ as ex -> reraise_with_context ex "... trying to delete directory %s" root
+  with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... trying to delete directory %s" root
 
 let copy_channel ic oc =
   let bufsize = 4096 in
@@ -322,7 +322,7 @@ let copy_file (system:#filesystem) source dest mode =
     source |> system#with_open_in [Open_rdonly;Open_binary] (fun ic ->
       dest |> system#with_open_out [Open_creat;Open_excl;Open_wronly;Open_binary] ~mode (copy_channel ic)
     )
-  with Safe_exn.T _ as ex -> reraise_with_context ex "... copying %s to %s" source dest
+  with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... copying %s to %s" source dest
 
 let slice ~start ?stop lst =
   let from_start =
@@ -398,7 +398,7 @@ let realpath (system:#filesystem) path =
     else (
       fst @@ join_realpath system#getcwd path StringMap.empty
     )
-  with Safe_exn.T _ as ex -> reraise_with_context ex "... in realpath(%s)" path
+  with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... in realpath(%s)" path
 
 let format_time t =
   let open Unix in
@@ -453,7 +453,7 @@ let touch (system:#system) path =
 
 let read_file (system:#filesystem) path =
   match system#stat path with
-  | None -> raise_safe "File '%s' doesn't exist" path
+  | None -> Safe_exn.failf "File '%s' doesn't exist" path
   | Some info ->
       let buf = Bytes.create (info.Unix.st_size) in
       path |> system#with_open_in [Open_rdonly;Open_binary] (fun ic ->
@@ -463,11 +463,11 @@ let read_file (system:#filesystem) path =
 
 let safe_int_of_string s =
   try int_of_string s
-  with Failure msg -> raise_safe "Invalid integer '%s' (%s)" s msg
+  with Failure msg -> Safe_exn.failf "Invalid integer '%s' (%s)" s msg
 
 let make_tmp_dir system ?(prefix="tmp-") ?(mode=0o700) parent =
   let rec mktmp = function
-    | 0 -> raise_safe "Failed to generate temporary directroy name!"
+    | 0 -> Safe_exn.failf "Failed to generate temporary directroy name!"
     | n ->
         try
           let tmppath = parent +/ Printf.sprintf "%s%x" prefix (Random.int 0x3fffffff) in
@@ -516,7 +516,7 @@ let stream_of_lines data =
         let nl =
           try String.index_from data !i '\n'
           with Not_found ->
-            raise_safe "Extra data at end (no endline): %s" (String.escaped @@ string_tail data !i) in
+            Safe_exn.failf "Extra data at end (no endline): %s" (String.escaped @@ string_tail data !i) in
         let line = String.sub data !i (nl - !i) in
         i := nl + 1;
         Some line
@@ -530,7 +530,7 @@ let make_command system args =
 let xdg_open_dir ?(exec=false) (system:system) path =
   (* xdg-open has no "safe" mode, so check we're not "opening" an application. *)
   if system#file_exists (path +/ "AppRun") then
-    raise_safe "Documentation directory '%s' is an AppDir; refusing to open" path
+    Safe_exn.failf "Documentation directory '%s' is an AppDir; refusing to open" path
   else if exec then
     system#exec ~search_path:true ["xdg-open"; path]
   else

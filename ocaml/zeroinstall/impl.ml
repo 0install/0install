@@ -120,7 +120,7 @@ let make_distribtion_restriction distros =
   end
 
 let get_attr_ex name impl =
-  AttrMap.get_no_ns name impl.props.attrs |? lazy (raise_safe "Missing '%s' attribute for %a" name Element.pp impl.qdom)
+  AttrMap.get_no_ns name impl.props.attrs |? lazy (Safe_exn.failf "Missing '%s' attribute for %a" name Element.pp impl.qdom)
 
 let parse_version_element elem =
   let before = Element.before elem in
@@ -184,7 +184,7 @@ let parse_dep local_dir node =
           let iface = U.normpath @@ dir +/ raw_iface in
           (iface, Element.with_interface iface node)
       | None ->
-          raise_safe "Relative interface URI '%s' in non-local feed" raw_iface
+          Safe_exn.failf "Relative interface URI '%s' in non-local feed" raw_iface
     ) else (
       (raw_iface, node)
     ) in
@@ -262,7 +262,7 @@ let existing_source = function
 let get_command_opt command_name impl = StringMap.find command_name impl.props.commands
 
 let get_command_ex command_name impl : command =
-  StringMap.find command_name impl.props.commands |? lazy (raise_safe "Command '%s' not found in %a" command_name Element.pp impl.qdom)
+  StringMap.find command_name impl.props.commands |? lazy (Safe_exn.failf "Command '%s' not found in %a" command_name Element.pp impl.qdom)
 
 (** The list of languages provided by this implementation. *)
 let get_langs impl =

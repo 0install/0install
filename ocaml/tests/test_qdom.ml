@@ -2,7 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-open Support.Common
+open Support
 open OUnit
 
 module Q = Support.Qdom
@@ -16,7 +16,7 @@ let parse s1 =
   let s2 = Q.to_utf8 xml1 in
   let xml2 = parse_simple s2 in
   if Q.compare_nodes ~ignore_whitespace:false xml1 xml2 <> 0 then
-    raise_safe "XML changed after saving and reloading!\n%s\n%s" s1 s2;
+    Safe_exn.failf "XML changed after saving and reloading!\n%s\n%s" s1 s2;
   Fake_system.assert_str_equal s2 (Q.to_utf8 xml2);
   xml1
 

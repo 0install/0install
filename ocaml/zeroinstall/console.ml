@@ -4,6 +4,7 @@
 
 (** Common types for user interface callbacks *)
 
+open Support
 open Support.Common
 
 module U = Support.Utils
@@ -116,7 +117,7 @@ class console_ui =
         ignore systray;
         let fetcher = tools#make_fetcher (self :> Progress.watcher) in
         Driver.solve_with_downloads config tools#distro fetcher reqs ~watcher:self ~force:refresh ~update_local:refresh >>= function
-        | (false, result, _) -> raise_safe "%s" (Solver.get_failure_reason config result)
+        | (false, result, _) -> Safe_exn.failf "%s" (Solver.get_failure_reason config result)
         | (true, result, feed_provider) ->
             let sels = Solver.selections result in
             match mode with
@@ -214,9 +215,9 @@ class console_ui =
     method watcher = (self :> Progress.watcher)
 
     method show_preferences = None
-    method open_app_list_box = raise_safe "Not available without a GUI (hint: try with --gui)"
-    method open_add_box = raise_safe "Not available without a GUI (hint: try with --gui)"
-    method open_cache_explorer = raise_safe "Not available without a GUI (hint: try with --gui)"
+    method open_app_list_box = Safe_exn.failf "Not available without a GUI (hint: try with --gui)"
+    method open_add_box = Safe_exn.failf "Not available without a GUI (hint: try with --gui)"
+    method open_cache_explorer = Safe_exn.failf "Not available without a GUI (hint: try with --gui)"
   end
 
 class batch_ui =
@@ -227,9 +228,9 @@ class batch_ui =
 
     (* For now, for the unit-tests, use console UI.
     method! confirm_keys _feed _infos =
-      raise_safe "Can't confirm keys as in batch mode."
+      Safe_exn.failf "Can't confirm keys as in batch mode."
 
     method! confirm message =
-      raise_safe "Can't confirm in batch mode (%s)" message
+      Safe_exn.failf "Can't confirm in batch mode (%s)" message
     *)
   end

@@ -81,7 +81,7 @@ let parse_selections root =
           Q.child_nodes = !index |> StringMap.map_bindings (fun _ child -> child);
           Q.attrs = root.Q.attrs |> AttrMap.add_no_ns "command" "run"
         }
-      with Safe_exn.T _ as ex -> reraise_with_context ex "... migrating from old selections format"
+      with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... migrating from old selections format"
 
 let selections = ZI.map (fun x -> x) ~name:"selection"
 
@@ -242,7 +242,7 @@ let classify_retrieval elem =
 let size elem =
   let s = ZI.get_attribute "size" elem in
   try Int64.of_string s
-  with _ -> raise_safe "Invalid size '%s'" s
+  with _ -> Safe_exn.failf "Invalid size '%s'" s
 
 let dest = ZI.get_attribute "dest"
 let executable = bool_opt ("", "executable")
@@ -257,7 +257,7 @@ let start_offset elem =
   | None -> None
   | Some s ->
     try Some (Int64.of_string s)
-    with _ -> raise_safe "Invalid offset '%s'" s
+    with _ -> Safe_exn.failf "Invalid offset '%s'" s
 
 exception Unknown_step
 

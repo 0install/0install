@@ -5,12 +5,13 @@
 (** High-level helper functions *)
 
 open General
+open Support
 open Support.Common
 
 let make_ui config ~use_gui : Ui.ui_handler =
   let use_gui =
     match use_gui, config.dry_run with
-    | `Yes, true -> raise_safe "Can't use GUI with --dry-run"
+    | `Yes, true -> Safe_exn.failf "Can't use GUI with --dry-run"
     | (`Auto | `No), true -> `No
     | use_gui, false -> (use_gui :> [`Yes | `No | `Auto]) in
 

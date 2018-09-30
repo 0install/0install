@@ -19,13 +19,10 @@ module Platform =
     }
   end
 
-let raise_safe = Safe_exn.failf
-let reraise_with_context = Safe_exn.reraise_with_context
-
 module StringMap = struct
   include Map.Make(String)
   let find_nf = find
-  let find_safe key map = try find key map with Not_found -> raise_safe "BUG: Key '%s' not found in StringMap!" key
+  let find_safe key map = try find key map with Not_found -> Safe_exn.failf "BUG: Key '%s' not found in StringMap!" key
   let find key map = try Some (find key map) with Not_found -> None
   let map_bindings fn map = fold (fun key value acc -> fn key value :: acc) map []
 end
@@ -112,7 +109,7 @@ let (+/) a b =
   else if Filename.is_relative b then
     Filename.concat a b
   else
-    raise_safe "Attempt to append absolute path: %s + %s" a b
+    Safe_exn.failf "Attempt to append absolute path: %s + %s" a b
 
 let log_debug = Logging.log_debug
 let log_info = Logging.log_info

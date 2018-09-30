@@ -131,7 +131,7 @@ let test_option_parsing () =
   equal_str_lists ["run"; "foo"] args;
   assert_equal [`Wrapper "gdb"] (as_list flags);
   begin try
-    Support.Argparse.iter_options flags (fun _ -> raise_safe "Error!");
+    Support.Argparse.iter_options flags (fun _ -> Safe_exn.failf "Error!");
     assert false
   with Safe_exn.T e ->
     let msg = Format.asprintf "%a" Safe_exn.pp e in

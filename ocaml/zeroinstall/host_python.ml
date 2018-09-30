@@ -70,7 +70,7 @@ let make_restricts_distro iface_uri distros = { Impl.
 
 let info_of_json = function
   | `List [`String path; `String version] -> {path; version}
-  | json -> raise_safe "Bad JSON: '%s'" (Yojson.Basic.to_string json)
+  | json -> Safe_exn.failf "Bad JSON: '%s'" (Yojson.Basic.to_string json)
 
 let make system =
   let (_host_os, host_machine) = Arch.platform system in
@@ -88,7 +88,7 @@ let make system =
                   | json -> Some (info_of_json json)
                 in
                 Some {python; python_gobject}
-              | _ -> raise_safe "Bad JSON: '%s'" (Yojson.Basic.to_string json)
+              | _ -> Safe_exn.failf "Bad JSON: '%s'" (Yojson.Basic.to_string json)
             with ex -> log_warning ~ex "Failed to get details from Python"; None
           )
       )

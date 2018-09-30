@@ -147,21 +147,21 @@ let download_icon (fetcher:Fetch.fetcher) (feed_provider:Feed_provider.feed_prov
 let add_feed config iface feed_url =
   let (`Remote_feed url | `Local_feed url) = feed_url in
 
-  let feed = Feed_cache.get_cached_feed config feed_url |? lazy (raise_safe "Failed to read new feed!") in
+  let feed = Feed_cache.get_cached_feed config feed_url |? lazy (Safe_exn.failf "Failed to read new feed!") in
   match Feed.get_feed_targets feed with
-  | [] -> raise_safe "Feed '%s' is not a feed for '%s'" url iface
+  | [] -> Safe_exn.failf "Feed '%s' is not a feed for '%s'" url iface
   | feed_for when List.mem iface feed_for ->
       let user_import = Feed.make_user_import feed_url in
       let iface_config = Feed_cache.load_iface_config config iface in
 
       let extra_feeds = iface_config.Feed_cache.extra_feeds in
       if List.mem user_import extra_feeds then (
-        raise_safe "Feed from '%s' has already been added!" url
+        Safe_exn.failf "Feed from '%s' has already been added!" url
       ) else (
         let extra_feeds = user_import :: extra_feeds in
         Feed_cache.save_iface_config config iface {iface_config with Feed_cache.extra_feeds};
       );
-  | feed_for -> raise_safe "This is not a feed for '%s'.\nOnly for:\n%s" iface (String.concat "\n" feed_for)
+  | feed_for -> Safe_exn.failf "This is not a feed for '%s'.\nOnly for:\n%s" iface (String.concat "\n" feed_for)
 
 let add_remote_feed config fetcher iface (feed_url:[`Remote_feed of Sigs.feed_url]) =
   Driver.download_and_import_feed fetcher feed_url >>= function
@@ -173,7 +173,7 @@ let remove_feed config iface feed_url =
   let user_import = Feed.make_user_import feed_url in
   let extra_feeds = iface_config.Feed_cache.extra_feeds |> List.filter ((<>) user_import) in
   if iface_config.Feed_cache.extra_feeds = extra_feeds then (
-    raise_safe "Can't remove '%s'; it is not a user-added feed of %s" (Feed_url.format_url feed_url) iface;
+    Safe_exn.failf "Can't remove '%s'; it is not a user-added feed of %s" (Feed_url.format_url feed_url) iface;
   ) else (
     Feed_cache.save_iface_config config iface {iface_config with Feed_cache.extra_feeds};
   )
@@ -207,7 +207,7 @@ let run_subprocess argv =
       | status ->
           let output = stdout ^ stderr in
           if output = "" then Support.System.check_exit_status status;
-          raise_safe "Compile failed: %s" output
+          Safe_exn.failf "Compile failed: %s" output
     )
 
 let build_and_register config iface min_0compile_version =
@@ -245,7 +245,7 @@ let compile config feed_provider iface ~autocompile =
     let root = `String (0, stdout) |> Xmlm.make_input |> Q.parse_input None in
     let sels = Selections.create root in
     let sel = Selections.get_selected {Selections.iface; source = true} sels in
-    let sel = sel |? lazy (raise_safe "No implementation of root (%s)!" iface) in
+    let sel = sel |? lazy (Safe_exn.failf "No implementation of root (%s)!" iface) in
     let min_version =
       match Element.compile_min_version sel with
       | None -> our_min_version
@@ -315,8 +315,8 @@ let run_test config distro test_callback (ready, results) =
                   (Element.version sel)
                   (Element.id sel)
               ) |> String.concat "\n\n- " in
-            raise_safe "Can't run: the chosen versions have not been downloaded yet. I need:\n\n- %s" details
-      ) else raise_safe "Can't do a test run - solve failed"
+            Safe_exn.failf "Can't run: the chosen versions have not been downloaded yet. I need:\n\n- %s" details
+      ) else Safe_exn.failf "Can't do a test run - solve failed"
     )
     (fun ex -> Lwt.return (Printexc.to_string ex))
 
@@ -328,7 +328,7 @@ let try_get_gui config ~use_gui =
     match system#getenv "DISPLAY" with
     | None | Some "" ->
         if use_gui = `Auto then None
-        else raise_safe "Can't use GUI because $DISPLAY is not set"
+        else Safe_exn.failf "Can't use GUI because $DISPLAY is not set"
     | Some _ ->
         if !gui_plugin = None then (
           let bindir = Filename.dirname (U.realpath system config.abspath_0install) in
@@ -365,7 +365,7 @@ let try_get_gui config ~use_gui =
         match !gui_plugin with
         | None ->
             if use_gui = `Auto then None
-            else raise_safe "Can't use GUI - plugin cannot be loaded"
+            else Safe_exn.failf "Can't use GUI - plugin cannot be loaded"
         | Some gui_plugin ->
             try
               gui_plugin config
@@ -406,7 +406,7 @@ let send_bug_report iface_uri message : string Lwt.t =
   | code ->
     let msg = Curl.strerror code in
     log_info "Curl error: %s\n%s" msg !error_buffer;
-    raise_safe "Failed to submit bug report: %s\n%s" msg !error_buffer
+    Safe_exn.failf "Failed to submit bug report: %s\n%s" msg !error_buffer
 
 let get_sigs config url =
   match Feed_cache.get_cached_feed_path config url with

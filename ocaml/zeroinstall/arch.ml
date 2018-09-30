@@ -4,6 +4,7 @@
 
 (** OS and CPU types. *)
 
+open Support
 open Support.Common
 
 type os = string
@@ -24,7 +25,7 @@ let parse_os = none_if_star
 let parse_arch arch =
   match Str.bounded_split_delim Support.Utils.re_dash arch 0 with
   | [os; machine] -> (none_if_star os, none_if_star machine)
-  | _ -> raise_safe "Invalid architecture '%s'" arch
+  | _ -> Safe_exn.failf "Invalid architecture '%s'" arch
 
 let format_arch (os, machine) =
   let os_str = default "*" os in

@@ -172,9 +172,9 @@ let add_remote_feed ~parent ~watcher ~recalculate tools iface () =
           Lwt.catch
             (fun () ->
                let url = entry#text in
-               if url = "" then raise_safe "Enter a URL";
+               if url = "" then Safe_exn.failf "Enter a URL";
                match Feed_url.parse_non_distro url with
-                 | `Local_feed _ -> raise_safe "Not a remote feed!"
+                 | `Local_feed _ -> Safe_exn.failf "Not a remote feed!"
                  | `Remote_feed _ as feed_url ->
                    let config = tools#config in
                    let fetcher = tools#make_fetcher (watcher :> Progress.watcher) in
@@ -211,9 +211,9 @@ let add_local_feed ~parent ~recalculate config iface () =
     | `DELETE_EVENT | `CANCEL -> box#destroy ()
     | `OK ->
         try
-          let path = box#filename |? lazy (raise_safe "No filename!") in
+          let path = box#filename |? lazy (Safe_exn.failf "No filename!") in
           match Feed_url.parse_non_distro path with
-          | `Remote_feed _ -> raise_safe "Not a local feed!"
+          | `Remote_feed _ -> Safe_exn.failf "Not a local feed!"
           | `Local_feed _ as feed_url ->
               Gui.add_feed config iface feed_url;
               box#destroy ();

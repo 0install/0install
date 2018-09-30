@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open Support
 open Support.Common
 
 type t = {
@@ -60,11 +61,11 @@ let of_json json =
       | "os" -> r := {!r with os = parse_os value}
       | "cpu" ->  r := {!r with cpu = parse_machine value}
       | "message" -> r := {!r with message = to_string_option value}
-      | _ -> raise_safe "Unknown requirements field '%s'" key
+      | _ -> Safe_exn.failf "Unknown requirements field '%s'" key
     );
 
     if !r.interface_uri = "" then
-      raise_safe "Missing 'interface_uri'";
+      Safe_exn.failf "Missing 'interface_uri'";
 
     (* Update old before/not-before values *)
     let () = 
@@ -79,7 +80,7 @@ let of_json json =
 
     !r
   with Type_error (msg, _) ->
-    raise_safe "Bad requirements JSON: %s" msg
+    Safe_exn.failf "Bad requirements JSON: %s" msg
 
 let to_json reqs =
   let maybe name = function

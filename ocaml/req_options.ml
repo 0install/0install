@@ -5,6 +5,7 @@
 (** A structure representing constraints/requirements specified by the user *)
 
 open Options
+open Support
 open Support.Common
 open Zeroinstall.Requirements
 
@@ -73,7 +74,7 @@ let parse_update_options ?(update=true) options requirements =
     | `Source ->
           (* Partly because it doesn't make much sense, and partly because you
              can't undo it, as there's no --not-source option. *)
-          raise_safe "Can't update from binary to source type!"
+          Safe_exn.failf "Can't update from binary to source type!"
   );
 
   !r

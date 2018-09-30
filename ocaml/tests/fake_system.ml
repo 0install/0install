@@ -41,7 +41,7 @@ let pp_path f xs =
 let load_first_exn system rel_path search_path =
   match Support.Basedir.load_first system rel_path search_path with
   | Some p -> p
-  | None -> raise_safe "Resource %S not found in %a" rel_path pp_path search_path
+  | None -> Safe_exn.failf "Resource %S not found in %a" rel_path pp_path search_path
 
 module RealSystem = Support.System.RealSystem(Unix)
 let real_system = new RealSystem.real_system
@@ -180,7 +180,7 @@ class fake_system ?(portable_base=true) tmpdir =
         else (
           if !read_ok |> List.exists (fun dir ->
             U.starts_with path dir || U.starts_with dir path) then path
-          else raise_safe "Attempt to read from '%s'" path
+          else Safe_exn.failf "Attempt to read from '%s'" path
         )
     ) in
 
@@ -191,8 +191,8 @@ class fake_system ?(portable_base=true) tmpdir =
     | _ ->
         match tmpdir with
         | Some dir when U.starts_with path dir -> path
-        | Some dir -> raise_safe "Attempt to write to %s (not in %s)" path dir
-        | None -> raise_safe "Attempt to write to '%s' (no tmpdir)" path in
+        | Some dir -> Safe_exn.failf "Attempt to write to %s (not in %s)" path dir
+        | None -> Safe_exn.failf "Attempt to write to '%s' (no tmpdir)" path in
 
   (* It's OK to check whether these paths exists. We just say they don't,
      unless they're in extra_files (check there first). *)
@@ -309,7 +309,7 @@ class fake_system ?(portable_base=true) tmpdir =
       if allow_spawn_detach then (
         ignore search_path;
         (* For testing, we run in-process to allow tests interceptors to work, etc. *)
-        if List.hd argv <> test_0install then raise_safe "spawn_detach with %s (not %s)" (List.hd argv) test_0install;
+        if List.hd argv <> test_0install then Safe_exn.failf "spawn_detach with %s (not %s)" (List.hd argv) test_0install;
         let config = Zeroinstall.Config.get_default_config (self :> system) test_0install in
         let devnull = Format.formatter_of_buffer (Buffer.create 100) in
         Cli.handle ~stdout:devnull config (List.tl argv)
@@ -429,8 +429,8 @@ class null_ui =
   object (_ : #Zeroinstall.Ui.ui_handler as 'a)
     constraint 'a = #Zeroinstall.Progress.watcher
     inherit Zeroinstall.Console.batch_ui
-    method! confirm_keys feed_url _xml = raise_safe "confirm_keys: %s" (Zeroinstall.Feed_url.format_url feed_url)
-    method! confirm msg = raise_safe "confirm: %s" msg
+    method! confirm_keys feed_url _xml = Safe_exn.failf "confirm_keys: %s" (Zeroinstall.Feed_url.format_url feed_url)
+    method! confirm msg = Safe_exn.failf "confirm: %s" msg
   end
 
 let null_ui = new null_ui
@@ -487,7 +487,7 @@ let fake_log =
     method assert_contains expected =
       let re = Str.regexp expected in
       if not (List.exists (fun (_ex, _lvl, msg) -> Str.string_match re msg 0) record) then
-        raise_safe "Expected log message matching '%s'" expected
+        Safe_exn.failf "Expected log message matching '%s'" expected
 
     method record x = record <- x :: record
   end
@@ -518,7 +518,7 @@ let assert_raises_safe expected_msg (fn:unit Lazy.t) =
   with Safe_exn.T e ->
     let msg = Safe_exn.msg e in
     if not (Str.string_match (Str.regexp expected_msg) msg 0) then
-      raise_safe "Error '%s' does not match regexp '%s'" msg expected_msg
+      Safe_exn.failf "Error '%s' does not match regexp '%s'" msg expected_msg
 
 let assert_raises_safe_lwt expected_msg fn =
   Lwt.catch
@@ -532,7 +532,7 @@ let assert_raises_safe_lwt expected_msg fn =
         if Str.string_match (Str.regexp expected_msg) msg 0 then
           Lwt.return ()
         else
-          raise_safe "Error '%s' does not match regexp '%s'" msg expected_msg
+          Safe_exn.failf "Error '%s' does not match regexp '%s'" msg expected_msg
       | ex -> Lwt.fail ex
     )
 

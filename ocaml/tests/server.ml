@@ -4,6 +4,7 @@
 
 (* A dummy web-server for unit-tests *)
 
+open Support
 open Support.Common
 module U = Support.Utils
 
@@ -61,7 +62,7 @@ let start_server system =
     Lwt_unix.set_close_on_exec server_socket;
 
     let rec find_port n =
-      if n < 0 then raise_safe "Failed to find a free port (8000-8999) to bind to!";
+      if n < 0 then Safe_exn.failf "Failed to find a free port (8000-8999) to bind to!";
       let port = 8000 + Random.int 1000 in
       try Unix.(bind (Lwt_unix.unix_file_descr server_socket) (ADDR_INET (Unix.inet_addr_loopback, port))); port
       with Unix.Unix_error _ as ex ->
@@ -81,7 +82,7 @@ let start_server system =
     let leaf = U.string_tail path (i + 1) in
 
     match !expected with
-    | [] -> raise_safe "Unexpected request for '%s' (nothing expected)" path
+    | [] -> Safe_exn.failf "Unexpected request for '%s' (nothing expected)" path
     | next_step :: rest ->
         let response, next_step =
           try (List.assoc path next_step, List.remove_assoc path next_step)
@@ -183,7 +184,7 @@ let start_server system =
       if !expected = [] then
         expected := requests
       else
-        raise_safe "Previous expected requests not used!"
+        Safe_exn.failf "Previous expected requests not used!"
 
     method port = port
 

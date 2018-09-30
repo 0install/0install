@@ -3,6 +3,7 @@
  *)
 
 open General
+open Support
 open Support.Common
 
 let re_exec_name = Str.regexp "^[^./'][^/']*$"
@@ -11,7 +12,7 @@ let validate_exec_name name =
   if Str.string_match re_exec_name name 0 then
     ()
   else
-    raise_safe "Invalid name in executable binding: %s" name
+    Safe_exn.failf "Invalid name in executable binding: %s" name
 
 class launcher_builder config script =
   let hash = String.sub (Digest.to_hex @@ Digest.string script) 0 6 in
@@ -100,7 +101,7 @@ let make_selection_map system stores sels =
     let path =
       try Selections.get_path system stores sel
       with Stores.Not_stored msg ->
-        raise_safe "Missing implementation for '%a' %s: %s" Selections.Role.pp role (Element.version sel) msg
+        Safe_exn.failf "Missing implementation for '%a' %s: %s" Selections.Role.pp role (Element.version sel) msg
     in
     (sel, path)
   )
@@ -117,7 +118,7 @@ let get_exec_args config ?main sels args =
       | Binding.EnvironmentBinding b ->
           let sel = lazy (
             Selections.RoleMap.find role impls
-            |? lazy (raise_safe "Missing role '%a' in selections!" Selections.Role.pp role)
+            |? lazy (Safe_exn.failf "Missing role '%a' in selections!" Selections.Role.pp role)
           ) in
           Binding.do_env_binding env sel b; None
       | Binding.ExecutableBinding b -> Some (role, b)
@@ -134,7 +135,7 @@ let get_exec_args config ?main sels args =
 
 let execute_selections config ?exec ?wrapper ?main sels args =
   if main = None && Selections.root_command sels = None then
-    raise_safe "Can't run: no command specified!";
+    Safe_exn.failf "Can't run: no command specified!";
 
   let (prog_args, env) = get_exec_args config ?main sels args in
 

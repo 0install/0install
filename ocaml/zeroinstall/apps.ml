@@ -13,9 +13,9 @@ let re_app_name = Str.regexp "^[^./\\\\:=;'\"][^/\\\\:=;'\"]*$"
 
 let validate_name purpose name =
   if name = "0install" then
-    raise_safe "Creating an %s called '0install' would cause trouble; try e.g. '00install' instead" purpose;
+    Safe_exn.failf "Creating an %s called '0install' would cause trouble; try e.g. '00install' instead" purpose;
   if not @@ Str.string_match re_app_name name 0 then
-    raise_safe "Invalid %s name '%s'" purpose name
+    Safe_exn.failf "Invalid %s name '%s'" purpose name
 
 let lookup_app config name =
   if Str.string_match re_app_name name 0 then
@@ -89,7 +89,7 @@ let get_requirements (system:#filesystem) app_path =
   let path = app_path +/ "requirements.json" in
   path |> system#with_open_in [Open_rdonly; Open_binary] (fun ch ->
       try Requirements.of_json (Yojson.Basic.from_channel ~fname:path ch)
-      with Safe_exn.T _ as ex -> reraise_with_context ex "... parsing JSON file %s" path
+      with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... parsing JSON file %s" path
     )
 
 let set_last_checked system app_dir =
@@ -126,7 +126,7 @@ let foreground_update tools app_path reqs =
   log_info "App '%s' needs to get new selections; current ones are not usable" app_path;
   let ui : Ui.ui_handler = tools#ui in
   ui#run_solver tools `Download_only reqs ~refresh:true >>= function
-  | `Aborted_by_user -> raise_safe "Aborted by user"
+  | `Aborted_by_user -> Safe_exn.failf "Aborted by user"
   | `Success sels ->
       set_selections tools#config app_path sels ~touch_last_checked:true;
       Lwt.return sels
@@ -268,7 +268,7 @@ let get_selections_may_update tools app_path =
   | None -> foreground_update tools app_path (get_requirements system app_path)
 
 let get_selections_no_updates system app_path =
-  get_selections_internal system app_path |? lazy (raise_safe "App selections missing in %s" app_path)
+  get_selections_internal system app_path |? lazy (Safe_exn.failf "App selections missing in %s" app_path)
 
 let set_requirements config path req =
   let reqs_file = path +/ "requirements.json" in
@@ -286,7 +286,7 @@ let create_app config name requirements =
 
   let app_dir = Paths.Config.(save_path (app name)) config.paths in
   if U.is_dir config.system app_dir then
-    raise_safe "Application '%s' already exists: %s" name app_dir;
+    Safe_exn.failf "Application '%s' already exists: %s" name app_dir;
 
   config.system#mkdir app_dir 0o755;
 
@@ -350,7 +350,7 @@ let integrate_shell config app executable_name =
   let bin_dir = find_bin_dir config in
   let launcher = bin_dir +/ executable_name in
   if config.system#file_exists launcher then
-    raise_safe "Command already exists: %s" launcher;
+    Safe_exn.failf "Command already exists: %s" launcher;
 
   if config.dry_run then
     Dry_run.log "would write launcher script %s" launcher

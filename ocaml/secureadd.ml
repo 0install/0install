@@ -5,7 +5,7 @@
 (** The "0store-secure-add" command *)
 
 open Zeroinstall.General
-open Support.Common
+open Support
 
 module Manifest = Zeroinstall.Manifest
 module U = Support.Utils
@@ -17,14 +17,14 @@ let handle config args =
   let system = config.system in
 
   if system#getenv "ENV_NOT_CLEARED" <> None then (
-    raise_safe "Environment not cleared. Check your sudoers file."
+    Safe_exn.failf "Environment not cleared. Check your sudoers file."
   ) else if system#getenv "HOME" = Some "Unclean" then (
-    raise_safe "$HOME not set. Check your sudoers file has 'always_set_home' turned on for zeroinst."
+    Safe_exn.failf "$HOME not set. Check your sudoers file has 'always_set_home' turned on for zeroinst."
   ) else (
     match args with
     | [digest] ->
         let digest = Manifest.parse_digest digest in
         let manifest_data = U.read_file system ".manifest" in
         Manifest.copy_tree_with_verify system "." "/var/cache/0install.net/implementations" manifest_data digest
-    | _ -> raise_safe "Usage: 0store-secure-add DIGEST"
+    | _ -> Safe_exn.failf "Usage: 0store-secure-add DIGEST"
   )

@@ -42,7 +42,7 @@ let handle_find options flags args =
         let path = Stores.lookup_any config.system [digest] config.stores in
         Format.fprintf options.stdout "%s@." path
       with Zeroinstall.Stores.Not_stored msg ->
-        raise_safe "%s" msg end
+        Safe_exn.failf "%s" msg end
   | _ -> raise (Support.Argparse.Usage_error 1)
 
 let handle_verify options flags args =
@@ -85,7 +85,7 @@ let handle_audit options flags args =
       Array.sort String.compare items;
       (dir, items)
     ) else if args <> [] then (
-      raise_safe "No such directory '%s'" dir
+      Safe_exn.failf "No such directory '%s'" dir
     ) else
       None
   ) in
@@ -179,14 +179,14 @@ let handle_copy options flags args =
     | _ -> raise (Support.Argparse.Usage_error 1) in
 
   if not (U.is_dir system source) then
-    raise_safe "Source directory '%s' not found" source;
+    Safe_exn.failf "Source directory '%s' not found" source;
 
   if not (U.is_dir system target) then
-    raise_safe "Target directory '%s' not found" target;
+    Safe_exn.failf "Target directory '%s' not found" target;
 
   let manifest_path = source +/ ".manifest" in
   if not (system#file_exists manifest_path) then
-    raise_safe "Source manifest '%s' not found" manifest_path;
+    Safe_exn.failf "Source manifest '%s' not found" manifest_path;
 
   let required_digest = Filename.basename source |> Manifest.parse_digest in
   let manifest_data = U.read_file system manifest_path in

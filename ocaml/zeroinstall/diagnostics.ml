@@ -4,6 +4,7 @@
 
 (** Explaining why a solve failed or gave an unexpected answer. *)
 
+open Support
 open Support.Common
 
 module U = Support.Utils
@@ -163,7 +164,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
   let find_component_ex role report =
     match RoleMap.find role report with
     | Some c -> c
-    | None -> raise_safe "Can't find component %a!" format_role role
+    | None -> Safe_exn.failf "Can't find component %a!" format_role role
 
   (* Did any dependency of [impl] prevent it being selected?
      This can only happen if a component conflicts with something more important

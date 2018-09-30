@@ -16,7 +16,7 @@ let failf ?(ctx=[]) fmt =
   fmt |> Format.kasprintf @@ fun msg ->
   raise (T (msg, ref ctx))
 
-let reraise_with_context ex fmt =
+let reraise_with ex fmt =
   fmt |> Format.kasprintf @@ fun context ->
   begin match ex with
     | T (_, old_contexts) -> old_contexts := context :: !old_contexts

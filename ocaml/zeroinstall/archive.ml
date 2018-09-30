@@ -30,36 +30,36 @@ let type_from_url url =
   | ".cab" -> "application/vnd.ms-cab-compressed"
   | ".dmg" -> "application/x-apple-diskimage"
   | ".gem" -> "application/x-ruby-gem"
-  | _ -> raise_safe "Can't guess MIME type from name (%s)" url
+  | _ -> Safe_exn.failf "Can't guess MIME type from name (%s)" url
 
 let check_type_ok system =
   let missing name = U.find_in_path system name = None in
   function
     | "application/x-rpm" -> if missing "rpm2cpio" then
-        raise_safe "This package looks like an RPM, but you don't have the rpm2cpio command \
+        Safe_exn.failf "This package looks like an RPM, but you don't have the rpm2cpio command \
                     I need to extract it. Install the \"rpm\" package first (this works even if \
                     you're on a non-RPM-based distribution such as Debian)."
     | "application/x-deb" -> if missing "ar" then
-        raise_safe "This package looks like a Debian package, but you don't have the \"ar\" command \
+        Safe_exn.failf "This package looks like a Debian package, but you don't have the \"ar\" command \
                      I need to extract it. Install the package containing it (sometimes called \"binutils\") \
                      first. This works even if you're on a non-Debian-based distribution such as Red Hat)."
     | "application/x-bzip-compressed-tar" -> ()	(* We"ll fall back to Python"s built-in tar.bz2 support *)
     | "application/zip" -> if missing "unzip" then
-        raise_safe "This package looks like a zip-compressed archive, but you don't have the \"unzip\" command \
+        Safe_exn.failf "This package looks like a zip-compressed archive, but you don't have the \"unzip\" command \
                     I need to extract it. Install the package containing it first."
     | "application/vnd.ms-cab-compressed" -> if missing "cabextract" then
-        raise_safe "This package looks like a Microsoft Cabinet archive, but you don't have the \"cabextract\" command \
+        Safe_exn.failf "This package looks like a Microsoft Cabinet archive, but you don't have the \"cabextract\" command \
                     I need to extract it. Install the package containing it first."
     | "application/x-apple-diskimage" -> if missing "hdiutil" then
-        raise_safe "This package looks like a Apple Disk Image, but you don't have the \"hdiutil\" command \
+        Safe_exn.failf "This package looks like a Apple Disk Image, but you don't have the \"hdiutil\" command \
                     I need to extract it."
     | "application/x-lzma-compressed-tar" -> () (* We can get it through Zero Install *)
     | "application/x-xz-compressed-tar" -> if missing "unxz" then
-        raise_safe "This package looks like a xz-compressed package, but you don't have the \"unxz\" command \
+        Safe_exn.failf "This package looks like a xz-compressed package, but you don't have the \"unxz\" command \
                     I need to extract it. Install the package containing it (it's probably called \"xz-utils\") first."
     | "application/x-compressed-tar" | "application/x-tar" | "application/x-ruby-gem" -> ()
     | mime_type ->
-        raise_safe "Unsupported archive type \"%s\" (for 0install version %s)" mime_type About.version
+        Safe_exn.failf "Unsupported archive type \"%s\" (for 0install version %s)" mime_type About.version
 
 type compression = Bzip2 | Gzip | Lzma | Xz | Uncompressed
 
@@ -106,9 +106,9 @@ let run_command ?cwd system args =
       | status ->
           let messages = String.trim @@ stdout ^ stderr in
           if messages = "" then Support.System.check_exit_status status;
-          raise_safe "Command failed: %s" messages
+          Safe_exn.failf "Command failed: %s" messages
     with Safe_exn.T _ as ex ->
-      reraise_with_context ex "... extracting archive with: %s" (Support.Logging.format_argv_for_logging args)
+      Safe_exn.reraise_with ex "... extracting archive with: %s" (Support.Logging.format_argv_for_logging args)
   )
 
 let re_gnu_tar = Str.regexp ".*(GNU tar)"
@@ -130,7 +130,7 @@ let extract_tar config ~dstdir ?extract ~compression archive =
   extract |> if_some (fun extract ->
     (* Limit the characters we accept, to avoid sending dodgy strings to tar *)
     if not (Str.string_match (Str.regexp "^[a-zA-Z0-9][- _a-zA-Z0-9.]*$") extract 0) then
-      raise_safe "Illegal character in extract attribute ('%s')" extract
+      Safe_exn.failf "Illegal character in extract attribute ('%s')" extract
   );
 
   let share_dir = lazy (
@@ -184,11 +184,11 @@ let extract_gem config ~dstdir ?extract archive =
   )
 
 let extract_cab config ~dstdir ?extract archive =
-  extract |> if_some (fun _ -> raise_safe "Sorry, but the 'extract' attribute is not yet supported for Cabinet files");
+  extract |> if_some (fun _ -> Safe_exn.failf "Sorry, but the 'extract' attribute is not yet supported for Cabinet files");
   run_command config.system ["cabextract"; "-s"; "-q"; "-d"; dstdir; archive]
 
 let extract_dmg config ~dstdir ?extract archive =
-  extract |> if_some (fun _ -> raise_safe "Sorry, but the 'extract' attribute is not yet supported for DMGs");
+  extract |> if_some (fun _ -> Safe_exn.failf "Sorry, but the 'extract' attribute is not yet supported for DMGs");
   let system = config.system in
   with_tmpdir system ~prefix:"archive-" ~parent:dstdir (fun mountpoint ->
     run_command system ["hdiutil"; "attach"; "-quiet"; "-readonly"; "-mountpoint"; mountpoint; "-nobrowse"; archive] >>= fun () ->
@@ -207,7 +207,7 @@ let extract_dmg config ~dstdir ?extract archive =
   )
 
 let extract_deb config ~dstdir ?extract archive =
-  extract |> if_some (fun _ -> raise_safe "Sorry, but the 'extract' attribute is not yet supported for Debs");
+  extract |> if_some (fun _ -> Safe_exn.failf "Sorry, but the 'extract' attribute is not yet supported for Debs");
   let system = config.system in
   Lwt_process.pread (make_command system ["ar"; "t"; archive ]) >>= fun output ->
   let rec get_type stream =
@@ -220,7 +220,7 @@ let extract_deb config ~dstdir ?extract archive =
       | "data.tar.lzma" -> (name, Lzma)
       | "data.tar.xz" -> (name, Xz)
       | _ -> get_type stream
-    with Stream.Failure -> raise_safe "File is not a Debian package." in
+    with Stream.Failure -> Safe_exn.failf "File is not a Debian package." in
   let data_tar, compression = get_type (U.stream_of_lines output) in
 
   run_command system ~cwd:dstdir ["ar"; "x"; archive; data_tar] >>= fun () ->
@@ -230,7 +230,7 @@ let extract_deb config ~dstdir ?extract archive =
   Lwt.return ()
 
 let extract_rpm config ~dstdir ?extract archive =
-  extract |> if_some (fun _ -> raise_safe "Sorry, but the 'extract' attribute is not yet supported for RPMs");
+  extract |> if_some (fun _ -> Safe_exn.failf "Sorry, but the 'extract' attribute is not yet supported for RPMs");
   let system = config.system in
   let r, w = Unix.pipe () in
   let rpm2cpio, cpio =
@@ -266,7 +266,7 @@ let extract_zip config ~dstdir ?extract archive =
   extract |> if_some (fun extract ->
     (* Limit the characters we accept, to avoid sending dodgy strings to zip *)
     if not (Str.string_match (Str.regexp "^[a-zA-Z0-9][- _a-zA-Z0-9.]*$") extract 0) then
-      raise_safe "Illegal character in extract attribute"
+      Safe_exn.failf "Illegal character in extract attribute"
   );
   let args = ["unzip"; "-q"; "-o"; archive] in
   match extract with
@@ -289,7 +289,7 @@ let unpack config tmpfile dstdir ?extract ~mime_type : unit Lwt.t =
   | "application/zip" ->                    tmpfile |> extract_zip config ~dstdir ?extract 
   | "application/x-lzma-compressed-tar" ->  tmpfile |> extract_tar config ~dstdir ?extract ~compression:Lzma
   | "application/x-xz-compressed-tar" ->    tmpfile |> extract_tar config ~dstdir ?extract ~compression:Xz
-  | _ -> raise_safe "Unknown MIME type '%s'" mime_type
+  | _ -> Safe_exn.failf "Unknown MIME type '%s'" mime_type
 
 (** Move each item in [srcdir] into [dstdir]. Symlinks are copied as is. Does not follow any symlinks in [destdir]. *)
 let rec move_no_follow system srcdir dstdir =
@@ -301,7 +301,7 @@ let rec move_no_follow system srcdir dstdir =
 
         let src_path = srcdir +/ item in
         let dst_path = dstdir +/ item in
-        let src_info = system#lstat src_path |? lazy (raise_safe "Path '%s' has disappeared!" src_path) in
+        let src_info = system#lstat src_path |? lazy (Safe_exn.failf "Path '%s' has disappeared!" src_path) in
         let dst_info = system#lstat dst_path in
 
         match src_info.Unix.st_kind with
@@ -309,24 +309,24 @@ let rec move_no_follow system srcdir dstdir =
             begin match dst_info with
             | None -> system#mkdir dst_path 0o755
             | Some info when info.Unix.st_kind = Unix.S_DIR -> ()
-            | Some _ -> raise_safe "Attempt to unpack dir over non-directory '%s'" item end;
+            | Some _ -> Safe_exn.failf "Attempt to unpack dir over non-directory '%s'" item end;
             move_no_follow system src_path dst_path;
             system#rmdir src_path;
             system#set_mtime dst_path src_info.Unix.st_mtime
         | Unix.S_REG | Unix.S_LNK ->
             begin match dst_info with
             | None -> ()
-            | Some info when info.Unix.st_kind = Unix.S_DIR -> raise_safe "Can't replace directory '%s' with file '%s'" item src_path
+            | Some info when info.Unix.st_kind = Unix.S_DIR -> Safe_exn.failf "Can't replace directory '%s' with file '%s'" item src_path
             | Some _ -> system#unlink dst_path end;
             system#rename src_path dst_path
-        | _ -> raise_safe "Not a regular file/directory/symlink '%s'" src_path
+        | _ -> Safe_exn.failf "Not a regular file/directory/symlink '%s'" src_path
       )
 
 let unpack_over ?extract config ~archive ~tmpdir ~destdir ~mime_type =
   let system = config.system in
   extract |> if_some (fun extract ->
     if Str.string_match (Str.regexp ".*[/\\]") extract 0 then
-      raise_safe "Extract attribute may not contain / or \\ (got '%s')" extract
+      Safe_exn.failf "Extract attribute may not contain / or \\ (got '%s')" extract
   );
   with_tmpdir system ~prefix:"0install-unpack-" ~parent:tmpdir (fun tmp ->
     unpack config ?extract ~mime_type archive tmp >>= fun () ->
@@ -336,7 +336,7 @@ let unpack_over ?extract config ~archive ~tmpdir ~destdir ~mime_type =
       | Some extract ->
           let srcdir = tmp +/ extract in
           if U.is_dir system srcdir then srcdir
-          else raise_safe "Top-level directory '%s' not found in archive" extract in
+          else Safe_exn.failf "Top-level directory '%s' not found in archive" extract in
     move_no_follow system srcdir destdir;
     Lwt.return ()
   )

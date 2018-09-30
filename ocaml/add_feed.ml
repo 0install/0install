@@ -57,8 +57,8 @@ let edit_feeds_interactive ~stdout config (mode:[`Add | `Remove]) feed_url =
 
       if !interfaces = [] then (
         match mode with
-        | `Remove -> raise_safe "%s is not registered as a feed for %s" url (List.hd candidate_interfaces)
-        | `Add -> raise_safe "%s already registered as a feed for %s" url (List.hd candidate_interfaces)
+        | `Remove -> Safe_exn.failf "%s is not registered as a feed for %s" url (List.hd candidate_interfaces)
+        | `Add -> Safe_exn.failf "%s already registered as a feed for %s" url (List.hd candidate_interfaces)
       );
 
       print "";
@@ -104,7 +104,7 @@ let handle options flags args =
                 | `Success _ -> print "Done"
                 | `Aborted_by_user -> raise (System_exit 1)
                 | `No_update ->
-                    if missing then raise_safe "Failed to download missing feed"  (* Shouldn't happen *)
+                    if missing then Safe_exn.failf "Failed to download missing feed"  (* Shouldn't happen *)
                     else print "No update"
               with Safe_exn.T e when not missing ->
                 log_warning "Update failed: %a" Safe_exn.pp e
@@ -112,7 +112,7 @@ let handle options flags args =
             feed
         | `Local_feed path as feed ->
             if not (config.system#file_exists path) then
-              raise_safe "Local feed file '%s' does not exist" path;
+              Safe_exn.failf "Local feed file '%s' does not exist" path;
             feed in
 
       edit_feeds_interactive ~stdout:options.stdout config `Add feed
@@ -123,7 +123,7 @@ let handle options flags args =
 
       let iface_config = FC.load_iface_config config iface in
       if List.mem new_import iface_config.FC.extra_feeds then (
-        raise_safe "Interface %s already has a feed %s" iface (Zeroinstall.Feed_url.format_url feed_src)
+        Safe_exn.failf "Interface %s already has a feed %s" iface (Zeroinstall.Feed_url.format_url feed_src)
       );
 
       let extra_feeds = new_import :: iface_config.FC.extra_feeds in

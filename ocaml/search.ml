@@ -6,6 +6,7 @@
 
 open Options
 open Zeroinstall.General
+open Support
 open Support.Common
 
 module Q = Support.Qdom
@@ -22,7 +23,7 @@ let handle options flags args =
   if args = [] then raise (Support.Argparse.Usage_error 1);
 
   match config.mirror with
-  | None -> raise_safe "No mirror configured; search is unavailable"
+  | None -> Safe_exn.failf "No mirror configured; search is unavailable"
   | Some mirror ->
       let url = mirror ^ "/search/?q=" ^ Curl.escape (String.concat " " args) in
       log_info "Fetching %s..." url;
@@ -31,7 +32,7 @@ let handle options flags args =
         let downloader = tools#download_pool#with_monitor tools#ui#watcher#monitor in
         Zeroinstall.Downloader.download downloader ~switch url >>= function
         | `Aborted_by_user -> Lwt.return ()
-        | `Network_failure msg -> raise_safe "%s" msg
+        | `Network_failure msg -> Safe_exn.failf "%s" msg
         | `Tmpfile path ->
             let results = U.read_file config.system path in
             Lwt_main.run (Lwt_switch.turn_off switch);

@@ -5,6 +5,7 @@
 (** Interacting with distribution package managers. *)
 
 open General
+open Support
 open Support.Common
 module FeedAttr = Constants.FeedAttr
 module U = Support.Utils
@@ -141,7 +142,7 @@ class virtual distribution config =
         new_attrs := Q.AttrMap.add_no_ns name value !new_attrs in
       set "id" id;
       set "version" version_str;
-      set "from-feed" @@ "distribution:" ^ (Q.AttrMap.get_no_ns "from-feed" !new_attrs |? lazy (raise_safe "BUG: Missing feed!"));
+      set "from-feed" @@ "distribution:" ^ (Q.AttrMap.get_no_ns "from-feed" !new_attrs |? lazy (Safe_exn.failf "BUG: Missing feed!"));
 
       begin match quick_test with
       | None -> ()
@@ -247,7 +248,7 @@ let install_distro_packages (t:t) ui impls : [ `Ok | `Cancel ] Lwt.t =
   impls |> List.iter (fun impl ->
     let `Package_impl {Impl.package_state; _} = impl.Impl.impl_type in
     match package_state with
-    | `Installed -> raise_safe "BUG: package %s already installed!" (Impl.get_id impl).Feed_url.id
+    | `Installed -> Safe_exn.failf "BUG: package %s already installed!" (Impl.get_id impl).Feed_url.id
     | `Uninstalled rm ->
         let (typ, _info) = rm.Impl.distro_install_info in
         let items = default [] @@ StringMap.find typ !groups in

@@ -4,6 +4,7 @@
 
 (** The dialog for adding a new app (used by "0desktop") *)
 
+open Support
 open Support.Common
 open Gtk_common
 open Zeroinstall.General
@@ -88,7 +89,7 @@ let create ~(gui:Zeroinstall.Ui.ui_handler) ~tools initial_uri =
       | `Aborted_by_user -> ()
       | `Success _ ->
           let feed_url = Feed_url.master_feed_of_iface iface in
-          let feed = Zeroinstall.Feed_cache.get_cached_feed config feed_url |? lazy (raise_safe "BUG: feed still not cached!") in
+          let feed = Zeroinstall.Feed_cache.get_cached_feed config feed_url |? lazy (Safe_exn.failf "BUG: feed still not cached!") in
           xdg_add_to_menu config feed;
           dialog#destroy ();
           Lwt.wakeup set_finished ()
