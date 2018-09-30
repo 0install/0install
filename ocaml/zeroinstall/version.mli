@@ -20,7 +20,7 @@ type version_expr = t -> bool
     The parsed format can be compared using the regular comparison operators.
      - Version := DottedList ("-" Mod DottedList?)*
      - DottedList := (Integer ("." Integer)* )
-    @raise Safe_exception if the string isn't a valid version
+    @raise Safe_exn.T if the string isn't a valid version
  *)
 val parse : string -> t
 val to_string : t -> string

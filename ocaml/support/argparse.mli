@@ -59,7 +59,7 @@ type 'a parsed_options
 
 val parse_options : ('a, 'b) opt_spec list -> raw_option list -> 'a parsed_options
 
-(** Invoke the callback on each option. If it raises [Safe_exception], add the name of the option to the error message. *)
+(** Invoke the callback on each option. If it raises [Safe_exn.T], add the name of the option to the error message. *)
 val iter_options : 'a parsed_options -> ('a -> unit) -> unit
 
 (** {2 Handy wrappers for option handlers} *)

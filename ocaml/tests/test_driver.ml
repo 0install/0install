@@ -4,6 +4,7 @@
 
 open OUnit
 
+open Support
 open Support.Common
 open Zeroinstall
 open Zeroinstall.General
@@ -183,7 +184,8 @@ let make_driver_test test_elem =
             Fake_system.assert_str_equal value (StringMap.find_safe name !actual_env)
           )
         )
-      with Safe_exception (msg, _) ->
+      with Safe_exn.T e ->
+        let msg = Safe_exn.msg e in
         let re = Str.regexp !expected_problem in
         if not (Str.string_match re msg 0) then
           assert_failure (Printf.sprintf "Expected error '%s' but got '%s'" !expected_problem msg) in

@@ -4,6 +4,7 @@
 
 open OUnit
 open Zeroinstall
+open Support
 open Support.Common
 open Fake_system
 
@@ -14,7 +15,7 @@ let pv v =
 
 let invalid v =
   try ignore @@ pv v; assert false
-  with Safe_exception _ -> () 
+  with Safe_exn.T _ -> () 
 
 let dummy_impl = Impl.({
   qdom = Element.make_impl Support.Qdom.AttrMap.empty;
@@ -120,7 +121,7 @@ let suite = "versions">::: [
     try
       ignore @@ Version.parse_expr "1.1..2";
       assert false
-    with Safe_exception _ -> ()
+    with Safe_exn.T _ -> ()
   );
 
   "ranges2">:: (fun () ->

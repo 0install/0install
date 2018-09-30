@@ -148,7 +148,7 @@ let parse_file (system:#filesystem) ?name path =
     parse_input (Some (name |> default path)) (Xmlm.make_input (`Channel ch))
   )
   with
-  | Safe_exception _ as ex -> reraise_with_context ex "... parsing XML document %s" path
+  | Safe_exn.T _ as ex -> reraise_with_context ex "... parsing XML document %s" path
   | Sys_error msg -> raise_safe "Error parsing XML document '%s': %s" path msg
 
 (** Helper functions. *)

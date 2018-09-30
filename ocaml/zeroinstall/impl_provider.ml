@@ -3,6 +3,7 @@
  *)
 
 open General
+open Support
 open Support.Common
 module U = Support.Utils
 
@@ -247,7 +248,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
       | `Package_impl {package_state;_} -> package_state = `Installed
       | `Local_impl path -> config.system#file_exists path
       | `Cache_impl {digests;_} -> Stores.check_available cached_digests digests
-    with Safe_exception _ as ex ->
+    with Safe_exn.T _ as ex ->
       log_warning ~ex "Can't test whether impl is available: %a" Impl.pp impl;
       false in
 
@@ -263,7 +264,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
         );
         feed
       ) else None
-    with Safe_exception _ as ex ->
+    with Safe_exn.T _ as ex ->
       log_warning ~ex "Failed to get implementations";
       let feed_url = Feed_url.format_url feed_import.Feed.feed_src in
       problem (Printf.sprintf "Error getting imported feed '%s': %s" feed_url (Printexc.to_string ex));

@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open Support
 open Support.Common
 open OUnit
 open Zeroinstall.General
@@ -116,7 +117,7 @@ let suite = "gpg">::: [
     Lwt.catch
       (fun () -> G.import_key gpg "Bad key" >>= fun () -> assert false)
       (function
-        | Safe_exception _ -> Lwt.return ()
+        | Safe_exn.T _ -> Lwt.return ()
         | ex -> Lwt.fail ex
       )
   );
@@ -150,7 +151,8 @@ let suite = "gpg">::: [
            assert_failure expected
         )
         (function
-          | Safe_exception (msg, _) ->
+          | Safe_exn.T e ->
+            let msg = Safe_exn.msg e in
             Fake_system.assert_str_equal expected msg;
             Lwt.return ()
           | ex -> Lwt.fail ex

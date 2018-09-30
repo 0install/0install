@@ -56,12 +56,12 @@ type element = {
 
 (** {2 Parsing} *)
 
-(** @raise Safe_exception if the XML is not well formed. *)
+(** @raise Safe_exn.T if the XML is not well formed. *)
 val parse_input : string option -> Xmlm.input -> element
 
 (** Load XML from a file.
  * @param name: optional name to report in location messages (if missing, uses file name)
- * @raise Safe_exception if the XML is not well formed. *)
+ * @raise Safe_exn.T if the XML is not well formed. *)
 val parse_file : #Common.filesystem -> ?name:string -> string -> element
 
 (** {2 Helper functions} *)
@@ -72,14 +72,14 @@ val find : (element -> bool) -> element -> element option
 (** Format a string identifying this element for use in error messages. Includes the source location, if known. *)
 val pp_with_loc : Format.formatter -> element -> unit
 
-(** [raise_elem "Problem with" elem] raises a [Safe_exception] with the message "Problem with <element> at ..." *)
+(** [raise_elem "Problem with" elem] raises a [Safe_exn.T] with the message "Problem with <element> at ..." *)
 val raise_elem : ('a, unit, string, element -> 'b) format4 -> 'a
 
 (** Like [raise_elem], but writing a log record rather than raising an exception. *)
 val log_elem : Logging.level -> ('a, unit, string, element -> unit) format4 -> 'a
 
 (** Returns the text content of this element.
-    @raise Safe_exception if it contains any child nodes. *)
+    @raise Safe_exn.T if it contains any child nodes. *)
 val simple_content : element -> string
 
 (** Write out a (sub)tree.
@@ -123,10 +123,10 @@ module type NS_QUERY = sig
   (** Get the local name of this element, if it's in our namespace. *)
   val tag : element -> string option
 
-  (** @raise Safe_exception if element does not have the expected name and namespace. *)
+  (** @raise Safe_exn.T if element does not have the expected name and namespace. *)
   val check_tag : string -> element -> unit
 
-  (** @raise Safe_exception if element does not have the expected namespace. *)
+  (** @raise Safe_exn.T if element does not have the expected namespace. *)
   val check_ns : element -> unit
 
   (** Create a new element in our namespace.

@@ -3,6 +3,7 @@
  *)
 
 open General
+open Support
 open Support.Common
 
 let (>|=) = Lwt.(>|=)
@@ -88,8 +89,8 @@ let solve_with_downloads config distro fetcher ~(watcher:#Progress.watcher) requ
       Lwt.catch
         (fun () -> download >|= fun fn -> (url, fn))
         (function
-          | Safe_exception (msg, _) ->
-            watcher#report url msg;
+          | Safe_exn.T e ->
+            watcher#report url (Safe_exn.msg e);
             Lwt.return (url, fun () -> ())
           | ex -> Lwt.fail ex (* or report this too? *)
         ) in

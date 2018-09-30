@@ -6,6 +6,7 @@
 
 open Options
 open Zeroinstall.General
+open Support
 open Support.Common
 
 module U = Support.Utils
@@ -103,7 +104,7 @@ let handle_audit options flags args =
       let path = root +/ required_digest_str in
       let digest =
         try Some (Manifest.parse_digest required_digest_str)
-        with Safe_exception _ ->
+        with Safe_exn.T _ ->
           print "Skipping non-implementation directory %s" path;
           None in
 
@@ -118,10 +119,10 @@ let handle_audit options flags args =
             let blank = String.make (String.length msg) ' ' in
             Printf.printf "\r%s\r" blank;
             incr verified;
-          with Safe_exception (msg, _) ->
+          with Safe_exn.T e ->
             print "";
             failures := path :: !failures;
-            print "%s" msg
+            print "%a" Safe_exn.pp e
     )
   );
   if !failures <> [] then  (
@@ -142,7 +143,7 @@ let handle_manifest options flags args =
     | [dir] ->
         let alg =
           try fst (Manifest.parse_digest (Filename.basename dir))
-          with Safe_exception _ -> "sha1new" in
+          with Safe_exn.T _ -> "sha1new" in
         (dir, alg)
     | [dir; alg] ->
         (dir, alg)

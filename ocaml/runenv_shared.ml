@@ -4,6 +4,7 @@
 
 (* The main runenv code, used on all systems (POSIX and Windows) *)
 
+open Support
 open Support.Common
 
 (** This is called in a new process by the launcher created by [Zeroinstall.Exec.ensure_runenv]. *)
@@ -17,4 +18,4 @@ let runenv (system:system) args =
       let open Yojson.Basic in
       let envargs = Util.convert_each Util.to_string (from_string s) in
       system#exec (envargs @ args)
-    with Safe_exception _ as ex -> reraise_with_context ex "... launching %s" arg0
+    with Safe_exn.T _ as ex -> reraise_with_context ex "... launching %s" arg0

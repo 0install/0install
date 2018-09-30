@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open Support
 open Support.Common
 module U = Support.Utils
 
@@ -46,7 +47,7 @@ let rec expand ~env = function
 let get_args elem env =
   try
     Element.arg_children elem >>= expand ~env
-  with Safe_exception _ as ex -> reraise_with_context ex "... expanding %a" Element.pp elem
+  with Safe_exn.T _ as ex -> reraise_with_context ex "... expanding %a" Element.pp elem
 
 let find_ex role impls =
   Selections.RoleMap.find role impls
@@ -111,4 +112,4 @@ let rec build_command ?main ?(dry_run=false) impls req env : string list =
       let runner_role = {Selections.iface = Element.interface runner; source = false} in
       let runner_req = {Selections.command = Some runner_command_name; role = runner_role} in
       build_command ~dry_run impls runner_req env @ runner_args @ args
-  with Safe_exception _ as ex -> reraise_with_context ex "... building command for %a" Selections.Role.pp role
+  with Safe_exn.T _ as ex -> reraise_with_context ex "... building command for %a" Selections.Role.pp role

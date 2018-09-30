@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open Support
 open Support.Common
 
 module U = Support.Utils
@@ -179,7 +180,7 @@ let collect_bindings t =
 
   t |> iter (fun role node ->
     try process_impl role node
-    with Safe_exception _ as ex -> reraise_with_context ex "... getting bindings from selection %a" Role.pp role
+    with Safe_exn.T _ as ex -> reraise_with_context ex "... getting bindings from selection %a" Role.pp role
   );
   List.rev !bindings
 

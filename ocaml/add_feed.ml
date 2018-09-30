@@ -7,6 +7,7 @@
 open Options
 open Zeroinstall
 open Zeroinstall.General
+open Support
 open Support.Common
 
 module F = Zeroinstall.Feed
@@ -105,8 +106,8 @@ let handle options flags args =
                 | `No_update ->
                     if missing then raise_safe "Failed to download missing feed"  (* Shouldn't happen *)
                     else print "No update"
-              with Safe_exception (msg, _) when not missing ->
-                log_warning "Update failed: %s" msg
+              with Safe_exn.T e when not missing ->
+                log_warning "Update failed: %a" Safe_exn.pp e
             );
             feed
         | `Local_feed path as feed ->

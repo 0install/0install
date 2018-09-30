@@ -5,6 +5,7 @@
 (** GTK cache explorer dialog (for "0install store manage") *)
 
 open Zeroinstall.General
+open Support
 open Support.Common
 open Gtk_common
 
@@ -136,10 +137,10 @@ let show_verification_box config ~parent paths =
                incr n_good
             )
             (function 
-              | Safe_exception (msg, _) ->
+              | Safe_exn.T e ->
                 let space = if !n_bad = 0 then "" else "\n\n" in
                 incr n_bad;
-                report_problem @@ Printf.sprintf "%s%s:\n%s\n" space x msg;
+                report_problem @@ Format.asprintf "%s%s:@.%a@." space x Safe_exn.pp e;
                 Lwt.return ()
               | ex -> Lwt.fail ex
             )

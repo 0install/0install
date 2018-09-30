@@ -3,6 +3,7 @@
  *)
 
 open General
+open Support
 open Support.Common
 module U = Support.Utils
 
@@ -88,7 +89,7 @@ let get_requirements (system:#filesystem) app_path =
   let path = app_path +/ "requirements.json" in
   path |> system#with_open_in [Open_rdonly; Open_binary] (fun ch ->
       try Requirements.of_json (Yojson.Basic.from_channel ~fname:path ch)
-      with Safe_exception _ as ex -> reraise_with_context ex "... parsing JSON file %s" path
+      with Safe_exn.T _ as ex -> reraise_with_context ex "... parsing JSON file %s" path
     )
 
 let set_last_checked system app_dir =

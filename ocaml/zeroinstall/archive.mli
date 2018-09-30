@@ -7,11 +7,11 @@
 type mime_type = string
 
 (* Guess the MIME type from the URL's extension.
- * @raise Safe_exception if the extension is unknown. *)
+ * @raise Safe_exn.T if the extension is unknown. *)
 val type_from_url : string -> mime_type
 
 (* Check we have the needed software to extract from an archive of the given type.
- * @raise Safe_exception with a suitable message if not. *)
+ * @raise Safe_exn.T with a suitable message if not. *)
 val check_type_ok : Support.Common.system -> mime_type -> unit
 
 (** Unpack [archive] to a temporary directory and then move things into [destdir], checking that we're not following symlinks at each

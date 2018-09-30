@@ -6,6 +6,7 @@
 
 open Options
 open Zeroinstall.General
+open Support
 open Support.Common
 open Zeroinstall
 
@@ -142,7 +143,9 @@ let handle_request config tools ui = function
       Lwt.catch
         (fun () -> select config tools ui requirements refresh)
         (function
-          | Safe_exception (msg, _) -> `List [`String "fail"; `String msg] |> Lwt.return
+          | Safe_exn.T e ->
+            let msg = Format.asprintf "%a" Safe_exn.pp e in
+            `List [`String "fail"; `String msg] |> Lwt.return
           | ex -> Lwt.fail ex
         )
   | _ -> Lwt.return `Bad_request

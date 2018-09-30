@@ -4,6 +4,7 @@
 
 open OUnit
 open Zeroinstall.General
+open Support
 open Support.Common
 module Config = Zeroinstall.Config
 module U = Support.Utils
@@ -513,8 +514,9 @@ let equal_str_lists = assert_equal ~printer:format_list
 let assert_str_equal = assert_equal ~printer:(fun x -> x)
 
 let assert_raises_safe expected_msg (fn:unit Lazy.t) =
-  try Lazy.force fn; assert_failure ("Expected Safe_exception " ^ expected_msg)
-  with Safe_exception (msg, _) ->
+  try Lazy.force fn; assert_failure ("Expected Safe_exn.T " ^ expected_msg)
+  with Safe_exn.T e ->
+    let msg = Safe_exn.msg e in
     if not (Str.string_match (Str.regexp expected_msg) msg 0) then
       raise_safe "Error '%s' does not match regexp '%s'" msg expected_msg
 
@@ -522,10 +524,11 @@ let assert_raises_safe_lwt expected_msg fn =
   Lwt.catch
     (fun () ->
        fn () >|= fun () ->
-       assert_failure ("Expected Safe_exception " ^ expected_msg)
+       assert_failure ("Expected Safe_exn.T " ^ expected_msg)
     )
     (function
-      | Safe_exception (msg, _) ->
+      | Safe_exn.T e ->
+        let msg = Safe_exn.msg e in
         if Str.string_match (Str.regexp expected_msg) msg 0 then
           Lwt.return ()
         else
@@ -609,7 +612,8 @@ let assert_error_contains expected (fn:unit -> unit) =
   try
     fn ();
     assert_failure (Printf.sprintf "Expected error '%s' but got success!" expected)
-  with Safe_exception (msg, _) ->
+  with Safe_exn.T e ->
+    let msg = Safe_exn.msg e in
     assert_contains expected msg
 
 (** Read all input from a channel. *)

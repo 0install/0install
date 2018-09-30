@@ -90,7 +90,7 @@ module RealSystem (U : UnixType) =
               | None -> Unix.create_process (List.hd args) (Array.of_list args) new_stdin new_stdout new_stderr
               | Some env -> Unix.create_process_env (List.hd args) (Array.of_list args) env new_stdin new_stdout new_stderr
             )
-          with Safe_exception _ as ex ->
+          with Safe_exn.T _ as ex ->
             reraise_with_context ex "... trying to create sub-process '%s'"
               (Logging.format_argv_for_logging args)
 
@@ -141,7 +141,7 @@ module RealSystem (U : UnixType) =
 
         (** A safer, more friendly version of the [Unix.exec*] calls.
             Flushes [stdout] and [stderr]. Ensures [argv[0]] is set to the program called.
-            Reports errors as [Safe_exception]s.
+            Reports errors as [Safe_exn.T]s.
             On Windows, we can't exec, so we spawn a subprocess, wait for it to finish, then
             exit with its exit status.
           *)
@@ -173,7 +173,7 @@ module RealSystem (U : UnixType) =
                 | Some env -> Unix.execve prog_path argv_array env
               )
             )
-          with Safe_exception _ as ex ->
+          with Safe_exn.T _ as ex ->
             let cmd = String.concat " " argv in
             reraise_with_context ex "... trying to exec: %s" cmd
 
@@ -208,7 +208,7 @@ module RealSystem (U : UnixType) =
                 double_fork_detach do_spawn
               )
             )
-          with Safe_exception _ as ex ->
+          with Safe_exn.T _ as ex ->
             let cmd = String.concat " " argv in
             reraise_with_context ex "... trying to spawn: %s" cmd
 
@@ -226,7 +226,7 @@ module RealSystem (U : UnixType) =
               Unix.rename tmpname path
             );
             result
-          with Safe_exception _ as ex -> reraise_with_context ex "... trying to write '%s'" path
+          with Safe_exn.T _ as ex -> reraise_with_context ex "... trying to write '%s'" path
 
         method hardlink = Unix.link
 
@@ -239,7 +239,7 @@ module RealSystem (U : UnixType) =
         method waitpid_non_intr = waitpid_non_intr
 
         (** Call [waitpid] to collect the child.
-            @raise Safe_exception if it didn't exit with a status of 0 (success). *)
+            @raise Safe_exn.T if it didn't exit with a status of 0 (success). *)
         method reap_child ?(kill_first) child_pid =
           let () = match kill_first with
             | None -> ()

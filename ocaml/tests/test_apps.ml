@@ -3,6 +3,7 @@
  *)
 
 open Zeroinstall.General
+open Support
 open Support.Common
 open OUnit
 module U = Support.Utils
@@ -29,7 +30,7 @@ let suite = "apps">::: [
     let r = R.run url in
     let () =
       try ignore @@ Apps.create_app config "/foo" r; assert false
-      with Safe_exception _ -> () in
+      with Safe_exn.T _ -> () in
 
     ignore @@ Apps.create_app config "hello" r;
 

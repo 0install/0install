@@ -29,7 +29,7 @@ val best_digest : Manifest.digest list -> Manifest.digest
 (** Recursively set permissions:
   * Directories and executable files become 0o555.
   * Other files become 0o444.
-  * @raise Safe_exception if there are special files or files with special mode bits set *)
+  * @raise Safe_exn.T if there are special files or files with special mode bits set *)
 val fixup_permissions : #filesystem -> filepath -> unit
 
 (** Create a temporary directory in the directory where we would store a new implementation.

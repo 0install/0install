@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open Support
 open Support.Common
 open Zeroinstall
 open Zeroinstall.General
@@ -145,7 +146,8 @@ let suite = "fetch">::: [
       try
         try_with ?digest @@ "<recipe><archive href='recipe-base.tgz' extract='recipe' size='305'/>" ^ xml ^ "</recipe>";
         assert (error = None);
-      with Safe_exception (msg, _) ->
+      with Safe_exn.T e ->
+        let msg = Safe_exn.msg e in
         let error = error |? lazy (raise_safe "Unexpected error '%s'" msg) in
         if not (Str.string_match (Str.regexp error) msg 0) then (
           raise_safe "Expected error '%s' but got '%s'" error msg
@@ -200,7 +202,8 @@ let suite = "fetch">::: [
             (* Is cached now *)
             let path = Stores.lookup_maybe config.system digests config.stores |? lazy (failwith "missing!") in
             assert (config.system#file_exists (path +/ testfile));
-      with Safe_exception (msg, _) ->
+      with Safe_exn.T e ->
+        let msg = Safe_exn.msg e in
         let error = error |? lazy (raise_safe "Unexpected error '%s'" msg) in
         if not (Str.string_match (Str.regexp error) msg 0) then (
           raise_safe "Expected error '%s' but got '%s'" error msg

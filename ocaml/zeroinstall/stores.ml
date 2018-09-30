@@ -5,6 +5,7 @@
 (** Managing cached implementations *)
 
 open General
+open Support
 open Support.Common
 module Q = Support.Qdom
 module U = Support.Utils
@@ -218,7 +219,7 @@ let add_with_helper config required_digest tmpdir =
               Support.System.check_exit_status status;
               log_info "Added succcessfully using helper.";
               Lwt.return `Success
-            with Safe_exception _ as ex ->
+            with Safe_exn.T _ as ex ->
               log_warning ~ex "Error running %s" helper;
               Lwt.return `No_helper
           )

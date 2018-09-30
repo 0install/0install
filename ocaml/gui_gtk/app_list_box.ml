@@ -6,6 +6,7 @@
 
 open Zeroinstall.General
 open Zeroinstall
+open Support
 open Support.Common
 open Gtk_common
 
@@ -44,7 +45,7 @@ let discover_existing_apps config =
                           match FC.get_cached_feed config url with
                           | Some feed -> feed.F.name
                           | None -> Filename.basename uri
-                        with Safe_exception _ ->
+                        with Safe_exn.T _ ->
                           Filename.basename uri in
                       already_installed := (name, full, uri) :: !already_installed;
                       raise Found

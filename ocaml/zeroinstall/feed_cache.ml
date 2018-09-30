@@ -5,6 +5,7 @@
 (** Caching downloaded feeds on disk *)
 
 open General
+open Support
 open Support.Common
 module Q = Support.Qdom
 module U = Support.Utils
@@ -134,7 +135,7 @@ let load_iface_config config uri : interface_config =
         match Paths.Config.(first (user_overrides uri)) config.paths with
         | None -> { stability_policy = None; extra_feeds = distro_feeds @ site_feeds }
         | Some path -> load path
-  with Safe_exception _ as ex -> reraise_with_context ex "... reading configuration settings for interface %s" uri
+  with Safe_exn.T _ as ex -> reraise_with_context ex "... reading configuration settings for interface %s" uri
 
 let add_import_elem feed_import =
   match feed_import.Feed.feed_type with
@@ -170,7 +171,7 @@ let get_cached_feed config = function
       try
         let root = Q.parse_file config.system path |> Element.parse_feed in
         Some (Feed.parse config.system root (Some path))
-      with Safe_exception _ as ex ->
+      with Safe_exn.T _ as ex ->
         log_warning ~ex "Can't read local file '%s'" path;
         None
   )

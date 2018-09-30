@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open Support
 open Support.Common
 
 module U = Support.Utils
@@ -163,8 +164,8 @@ let make_version_restriction expr =
         method to_string = "version " ^ expr
       end
     )
-  with Safe_exception (ex_msg, _) as ex ->
-    let msg = Printf.sprintf "Can't parse version restriction '%s': %s" expr ex_msg in
+  with Safe_exn.T e as ex ->
+    let msg = Format.asprintf "Can't parse version restriction '%s': %s" expr (Safe_exn.msg e) in
     log_warning ~ex:ex "%s" msg;
     make_impossible_restriction msg
 

@@ -4,6 +4,7 @@
 
 (** The "0install run" command *)
 
+open Support
 open Support.Common
 open Options
 open Zeroinstall.General
@@ -56,6 +57,6 @@ let handle options flags args =
       match Zeroinstall.Exec.execute_selections ~exec options.config sels run_args ?main:run_opts.main ?wrapper:run_opts.wrapper with
       | `Dry_run msg -> Zeroinstall.Dry_run.log "%s" msg
       | `Ok () -> ()
-    with Safe_exception _ as ex -> reraise_with_context ex "... running %s" arg
+    with Safe_exn.T _ as ex -> reraise_with_context ex "... running %s" arg
   )
   | _ -> raise (Support.Argparse.Usage_error 1)

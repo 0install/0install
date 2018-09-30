@@ -6,6 +6,7 @@
 
 open Options
 open Zeroinstall.General
+open Support
 open Support.Common
 
 module U = Support.Utils
@@ -130,7 +131,7 @@ let optimise system impl_dir =
     clear ();
     Printf.printf "[%d / %d] Reading manifests...%!" i total;
     try optimise_impl system stats first_copy ~tmpfile impl_dir impl
-    with Safe_exception (msg, _) -> clear (); log_warning "Skipping '%s': %s" impl msg
+    with Safe_exn.T e -> clear (); log_warning "Skipping '%s': %a" impl Safe_exn.pp e
   );
   clear ();
   stats

@@ -6,6 +6,7 @@
 
 open Zeroinstall
 open Zeroinstall.General
+open Support
 open Support.Common
 open OUnit
 
@@ -33,7 +34,7 @@ let parse_sels xml =
     |> Xmlm.make_input
     |> Q.parse_input None
     |> Zeroinstall.Selections.create
-  with Safe_exception _ as ex ->
+  with Safe_exn.T _ as ex ->
     reraise_with_context ex "... parsing %s" xml
 
 let get_sel_path config sel =

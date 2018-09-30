@@ -4,6 +4,7 @@
 
 (** Parsing version numbers *)
 
+open Support
 open Support.Common
 
 type modifier =
@@ -116,7 +117,7 @@ let parse_expr s =
   try
     let tests = List.map parse_range (Str.split_delim re_pipe s) in
     fun v -> List.exists (fun t -> t v) tests
-  with Safe_exception _ as ex -> reraise_with_context ex "... parsing version expression '%s'" s
+  with Safe_exn.T _ as ex -> reraise_with_context ex "... parsing version expression '%s'" s
 
 (** Any distribution-provided version number is capped to this.
  * Prevents them wrapping around (very large numbers are usually hashes anyway).

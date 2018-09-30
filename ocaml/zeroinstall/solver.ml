@@ -6,6 +6,7 @@
  * This instantiates the [Solver_core] functor with the concrete 0install types. *)
 
 open General
+open Support
 open Support.Common
 module U = Support.Utils
 module Qdom = Support.Qdom
@@ -308,7 +309,7 @@ let solve_for config feed_provider requirements =
         match do_solve root_req ~closest_match:true with
         | Some result -> (false, result)
         | None -> failwith "No solution, even with closest_match!"
-  with Safe_exception _ as ex -> reraise_with_context ex "... solving for interface %s" requirements.Requirements.interface_uri
+  with Safe_exn.T _ as ex -> reraise_with_context ex "... solving for interface %s" requirements.Requirements.interface_uri
 
 (** Create a <selections> document from the result of a solve.
  * The use of Maps ensures that the inputs will be sorted, so we will have a stable output.

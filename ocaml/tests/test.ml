@@ -7,6 +7,7 @@ Unix.putenv "TZ" "Europe/London"
 open OUnit
 open Zeroinstall
 open Zeroinstall.General
+open Support
 open Support.Common
 open Fake_system
 
@@ -132,8 +133,9 @@ let test_option_parsing () =
   begin try
     Support.Argparse.iter_options flags (fun _ -> raise_safe "Error!");
     assert false
-  with Safe_exception ("Error!", ctx) ->
-    assert_str_equal "... processing option '-w'" (List.hd !ctx) end;
+  with Safe_exn.T e ->
+    let msg = Format.asprintf "%a" Safe_exn.pp e in
+    assert_str_equal "Error!\n... processing option '-w'" msg end;
 
   Buffer.reset stdout;
   begin
@@ -276,7 +278,7 @@ let suite =
      assert_str_equal uri (Generic_select.canonical_iface_uri system arg) in
    let check_err arg =
      try (ignore @@ Generic_select.canonical_iface_uri system arg); assert false
-     with Safe_exception _ -> () in
+     with Safe_exn.T _ -> () in
    check "http://example.com/foo.xml" "http://example.com/foo.xml";
    check "alias:./tests/v1-alias" "http://example.com/alias1.xml";
    check "alias:./tests/v2-alias" "http://example.com/alias2.xml";

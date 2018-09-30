@@ -4,6 +4,7 @@
 
 (** Keeps track of download progress. *)
 
+open Support
 open Support.Common
 open Gtk_common
 
@@ -65,10 +66,10 @@ let make_watcher solver_box tools ~trust_db reqs =
       )
 
     method report feed_url msg =
-      let msg = Printf.sprintf "Feed '%s': %s" (Zeroinstall.Feed_url.format_url feed_url) msg in
+      let e = Safe_exn.v "Feed '%s': %s" (Zeroinstall.Feed_url.format_url feed_url) msg in
       Gtk_utils.async (fun () ->
         solver_box >|= fun box ->
-        box#report_error (Safe_exception (msg, ref []))
+        box#report_error e
       )
 
     method monitor dl =

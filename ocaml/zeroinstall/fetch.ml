@@ -3,6 +3,7 @@
  *)
 
 open General
+open Support
 open Support.Common
 
 module U = Support.Utils
@@ -72,7 +73,7 @@ let with_stores_tmpdir config fn =
 
 (* Takes a cross-platform relative path (i.e using forward slashes, even on windows)
    and returns the absolute, platform-native version of the path.
-   If the path does not resolve to a location within [tmpdir], Safe_exception is raised.
+   If the path does not resolve to a location within [tmpdir], Safe_exn.T is raised.
    Resolving to base itself is also an error. *)
 let native_path_within_base (system:system) ~tmpdir crossplatform_path =
   if U.starts_with crossplatform_path "/" then (
@@ -450,7 +451,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
                           U.makedirs real_system basedir 0o755;
                           basedir in
                     let mime_type = mime_type |? lazy (Archive.type_from_url url) in
-                    with_error_info (fun f -> f "... unpacking archive '%s'" url) (fun () ->
+                    Safe_exn.with_info (fun f -> f "... unpacking archive '%s'" url) (fun () ->
                         Archive.unpack_over {config with system = system#bypass_dryrun}
                           ~archive:tmpfile ~tmpdir:(Filename.dirname tmpdir)
                           ~destdir:basedir ?extract ~mime_type
@@ -503,7 +504,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
   (* Download a 0install implementation and add it to a store *)
   let download_impl (impl, required_digest, retrieval_method) : unit Lwt.t =
     let download ~may_use_mirror recipe = download_impl_internal ~may_use_mirror impl required_digest recipe in
-    with_error_info (fun f ->
+    Safe_exn.with_info (fun f ->
         let {Feed_url.feed; Feed_url.id} = Impl.get_id impl in
         let version = Impl.get_attr_ex FeedAttr.version impl in
         f "... downloading implementation %s %s (id=%s)" (Feed_url.format_url feed) version id
@@ -693,7 +694,7 @@ class external_fetcher command underlying =
     method ui = underlying#ui
 
     method download_impls impls =
-      with_error_info (fun f -> f "... downloading with external fetcher '%s'" command) @@ fun () ->
+      Safe_exn.with_info (fun f -> f "... downloading with external fetcher '%s'" command) @@ fun () ->
       let child_nodes = impls |> List.map (function
         | { qdom; Impl.impl_type = `Cache_impl { Impl.digests; _}; _} ->
             let qdom = Element.as_xml qdom in
@@ -727,7 +728,7 @@ class external_fetcher command underlying =
       output >>= fun output ->
       errors >>= fun errors ->
       log_debug "External fetch process complete";
-      with_error_info (fun f -> f "stdout: %s\nstderr: %s" output errors)
+      Safe_exn.with_info (fun f -> f "stdout: %s\nstderr: %s" output errors)
         (fun () ->
           child#close >|= fun status ->
           Support.System.check_exit_status status;
@@ -742,4 +743,4 @@ let make config trust_db distro download_pool ui =
   | None -> fetcher
   | Some command ->
       try new external_fetcher command fetcher
-      with Safe_exception _ as ex -> reraise_with_context ex "... handling $ZEROINSTALL_EXTERNAL_FETCHER"
+      with Safe_exn.T _ as ex -> reraise_with_context ex "... handling $ZEROINSTALL_EXTERNAL_FETCHER"

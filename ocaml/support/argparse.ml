@@ -197,14 +197,14 @@ let parse_options valid_options raw_options =
         | None -> raise_safe "Option '%s' is not valid here" name
         | Some reader ->
             try (name, reader#parse values)
-            with Safe_exception _ as ex -> reraise_with_context ex "... processing option '%s'" name in
+            with Safe_exn.T _ as ex -> reraise_with_context ex "... processing option '%s'" name in
 
   List.map parse_option raw_options
 
 let iter_options options fn =
   let process (actual_opt, value) =
     try fn value
-    with Safe_exception _ as ex -> reraise_with_context ex "... processing option '%s'" actual_opt
+    with Safe_exn.T _ as ex -> reraise_with_context ex "... processing option '%s'" actual_opt
   in List.iter process options
 
 (** {2 Handy wrappers for option handlers} *)

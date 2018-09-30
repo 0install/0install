@@ -5,6 +5,7 @@
 (** Manage the GUI sub-process. *)
 
 open General
+open Support
 open Support.Common
 
 module FeedAttr = Constants.FeedAttr
@@ -65,9 +66,9 @@ let get_fetch_info config impl =
               let pretty = U.format_size (Int64.of_float size) in
               (pretty, Printf.sprintf "Distribution package: need to download %s (%s bytes)" pretty (string_of_float size))
         end
-  with Safe_exception (msg, _) as ex ->
+  with Safe_exn.T e as ex ->
     log_warning ~ex "get_fetch_info";
-    ("ERROR", msg)
+    ("ERROR", Safe_exn.msg e)
 
 let have_source_for feed_provider iface =
   let master_feed = Feed_url.master_feed_of_iface iface in
@@ -191,7 +192,7 @@ let set_impl_stability config {Feed_url.feed; Feed_url.id} rating =
  * On error, report both stdout and stderr. *)
 let run_subprocess argv =
   log_info "Running %s" (Support.Logging.format_argv_for_logging (Array.to_list argv));
-  with_error_info
+  Safe_exn.with_info
     (fun f -> f "... executing %s" (Support.Logging.format_argv_for_logging (Array.to_list argv)))
     (fun () ->
       let command = (argv.(0), argv) in

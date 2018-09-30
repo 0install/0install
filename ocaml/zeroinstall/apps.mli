@@ -34,7 +34,7 @@ val get_history : config -> app -> string list
 val get_times : #filesystem -> app -> app_times
 
 (** Get the current selections. Does not check whether they're still valid.
- * @raise Safe_exception if they're missing. *)
+ * @raise Safe_exn.T if they're missing. *)
 val get_selections_no_updates : #filesystem -> app -> Selections.t
 
 (** Get the current selections.

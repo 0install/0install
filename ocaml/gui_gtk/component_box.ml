@@ -4,6 +4,7 @@
 
 (** The per-component dialog (the one with the Feeds and Versions tabs). *)
 
+open Support
 open Support.Common
 open Gtk_common
 open Zeroinstall.General
@@ -182,9 +183,9 @@ let add_remote_feed ~parent ~watcher ~recalculate tools iface () =
                    recalculate ~force:false
             )
             (function
-              | Safe_exception (msg, _) ->
+              | Safe_exn.T e ->
                 box#misc#set_sensitive true;
-                error_label#set_text msg;
+                error_label#set_text (Safe_exn.msg e);
                 error_label#misc#show ();
                 entry#misc#grab_focus ();
                 Lwt.return ()
@@ -217,7 +218,7 @@ let add_local_feed ~parent ~recalculate config iface () =
               Gui.add_feed config iface feed_url;
               box#destroy ();
               recalculate ~force:false
-        with Safe_exception _ as ex -> Alert_box.report_error ~parent:box ex
+        with Safe_exn.T _ as ex -> Alert_box.report_error ~parent:box ex
   );
 
   box#show ()

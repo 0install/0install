@@ -6,6 +6,7 @@
 
 open Zeroinstall.General
 open Zeroinstall
+open Support
 open Support.Common
 open OUnit
 module Impl = Zeroinstall.Impl
@@ -155,7 +156,8 @@ let suite = "0install">::: [
     fake_system#set_argv [| test_0install; "-cor"; "download"; "http://example.com:8000/Hello.xml"; "--version"; "2" |];
     let () =
       try Fake_system.check_no_output (fun stdout -> Main.main ~stdout system); assert false
-      with Safe_exception (msg, _) ->
+      with Safe_exn.T e ->
+        let msg = Safe_exn.msg e in
         assert_str_equal (
           "Can't find all required implementations:\n" ^
           "- http://example.com:8000/Hello.xml -> (problem)\n" ^
@@ -267,7 +269,8 @@ let suite = "0install">::: [
 
     let () =
       try ignore @@ run ["download"; "--offline"; (feed_dir +/ "selections.xml")]; assert false
-      with Safe_exception (msg, _) ->
+      with Safe_exn.T e ->
+        let msg = Safe_exn.msg e in
         assert_contains "Can't download as in offline mode:\nhttp://example.com:8000/Hello.xml 1" msg in
 
     let fake_slave = new fake_slave config in
@@ -309,7 +312,7 @@ let suite = "0install">::: [
 
     fake_system#unsetenv "DISPLAY";
     try ignore @@ run ["run"; "--gui"; "http://foo/d"]; assert false
-    with Safe_exception ("Can't use GUI because $DISPLAY is not set", _) -> ();
+    with Safe_exn.T e when Safe_exn.msg e = "Can't use GUI because $DISPLAY is not set" -> ();
 
     (* --dry-run must prevent us from using the GUI *)
     fake_system#putenv "DISPLAY" ":foo";

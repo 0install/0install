@@ -4,6 +4,7 @@
 
 (** There are several different versions of the PackageKit API. This module provides a consistent interface to them. *)
 
+open Support
 open Support.Common
 
 (** [keep ~switch value] prevents [value] from being garbage collected until the switch is turned off.
@@ -117,9 +118,9 @@ module Transaction = struct
         error := None;
         match err with
         | None when status = "success" -> Lwt.wakeup waker ()
-        | None -> Lwt.wakeup_exn waker (Safe_exception ("PackageKit transaction failed: " ^ status, ref []))
+        | None -> Lwt.wakeup_exn waker (Safe_exn.v "PackageKit transaction failed: %s" status)
         | Some (code, msg) ->
-            let ex = Safe_exception (code ^ ": " ^ msg, ref []) in
+            let ex = Safe_exn.v "%s: %s" code msg in
             Lwt.wakeup_exn waker ex in
 
       let error (code, details) =

@@ -5,6 +5,7 @@
 (* These tests actually run a dummy web-server. *)
 
 open Zeroinstall.General
+open Support
 open Support.Common
 open OUnit
 
@@ -83,7 +84,9 @@ let suite =
 
             let destroy =
               try Lwt_main.run (Pk_service.start [| 0; 8; 1 |])
-              with Safe_exception ("No D-BUS!", _) -> skip_if true "No D-BUS support compiled in"; assert false in
+              with Safe_exn.T e when Safe_exn.msg e = "No D-BUS!" ->
+                skip_if true "No D-BUS support compiled in"; assert false
+            in
             assert_equal 1 @@ test config fake_system;
             Fake_system.fake_log#assert_contains "confirm: The following components need to be installed using native packages.";
 

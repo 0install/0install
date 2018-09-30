@@ -7,8 +7,6 @@
 type filepath = string
 type varname = string
 
-exception Safe_exception of (string * string list ref)
-
 (** Raise this to exit the program. Allows finally blocks to run. *)
 exception System_exit of int
 
@@ -21,10 +19,8 @@ module Platform =
     }
   end
 
-(** Convenient way to create a new [Safe_exception] with no initial context. *)
-let raise_safe fmt =
-  fmt |> Format.kasprintf @@ fun msg ->
-  raise (Safe_exception (msg, ref []))
+let raise_safe = Safe_exn.failf
+let reraise_with_context = Safe_exn.reraise_with_context
 
 module StringMap = struct
   include Map.Make(String)
@@ -71,7 +67,7 @@ class type processes =
     method create_process : ?env:string array -> string list -> Unix.file_descr -> Unix.file_descr -> Unix.file_descr -> int
 
     (** [reap_child ?kill_first:signal child_pid] calls [waitpid] to collect the child.
-        @raise Safe_exception if it didn't exit with a status of 0 (success). *)
+        @raise Safe_exn.T if it didn't exit with a status of 0 (success). *)
     method reap_child : ?kill_first:int -> int -> unit
 
     (** Low-level interface, in case you need to process the exit status yourself. *)
@@ -109,7 +105,7 @@ let on_windows = Filename.dir_sep <> "/"
 let path_sep = if on_windows then ";" else ":"
 
 (** Join a relative path onto a base.
-    @raise Safe_exception if the second path is not relative. *)
+    @raise Safe_exn.T if the second path is not relative. *)
 let (+/) a b =
   if b = "" then
     a
@@ -117,31 +113,6 @@ let (+/) a b =
     Filename.concat a b
   else
     raise_safe "Attempt to append absolute path: %s + %s" a b
-
-(** Add the additional explanation [context] to the exception and rethrow it.
-    [ex] should be a [Safe_exception] (if not, [context] is written as a warning to [stderr]).
-  *)
-let reraise_with_context ex fmt =
-  let do_raise context =
-    let () = match ex with
-    | Safe_exception (_, old_contexts) -> old_contexts := context :: !old_contexts
-    | _ -> Printf.eprintf "warning: Attempt to add note '%s' to non-Safe_exception!" context
-    in
-    raise ex
-  in Format.kasprintf do_raise fmt
-
-(** [with_error_info note f] is [f ()], except that if it raises [Safe_exception] then
-    we call [note writer] and add whatever is passed to writer to the context. *)
-let with_error_info note f =
-  Lwt.catch f
-    (function
-      | Safe_exception (_, old_contexts) as ex ->
-        let writer fmt =
-          fmt |> Format.kasprintf (fun context -> old_contexts := context :: !old_contexts) in
-        note writer;
-        raise ex
-      | ex -> Lwt.fail ex
-    )
 
 let log_debug = Logging.log_debug
 let log_info = Logging.log_info

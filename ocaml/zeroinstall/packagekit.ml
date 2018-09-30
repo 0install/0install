@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open Support
 open Support.Common
 module U = Support.Utils
 
@@ -71,7 +72,7 @@ let resolve proxy package_names =
   Lwt.catch
     (fun () -> Packagekit_stubs.summaries proxy ~package_names (add_package details))
     (function
-      | Safe_exception _ as ex ->
+      | Safe_exn.T _ as ex ->
         (* This is a bit broken. PackageKit seems to abort on the first unknown package, so we
          * lose the remaining results. Still, something is better than nothing... *)
         log_debug ~ex "Error resolving %s with PackageKit" (String.concat "," package_names);

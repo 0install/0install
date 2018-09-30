@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open Support
 open Support.Common
 
 module U = Support.Utils
@@ -84,8 +85,9 @@ let handle_invoke t ~handle_request ticket op args () =
       | `Bad_request -> raise_safe "Invalid arguments for '%s': %s" op (J.to_string (`List args))
     )
     (function
-      | Safe_exception (msg, _) as ex ->
+      | Safe_exn.T e as ex ->
           log_warning ~ex "Returning error to peer";
+          let msg = Format.asprintf "%a" Safe_exn.pp e in
           Lwt.return ([`String "fail"; `String msg], None)
       | ex -> Lwt.fail ex
     )
@@ -108,7 +110,7 @@ let listen t handle_request =
         begin match success with
         | "ok" -> Lwt.wakeup resolver (result :> opt_xml); Lwt.return ()
         | "ok+xml" -> read_xml_chunk t.from_peer >|= fun xml -> Lwt.wakeup resolver (`WithXML (result, xml))
-        | "fail" -> Lwt.wakeup_exn resolver (Safe_exception (J.Util.to_string result, ref [])); Lwt.return ()
+        | "fail" -> Lwt.wakeup_exn resolver (Safe_exn.v "%s" (J.Util.to_string result)); Lwt.return ()
         | _ -> raise_safe "Invalid success type '%s' from peer:\n" success
         end >>= loop
     | Some json -> raise_safe "Invalid JSON from peer:\n%s" (J.to_string json) in
@@ -125,7 +127,7 @@ let invoke t ?xml op args =
       response
     )
     (function
-      | Safe_exception _ as ex -> reraise_with_context ex "... invoking %s(%s)" op (J.to_string (`List args))
+      | Safe_exn.T _ as ex -> reraise_with_context ex "... invoking %s(%s)" op (J.to_string (`List args))
       | ex -> Lwt.fail ex
     )
 

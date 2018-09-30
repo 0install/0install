@@ -4,6 +4,7 @@
 
 (** The main GUI window showing the progress of a solve. *)
 
+open Support
 open Support.Common
 open Gtk_common
 
@@ -240,7 +241,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
                | `Success -> on_success ()
           )
           (function
-            | Safe_exception _ as ex ->
+            | Safe_exn.T _ as ex ->
               widgets.ok_button#set_active false;
               report_error ex;
               Lwt.return ()

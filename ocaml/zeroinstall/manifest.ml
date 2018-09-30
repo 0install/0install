@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open Support
 open Support.Common
 
 module H = Support.Hash
@@ -155,7 +156,7 @@ let add_manifest_file system alg dir =
     );
     system#chmod dir 0o555;
     hash_manifest alg manifest_contents
-  with Safe_exception _ as ex -> reraise_with_context ex "... adding .manifest file in %s" dir
+  with Safe_exn.T _ as ex -> reraise_with_context ex "... adding .manifest file in %s" dir
 
 let algorithm_names = [
   "sha1";
@@ -301,7 +302,7 @@ let verify system ~digest dir =
         Buffer.add_string b "The .manifest file matches neither of the other digests. Odd."
     end;
 
-    raise (Safe_exception (String.trim @@ Buffer.contents b, ref []))
+    Safe_exn.failf "%s" (String.trim @@ Buffer.contents b)
   )
 
 let parse_manifest manifest_data =

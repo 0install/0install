@@ -20,20 +20,12 @@ let finally_do cleanup resource f =
   let () = cleanup resource in
   result
 
-let safe_to_string = function
-  | Safe_exception (msg, contexts) ->
-      Some (msg ^ "\n" ^ String.concat "\n" (List.rev !contexts))
-  | _ -> None
-
-let () = Printexc.register_printer safe_to_string
-
 let handle_exceptions main args =
   try main args
   with
   | System_exit x -> exit x
-  | Safe_exception (msg, context) as ex ->
-      Printf.eprintf "%s\n" msg;
-      List.iter (Printf.eprintf "%s\n") (List.rev !context);
+  | Safe_exn.T payload as ex ->
+      Format.eprintf "%a@." Safe_exn.pp payload;
       Printexc.print_backtrace stderr;
       Logging.dump_crash_log ~ex ();
       exit 1
@@ -81,7 +73,7 @@ let makedirs (system:#filesystem) path mode =
         loop parent;
         system#mkdir path mode in
   try loop path
-  with Safe_exception _ as ex -> reraise_with_context ex "... creating directory %s" path
+  with Safe_exn.T _ as ex -> reraise_with_context ex "... creating directory %s" path
 
 let starts_with str prefix =
   let ls = String.length str in
@@ -256,8 +248,9 @@ let check_output ?env ?stderr ?reaper (system:#processes) fn (argv:string list) 
   with
   | Unix.Unix_error _ as ex ->
       let cmd = Logging.format_argv_for_logging argv in
-      raise (Safe_exception (Printexc.to_string ex, ref ["... trying to read output of: " ^ cmd]))
-  | Safe_exception _ as ex ->
+      Safe_exn.failf "%s" (Printexc.to_string ex)
+          ~ctx:["... trying to read output of: " ^ cmd]
+  | Safe_exn.T _ as ex ->
       let cmd = Logging.format_argv_for_logging argv in
       reraise_with_context ex "... trying to read output of: %s" cmd
 
@@ -310,7 +303,7 @@ let rmtree ~even_if_locked (sys:#filesystem) root =
             | Error ex -> raise_safe "Can't read directory '%s': %s" path (Printexc.to_string ex)
       ) in
     rmtree root
-  with Safe_exception _ as ex -> reraise_with_context ex "... trying to delete directory %s" root
+  with Safe_exn.T _ as ex -> reraise_with_context ex "... trying to delete directory %s" root
 
 let copy_channel ic oc =
   let bufsize = 4096 in
@@ -329,7 +322,7 @@ let copy_file (system:#filesystem) source dest mode =
     source |> system#with_open_in [Open_rdonly;Open_binary] (fun ic ->
       dest |> system#with_open_out [Open_creat;Open_excl;Open_wronly;Open_binary] ~mode (copy_channel ic)
     )
-  with Safe_exception _ as ex -> reraise_with_context ex "... copying %s to %s" source dest
+  with Safe_exn.T _ as ex -> reraise_with_context ex "... copying %s to %s" source dest
 
 let slice ~start ?stop lst =
   let from_start =
@@ -405,7 +398,7 @@ let realpath (system:#filesystem) path =
     else (
       fst @@ join_realpath system#getcwd path StringMap.empty
     )
-  with Safe_exception _ as ex -> reraise_with_context ex "... in realpath(%s)" path
+  with Safe_exn.T _ as ex -> reraise_with_context ex "... in realpath(%s)" path
 
 let format_time t =
   let open Unix in

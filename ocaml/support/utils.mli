@@ -6,9 +6,9 @@
 val finally_do : ('a -> unit) -> 'a -> ('a -> 'b) -> 'b
 
 (** [handle_exceptions main args] runs [main args]. If it throws an exception it reports it in a
-    user-friendly way. A [Safe_exception] is displayed with its context.
+    user-friendly way. A [Safe_exn.T] is displayed with its context.
     If stack-traces are enabled, one will be displayed. If not then, if the exception isn't
-    a [Safe_exception], the user is told how to enable them.
+    a [Safe_exn.T], the user is told how to enable them.
     On error, it calls [exit 1]. On success, it returns.
  *)
 val handle_exceptions : ('a -> 'b) -> 'a -> 'b

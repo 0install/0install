@@ -5,6 +5,7 @@
 (** A simple cache for storing key-value pairs on disk. Distributions may wish to use this to record the
     version(s) of each distribution package currently installed. *)
 
+open Support
 open Support.Common
 open General
 
@@ -127,7 +128,7 @@ let create_lazy config ~cache_leaf ~source ~if_missing =
           values |> List.iter (add_entry ch key)
         )
       )
-    with Safe_exception _ as ex -> reraise_with_context ex "... writing cache %s" data.cache_path in
+    with Safe_exn.T _ as ex -> reraise_with_context ex "... writing cache %s" data.cache_path in
   fun key ->
     ensure_valid config data;
     let entries =

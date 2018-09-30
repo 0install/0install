@@ -3,6 +3,7 @@
  *)
 
 open General
+open Support
 open Support.Common
 module U = Support.Utils
 
@@ -106,7 +107,7 @@ let run_command ?cwd system args =
           let messages = String.trim @@ stdout ^ stderr in
           if messages = "" then Support.System.check_exit_status status;
           raise_safe "Command failed: %s" messages
-    with Safe_exception _ as ex ->
+    with Safe_exn.T _ as ex ->
       reraise_with_context ex "... extracting archive with: %s" (Support.Logging.format_argv_for_logging args)
   )
 

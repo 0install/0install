@@ -123,7 +123,7 @@ val distributions : [< `Package_impl] t -> string option
 (** {2 Commands} *)
 
 (** Find the <runner> child of this element (selection or command), if any.
- * @raise Safe_exception if there are multiple runners. *)
+ * @raise Safe_exn.T if there are multiple runners. *)
 val get_runner : [`Command] t -> [`Runner] t option
 val make_command : ?path:filepath -> ?shell_command:string -> source_hint:'a t option -> string -> [`Command] t
 val get_command : string -> [`Selection] t -> [`Command] t option
@@ -185,7 +185,7 @@ val quick_test_mtime : [`Selection] t -> int64 option
 
 (** {2 Error reporting} *)
 
-(** [raise_elem "Problem with" elem] raises a [Safe_exception] with the message "Problem with <element> at ..." *)
+(** [raise_elem "Problem with" elem] raises a [Safe_exn.T] with the message "Problem with <element> at ..." *)
 val raise_elem : ('a, unit, string, _ t -> 'b) format4 -> 'a
 
 (** Like [raise_elem], but writing a log record rather than raising an exception. *)

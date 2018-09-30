@@ -7,6 +7,7 @@
  * http://0install.net/interface-spec.html
  * http://0install.net/selections-spec.html *)
 
+open Support
 open Support.Common
 open General
 open Constants
@@ -80,7 +81,7 @@ let parse_selections root =
           Q.child_nodes = !index |> StringMap.map_bindings (fun _ child -> child);
           Q.attrs = root.Q.attrs |> AttrMap.add_no_ns "command" "run"
         }
-      with Safe_exception _ as ex -> reraise_with_context ex "... migrating from old selections format"
+      with Safe_exn.T _ as ex -> reraise_with_context ex "... migrating from old selections format"
 
 let selections = ZI.map (fun x -> x) ~name:"selection"
 
