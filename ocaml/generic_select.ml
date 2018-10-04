@@ -21,7 +21,7 @@ type target =
   | Selections of Zeroinstall.Selections.t
 
 let local_path_of_iface uri =
-  let starts = U.starts_with uri in
+  let starts = XString.starts_with uri in
   if starts "http://" || starts "https://" then (
     None
   ) else (
@@ -36,13 +36,13 @@ let local_path_of_iface uri =
     An "alias:prog" URI expands to the URI in the 0alias script
     Otherwise, return it unmodified. *)
 let canonical_iface_uri (system:system) arg =
-  let starts = U.starts_with arg in
+  let starts = XString.starts_with arg in
   if starts "http://" || starts "https://" then (
     if not (String.contains_from arg (String.index arg '/' + 2) '/') then
       Safe_exn.failf "Missing / after hostname in URI '%s'" arg;
     arg
   ) else if starts "alias:" then (
-    let alias = U.string_tail arg 6 in
+    let alias = XString.tail arg 6 in
     let path =
       if Filename.is_implicit alias then
         U.find_in_path_ex system alias
@@ -54,11 +54,11 @@ let canonical_iface_uri (system:system) arg =
     | _ -> Safe_exn.failf "Not an alias script: '%s'" path
   ) else (
     let path = U.realpath system @@ if starts "file:///" then (
-      U.string_tail arg 7
+      XString.tail arg 7
     ) else if starts "file:" then (
         if arg.[5] = '/' then
           Safe_exn.failf "Use file:///path for absolute paths, not %s" arg;
-        U.string_tail arg 5
+        XString.tail arg 5
     ) else (
       arg
     ) in
@@ -84,7 +84,7 @@ let canonical_iface_uri (system:system) arg =
  * If it's a path, this calls [realpath] on it.
  * It's not an error if the path doesn't exist (the user may be trying to unregister a feed). *)
 let canonical_feed_url (system:system) arg =
-  let starts = U.starts_with arg in
+  let starts = XString.starts_with arg in
   let url =
     if starts "http://" || starts "https://" then (
       if not (String.contains_from arg (String.index arg '/' + 2) '/') then
@@ -92,11 +92,11 @@ let canonical_feed_url (system:system) arg =
       arg
     ) else (
       if starts "file:///" then (
-        U.string_tail arg 7
+        XString.tail arg 7
       ) else if starts "file:" then (
           if arg.[5] = '/' then
             Safe_exn.failf "Use file:///path for absolute paths, not %s" arg;
-          U.string_tail arg 5
+          XString.tail arg 5
       ) else (
         arg
       )

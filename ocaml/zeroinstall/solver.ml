@@ -73,7 +73,7 @@ module CoreModel = struct
       ~props:{ Impl.
         attrs = AttrMap.empty;
         requires = [];
-        commands = StringMap.empty;   (* (not used; we can provide any command) *)
+        commands = XString.Map.empty;   (* (not used; we can provide any command) *)
         bindings = [];
       }
       ~version:(Version.parse "0")
@@ -87,7 +87,7 @@ module CoreModel = struct
 
   let get_command impl name =
     if impl == dummy_impl then Some dummy_command
-    else StringMap.find name impl.Impl.props.Impl.commands
+    else XString.Map.find name impl.Impl.props.Impl.commands
 
   let make_deps role zi_deps self_bindings =
     let impl_provider = role.scope in
@@ -218,7 +218,7 @@ module CoreModel = struct
     (candidates.Impl_provider.rejects, candidates.Impl_provider.feed_problems)
 
   let user_restrictions role =
-    StringMap.find role.iface role.scope#extra_restrictions
+    XString.Map.find role.iface role.scope#extra_restrictions
 end
 
 module Core = Solver_core.Make(CoreModel)
@@ -276,7 +276,7 @@ let get_root_requirements config requirements make_impl_provider =
 
   (* This is for old feeds that have use='testing' instead of the newer
     'test' command for giving test-only dependencies. *)
-  let use = if command = Some "test" then StringSet.singleton "testing" else StringSet.empty in
+  let use = if command = Some "test" then XString.Set.singleton "testing" else XString.Set.empty in
 
   let (host_os, host_machine) = Arch.platform config.system in
   let os = default host_os os in
@@ -286,7 +286,7 @@ let get_root_requirements config requirements make_impl_provider =
   let multiarch = os <> Arch.linux || config.system#file_exists "/lib/ld-linux.so.2" in
 
   let scope_filter = { Scope_filter.
-    extra_restrictions = StringMap.map Impl.make_version_restriction extra_restrictions;
+    extra_restrictions = XString.Map.map Impl.make_version_restriction extra_restrictions;
     os_ranks = Arch.get_os_ranks os;
     machine_ranks = Arch.get_machine_ranks ~multiarch machine;
     languages = config.langs;

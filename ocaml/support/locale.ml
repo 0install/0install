@@ -25,7 +25,7 @@ let parse_lang locale : lang_spec option =
     None
   ) else (
     (* If we cared about the encoding, we would normalise it by removing _ and -. But we don't. *)
-    let cc = try Some (Utils.string_tail (Str.matched_group 2 s) 1) with Not_found -> None in
+    let cc = try Some (XString.tail (Str.matched_group 2 s) 1) with Not_found -> None in
     Some (Str.matched_group 1 s, cc)
   )
 
@@ -52,7 +52,7 @@ let get_langs ?(default=("en", Some "gb")) (system:#environment) =
       []
     else (
       match system#getenv "LANGUAGE" with
-      | Some langs -> Str.split Utils.re_colon langs
+      | Some langs -> Str.split XString.re_colon langs
       | None -> [lang]
     ) in
   let specs = Utils.filter_map parse_lang langs in

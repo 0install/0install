@@ -47,7 +47,7 @@ let set_of_attrs elem : string list =
 
 let rec fixup_for_windows elem =
   let attrs = elem.Q.attrs |> Q.AttrMap.map (fun value ->
-    if U.starts_with value "/root/" then "c:\\root\\" ^ U.string_tail value 6
+    if XString.starts_with value "/root/" then "c:\\root\\" ^ XString.tail value 6
     else if value = "/root" then "c:\\root"
     else value
   ) in {elem with Q.
@@ -100,11 +100,11 @@ let rec make_all_downloable node =
   )
 
 let linux_multi_scope_filter = { Scope_filter.
-  extra_restrictions = StringMap.empty;
+  extra_restrictions = XString.Map.empty;
   os_ranks = Arch.get_os_ranks Arch.linux;
   machine_ranks = Arch.get_machine_ranks Arch.x86_64 ~multiarch:true;
   languages = Support.Locale.LangMap.empty;
-  allowed_uses = StringSet.empty;
+  allowed_uses = XString.Set.empty;
   may_compile = false;
 }
 
@@ -116,7 +116,7 @@ class fake_feed_provider system (distro:Distro.provider option) =
       try
         let overrides = {
           Feed.last_checked = None;
-          Feed.user_stability = StringMap.empty;
+          Feed.user_stability = XString.Map.empty;
         } in
         Some (Hashtbl.find ifaces url, overrides)
       with Not_found -> None
@@ -127,10 +127,10 @@ class fake_feed_provider system (distro:Distro.provider option) =
     method get_distro_impls feed =
       let overrides = {
         Feed.last_checked = None;
-        Feed.user_stability = StringMap.empty;
+        Feed.user_stability = XString.Map.empty;
       } in
       match distro with
-      | None -> {Feed_provider.impls = StringMap.empty; overrides; problems = []}
+      | None -> {Feed_provider.impls = XString.Map.empty; overrides; problems = []}
       | Some distro ->
           let impls = distro#get_impls_for_feed ~problem:failwith feed in
           {Feed_provider.impls; overrides; problems = []}
@@ -198,7 +198,7 @@ let make_solver_test test_elem =
     | Some "requirements" ->
         let iface = ZI.get_attribute "interface" child in
         let iface =
-          if U.starts_with iface "./" then U.abspath (fake_system :> system) iface
+          if XString.starts_with iface "./" then U.abspath (fake_system :> system) iface
           else iface in
         reqs := {!reqs with Requirements.
           interface_uri = iface;
@@ -211,7 +211,7 @@ let make_solver_test test_elem =
           let iface = ZI.get_attribute "interface" restricts in
           let expr = ZI.get_attribute "version" restricts in
           reqs := {!reqs with
-            Requirements.extra_restrictions = StringMap.add iface expr !reqs.Requirements.extra_restrictions
+            Requirements.extra_restrictions = XString.Map.add iface expr !reqs.Requirements.extra_restrictions
           }
         );
         fails := ZI.get_attribute_opt "fails" child = Some "true"
@@ -432,12 +432,12 @@ let suite = "solver">::: [
           match super#get_feed url with
           | None -> None
           | Some (feed, overrides) ->
-              let overrides = {overrides with Feed.user_stability = StringMap.singleton "preferred_by_user" Stability.Preferred} in
+              let overrides = {overrides with Feed.user_stability = XString.Map.singleton "preferred_by_user" Stability.Preferred} in
               Some (feed, overrides)
 
         method! get_distro_impls feed =
           let result = super#get_distro_impls feed in
-          let overrides = {result.Feed_provider.overrides with Feed.user_stability = StringMap.singleton "package:buggy" Stability.Buggy} in
+          let overrides = {result.Feed_provider.overrides with Feed.user_stability = XString.Map.singleton "package:buggy" Stability.Buggy} in
           {result with Feed_provider.overrides}
       end in
     feed_provider#add_iface (Support.Qdom.parse_file Fake_system.real_system (Fake_system.tests_dir +/ "ranking.xml"));
@@ -664,12 +664,12 @@ let suite = "solver">::: [
     Fake_system.assert_str_equal "0.2" @@ Element.version (Zeroinstall.Selections.get_selected_ex (binary uri) results);
     Fake_system.assert_str_equal "3" @@ Element.version (Zeroinstall.Selections.get_selected_ex (binary versions) results);
 
-    let extras = StringMap.singleton uri "0.1" in
+    let extras = XString.Map.singleton uri "0.1" in
     let results = do_solve {r with Requirements.extra_restrictions = extras} in
     Fake_system.assert_str_equal "0.1" @@ Element.version (Zeroinstall.Selections.get_selected_ex (binary uri) results);
     assert (Zeroinstall.Selections.get_selected (binary versions) results = None);
 
-    let extras = StringMap.singleton uri "0.3" in
+    let extras = XString.Map.singleton uri "0.3" in
     let r = {r with Requirements.extra_restrictions = extras} in
     assert_equal false (fst @@ Solver.solve_for config feed_provider r);
   );

@@ -30,12 +30,12 @@ let get_cached_icon_path config feed_url =
   Paths.Cache.(first (icon feed_url)) config.paths
 
 let list_all_feeds config =
-  let results = ref StringSet.empty in
+  let results = ref XString.Set.empty in
   let system = config.system in
   let check_leaf leaf =
     if leaf.[0] <> '.' then
       let uri = Escape.unescape leaf in
-      results := StringSet.add uri !results in
+      results := XString.Set.add uri !results in
   let scan_dir path =
     match system#readdir path with
     | Error _ -> ()
@@ -50,7 +50,7 @@ let load_iface_config config uri : interface_config =
       match config.system#readdir dir with
       | Ok items ->
           items |> U.filter_map_array (fun impl ->
-            if U.starts_with impl "." then None
+            if XString.starts_with impl "." then None
             else (
               let feed = dir +/ impl +/ "0install" +/ "feed.xml" in
               if not (config.system#file_exists feed) then (
@@ -118,7 +118,7 @@ let load_iface_config config uri : interface_config =
                 | Some arch -> Arch.parse_arch arch in
                 let feed_langs = match ZI.get_attribute_opt "langs" item with
                 | None -> None
-                | Some langs -> Some (Str.split U.re_space langs) in
+                | Some langs -> Some (Str.split XString.re_space langs) in
                 let open Feed in
                 Some { feed_src; feed_os; feed_machine; feed_langs; feed_type = User_registered }
               )

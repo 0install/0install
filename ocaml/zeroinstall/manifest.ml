@@ -23,9 +23,9 @@ let lenient_digest_prefixes = "sha256new=" :: strict_digest_prefixes
 
 let parse_digest_from prefixes digest =
   prefixes |> U.first_match (fun prefix ->
-    if U.starts_with digest prefix then (
+    if XString.starts_with digest prefix then (
       let alg = String.sub prefix 0 (String.length prefix - 1) in
-      let value = U.string_tail digest (String.length prefix) in
+      let value = XString.tail digest (String.length prefix) in
       Some (alg, value)
     ) else None
   ) |? lazy (Safe_exn.failf "Unknown digest type '%s'" digest)
@@ -51,7 +51,7 @@ let generate_manifest (system:#filesystem) alg root =
     if String.contains sub '\n' then Safe_exn.failf "Newline in filename '%s'" sub;
     assert (sub.[0] = '/');
 
-    let rel_path = U.string_tail sub 1 in
+    let rel_path = XString.tail sub 1 in
     let full = root +/ rel_path in
 
     if rel_path <> "" then (
@@ -188,7 +188,7 @@ let parse_manifest_line ~old line : (string * inode) =
     | 'S' -> 4
     | 'X' | 'F' -> 5
     | _ -> Safe_exn.failf "Malformed manifest line: '%s'" line in
-  let parts = Str.bounded_split_delim U.re_space line n_parts in
+  let parts = Str.bounded_split_delim XString.re_space line n_parts in
   match parts with
   | ["D"; mtime; name] when old -> (name, `Dir (Some (float_of_string mtime)))
   | ["D"; name] -> (name, `Dir None)
@@ -313,7 +313,7 @@ let parse_manifest manifest_data =
       Stream.peek stream |> if_some (fun line ->
         match parse_manifest_line ~old:false line with
         | (name, `Dir _) ->
-            if U.starts_with name (path ^ "/") then (
+            if XString.starts_with name (path ^ "/") then (
               Stream.junk stream;
               items := (Filename.basename name, `Dir (parse_dir name)) :: !items;
               collect_items ()

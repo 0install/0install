@@ -107,7 +107,7 @@ let parse_range s =
     )
   ) else (
     if s <> "" && s.[0] = '!' then (
-      (<>) (parse (Support.Utils.string_tail s 1))
+      (<>) (parse (Support.XString.tail s 1))
     ) else (
       (=) (parse s)
     )

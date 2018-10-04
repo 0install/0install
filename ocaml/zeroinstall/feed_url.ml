@@ -10,14 +10,18 @@ type remote_feed = [`Remote_feed of string]
 type non_distro_feed = [local_feed | remote_feed]
 type parsed_feed_url = [`Distribution_feed of non_distro_feed | non_distro_feed]
 
+let is_http url = XString.starts_with url "http://"
+let is_https url = XString.starts_with url "https://"
+let is_distro url = XString.starts_with url "distribution:"
+
 let parse_non_distro url =
   if U.path_is_absolute url then `Local_feed url
-  else if U.starts_with url "http://" || U.starts_with url "https://" then `Remote_feed url
-  else if U.starts_with url "distribution:" then Safe_exn.failf "Can't use a distribution feed here! ('%s')" url
+  else if is_http url || is_https url then `Remote_feed url
+  else if is_distro url then Safe_exn.failf "Can't use a distribution feed here! ('%s')" url
   else Safe_exn.failf "Invalid feed URL '%s'" url
 
 let parse url =
-  if U.starts_with url "distribution:" then `Distribution_feed (U.string_tail url 13 |> parse_non_distro)
+  if is_distro url then `Distribution_feed (XString.tail url 13 |> parse_non_distro)
   else parse_non_distro url
 
 let format_non_distro : non_distro_feed -> string = function

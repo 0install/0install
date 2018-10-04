@@ -19,15 +19,6 @@ module Platform =
     }
   end
 
-module StringMap = struct
-  include Map.Make(String)
-  let find_nf = find
-  let find_safe key map = try find key map with Not_found -> Safe_exn.failf "BUG: Key '%s' not found in StringMap!" key
-  let find key map = try Some (find key map) with Not_found -> None
-  let map_bindings fn map = fold (fun key value acc -> fn key value :: acc) map []
-end
-module StringSet = Set.Make(String)
-
 (** Define an interface for interacting with the system, so we can replace it
     in unit-tests. *)
 class type filesystem =

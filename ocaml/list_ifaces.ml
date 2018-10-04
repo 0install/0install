@@ -5,7 +5,7 @@
 (** The "0install list" command *)
 
 open Options
-open Support.Common
+open Support
 
 let handle options flags args =
   Support.Argparse.iter_options flags (function
@@ -18,9 +18,9 @@ let handle options flags args =
     | [] -> ifaces
     | [query] ->
         let re = Str.regexp_string_case_fold query in
-        ifaces |> StringSet.filter (fun item ->
+        ifaces |> XString.Set.filter (fun item ->
           try Str.search_forward re item 0 |> ignore; true
           with Not_found -> false)
     | _ -> raise (Support.Argparse.Usage_error 1) in
 
-  results |> StringSet.iter (fun item -> Format.fprintf options.stdout "%s@." item)
+  results |> XString.Set.iter (fun item -> Format.fprintf options.stdout "%s@." item)

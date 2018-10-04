@@ -45,7 +45,7 @@ let lwt_wait_for task =
 
 let add_package details ~package_id ~summary =
   log_info "packagekit: resolved %s: %s" package_id summary;
-  match Str.bounded_split_delim U.re_semicolon package_id 4 with
+  match Str.bounded_split_delim XString.re_semicolon package_id 4 with
   | [package_name; version; machine; repo] ->
       Hashtbl.add details package_name begin
         match Version.try_cleanup_distro_version version with
@@ -80,16 +80,16 @@ let resolve proxy package_names =
       | ex -> Lwt.fail ex
     )
   >|= fun () ->
-  let add map name = map |> StringMap.add name (Hashtbl.find_all details name) in
-  package_names |> List.fold_left add StringMap.empty
+  let add map name = map |> XString.Map.add name (Hashtbl.find_all details name) in
+  package_names |> List.fold_left add XString.Map.empty
 
 (** Get the sizes of the candidate packages. *)
 let get_sizes proxy = function
-  | [] -> Lwt.return StringMap.empty      (* PackageKit can't handle empty queries *)
+  | [] -> Lwt.return XString.Map.empty      (* PackageKit can't handle empty queries *)
   | package_ids ->
-      let details = ref StringMap.empty in
+      let details = ref XString.Map.empty in
       let add ~package_id ~size =
-        details := !details |> StringMap.add package_id size in
+        details := !details |> XString.Map.add package_id size in
       Packagekit_stubs.sizes proxy ~package_ids add >|= fun () ->
       !details
 
@@ -164,7 +164,7 @@ let fail_on_exn queries fn =
 
 (* The list of packagekit IDs that were successfull resolved. *)
 let success_ids resolutions =
-  StringMap.fold (fun _ infos acc ->
+  XString.Map.fold (fun _ infos acc ->
     infos |> List.fold_left (fun acc info ->
       match info with
       | `Ok info -> get_packagekit_id info.retrieval_method :: acc
@@ -174,7 +174,7 @@ let success_ids resolutions =
 
 (* Resolve a query with its results and problems. *)
 let resolve_query ~resolutions ~sizes (name, resolver) =
-  let impls = StringMap.find name resolutions |> default [] in
+  let impls = XString.Map.find name resolutions |> default [] in
   let problems = ref [] in
   if impls = [] then
     problems := Printf.sprintf "'%s' details not in PackageKit response" name :: !problems;
@@ -184,7 +184,7 @@ let resolve_query ~resolutions ~sizes (name, resolver) =
     | `Ok impl ->
     let rm = impl.retrieval_method in
     let packagekit_id = get_packagekit_id rm in
-    match StringMap.find packagekit_id sizes with
+    match XString.Map.find packagekit_id sizes with
     | Some _ as size -> Some {impl with retrieval_method = {rm with Impl.distro_size = size}}
     | None ->
         log_info "No size returned for '%s'" packagekit_id;
@@ -211,7 +211,7 @@ let fetch_batch proxy queries =
     (fun () -> get_sizes proxy package_ids)
     (fun ex ->
        log_warning ~ex "packagekit: GetDetails failed";
-       Lwt.return StringMap.empty
+       Lwt.return XString.Map.empty
     )
   >|= fun sizes ->
   log_info "packagekit: fetch_batch done";

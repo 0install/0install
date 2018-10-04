@@ -148,6 +148,17 @@ module Debian = struct
 
     let make () = Hashtbl.create 10
 
+    let parse_cache_line line =
+      match XString.(split_pair re_space) (String.trim line) with
+      | None -> `Unknown
+      | Some (k, v) ->
+        let v = String.trim v in
+        match k with
+        | "Version:" -> `Version v
+        | "Architecture:" -> `Architecture v
+        | "Size:" -> `Size (Int64.of_string v)
+        | _ -> `Unknown
+
     let run system package =
       Lwt.catch
         (fun () ->
@@ -159,14 +170,11 @@ module Debian = struct
            let stream = U.stream_of_lines out in
            begin try
                while true do
-                 let line = Stream.next stream |> String.trim in
-                 if U.starts_with line "Version: " then (
-                   version := try_cleanup_distro_version_warn (U.string_tail line 9 |> String.trim) package
-                 ) else if U.starts_with line "Architecture: " then (
-                   machine := Some (Support.System.canonical_machine (U.string_tail line 14 |> String.trim))
-                 ) else if U.starts_with line "Size: " then (
-                   size := Some (Int64.of_string (U.string_tail line 6 |> String.trim))
-                 )
+                 match parse_cache_line (Stream.next stream) with
+                 | `Version x -> version := try_cleanup_distro_version_warn x package
+                 | `Architecture x -> machine := Some (Support.System.canonical_machine x)
+                 | `Size x -> size := Some x
+                 | `Unknown -> ()
                done
              with Stream.Failure -> ()
            end;
@@ -237,12 +245,12 @@ module Debian = struct
           try
             while true do
               let line = input_line ch in
-              match Str.bounded_split_delim U.re_tab line 3 with
+              match Str.bounded_split_delim XString.re_tab line 3 with
               | [] -> ()
               | [version; debarch; status] ->
-                if U.ends_with status " installed" then (
+                if XString.ends_with status " installed" then (
                   let debarch =
-                    try U.string_tail debarch (String.rindex debarch '-' + 1)
+                    try XString.tail debarch (String.rindex debarch '-' + 1)
                     with Not_found -> debarch in
                   match try_cleanup_distro_version_warn version package_name with
                   | None -> ()
@@ -367,9 +375,9 @@ module Debian = struct
 
       method! private get_correct_main impl run_command =
         let id = Impl.get_attr_ex Constants.FeedAttr.id impl in
-        if U.starts_with id "package:deb:openjdk-6-jre:" then
+        if XString.starts_with id "package:deb:openjdk-6-jre:" then
           fixup_java_main impl "6-openjdk"
-        else if U.starts_with id "package:deb:openjdk-7-jre:" then
+        else if XString.starts_with id "package:deb:openjdk-7-jre:" then
           fixup_java_main impl "7-openjdk"
         else
           super#get_correct_main impl run_command
@@ -404,7 +412,7 @@ module RPM = struct
         try
           while true do
             let line = input_line from_rpm in
-            match Str.bounded_split_delim U.re_tab line 3 with
+            match Str.bounded_split_delim XString.re_tab line 3 with
             | ["gpg-pubkey"; _; _] -> ()
             | [package; version; rpmarch] ->
                 let zi_arch = Support.System.canonical_machine (String.trim rpmarch) |> Arch.parse_machine in
@@ -441,7 +449,7 @@ module RPM = struct
       method! private get_correct_main impl run_command =
         (* OpenSUSE uses _, Fedora uses . *)
         let id = Impl.get_attr_ex Constants.FeedAttr.id impl in
-        let starts x = U.starts_with id x in
+        let starts x = XString.starts_with id x in
         if starts "package:rpm:java-1.6.0-openjdk:" || starts "package:rpm:java-1_6_0-openjdk:" then
           fixup_java_main impl "1.6.0-openjdk"
         else if starts "package:rpm:java-1.7.0-openjdk:" || starts "package:rpm:java-1_7_0-openjdk:" then
@@ -476,7 +484,7 @@ module ArchLinux = struct
         let build_dash = String.rindex entry '-' in
         let version_dash = String.rindex_from entry (build_dash - 1) '-' in
         Some (String.sub entry 0 version_dash,
-              U.string_tail entry (version_dash + 1))
+              XString.tail entry (version_dash + 1))
       with Not_found -> None in
 
     let get_arch desc_path =
@@ -492,7 +500,7 @@ module ArchLinux = struct
       );
       !arch in
 
-    let entries = ref (-1.0, StringMap.empty) in
+    let entries = ref (-1.0, XString.Map.empty) in
     let get_entries () =
       let (last_read, items) = !entries in
       match config.system#stat packages_dir with
@@ -501,9 +509,9 @@ module ArchLinux = struct
           | Ok items ->
               let add map entry =
                 match parse_dirname entry with
-                | Some (name, version) -> StringMap.add name version map
+                | Some (name, version) -> XString.Map.add name version map
                 | None -> map in
-              let new_items = Array.fold_left add StringMap.empty items in
+              let new_items = Array.fold_left add XString.Map.empty items in
               entries := (info.Unix.st_mtime, new_items);
               new_items
           | Error ex ->
@@ -527,7 +535,7 @@ module ArchLinux = struct
         let package_name = Query.package query in
         log_debug "Looking up distribution packages for %s" package_name;
         let items = get_entries () in
-        match StringMap.find package_name items with
+        match XString.Map.find package_name items with
         | None -> ()
         | Some version ->
             let entry = package_name ^ "-" ^ version in
@@ -554,7 +562,7 @@ module Mac = struct
       let first_line = [main; "--version"] |> U.check_output config.system input_line in
       try
         let i = String.rindex first_line ' ' in
-        U.string_tail first_line (i + 1)
+        XString.tail first_line (i + 1)
       with Not_found -> first_line in
 
     let java_home version arch =
@@ -582,7 +590,7 @@ module Mac = struct
         | "gnupg2" -> self#find_program "/usr/local/bin/gpg2" query
         | "make" -> self#find_program "/usr/bin/make" query
         | package_name ->
-            if StringMap.is_empty (Query.results query) then
+            if XString.Map.is_empty (Query.results query) then
               Query.problem query "%s: Unknown Darwin/OS X package" package_name
             (* else we have MacPorts results *)
 
@@ -635,10 +643,10 @@ module Mac = struct
           while true do
             let line = input_line ch in
             log_debug "Got: '%s'" line;
-            if U.starts_with line " " then (
+            if XString.starts_with line " " then (
               let line = String.trim line in
-              match Str.bounded_split_delim U.re_space line 3 with
-              | [package; version; extra] when U.starts_with extra "(active)" ->
+              match Str.bounded_split_delim XString.re_space line 3 with
+              | [package; version; extra] when XString.starts_with extra "(active)" ->
                   log_debug "Found package='%s' version='%s' extra='%s'" package version extra;
                   if Str.string_match re_version version 0 then (
                     let version = Str.matched_group 1 version in
@@ -647,7 +655,7 @@ module Mac = struct
                         (* let platform = Str.matched_group 1 extra in *)
                         (* let major = Str.matched_group 2 extra in *)
                         let archs = Str.matched_group 3 extra in
-                        Str.split U.re_space archs |> List.iter (fun arch ->
+                        Str.split XString.re_space archs |> List.iter (fun arch ->
                           let zi_arch = Support.System.canonical_machine arch in
                           add_entry package (version, Arch.parse_machine zi_arch)
                         )
@@ -818,7 +826,7 @@ module Win = struct
             match input_line from_cyg with
             | "Cygwin Package Information" | "" -> ()
             | line ->
-                match U.split_pair re_whitespace line with
+                match XString.split_pair_safe re_whitespace line with
                 | ("Package", "Version") -> ()
                 | (package, version) ->
                     try_cleanup_distro_version_warn version package |> if_some (fun clean_version ->
@@ -911,13 +919,13 @@ module Gentoo = struct
         let re_version_start = Str.regexp "-[0-9]" in
 
         let package_name = Query.package query in
-        match Str.bounded_split_delim U.re_slash package_name 2 with
+        match Str.bounded_split_delim XString.re_slash package_name 2 with
         | [category; leafname] ->
             let category_dir = pkgdir +/ category in
             let match_prefix = leafname ^ "-" in
 
             category_dir |> iter_dir config.system (fun filename ->
-              if U.starts_with filename match_prefix && is_digit (filename.[String.length match_prefix]) then (
+              if XString.starts_with filename match_prefix && is_digit (filename.[String.length match_prefix]) then (
                 let pf_path = category_dir +/ filename +/ "PF"in
                 let pf_mtime = (config.system#lstat pf_path |? lazy (Safe_exn.failf "Missing '%s' file!" pf_path)).Unix.st_mtime in
                 let name = pf_path|> config.system#with_open_in [Open_rdonly] input_line |> String.trim in
@@ -925,15 +933,15 @@ module Gentoo = struct
                 match (try Some (Str.search_forward re_version_start name 0) with Not_found -> None) with
                 | None -> log_warning "Cannot parse version from Gentoo package named '%s'" name
                 | Some i ->
-                  try_cleanup_distro_version_warn (U.string_tail name (i + 1)) package_name |> if_some (fun version ->
+                  try_cleanup_distro_version_warn (XString.tail name (i + 1)) package_name |> if_some (fun version ->
                     let machine =
-                      if category = "app-emulation" && U.starts_with name "emul-" then (
-                        match Str.bounded_split_delim U.re_dash name 4 with
+                      if category = "app-emulation" && XString.starts_with name "emul-" then (
+                        match Str.bounded_split_delim XString.re_dash name 4 with
                         | [_; _; machine; _] -> machine
                         | _ -> "*"
                       ) else (
                         category_dir +/ filename +/ "CHOST" |> config.system#with_open_in [Open_rdonly] (fun ch ->
-                          input_line ch |> U.split_pair U.re_dash |> fst
+                          input_line ch |> XString.(split_pair_safe re_dash) |> fst
                         )
                       ) in
                     let machine = Arch.parse_machine (Support.System.canonical_machine machine) in
@@ -966,7 +974,7 @@ module Slackware = struct
         let package_name = Query.package query in
         super#get_package_impls query;
         packages_dir |> iter_dir config.system (fun entry ->
-          match Str.bounded_split_delim U.re_dash entry 4 with
+          match Str.bounded_split_delim XString.re_dash entry 4 with
           | [name; version; arch; build] when name = package_name ->
               let machine = Arch.parse_machine (Support.System.canonical_machine arch) in
               try_cleanup_distro_version_warn (version ^ "-" ^ build) package_name |> if_some (fun version ->

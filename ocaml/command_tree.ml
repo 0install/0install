@@ -42,10 +42,10 @@ let make_group subcommands =
 
 let rec set_of_option_names = function
   | Command command ->
-      let add s (names, _nargs, _help, _handler) = List.fold_right StringSet.add names s in
-      List.fold_left add StringSet.empty (options command)
+      let add s (names, _nargs, _help, _handler) = List.fold_right XString.Set.add names s in
+      List.fold_left add XString.Set.empty (options command)
   | Group group ->
-      group |> List.fold_left (fun set (_name, node) -> StringSet.union set (set_of_option_names node)) StringSet.empty
+      group |> List.fold_left (fun set (_name, node) -> XString.Set.union set (set_of_option_names node)) XString.Set.empty
 
 let assoc key items =
   try Some (List.assoc key items)

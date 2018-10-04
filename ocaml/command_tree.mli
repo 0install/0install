@@ -5,6 +5,7 @@
 (** Directory of command handlers (e.g. ["store"; "add"] -> Store.handle_add) *)
 
 open Options
+open Support
 open Support.Argparse
 
 type command
@@ -32,7 +33,7 @@ val help : command -> string option
 val options : command -> (zi_option, zi_arg_type) opt_spec list
 
 (** Return the supported option names as a set (for tab-completion). *)
-val set_of_option_names : node -> Support.Common.StringSet.t
+val set_of_option_names : node -> XString.Set.t
 
 val make_command :
   string -> (* help text *)

@@ -26,7 +26,7 @@ let impl_template = Impl.({
       |> Q.AttrMap.add_no_ns "from-feed" (Test_0install.feed_dir +/ "test.xml");
     requires = [];
     bindings = [];
-    commands = StringMap.empty;
+    commands = XString.Map.empty;
   };
   stability = Stability.Testing;
   os = None;
@@ -184,7 +184,7 @@ let suite = "fetch">::: [
 
     let check ?error ?testfile id =
       try
-        let impl = StringMap.find_safe id feed.F.implementations in
+        let impl = XString.Map.find_safe id feed.F.implementations in
         let digests =
           match impl.Impl.impl_type with
           | `Cache_impl {Impl.digests; _} -> digests

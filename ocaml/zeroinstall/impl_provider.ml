@@ -79,13 +79,13 @@ class type impl_provider =
     (** Should the solver consider this dependency? *)
     method is_dep_needed : Impl.dependency -> bool
 
-    method extra_restrictions : Impl.restriction StringMap.t
+    method extra_restrictions : Impl.restriction XString.Map.t
   end
 
 (** Convert a map of impls to a list, applying any overrides to the stability fields. *)
 let do_overrides overrides =
-  StringMap.map_bindings (fun id impl ->
-    match StringMap.find id overrides.Feed.user_stability with
+  XString.Map.map_bindings (fun id impl ->
+    match XString.Map.find id overrides.Feed.user_stability with
     | Some stability -> Impl.with_stability stability impl
     | None -> impl
   )
@@ -158,7 +158,7 @@ let compare_impls_full ~scope_filter ~network_use ~is_available ~stability_polic
 
   let score_is_package i =
     let id = Impl.get_attr_ex "id" i in
-    U.starts_with id "package:" in
+    XString.starts_with id "package:" in
 
   let score_requires_root_install i =
     match i.impl_type with

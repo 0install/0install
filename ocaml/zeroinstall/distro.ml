@@ -20,7 +20,7 @@ let get_matching_package_impls distro feed =
     let package_name = Element.package elem in
     if distro#is_valid_package_name package_name then (
         let distributions = default "" @@ Element.distributions elem in
-        let distro_names = Str.split_delim U.re_space distributions in
+        let distro_names = Str.split_delim XString.re_space distributions in
         let score_this_item =
           if distro_names = [] then 1                                 (* Generic <package-implementation>; no distribution specified *)
           else if List.exists distro#match_name distro_names then 2   (* Element specifies it matches this distribution *)
@@ -42,7 +42,7 @@ module Query = struct
     package_name : string;            (* The 'package' attribute on the <package-element> *)
     elem_props : Impl.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
     feed : Feed.feed;                 (* The feed containing the <package-element> *)
-    results : Impl.distro_implementation Support.Common.StringMap.t ref;
+    results : Impl.distro_implementation Support.XString.Map.t ref;
     problem : string -> unit;
   }
 
@@ -62,7 +62,7 @@ module Query = struct
     t.problem msg
 
   let add_result t id impl =
-    t.results := StringMap.add id impl !(t.results)
+    t.results := XString.Map.add id impl !(t.results)
 
   let results t = !(t.results)
 end
@@ -77,7 +77,7 @@ class type virtual provider =
     method get_impls_for_feed :
       problem:(string -> unit) ->
       Feed.feed ->
-      Impl.distro_implementation Support.Common.StringMap.t
+      Impl.distro_implementation Support.XString.Map.t
     method virtual check_for_candidates : 'a. ui:(#Packagekit.ui as 'a) -> Feed.feed -> unit Lwt.t
     method install_distro_packages : 'a. (#Packagekit.ui as 'a) -> string -> (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `Ok | `Cancel ] Lwt.t
     method is_valid_package_name : string -> bool
@@ -87,13 +87,13 @@ class type virtual provider =
 let with_main_path path props =
   let open Impl in
   let run_command =
-    match StringMap.find "run" props.commands with
+    match XString.Map.find "run" props.commands with
     | Some command ->
       (* Keep any existing bindings and dependencies *)
       {command with command_qdom = Element.make_command ~path ~source_hint:None "run"}
     | None ->
       make_command "run" path in
-  {props with commands = StringMap.add "run" run_command props.commands}
+  {props with commands = XString.Map.add "run" run_command props.commands}
 
 class virtual distribution config =
   let system = config.system in
@@ -181,17 +181,17 @@ class virtual distribution config =
       | Some master_feed ->
           let wanted_id = Element.id elem in
           let impls = self#get_impls_for_feed ~problem:ignore master_feed in
-          match StringMap.find wanted_id impls with
+          match XString.Map.find wanted_id impls with
           | None -> false
           | Some {Impl.impl_type = `Package_impl {Impl.package_state; _}; _} -> package_state = `Installed
 
     (** Get the native implementations (installed or candidates for installation) for this feed.
      * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one. *)
-    method get_impls_for_feed ~problem (feed:Feed.feed) : Impl.distro_implementation StringMap.t =
-      let results = ref StringMap.empty in
+    method get_impls_for_feed ~problem (feed:Feed.feed) : Impl.distro_implementation XString.Map.t =
+      let results = ref XString.Map.empty in
 
       if check_host_python then (
-        Host_python.get host_python feed.Feed.url |> List.iter (fun (id, impl) -> results := StringMap.add id impl !results)
+        Host_python.get host_python feed.Feed.url |> List.iter (fun (id, impl) -> results := XString.Map.add id impl !results)
       );
 
       match get_matching_package_impls self feed with
@@ -244,15 +244,15 @@ type t = distribution
 let of_provider t = (t :> distribution)
 
 let install_distro_packages (t:t) ui impls : [ `Ok | `Cancel ] Lwt.t =
-  let groups = ref StringMap.empty in
+  let groups = ref XString.Map.empty in
   impls |> List.iter (fun impl ->
     let `Package_impl {Impl.package_state; _} = impl.Impl.impl_type in
     match package_state with
     | `Installed -> Safe_exn.failf "BUG: package %s already installed!" (Impl.get_id impl).Feed_url.id
     | `Uninstalled rm ->
         let (typ, _info) = rm.Impl.distro_install_info in
-        let items = default [] @@ StringMap.find typ !groups in
-        groups := StringMap.add typ ((impl, rm) :: items) !groups
+        let items = default [] @@ XString.Map.find typ !groups in
+        groups := XString.Map.add typ ((impl, rm) :: items) !groups
   );
 
   let rec loop = function
@@ -261,7 +261,7 @@ let install_distro_packages (t:t) ui impls : [ `Ok | `Cancel ] Lwt.t =
         t#install_distro_packages ui typ items >>= function
         | `Ok -> loop groups
         | `Cancel -> Lwt.return `Cancel in
-  !groups |> StringMap.bindings |> loop
+  !groups |> XString.Map.bindings |> loop
 
 let get_impls_for_feed (t:t) ~problem feed = t#get_impls_for_feed ~problem feed
 let check_for_candidates (t:t) ~ui feed = t#check_for_candidates ~ui feed

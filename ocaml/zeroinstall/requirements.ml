@@ -9,7 +9,7 @@ type t = {
   interface_uri : Sigs.iface_uri;
   command : string option;
   source : bool;
-  extra_restrictions : string StringMap.t;  (* iface -> range *)
+  extra_restrictions : string XString.Map.t;  (* iface -> range *)
   os : Arch.os option;
   cpu : Arch.machine option;
   message : string option;
@@ -23,15 +23,15 @@ let run interface_uri = {
   os = None;
   cpu = None;
   message = None;
-  extra_restrictions = StringMap.empty;
+  extra_restrictions = XString.Map.empty;
   may_compile = false;
 }
 
-let parse_extra json : string StringMap.t =
+let parse_extra json : string XString.Map.t =
   let open Yojson.Basic.Util in
   let add map (key, value) =
-    StringMap.add key (to_string value) map in
-  List.fold_left add StringMap.empty (to_assoc json)
+    XString.Map.add key (to_string value) map in
+  List.fold_left add XString.Map.empty (to_assoc json)
 
 let to_string_option_or_empty x =
   let open Yojson.Basic.Util in
@@ -70,8 +70,8 @@ let of_json json =
     (* Update old before/not-before values *)
     let () = 
       let use expr =
-        assert (!r.extra_restrictions = StringMap.empty);
-        r := {!r with extra_restrictions = StringMap.singleton !r.interface_uri expr} in
+        assert (!r.extra_restrictions = XString.Map.empty);
+        r := {!r with extra_restrictions = XString.Map.singleton !r.interface_uri expr} in
       match !not_before, !before with
       | None, None -> ()
       | Some low, None -> use low
@@ -102,10 +102,10 @@ let to_json reqs =
     maybe "message" message;
     maybe_flag ~default:false "source" source;
     maybe_flag ~default:false "may_compile" may_compile;
-    (if StringMap.is_empty extra_restrictions
+    (if XString.Map.is_empty extra_restrictions
       then []
       else [(
         "extra_restrictions",
-        `Assoc (StringMap.map_bindings (fun k v -> (k, `String v)) extra_restrictions)
+        `Assoc (XString.Map.map_bindings (fun k v -> (k, `String v)) extra_restrictions)
       )]);
   ])

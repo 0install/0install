@@ -211,7 +211,7 @@ let simple_content element =
 let choose_prefixes root =
   let default_ns = fst root.tag in
 
-  let prefixes = ref StringSet.empty in
+  let prefixes = ref XString.Set.empty in
   let prefix_of_ns = Hashtbl.create 2 in
   let add_hint ns prefix_hint =
     if ns = Xmlm.ns_xml then ()     (* Don't need to declare the built-in namespace *)
@@ -219,13 +219,13 @@ let choose_prefixes root =
       (* Haven't seen this namespace before. Choose a unique prefix for it, based on the hint. *)
       let p = ref (if prefix_hint = "" then "ns" else prefix_hint) in
       let i = ref 0 in
-      while StringSet.mem !p !prefixes do
+      while XString.Set.mem !p !prefixes do
         i := !i + 1;
         p := prefix_hint ^ (string_of_int !i)
       done;
       let p = !p in
       Hashtbl.add prefix_of_ns ns p;
-      prefixes := !prefixes |> StringSet.add p
+      prefixes := !prefixes |> XString.Set.add p
     ) in
   let rec collect_hints elem =
     let ns = fst elem.tag in

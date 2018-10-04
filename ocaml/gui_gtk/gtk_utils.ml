@@ -88,12 +88,12 @@ let make_iface_uri_drop_target (window:#GWindow.window_skel) on_success =
   )
 
 let sanity_check_iface uri =
-  if U.ends_with uri ".tar.bz2" ||
-     U.ends_with uri ".tar.gz" ||
-     U.ends_with uri ".exe" ||
-     U.ends_with uri ".rpm" ||
-     U.ends_with uri ".deb" ||
-     U.ends_with uri ".tgz" then (
+  if XString.ends_with uri ".tar.bz2" ||
+     XString.ends_with uri ".tar.gz" ||
+     XString.ends_with uri ".exe" ||
+     XString.ends_with uri ".rpm" ||
+     XString.ends_with uri ".deb" ||
+     XString.ends_with uri ".tgz" then (
    Safe_exn.failf "This URI (%s) looks like an archive, not a 0install feed. Make sure you're using the feed link!" uri
   )
 

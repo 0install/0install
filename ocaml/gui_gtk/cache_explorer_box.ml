@@ -42,7 +42,7 @@ let size_of_impl (system:system) path : Int64.t =
             let line = input_line stream in
             match line.[0] with
             | 'X' | 'F' ->
-                begin match Str.bounded_split_delim U.re_space line 5 with
+                begin match Str.bounded_split_delim XString.re_space line 5 with
                 | [_type; _hash; _mtime; item_size; _name] -> size := Int64.add !size (Int64.of_string item_size)
                 | _ -> () end
             | _ -> ()
@@ -335,7 +335,7 @@ let open_cache_explorer config =
 
   (* Look through cached feeds for implementation owners *)
   let all_feed_urls = FC.list_all_feeds config in
-  all_feed_urls |> StringSet.iter (fun url ->
+  all_feed_urls |> XString.Set.iter (fun url ->
     try
       match FC.get_cached_feed config (`Remote_feed url) with
       | Some feed -> ok_feeds := feed :: !ok_feeds
@@ -348,7 +348,7 @@ let open_cache_explorer config =
   let impl_of_digest = Hashtbl.create 1024 in
   !ok_feeds |> List.iter (fun feed ->
     (* For each implementation... *)
-    feed.F.implementations |> StringMap.iter (fun _id impl ->
+    feed.F.implementations |> XString.Map.iter (fun _id impl ->
       match impl.Impl.impl_type with
       | `Cache_impl info ->
           (* For each digest... *)

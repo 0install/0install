@@ -75,13 +75,6 @@ val copy_channel : in_channel -> out_channel -> unit
 (** Copy [source] to [dest]. Error if [dest] already exists. *)
 val copy_file : #Common.filesystem -> Common.filepath -> Common.filepath -> Unix.file_perm -> unit
 
-(** {2 Strings} *)
-val starts_with : string -> string -> bool
-val ends_with : string -> string -> bool
-val string_tail : string -> int -> string
-val split_pair : Str.regexp -> string -> string * string
-val safe_int_of_string : string -> int
-
 (** {2 Pathnames} *)
 val path_is_absolute : string -> bool
 
@@ -98,16 +91,8 @@ val abspath : #Common.filesystem -> Common.filepath -> Common.filepath
     a regular file. If there is a symlink loop, no resolution is done for the remaining components. *)
 val realpath : #Common.filesystem -> Common.filepath -> Common.filepath
 
-(** {2 Regular expressions} *)
-val re_dash : Str.regexp
-val re_slash : Str.regexp
-val re_space : Str.regexp
-val re_tab : Str.regexp
 val re_dir_sep : Str.regexp    (* / on Unix *)
 val re_path_sep : Str.regexp   (* : on Unix *)
-val re_colon : Str.regexp
-val re_equals : Str.regexp
-val re_semicolon : Str.regexp
 
 (** {2 Dates and times} *)
 val format_time : Unix.tm -> string

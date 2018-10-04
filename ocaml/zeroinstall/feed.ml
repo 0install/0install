@@ -15,7 +15,7 @@ module AttrMap = Support.Qdom.AttrMap
 
 type feed_overrides = {
   last_checked : float option;
-  user_stability : Stability.t StringMap.t;
+  user_stability : Stability.t XString.Map.t;
 }
 
 type feed_type =
@@ -37,7 +37,7 @@ type feed = {
   url : Feed_url.non_distro_feed;
   root : [`Feed] Element.t;
   name : string;
-  implementations : 'a. ([> `Cache_impl of Impl.cache_impl | `Local_impl of filepath] as 'a) Impl.t StringMap.t;
+  implementations : 'a. ([> `Cache_impl of Impl.cache_impl | `Local_impl of filepath] as 'a) Impl.t XString.Map.t;
   imported_feeds : feed_import list;
 
   (* The URI of the interface that replaced the one with the URI of this feed's URL.
@@ -74,7 +74,7 @@ let create_impl system ~local_dir state node =
         match AttrMap.get_no_ns FeedAttr.local_path !s.attrs with
         | Some path -> use path
         | None ->
-            if Support.Utils.starts_with id "/" || Support.Utils.starts_with id "." then
+            if XString.starts_with id "/" || XString.starts_with id "." then
               use id in
 
   (* version-modifier *)
@@ -131,7 +131,7 @@ let process_group_properties ~local_dir state item =
     let new_command =
       Element.make_command ~source_hint:(Some item) ?path ?shell_command name
       |> Impl.parse_command local_dir in
-    s := {!s with commands = StringMap.add name new_command !s.commands} in
+    s := {!s with commands = XString.Map.add name new_command !s.commands} in
 
   Element.main item |> if_some (fun path -> add_command ~path "run");
   Element.self_test item |> if_some (fun path -> add_command ~path "test");
@@ -145,7 +145,7 @@ let process_group_properties ~local_dir state item =
         s := {!s with requires = req :: !s.requires}
     | `Command child ->
         let command_name = Element.command_name child in
-        s := {!s with commands = StringMap.add command_name (Impl.parse_command local_dir child) !s.commands}
+        s := {!s with commands = XString.Map.add command_name (Impl.parse_command local_dir child) !s.commands}
     | #Element.binding as child ->
         new_bindings := Element.element_of_binding child :: !new_bindings
     | _ -> ()
@@ -168,14 +168,14 @@ let default_attrs ~url =
 
 let parse_implementations (system:#filesystem) root_attrs root local_dir =
   let open Impl in
-  let implementations = ref StringMap.empty in
+  let implementations = ref XString.Map.empty in
   let package_implementations = ref [] in
 
   let process_impl node (state:Impl.properties) =
     let (id, impl) = create_impl system ~local_dir state node in
-    if StringMap.mem id !implementations then
+    if XString.Map.mem id !implementations then
       Element.raise_elem "Duplicate ID '%s' in:" id node;
-    implementations := StringMap.add id impl !implementations
+    implementations := XString.Map.add id impl !implementations
   in
 
   let rec process_group state group =
@@ -189,12 +189,12 @@ let parse_implementations (system:#filesystem) root_attrs root local_dir =
 
   (* 'main' on the <interface> (deprecated) *)
   let root_commands = match Element.main root with
-    | None -> StringMap.empty
+    | None -> XString.Map.empty
     | Some path ->
         let new_command =
           Element.make_command ~source_hint:(Some root) ~path "run"
           |> Impl.parse_command local_dir in
-        StringMap.singleton "run" new_command in
+        XString.Map.singleton "run" new_command in
 
   let root_state = {
     attrs = root_attrs;
@@ -219,7 +219,7 @@ let parse system root feed_local_path =
 
   (* For local feeds, make relative paths absolute. For cached feeds, reject paths. *)
   let normalise_url raw_url elem =
-    if U.starts_with raw_url "http://" || U.starts_with raw_url "https://" then
+    if XString.starts_with raw_url "http://" || XString.starts_with raw_url "https://" then
       raw_url
     else (
       match local_dir with
@@ -234,7 +234,7 @@ let parse system root feed_local_path =
 
     let feed_langs = match Element.langs node with
     | None -> None
-    | Some langs -> Some (Str.split U.re_space langs) in
+    | Some langs -> Some (Str.split XString.re_space langs) in
 
     {
       feed_src = Feed_url.parse_non_distro @@ normalise_url (Element.src node) node;
@@ -278,14 +278,14 @@ let parse system root feed_local_path =
 
 (* Get all the implementations (note: only sorted by ID) *)
 let get_implementations feed =
-  StringMap.map_bindings (fun _k impl -> impl) feed.implementations
+  XString.Map.map_bindings (fun _k impl -> impl) feed.implementations
 
 (** Load per-feed extra data (last-checked time and preferred stability.
     Probably we should use a simple timestamp file for the last-checked time and attach
     the stability ratings to the interface, not the feed. *)
 let load_feed_overrides config feed_url =
   match Paths.Config.(first (feed feed_url)) config.paths with
-  | None -> { last_checked = None; user_stability = StringMap.empty }
+  | None -> { last_checked = None; user_stability = XString.Map.empty }
   | Some path ->
       let root = Q.parse_file config.system path in
 
@@ -294,13 +294,13 @@ let load_feed_overrides config feed_url =
         | None -> None
         | Some time -> Some (float_of_string time) in
 
-      let stability = ref StringMap.empty in
+      let stability = ref XString.Map.empty in
 
       root |> ZI.iter ~name:"implementation" (fun impl ->
         let id = ZI.get_attribute "id" impl in
         match ZI.get_attribute_opt FeedConfigAttr.user_stability impl with
         | None -> ()
-        | Some s -> stability := StringMap.add id (Stability.of_string ~from_user:true s) !stability
+        | Some s -> stability := XString.Map.add id (Stability.of_string ~from_user:true s) !stability
       );
 
       { last_checked; user_stability = !stability; }
@@ -314,7 +314,7 @@ let save_feed_overrides config feed_url overrides =
     match last_checked with
     | None -> AttrMap.empty
     | Some last_checked -> AttrMap.singleton "last-checked" (Printf.sprintf "%.0f" last_checked) in
-  let child_nodes = user_stability |> StringMap.map_bindings (fun id stability ->
+  let child_nodes = user_stability |> XString.Map.map_bindings (fun id stability ->
     ZI.make "implementation" ~attrs:(
       AttrMap.singleton FeedAttr.id id
       |> AttrMap.add_no_ns FeedConfigAttr.user_stability (Stability.to_string stability)

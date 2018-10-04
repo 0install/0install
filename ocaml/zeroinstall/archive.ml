@@ -12,7 +12,7 @@ type mime_type = string
 let type_from_url url =
   let re_extension = Str.regexp "\\(\\.tar\\)?\\.[^./]+$" in
   let ext =
-    try U.string_tail url @@ Str.search_forward re_extension url 0
+    try XString.tail url @@ Str.search_forward re_extension url 0
     with Not_found -> "" in
   match String.lowercase_ascii ext with
   | ".tar.bz2"  -> "application/x-bzip-compressed-tar"

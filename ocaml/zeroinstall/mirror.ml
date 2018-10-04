@@ -8,9 +8,7 @@ open Support
 open Support.Common
 open General
 
-module U = Support.Utils
-
-let escape_slashes s = Str.global_replace U.re_slash "%23" s
+let escape_slashes s = Str.global_replace XString.re_slash "%23" s
 let re_scheme_sep = Str.regexp_string "://"
 let re_remote_feed = Str.regexp "^\\(https?\\)://\\([^/]*@\\)?\\([^/:]+\\)\\(:[^/]*\\)?/"
 
@@ -19,12 +17,12 @@ let get_feed_dir (`Remote_feed feed) =
   if String.contains feed '#' then (
     Safe_exn.failf "Invalid URL '%s'" feed
   ) else (
-    let scheme, rest = U.split_pair re_scheme_sep feed in
+    let scheme, rest = XString.split_pair_safe re_scheme_sep feed in
     if not (String.contains rest '/') then
       Safe_exn.failf "Missing / in %s" feed;
-    let domain, rest = U.split_pair U.re_slash rest in
+    let domain, rest = XString.(split_pair_safe re_slash) rest in
     [scheme; domain; rest] |> List.iter (fun part ->
-      if part = "" || U.starts_with part "." then
+      if part = "" || XString.starts_with part "." then
         Safe_exn.failf "Invalid URL '%s'" feed
     );
     String.concat "/" ["feeds"; scheme; domain; escape_slashes rest]

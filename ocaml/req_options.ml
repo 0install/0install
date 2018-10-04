@@ -42,8 +42,8 @@ let parse_restrictions options default_iface extra_restrictions =
 
   (* TODO: later options override earlier ones; issue an error instead *)
   let process = function
-    | `RequireVersionFor (iface, "") -> r := StringMap.remove iface !r    (* TODO: check no error if already removed *)
-    | `RequireVersionFor (iface, expr) -> r := StringMap.add iface expr !r in
+    | `RequireVersionFor (iface, "") -> r := XString.Map.remove iface !r    (* TODO: check no error if already removed *)
+    | `RequireVersionFor (iface, expr) -> r := XString.Map.add iface expr !r in
   List.iter process options;
   !r
 
@@ -96,4 +96,4 @@ let to_options requirements =
     opt_arg "--cpu" (requirements.cpu |> map_some Zeroinstall.Arch.format_machine);
     opt_arg "--os" (requirements.os |> map_some Zeroinstall.Arch.format_os);
     ["--command"; default "" (requirements.command)];
-  ] @ List.map version_for @@ StringMap.bindings requirements.extra_restrictions
+  ] @ List.map version_for @@ XString.Map.bindings requirements.extra_restrictions

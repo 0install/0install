@@ -2,7 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-open Support.Common
+open Support
 open OUnit
 module T = Zeroinstall.Trust
 
@@ -41,9 +41,9 @@ let suite = "trust">::: [
   "add-domain">:: with_trust_db (fun db ->
     assert_equal false @@ db#is_trusted "1234" ~domain:"0install.net";
     db#trust_key "1234" ~domain:"*";
-    assert_equal ["*"]    @@ StringSet.elements @@ db#get_trust_domains "1234";
-    assert_equal ["1234"] @@ StringSet.elements @@ db#get_keys_for_domain "*";
-    assert_equal []       @@ StringSet.elements @@ db#get_trust_domains "bob";
+    assert_equal ["*"]    @@ XString.Set.elements @@ db#get_trust_domains "1234";
+    assert_equal ["1234"] @@ XString.Set.elements @@ db#get_keys_for_domain "*";
+    assert_equal []       @@ XString.Set.elements @@ db#get_trust_domains "bob";
 
     assert_equal true @@ db#is_trusted "1234" ~domain:"0install.net";
     assert_equal true @@ db#is_trusted "1234" ~domain:"rox.sourceforge.net";
@@ -59,10 +59,10 @@ let suite = "trust">::: [
     assert_equal true @@ db#is_trusted "1234" ~domain:"gimp.org";
     assert_equal false @@ db#is_trusted "1234" ~domain:"rox.sourceforge.net";
 
-    assert_equal ["1234"; "1236"] @@ StringSet.elements @@ db#get_keys_for_domain "gimp.org";
+    assert_equal ["1234"; "1236"] @@ XString.Set.elements @@ db#get_keys_for_domain "gimp.org";
 
-    assert_equal [] @@ StringSet.elements @@ db#get_trust_domains "99877";
-    assert_equal ["0install.net"; "gimp.org"] @@ StringSet.elements @@ db#get_trust_domains "1234";
+    assert_equal [] @@ XString.Set.elements @@ db#get_trust_domains "99877";
+    assert_equal ["0install.net"; "gimp.org"] @@ XString.Set.elements @@ db#get_trust_domains "1234";
   );
 
   "parallel">:: Fake_system.with_tmpdir (fun tmpdir ->

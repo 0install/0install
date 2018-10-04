@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open Support
 open Support.Common
 open Gtk_common
 
@@ -170,10 +171,10 @@ let confirm_keys gpg trust_db ?parent feed_url valid_sigs =
 
   let domain = Trust.domain_from_url feed_url in
 
-  begin match trust_db#get_keys_for_domain domain |> StringSet.elements with
+  begin match trust_db#get_keys_for_domain domain |> XString.Set.elements with
     | [] -> Lwt.return ["None"]
     | keys ->
-      G.load_keys gpg keys >|= StringMap.map_bindings
+      G.load_keys gpg keys >|= XString.Map.map_bindings
         (fun fp info ->
           Printf.sprintf "%s\n(fingerprint: %s)" (default "?" info.G.name) (pretty_fp fp)
         )
@@ -214,7 +215,7 @@ let confirm_keys gpg trust_db ?parent feed_url valid_sigs =
 
   valid_sigs |> List.iter (fun (fpr, hints) ->
     let name =
-      StringMap.find fpr key_names
+      XString.Map.find fpr key_names
       |> pipe_some (fun info -> info.G.name)
       |> default "<unknown>" in
     let page = GPack.vbox ~homogeneous:false ~spacing:4 ~border_width:8 () in
@@ -231,7 +232,7 @@ let confirm_keys gpg trust_db ?parent feed_url valid_sigs =
       ~content:(make_hints_area result hints)
       page;
 
-    let already_trusted = trust_db#get_trust_domains fpr |> StringSet.elements in
+    let already_trusted = trust_db#get_trust_domains fpr |> XString.Set.elements in
     if already_trusted <> [] then (
       frame
         ~title:"You already trust this key for these domains"

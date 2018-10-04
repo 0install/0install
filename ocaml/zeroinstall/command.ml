@@ -4,7 +4,6 @@
 
 open Support
 open Support.Common
-module U = Support.Utils
 
 let re_template = Str.regexp ("\\$\\(\\$\\|\\([a-zA-Z_][a-zA-Z0-9_]*\\)\\|{[^}]*}\\)")
 
@@ -59,7 +58,7 @@ let command_rel_path ?main command =
   let path = Element.path command in
   match main, path with
   | None, path -> path
-  | Some main, _ when U.starts_with main "/" -> Some (U.string_tail main 1)   (* --main=/foo *)
+  | Some main, _ when XString.starts_with main "/" -> Some (XString.tail main 1)   (* --main=/foo *)
   | Some main, Some path -> Some (Filename.dirname path +/ main)              (* --main=foo *)
   | Some main, None -> Safe_exn.failf "Can't use a relative replacement main (%s) when there is no original one!" main
 

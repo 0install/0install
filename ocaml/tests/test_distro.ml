@@ -4,6 +4,7 @@
 
 open Zeroinstall
 open Zeroinstall.General
+open Support
 open Support.Common
 open OUnit
 module Q = Support.Qdom
@@ -61,7 +62,7 @@ let load_feed system xml =
     F.parse system root None
 
 let to_impl_list map : _ Impl.t list =
-  StringMap.map_bindings (fun _ impl -> impl) map
+  XString.Map.map_bindings (fun _ impl -> impl) map
 
 let gimp_feed = Test_feed.feed_of_xml Fake_system.real_system "\
   <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface' uri='http://gimp.org/gimp'>\
@@ -95,7 +96,7 @@ let suite = "distro">::: [
     match impls with
     | [impl] ->
         assert_str_equal "2.7.2-4" (Zeroinstall.Version.to_string impl.parsed_version);
-        let run = StringMap.find_safe "run" impl.props.commands in
+        let run = XString.Map.find_safe "run" impl.props.commands in
         assert_str_equal "/bin/python2" (Element.path run.command_qdom |> Fake_system.expect)
     | impls -> assert_failure @@ Printf.sprintf "want 1 Python, got %d" (List.length impls)
   );
@@ -170,7 +171,7 @@ let suite = "distro">::: [
 
     begin match distro#get_impls_for_feed ~problem:failwith (make_test_feed "zeroinstall-injector") |> to_impl_list with
     | [impl] ->
-        assert (U.starts_with (Impl.get_attr_ex "id" impl) "package:ports:zeroinstall-injector:0.41-2:");
+        assert (XString.starts_with (Impl.get_attr_ex "id" impl) "package:ports:zeroinstall-injector:0.41-2:");
         assert_str_equal "0.41-2" @@ Impl.get_attr_ex "version" impl
     | impls -> assert_failure @@ Printf.sprintf "want 1, got %d" (List.length impls) end;
   );
@@ -209,9 +210,9 @@ let suite = "distro">::: [
     let distro = Distro_impls.generic_distribution ~packagekit config |> Distro.of_provider in
 
     let open Impl in
-    let is_host (id, _impl) = U.starts_with id "package:host:" in
+    let is_host (id, _impl) = XString.starts_with id "package:host:" in
     let find_host impls =
-      try impls |> StringMap.bindings |> List.find is_host |> snd
+      try impls |> XString.Map.bindings |> List.find is_host |> snd
       with Not_found -> assert_failure "No host package found!" in
 
     let root = Q.parse_input None @@ Xmlm.make_input (`String (0, test_feed)) |> Element.parse_feed in
@@ -220,7 +221,7 @@ let suite = "distro">::: [
       let impls = Distro.get_impls_for_feed distro ~problem:failwith feed in
       let host_python = find_host impls in
       let python_run =
-        try StringMap.find_nf "run" host_python.props.commands
+        try XString.Map.find_nf "run" host_python.props.commands
         with Not_found -> assert_failure "No run command for host Python" in
       assert (Fake_system.real_system#file_exists (Element.path python_run.command_qdom |> Fake_system.expect)) in
 
@@ -230,7 +231,7 @@ let suite = "distro">::: [
 
     let impls = Distro.get_impls_for_feed distro ~problem:failwith feed in
     let host_gobject =
-      try impls |> StringMap.bindings |> List.find is_host |> snd
+      try impls |> XString.Map.bindings |> List.find is_host |> snd
       with Not_found -> skip_if true "No host python-gobject found"; assert false in
     let () =
       match host_gobject.props.requires with
@@ -317,7 +318,7 @@ let suite = "distro">::: [
 
     let feed = F.parse config.system root (Some "/local.xml") in
 
-    assert_equal 0 (StringMap.cardinal feed.F.implementations);
+    assert_equal 0 (XString.Map.cardinal feed.F.implementations);
 
     let dpkgdir = Test_0install.feed_dir +/ "dpkg" in
     let old_path = Unix.getenv "PATH" in
@@ -349,7 +350,7 @@ let suite = "distro">::: [
         inherit Zeroinstall.Feed_provider_impl.feed_provider config deb
         method! get_feed = function
           | (`Remote_feed "http://example.com/bittorrent") as url ->
-              let result = Some (feed, F.({ last_checked = None; user_stability = StringMap.empty })) in
+              let result = Some (feed, F.({ last_checked = None; user_stability = XString.Map.empty })) in
               cache <- Zeroinstall.Feed_url.FeedMap.add url result cache;
               result
           | _ -> assert false
@@ -365,7 +366,7 @@ let suite = "distro">::: [
 
     (* Part II *)
     let gimp_feed = get_feed "<package-implementation package='gimp'/>" in
-    Distro.get_impls_for_feed deb ~problem:failwith gimp_feed |> assert_equal StringMap.empty;
+    Distro.get_impls_for_feed deb ~problem:failwith gimp_feed |> assert_equal XString.Map.empty;
 
     (* Initially, we only get information about the installed version... *)
     let bt_feed = get_feed "<package-implementation package='python-bittorrent'>\n\
@@ -457,11 +458,11 @@ let suite = "distro">::: [
     feed_provider#add_iface master_feed;
     feed_provider#add_iface imported_feed;
     let scope_filter = { Scope_filter.
-      extra_restrictions = StringMap.empty;
-      os_ranks = Arch.custom_os_ranking StringMap.empty;
-      machine_ranks = Arch.custom_machine_ranking StringMap.empty;
+      extra_restrictions = XString.Map.empty;
+      os_ranks = Arch.custom_os_ranking XString.Map.empty;
+      machine_ranks = Arch.custom_machine_ranking XString.Map.empty;
       languages = Support.Locale.LangMap.empty;
-      allowed_uses = StringSet.empty;
+      allowed_uses = XString.Set.empty;
       may_compile = false;
     } in
     let impl_provider = new Impl_provider.default_impl_provider config (feed_provider :> Feed_provider.feed_provider) scope_filter in

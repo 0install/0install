@@ -2,7 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-open Support.Common
+open Support
 open OUnit
 open Zeroinstall
 
@@ -32,7 +32,7 @@ class impl_provider =
         attrs = Q.AttrMap.empty |> Q.AttrMap.add_no_ns "version" v;
         requires = [];
         bindings = [];
-        commands = StringMap.empty;
+        commands = XString.Map.empty;
       };
       stability = Stability.Stable;
       os; machine;
@@ -46,7 +46,7 @@ class impl_provider =
     method add_impls (name_arch:string) (versions:string list) =
       let (prog, arch) =
         if String.contains name_arch ' ' then
-          U.split_pair U.re_space name_arch
+          XString.(split_pair_safe re_space) name_arch
         else
           (name_arch, "*-*") in
       let impls = List.map (make_impl arch) versions in
@@ -69,14 +69,14 @@ class impl_provider =
     }
 
     method is_dep_needed _dep = true
-    method extra_restrictions = StringMap.empty
+    method extra_restrictions = XString.Map.empty
   end
 
 let re_dep = Str.regexp "\\([a-z]+\\)\\[\\([0-9]+\\)\\(,[0-9]+\\)?\\] => \\([a-z]+\\) \\([0-9]+\\) \\([0-9]+\\)"
 
 let run_sat_test expected problem =
   let parse_id id =
-    U.split_pair U.re_dash (String.trim id) in
+    XString.(split_pair_safe re_dash) (String.trim id) in
   let expected_items = List.map parse_id @@ Str.split re_comma expected in
   let (_root_iface, root_expected_version) = List.hd expected_items in
 
@@ -84,14 +84,14 @@ let run_sat_test expected problem =
 
   ListLabels.iter problem ~f:(fun line ->
     if String.contains line ':' then (
-      let (prog, versions) = U.split_pair U.re_colon line in
-      impl_provider#add_impls (String.trim prog) (Str.split U.re_space versions)
+      let (prog, versions) = XString.(split_pair_safe re_colon) line in
+      impl_provider#add_impls (String.trim prog) (Str.split XString.re_space versions)
     ) else (
       if Str.string_match re_dep line 0 then (
         let prog = Str.matched_group 1 line in
         let min_p = Str.matched_group 2 line in
         let max_p =
-          try U.string_tail (Str.matched_group 3 line) 1
+          try XString.tail (Str.matched_group 3 line) 1
           with Not_found -> min_p in
         let lib = Str.matched_group 4 line in
         let min_v = Str.matched_group 5 line in
@@ -289,15 +289,15 @@ let suite = "sat">::: [
       "liba[1,2] => libb 1 2";
       "libb[1,2] => libc 0 0";
     ] in
-    let selected = ref StringMap.empty in
+    let selected = ref XString.Map.empty in
     Solver.selections s |> Selections.iter (fun role sel ->
       let iface = role.Selections.iface in
-      selected := StringMap.add iface (Element.version_opt sel) !selected
+      selected := XString.Map.add iface (Element.version_opt sel) !selected
     );
-    assert_equal (Some "2") (StringMap.find_safe "prog" !selected);
-    assert_equal (Some "2") (StringMap.find_safe "liba" !selected);
-    assert_equal (Some "2") (StringMap.find_safe "libb" !selected);
-    assert_equal None       (StringMap.find_safe "libc" !selected);
+    assert_equal (Some "2") (XString.Map.find_safe "prog" !selected);
+    assert_equal (Some "2") (XString.Map.find_safe "liba" !selected);
+    assert_equal (Some "2") (XString.Map.find_safe "libb" !selected);
+    assert_equal None       (XString.Map.find_safe "libc" !selected);
   );
 
   "coverage">:: (fun () ->

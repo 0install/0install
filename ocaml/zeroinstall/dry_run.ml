@@ -17,7 +17,7 @@ let log fmt =
 class dryrun_system (underlying:system) =
   let reject msg = Safe_exn.failf "Bug: '%s' called in --dry-run mode" msg in
   object (_ : #system)
-    val mutable fake_dirs = StringMap.empty
+    val mutable fake_dirs = XString.Map.empty
 
     (* Read-only operations: pass though *)
     method argv = underlying#argv
@@ -43,8 +43,8 @@ class dryrun_system (underlying:system) =
         let dir = Filename.dirname path in
         let base = Filename.basename path in
 
-        match StringMap.find dir fake_dirs with
-        | Some items -> StringSet.mem base items
+        match XString.Map.find dir fake_dirs with
+        | Some items -> XString.Set.mem base items
         | None -> false
       )
 
@@ -62,9 +62,9 @@ class dryrun_system (underlying:system) =
       let dir = Filename.dirname path in
       let base = Filename.basename path in
 
-      let dir_entries = default StringSet.empty @@ StringMap.find dir fake_dirs in
+      let dir_entries = default XString.Set.empty @@ XString.Map.find dir fake_dirs in
 
-      fake_dirs <- StringMap.add dir (StringSet.add base dir_entries) fake_dirs
+      fake_dirs <- XString.Map.add dir (XString.Set.add base dir_entries) fake_dirs
 
     (* Interesting operations: log and skip *)
     method hardlink orig copy = log "ln %s %s" orig copy

@@ -95,7 +95,7 @@ let make system =
   ) in
   { python_installations; host_machine }
 
-let make_host_impl t path version ~package ?(commands=StringMap.empty) ?(requires=[]) from_feed id =
+let make_host_impl t path version ~package ?(commands=XString.Map.empty) ?(requires=[]) from_feed id =
   let props = { Impl.
     attrs = get_quick_test_attrs path
       |> Q.AttrMap.add_no_ns FeedAttr.from_feed (Feed_url.format_url (`Distribution_feed from_feed))
@@ -129,7 +129,7 @@ let get t = function
         let {path; version} = installation.python in
         let id = "package:host:python:" ^ version in
         let run = Impl.make_command "run" path in
-        let commands = StringMap.singleton "run" run in
+        let commands = XString.Map.singleton "run" run in
         (id, make_host_impl t ~package:"host-python" path version ~commands url id)
       )
   | `Remote_feed "http://repo.roscidus.com/python/python-gobject" as url ->

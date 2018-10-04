@@ -79,7 +79,7 @@ let start_server system =
     request_log := path :: !request_log;
 
     let i = String.rindex path '/' in
-    let leaf = U.string_tail path (i + 1) in
+    let leaf = XString.tail path (i + 1) in
 
     match !expected with
     | [] -> Safe_exn.failf "Unexpected request for '%s' (nothing expected)" path

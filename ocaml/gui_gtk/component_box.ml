@@ -560,13 +560,13 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
       let (_ready, result) = watcher#results in
       let (selected, impls) = Gui.list_impls result !role in
       let get_overrides =
-        let cache = ref StringMap.empty in
+        let cache = ref XString.Map.empty in
         fun feed ->
-          match !cache |> StringMap.find feed with
+          match !cache |> XString.Map.find feed with
           | Some result -> result
           | None ->
               let result = F.load_feed_overrides config (Feed_url.parse feed) in
-              cache := !cache |> StringMap.add feed result;
+              cache := !cache |> XString.Map.add feed result;
               result in
 
       impls |> List.iter (fun (impl, problem) ->
@@ -574,7 +574,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
         let impl_id = Impl.get_attr_ex FeedAttr.id impl in
         let overrides = get_overrides from_feed in
         let stability_value =
-          match StringMap.find impl_id overrides.F.user_stability with
+          match XString.Map.find impl_id overrides.F.user_stability with
           | Some user_stability -> Stability.to_string user_stability |> String.uppercase_ascii
           | None -> Q.AttrMap.get_no_ns FeedAttr.stability impl.Impl.props.Impl.attrs |> default "testing" in
 

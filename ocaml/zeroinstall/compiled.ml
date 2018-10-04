@@ -3,7 +3,7 @@
  *)
 
 open General
-open Support.Common
+open Support
 module Q = Support.Qdom
 module U = Support.Utils
 
@@ -95,7 +95,7 @@ let of_source ~host_arch impl =
   let open Impl in
   let local_dir = local_dir_of impl in
   let props = impl.props in
-  match StringMap.find "compile" props.commands with
+  match XString.Map.find "compile" props.commands with
   | None -> `Reject `No_compile_command
   | Some command ->
   let id = get_attr_ex "id" impl in
@@ -114,7 +114,7 @@ let of_source ~host_arch impl =
     attrs = Feed.default_attrs ~url:(Impl.get_attr_ex Constants.FeedAttr.from_feed impl);
     requires = [];
     bindings = [];
-    commands = StringMap.empty;
+    commands = XString.Map.empty;
   } bin_element in
   `Ok (Impl.make
          ~elem:bin_element

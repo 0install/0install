@@ -6,7 +6,6 @@
 
 open Zeroinstall.General
 open Support
-open Support.Common
 open Options
 module Qdom = Support.Qdom
 module Selections = Zeroinstall.Selections
@@ -21,12 +20,12 @@ let show_xml sels =
   output_string stdout "\n"
 
 let pp_restrictions f =
-  StringMap.iter @@ fun iface expr ->
+  XString.Map.iter @@ fun iface expr ->
   Format.fprintf f "@,%s: %s" iface expr
 
 let show_restrictions f r =
   let open Zeroinstall.Requirements in
-  if r.extra_restrictions <> StringMap.empty then (
+  if r.extra_restrictions <> XString.Map.empty then (
     Format.fprintf f
       "@[<v2>User-provided restrictions in force:%a@]@.@."
       pp_restrictions r.extra_restrictions

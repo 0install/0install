@@ -5,6 +5,7 @@
 (** Caching downloaded feeds on disk *)
 
 open General
+open Support
 open Support.Common
 
 type interface_config = {
@@ -20,7 +21,7 @@ val get_save_cache_path : config -> Feed_url.remote_feed -> filepath
 
 val get_cached_icon_path : config -> [< Feed_url.non_distro_feed] -> filepath option
 
-val list_all_feeds : config -> StringSet.t
+val list_all_feeds : config -> XString.Set.t
 
 val load_iface_config : config -> Sigs.iface_uri -> interface_config
 val save_iface_config : config -> Sigs.iface_uri -> interface_config -> unit

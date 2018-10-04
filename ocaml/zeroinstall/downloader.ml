@@ -42,7 +42,7 @@ let is_redirect connection =
 (** Download the contents of [url] into [ch].
  * This runs in a separate (either Lwt or native) thread. *)
 let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.zero) ~progress connection ch = function
-  | url when U.starts_with url "https://downloads.sourceforge.net/#!" ->
+  | url when XString.starts_with url "https://downloads.sourceforge.net/#!" ->
     Lwt.return (`Network_failure "SourceForge is currently in Disaster Recovery mode (unusable)")
   | url ->
   let skip_bytes = ref (Int64.to_int start_offset) in
@@ -50,8 +50,8 @@ let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.
   Lwt.catch (fun () ->
     let redirect = ref None in
     let check_header header =
-      if U.starts_with header "Location:" then (
-        redirect := Some (U.string_tail header 9 |> String.trim)
+      if XString.starts_with header "Location:" then (
+        redirect := Some (XString.tail header 9 |> String.trim)
       );
       String.length header in
 
@@ -177,7 +177,7 @@ module Site = struct
 
   let schedule_download t ~cancelled ?if_slow ?size ?modification_time ?start_offset ~progress ch url =
     log_debug "Scheduling download of %s" url;
-    if not (List.exists (U.starts_with url) ["http://"; "https://"; "ftp://"]) then (
+    if not (List.exists (XString.starts_with url) ["http://"; "https://"; "ftp://"]) then (
       Safe_exn.failf "Invalid scheme in URL '%s'" url
     );
 

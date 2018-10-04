@@ -4,6 +4,7 @@
 
 (** Downloads icons and caches to disk and in memory. *)
 
+open Support
 open Support.Common
 open Zeroinstall.General
 
@@ -13,7 +14,7 @@ let icon_size = 20
 
 let create config ~fetcher =
   object
-    val mutable icon_of_iface : GdkPixbuf.pixbuf option StringMap.t = StringMap.empty
+    val mutable icon_of_iface : GdkPixbuf.pixbuf option XString.Map.t = XString.Map.empty
     val mutable update_icons = false
 
     (** Setting this to [true] flushes the in-memory cache and forces a (background) download
@@ -21,21 +22,21 @@ let create config ~fetcher =
      * clicks the Refresh button and set back to [false] after the tree has been rebuilt. *)
     method set_update_icons value =
       if value then
-        icon_of_iface <- StringMap.empty;
+        icon_of_iface <- XString.Map.empty;
       update_icons <- value
 
     (** Getting a icon from the cache will first try the memory cache, then the disk cache.
         If no icon is found but the feed gives a download location then we start a download in
         the background and call [update] when the new icon arrives. *)
     method get ~update ~feed_provider iface =
-      match icon_of_iface |> StringMap.find iface with
+      match icon_of_iface |> XString.Map.find iface with
       | Some icon -> icon
       | None ->
           (* Not in the memory cache. Try the disk cache next. *)
 
           let load_icon path =
             let icon = Gtk_utils.load_png_icon config.system ~width:icon_size ~height:icon_size path in
-            icon_of_iface <- icon_of_iface |> StringMap.add iface icon;
+            icon_of_iface <- icon_of_iface |> XString.Map.add iface icon;
             icon in
 
           let master_feed = Feed_url.master_feed_of_iface iface in
@@ -46,7 +47,7 @@ let create config ~fetcher =
            * (if we have an icon_path but we couldn't read it, we don't fetch). *)
           if (icon_path = None || update_icons) && config.network_use <> Offline then (
             (* Prevent further updates *)
-            if not (StringMap.mem iface icon_of_iface) then icon_of_iface <- icon_of_iface |> StringMap.add iface None;
+            if not (XString.Map.mem iface icon_of_iface) then icon_of_iface <- icon_of_iface |> XString.Map.add iface None;
             Gtk_utils.async (fun () ->
                 with_errors_logged (fun f -> f "Icon download failed") @@ fun () ->
                 Zeroinstall.Gui.download_icon fetcher feed_provider master_feed >>= fun () ->

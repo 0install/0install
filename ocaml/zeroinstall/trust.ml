@@ -35,23 +35,23 @@ class trust_db config =
     | Some db -> db
     | None ->
         match Paths.Config.(first trust_db) config.paths with
-        | None -> StringMap.empty
+        | None -> XString.Map.empty
         | Some path ->
             let root = Q.parse_file config.system path in
-            root |> TRUST.fold_left ~init:StringMap.empty ~name:"key" (fun keys key ->
+            root |> TRUST.fold_left ~init:XString.Map.empty ~name:"key" (fun keys key ->
               let domains =
-                key |> TRUST.fold_left ~init:StringSet.empty ~name:"domain" (fun map domain ->
-                  StringSet.add (TRUST.get_attribute "value" domain) map
+                key |> TRUST.fold_left ~init:XString.Set.empty ~name:"domain" (fun map domain ->
+                  XString.Set.add (TRUST.get_attribute "value" domain) map
                 ) in
-              StringMap.add (TRUST.get_attribute "fingerprint" key) domains keys
+              XString.Map.add (TRUST.get_attribute "fingerprint" key) domains keys
             ) in
 
   let get_domains fingerprint db =
-    default StringSet.empty @@ StringMap.find fingerprint db in
+    default XString.Set.empty @@ XString.Map.find fingerprint db in
 
   let is_trusted db ~domain fingerprint =
     let domains = get_domains fingerprint db in
-    StringSet.mem domain domains || StringSet.mem "*" domains in
+    XString.Set.mem domain domains || XString.Set.mem "*" domains in
 
   let save db =
     let db_file = Paths.Config.(save_path trust_db) config.paths in
@@ -59,8 +59,8 @@ class trust_db config =
       Dry_run.log "would update trust database %s" db_file;
       dry_run_db := Some db
     ) else (
-      let key_elems = db |> StringMap.map_bindings (fun fingerprint domains ->
-        let domain_elems = domains |> StringSet.elements |> List.map (fun domain ->
+      let key_elems = db |> XString.Map.map_bindings (fun fingerprint domains ->
+        let domain_elems = domains |> XString.Set.elements |> List.map (fun domain ->
           TRUST.make "domain" ~attrs:(Q.AttrMap.singleton "value" domain)
         ) in
         TRUST.make "key"
@@ -93,9 +93,9 @@ class trust_db config =
     method get_keys_for_domain domain =
       let db = get_db () in
       let check_key key domains results =
-        if StringSet.mem domain domains then StringSet.add key results
+        if XString.Set.mem domain domains then XString.Set.add key results
         else results in
-      StringMap.fold check_key db StringSet.empty
+      XString.Map.fold check_key db XString.Set.empty
 
     (* Add key to the list of trusted fingerprints. *)
     method trust_key ~domain fingerprint =
@@ -115,7 +115,7 @@ class trust_db config =
 
         let domains = get_domains fingerprint db in
 
-        let db = StringMap.add fingerprint (StringSet.add domain domains) db in
+        let db = XString.Map.add fingerprint (XString.Set.add domain domains) db in
 
         save db
       )
@@ -126,12 +126,12 @@ class trust_db config =
         Dry_run.log "would untrust key %s for %s" fingerprint domain; (* (and continue...) *)
 
       let domains = get_domains fingerprint db in
-      let domains = StringSet.remove domain domains in
+      let domains = XString.Set.remove domain domains in
       let db =
-        if StringSet.is_empty domains then
-          StringMap.remove fingerprint db
+        if XString.Set.is_empty domains then
+          XString.Map.remove fingerprint db
         else
-          StringMap.add fingerprint domains db in
+          XString.Map.add fingerprint domains db in
 
       save db
 

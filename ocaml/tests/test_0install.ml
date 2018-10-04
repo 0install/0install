@@ -38,12 +38,12 @@ let handle_download_impls config pending_digests impls =
           let digest_str =
             digests |> U.first_match (fun digest ->
               let digest_str = Zeroinstall.Manifest.format_digest digest in
-              if StringSet.mem digest_str !pending_digests then Some digest_str else None
+              if XString.Set.mem digest_str !pending_digests then Some digest_str else None
             ) in
           match digest_str with
           | None -> Safe_exn.failf "Digest not expected!"
           | Some digest_str ->
-              pending_digests := StringSet.remove digest_str !pending_digests;
+              pending_digests := XString.Set.remove digest_str !pending_digests;
               let user_store = List.hd config.stores in
               U.makedirs config.system (user_store +/ digest_str) 0o755;
               log_info "Added %s to stores" digest_str
@@ -55,7 +55,7 @@ let impl_from_json config = (function
   | `Assoc [("id", `String id); ("from-feed", `String feed_url)] ->
       let parsed = Zeroinstall.Feed_url.parse_non_distro feed_url in
       let feed = Zeroinstall.Feed_cache.get_cached_feed config parsed |? lazy (Safe_exn.failf "Not cached: %s" feed_url) in
-      StringMap.find_safe id feed.F.implementations
+      XString.Map.find_safe id feed.F.implementations
   | _ -> assert false
 )
 
@@ -69,16 +69,16 @@ let write_script (system:#system) launcher_script interface_uri =
   )
 
 class fake_slave _config =
-  let pending_feed_downloads = ref StringMap.empty in
+  let pending_feed_downloads = ref XString.Map.empty in
 
   let handle_download ?if_slow:_ ?size:_ ?modification_time:_ ch url =
     let contents =
-      if U.starts_with url "https://keylookup.appspot.com/key/" then (
+      if XString.starts_with url "https://keylookup.appspot.com/key/" then (
         "<key-lookup><item vote='good'>Looks legit</item></key-lookup>"
       ) else (
-        StringMap.find_safe url !pending_feed_downloads
+        XString.Map.find_safe url !pending_feed_downloads
       ) in
-    pending_feed_downloads := StringMap.remove url !pending_feed_downloads;
+    pending_feed_downloads := XString.Map.remove url !pending_feed_downloads;
     output_string ch contents;
     `Success |> Lwt.return in
 
@@ -87,7 +87,7 @@ class fake_slave _config =
       Zeroinstall.Downloader.interceptor := Some handle_download
 
     method allow_download url contents =
-      pending_feed_downloads := StringMap.add url contents !pending_feed_downloads
+      pending_feed_downloads := XString.Map.add url contents !pending_feed_downloads
   end
 
 let run_0install ?stdin ?(binary=test_0install) ?(include_stderr=false) fake_system ?(exit=0) args =
@@ -133,7 +133,7 @@ let suite = "0install">::: [
     (* In --offline mode we select from the cached feed *)
     fake_system#set_argv [| test_0install; "-o"; "select"; "http://example.com:8000/Hello.xml" |];
     let output = Fake_system.collect_output (fun stdout -> Main.main ~stdout system) in
-    assert (U.starts_with output "- URI: http://example.com:8000/Hello.xml");
+    assert (XString.starts_with output "- URI: http://example.com:8000/Hello.xml");
 
     (* In online mode, we spawn a background process because we don't have a last-checked timestamp *)
     fake_system#set_argv [| test_0install; "select"; "http://example.com:8000/Hello.xml" |];
@@ -183,7 +183,7 @@ let suite = "0install">::: [
     Unix.putenv "DISPLAY" "";
 
     let out = run ~exit:1 ["update"] in
-    assert (U.starts_with out "Usage:");
+    assert (XString.starts_with out "Usage:");
     assert_contains "--message" out;
 
     (* Updating a local feed with no dependencies *)
@@ -255,7 +255,7 @@ let suite = "0install">::: [
     let run = run_0install fake_system in
 
     let out = run ~exit:1 ["download"] in
-    assert (U.starts_with out "Usage:");
+    assert (XString.starts_with out "Usage:");
     assert_contains "--show" out;
 
     let out = run ["download"; (feed_dir +/ "Local.xml"); "--show"] in
@@ -333,10 +333,10 @@ let suite = "0install">::: [
     fake_system#set_time @@ Fake_system.real_system#time;
 
     let out = run ~exit:1 ["add"; "local-app"] in
-    assert (U.starts_with out "Usage:");
+    assert (XString.starts_with out "Usage:");
 
     let out = run ~exit:1 ["destroy"; "local-app"; "uri"] in
-    assert (U.starts_with out "Usage:");
+    assert (XString.starts_with out "Usage:");
 
     let local_feed = feed_dir +/ "Local.xml" in
 
@@ -434,7 +434,7 @@ let suite = "0install">::: [
     let out = run ["_complete"; "bash"; "0install"; "whatchanged"] in
     assert_contains "local-app" out;
     let out = run ~exit:1 ["whatchanged"; "local-app"; "uri"] in
-    assert (U.starts_with out "Usage:");
+    assert (XString.starts_with out "Usage:");
 
     let out = run ["whatchanged"; "local-app"] in
     assert_contains "No previous history to compare against." out;
@@ -493,7 +493,7 @@ let suite = "0install">::: [
     config.freshness <- None;
 
     let out = run ["add"; "--help"] in
-    assert (U.starts_with out "Usage:");
+    assert (XString.starts_with out "Usage:");
 
     Unix.mkdir (tmpdir +/ "bin") 0o700;
     fake_system#putenv "PATH" ((tmpdir +/ "bin") ^ path_sep ^ U.getenv_ex fake_system "PATH");
@@ -805,7 +805,7 @@ let suite = "0install">::: [
 
   "help">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
     let out = run_0install ~exit:1 fake_system [] in
-    assert (U.starts_with out "Usage:")
+    assert (XString.starts_with out "Usage:")
   );
 
   "list2">:: Fake_system.with_fake_config ~portable_base:false (fun (config, fake_system) ->
@@ -827,12 +827,12 @@ let suite = "0install">::: [
     assert_str_equal "" out;
 
     let out = run_0install fake_system ~exit:1 ["list"; "one"; "two"] in
-    assert (U.starts_with out "Usage:");
+    assert (XString.starts_with out "Usage:");
   );
 
   "version">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
     let out = run_0install fake_system ~binary:"0launch" ["--version"] in
-    assert (U.starts_with out "0launch (zero-install)");
+    assert (XString.starts_with out "0launch (zero-install)");
   );
 
   "invalid">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
@@ -931,7 +931,7 @@ let suite = "0install">::: [
 
   "help3">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
     let out = run_0install fake_system ~exit:1 [] in
-    assert (U.starts_with out "Usage:");
+    assert (XString.starts_with out "Usage:");
     assert_contains "add-feed" out;
     assert_contains "--version" out;
 
@@ -948,7 +948,7 @@ let suite = "0install">::: [
 
   "run2">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
     let out = run_0install fake_system ~exit:1 ["run"] in
-    assert (U.starts_with out "Usage:");
+    assert (XString.starts_with out "Usage:");
     assert_contains "URI" out;
 
     let out = run_0install fake_system ["run"; "--dry-run"; feed_dir +/ "runnable/Runnable.xml"; "--help"] in
@@ -972,7 +972,7 @@ let suite = "0install">::: [
   "man">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     skip_if on_windows "No man. No aliases";
     let out = run_0install fake_system ["man"; "--help"] in
-    assert (U.starts_with out "Usage:");
+    assert (XString.starts_with out "Usage:");
 
     (* Wrong number of args: pass-through *)
     check_man fake_system ["git"; "config"] ["man"; "git"; "config"];

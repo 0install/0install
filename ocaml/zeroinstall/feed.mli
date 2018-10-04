@@ -4,13 +4,14 @@
 
 (** Parsing feeds *)
 
+open Support
 open Support.Common
 
 (** {2 Types} **)
 
 type feed_overrides = {
   last_checked : float option;
-  user_stability : Stability.t StringMap.t;
+  user_stability : Stability.t XString.Map.t;
 }
 
 type feed_type =
@@ -32,7 +33,7 @@ type feed = {
   url : Feed_url.non_distro_feed;
   root : [`Feed] Element.t;
   name : string;
-  implementations : 'a. ([> `Cache_impl of Impl.cache_impl | `Local_impl of filepath] as 'a) Impl.t StringMap.t;
+  implementations : 'a. ([> `Cache_impl of Impl.cache_impl | `Local_impl of filepath] as 'a) Impl.t XString.Map.t;
   imported_feeds : feed_import list;    (* Always of type Feed_import here *)
 
   (* The URI of the interface that replaced the one with the URI of this feed's URL.

@@ -74,7 +74,7 @@ let get_default_config system path_to_prog =
 
   let abspath_0install =
     let name = Filename.basename abspath_prog in
-    if Support.Utils.starts_with name "0install" then abspath_prog
+    if Support.XString.starts_with name "0install" then abspath_prog
     else (
       (Filename.dirname abspath_prog +/ "0install") ^
         if Filename.check_suffix name ".exe" then ".exe" else ""

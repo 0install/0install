@@ -72,7 +72,7 @@ let find_and_exec_man ~stdout config ?main ?fallback_name sels =
               match system#lstat full_path with
               | None -> ()
               | Some info when info.Unix.st_kind = Unix.S_DIR ->
-                  if not (U.starts_with item ".") then
+                  if not (XString.starts_with item ".") then
                     walk full_path
               | Some _file ->
                   let manpage_file =

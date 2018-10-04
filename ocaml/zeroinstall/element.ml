@@ -48,8 +48,8 @@ type attr_node =
 
 (** Create a map from interface URI to <selection> elements. *)
 let make_selection_map sels =
-  sels |> ZI.fold_left ~init:StringMap.empty ~name:"selection" (fun m sel ->
-    StringMap.add (ZI.get_attribute "interface" sel) sel m
+  sels |> ZI.fold_left ~init:XString.Map.empty ~name:"selection" (fun m sel ->
+    XString.Map.add (ZI.get_attribute "interface" sel) sel m
   )
 
 let get_runner elem =
@@ -69,16 +69,16 @@ let parse_selections root =
         let index = ref (make_selection_map root) in
         old_commands |> List.iter (fun command ->
           let current_iface = !iface |? lazy (Q.raise_elem "No additional command expected here!" command) in
-          let sel = StringMap.find current_iface !index |? lazy (Q.raise_elem "Missing selection for '%s' needed by" current_iface command) in
+          let sel = XString.Map.find current_iface !index |? lazy (Q.raise_elem "Missing selection for '%s' needed by" current_iface command) in
           let command = {command with Q.attrs = command.Q.attrs |> AttrMap.add_no_ns "name" "run"} in
-          index := !index |> StringMap.add current_iface {sel with Q.child_nodes = command :: sel.Q.child_nodes};
+          index := !index |> XString.Map.add current_iface {sel with Q.child_nodes = command :: sel.Q.child_nodes};
           match get_runner command with
           | None -> iface := None
           | Some runner -> iface := Some (ZI.get_attribute "interface" runner)
         );
         {
           root with
-          Q.child_nodes = !index |> StringMap.map_bindings (fun _ child -> child);
+          Q.child_nodes = !index |> XString.Map.map_bindings (fun _ child -> child);
           Q.attrs = root.Q.attrs |> AttrMap.add_no_ns "command" "run"
         }
       with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... migrating from old selections format"

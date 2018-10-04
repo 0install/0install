@@ -76,7 +76,7 @@ let with_stores_tmpdir config fn =
    If the path does not resolve to a location within [tmpdir], Safe_exn.T is raised.
    Resolving to base itself is also an error. *)
 let native_path_within_base (system:system) ~tmpdir crossplatform_path =
-  if U.starts_with crossplatform_path "/" then (
+  if XString.starts_with crossplatform_path "/" then (
     Safe_exn.failf "Path %s is absolute!" crossplatform_path
   );
   let rec loop base = function
@@ -92,7 +92,7 @@ let native_path_within_base (system:system) ~tmpdir crossplatform_path =
         | Some {Unix.st_kind = (Unix.S_DIR | Unix.S_REG); _} -> loop new_base xs
         | Some _ -> Safe_exn.failf "Refusing to follow non-file non-dir item '%s'" new_base
         | None -> loop new_base xs in
-  let resolved = Str.split_delim U.re_slash crossplatform_path |> loop tmpdir in
+  let resolved = Str.split_delim XString.re_slash crossplatform_path |> loop tmpdir in
   if resolved = tmpdir then
     Safe_exn.failf "Illegal path '%s'" crossplatform_path
   else

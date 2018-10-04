@@ -5,6 +5,7 @@
 (** Handling --verbose, etc *)
 
 open Zeroinstall.General
+open Support
 open Support.Common
 open Options
 
@@ -42,7 +43,7 @@ let increase_verbosity options =
 
 let show_version f system =
   let prog = Filename.basename system#argv.(0) in
-  let prog = if Support.Utils.starts_with prog "0launch" then "0launch" else "0install" in
+  let prog = if XString.starts_with prog "0launch" then "0launch" else "0install" in
   Format.fprintf f
     "%s (zero-install) %s@,\
      Copyright (C) 2016 Thomas Leonard@\n\
@@ -56,8 +57,8 @@ let show_version f system =
 let show_help (system:system) valid_options help f extra_fn =
   let prog = Filename.basename system#argv.(0) in
   let usage =
-    if Support.Utils.starts_with prog "0launch" then "[OPTIONS] URI [ARGS]"
-    else if Support.Utils.starts_with prog "0desktop" then "[OPTIONS] [URI]"
+    if XString.starts_with prog "0launch" then "[OPTIONS] URI [ARGS]"
+    else if XString.starts_with prog "0desktop" then "[OPTIONS] [URI]"
     else help in
   Format.fprintf f "Usage: %s %s@.@\n%t%a@."
     prog usage extra_fn

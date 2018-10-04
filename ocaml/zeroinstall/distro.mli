@@ -17,7 +17,7 @@ module Query : sig
   val add_result : t -> string -> Impl.distro_implementation -> unit
   (** [add_result t id impl] adds [id -> impl] to the result map. *)
 
-  val results : t -> Impl.distro_implementation Support.Common.StringMap.t
+  val results : t -> Impl.distro_implementation Support.XString.Map.t
   (** [results t] is the current results of the query. *)
 end
 
@@ -41,7 +41,7 @@ class type virtual provider =
     method get_impls_for_feed :
       problem:(string -> unit) ->
       Feed.feed ->
-      Impl.distro_implementation Support.Common.StringMap.t
+      Impl.distro_implementation Support.XString.Map.t
 
     (** Check (asynchronously) for available but currently uninstalled candidates. Once the returned
         promise resolves, the candidates should be included in future responses from [get_package_impls]. *)
@@ -123,7 +123,7 @@ val of_provider : #provider -> t
 val get_impls_for_feed : t -> 
   problem:(string -> unit) ->
   Feed.feed ->
-  Impl.distro_implementation Support.Common.StringMap.t
+  Impl.distro_implementation Support.XString.Map.t
 
 (** Check (asynchronously) for available but currently uninstalled candidates. Once the returned
     promise resolves, the candidates will be included in future responses from [get_impls_for_feed]. *)

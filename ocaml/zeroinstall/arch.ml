@@ -11,8 +11,8 @@ type os = string
 type machine = string
 type arch = os option * machine option
 
-type os_ranking = int StringMap.t
-type machine_ranking = int StringMap.t
+type os_ranking = int XString.Map.t
+type machine_ranking = int XString.Map.t
 
 let none_if_star = function
   | "*" -> None
@@ -23,7 +23,7 @@ let parse_os = none_if_star
 
 (** Parse a (canonical) arch, as found in 0install feeds. *)
 let parse_arch arch =
-  match Str.bounded_split_delim Support.Utils.re_dash arch 0 with
+  match Str.bounded_split_delim Support.XString.re_dash arch 0 with
   | [os; machine] -> (none_if_star os, none_if_star machine)
   | _ -> Safe_exn.failf "Invalid architecture '%s'" arch
 
@@ -33,16 +33,16 @@ let format_arch (os, machine) =
   os_str ^ "-" ^ machine_str
 
 let get_os_ranks os =
-  let ranks = ref @@ StringMap.singleton os 1 in  (* Binaries compiled for _this_ OS are best.. *)
+  let ranks = ref @@ XString.Map.singleton os 1 in  (* Binaries compiled for _this_ OS are best.. *)
 
   (* Assume everything supports POSIX except Windows (but Cygwin is POSIX) *)
   if os <> "Windows" then
-    ranks := StringMap.add "POSIX" 2 !ranks;
+    ranks := XString.Map.add "POSIX" 2 !ranks;
 
   let () =
     match os with
-    | "Cygwin" -> ranks := StringMap.add "Windows" 2 !ranks
-    | "MacOSX" -> ranks := StringMap.add "Darwin" 2 !ranks
+    | "Cygwin" -> ranks := XString.Map.add "Windows" 2 !ranks
+    | "MacOSX" -> ranks := XString.Map.add "Darwin" 2 !ranks
     | _ -> () in
 
   !ranks
@@ -59,7 +59,7 @@ let get_machine_group = function
   | Some _ -> Some Machine_group_default
 
 let get_machine_ranks ~multiarch machine =
-  let ranks = ref @@ StringMap.singleton machine 1 in
+  let ranks = ref @@ XString.Map.singleton machine 1 in
 
   let compatible_machines =
     (* If target_machine appears in the first column of this table, all
@@ -76,17 +76,17 @@ let get_machine_ranks ~multiarch machine =
     | _ -> [||] in
 
   for i = 0 to Array.length compatible_machines - 1 do
-    ranks := StringMap.add compatible_machines.(i) (i + 2) !ranks
+    ranks := XString.Map.add compatible_machines.(i) (i + 2) !ranks
   done;
 
   !ranks
 
 let os_ok ranking = function
   | None -> true
-  | Some required -> StringMap.mem required ranking
+  | Some required -> XString.Map.mem required ranking
 let machine_ok = os_ok
 
-let os_rank ranks v = StringMap.find v ranks
+let os_rank ranks v = XString.Map.find v ranks
 let machine_rank = os_rank
 
 let custom_os_ranking x = x

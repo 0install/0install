@@ -5,7 +5,6 @@
 open OUnit
 open Zeroinstall
 open Support
-open Support.Common
 open Fake_system
 
 let pv v =
@@ -25,7 +24,7 @@ let dummy_impl = Impl.({
   props = {
     attrs = Support.Qdom.AttrMap.empty;
     requires = [];
-    commands = StringMap.empty;   (* (not used; we can provide any command) *)
+    commands = XString.Map.empty;   (* (not used; we can provide any command) *)
     bindings = [];
   };
   parsed_version = Version.parse "0";

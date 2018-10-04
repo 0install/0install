@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open Support
 open Support.Common
 open OUnit
 open Zeroinstall
@@ -86,7 +87,7 @@ let suite = "feed-cache">::: [
     let feed_url = `Remote_feed "http://foo/" in
     fetcher#import_feed feed_url foo_signed_xml >>= fun () ->
 
-    assert_equal ["http://foo/"] @@ StringSet.elements @@ Feed_cache.list_all_feeds config;
+    assert_equal ["http://foo/"] @@ XString.Set.elements @@ Feed_cache.list_all_feeds config;
 
     let new_xml = Feed_cache.get_cached_feed_path config feed_url |> Fake_system.expect |> U.read_file config.system in
     G.verify gpg new_xml >>= fun (sigs, _) ->
@@ -100,7 +101,7 @@ let suite = "feed-cache">::: [
     Fake_system.capture_stdout_lwt (fun () ->
       dryrun_fetcher#import_feed feed_url foo_signed_xml_new
     ) >>= fun out ->
-    assert (U.starts_with out "[dry-run] would cache feed http://foo/ as");
+    assert (XString.starts_with out "[dry-run] would cache feed http://foo/ as");
 
     fetcher#import_feed feed_url foo_signed_xml_new >>= fun () ->
 
@@ -115,11 +116,11 @@ let suite = "feed-cache">::: [
   );
 
   "test-list">:: Fake_system.with_fake_config ~portable_base:false (fun (config, _fake_system) ->
-    assert (StringSet.is_empty @@ Feed_cache.list_all_feeds config);
+    assert (XString.Set.is_empty @@ Feed_cache.list_all_feeds config);
     let basedirs = Support.Basedir.get_default_config config.system in
     let iface_dir = Basedir.save_path config.system (config_site +/ "interfaces") basedirs.Basedir.cache in
     U.touch config.system (iface_dir +/ "http%3a%2f%2ffoo");
-    Fake_system.equal_str_lists ["http://foo"] @@ (StringSet.elements @@ Feed_cache.list_all_feeds config)
+    Fake_system.equal_str_lists ["http://foo"] @@ (XString.Set.elements @@ Feed_cache.list_all_feeds config)
   );
 
   "extra-feeds">:: Fake_system.with_fake_config (fun (config, _fake_system) ->

@@ -67,7 +67,7 @@ and properties = {
   attrs : AttrMap.t;
   requires : dependency list;
   bindings : binding list;
-  commands : command StringMap.t;
+  commands : command XString.Map.t;
 }
 
 and +'a t = {
@@ -107,7 +107,7 @@ let make_command ?source_hint name path : command =
 let make_distribtion_restriction distros =
   object
     method meets_restriction impl =
-      ListLabels.exists (Str.split U.re_space distros) ~f:(fun distro ->
+      ListLabels.exists (Str.split XString.re_space distros) ~f:(fun distro ->
         match distro, impl.impl_type with
         | "0install", `Package_impl _ -> false
         | "0install", `Cache_impl _ -> true
@@ -178,7 +178,7 @@ let parse_dep local_dir node =
   let dep = Element.classify_dep node in
   let iface, node =
     let raw_iface = Element.interface node in
-    if U.starts_with raw_iface "." then (
+    if XString.starts_with raw_iface "." then (
       match local_dir with
       | Some dir ->
           let iface = U.normpath @@ dir +/ raw_iface in
@@ -189,14 +189,14 @@ let parse_dep local_dir node =
       (raw_iface, node)
     ) in
 
-  let commands = ref StringSet.empty in
+  let commands = ref XString.Set.empty in
 
   let restrictions = Element.restrictions node |> List.map (fun (`Version child) -> parse_version_element child) in
   Element.bindings node |> List.iter (fun child ->
     let binding = Binding.parse_binding child in
     match Binding.get_command binding with
     | None -> ()
-    | Some name -> commands := StringSet.add name !commands
+    | Some name -> commands := XString.Set.add name !commands
   );
 
   let needs_src = Element.source node |> default false in
@@ -207,7 +207,7 @@ let parse_dep local_dir node =
   in
 
   begin match dep with
-  | `Runner r -> commands := StringSet.add (default "run" @@ Element.command r) !commands
+  | `Runner r -> commands := XString.Set.add (default "run" @@ Element.command r) !commands
   | `Requires _ | `Restricts _ -> () end;
 
   let importance =
@@ -225,7 +225,7 @@ let parse_dep local_dir node =
     dep_iface = iface;
     dep_src = needs_src;
     dep_restrictions = restrictions;
-    dep_required_commands = StringSet.elements !commands;
+    dep_required_commands = XString.Set.elements !commands;
     dep_importance = importance;
     dep_use = Element.use node;
     dep_if_os = Element.os node;
@@ -259,16 +259,16 @@ let existing_source = function
   | {impl_type = `Binary_of source; _} -> source
   | {impl_type = #existing; _} as existing -> existing
 
-let get_command_opt command_name impl = StringMap.find command_name impl.props.commands
+let get_command_opt command_name impl = XString.Map.find command_name impl.props.commands
 
 let get_command_ex command_name impl : command =
-  StringMap.find command_name impl.props.commands |? lazy (Safe_exn.failf "Command '%s' not found in %a" command_name Element.pp impl.qdom)
+  XString.Map.find command_name impl.props.commands |? lazy (Safe_exn.failf "Command '%s' not found in %a" command_name Element.pp impl.qdom)
 
 (** The list of languages provided by this implementation. *)
 let get_langs impl =
   let langs =
     match AttrMap.get_no_ns "langs" impl.props.attrs with
-    | Some langs -> Str.split U.re_space langs
+    | Some langs -> Str.split XString.re_space langs
     | None -> ["en"] in
   Support.Utils.filter_map Support.Locale.parse_lang langs
 

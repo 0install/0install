@@ -90,17 +90,17 @@ let make_driver_test test_elem =
     let expected_problem = ref "missing-problem" in
     let expected_output = ref "missing-output" in
     let expected_warnings = ref [] in
-    let expected_downloads = ref StringSet.empty in
-    let expected_digests = ref StringSet.empty in
+    let expected_downloads = ref XString.Set.empty in
+    let expected_digests = ref XString.Set.empty in
     let expected_envs = ref [] in
     let args = ref [] in
     let dry_run = ref true in
-    let downloadable_feeds = ref StringMap.empty in
+    let downloadable_feeds = ref XString.Map.empty in
     let process child = match ZI.tag child with
     | Some "interface" -> (
         let child_elem = Element.parse_feed child in
         match Element.uri child_elem with
-        | Some url -> downloadable_feeds := StringMap.add url child_elem !downloadable_feeds
+        | Some url -> downloadable_feeds := XString.Map.add url child_elem !downloadable_feeds
         | None ->
             let local_path = tmpdir +/ (ZI.get_attribute "local-path" child) in
             local_path |> fake_system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
@@ -110,7 +110,7 @@ let make_driver_test test_elem =
     | Some "requirements" ->
         let iface = ZI.get_attribute "interface" child in
         let iface =
-          if U.starts_with iface "./" then home +/ iface
+          if XString.starts_with iface "./" then home +/ iface
           else iface in
         reqs := {!reqs with
           Requirements.interface_uri = iface;
@@ -122,7 +122,7 @@ let make_driver_test test_elem =
           args := arg.Support.Qdom.last_text_inside :: !args
         )
     | Some "problem" -> expected_problem := String.trim child.Support.Qdom.last_text_inside
-    | Some "download" -> expected_digests := StringSet.add (ZI.get_attribute "digest" child) !expected_digests
+    | Some "download" -> expected_digests := XString.Set.add (ZI.get_attribute "digest" child) !expected_digests
     | Some "set-env" ->
         let name = ZI.get_attribute "name" child in
         let value = ZI.get_attribute "value" child in
@@ -147,7 +147,7 @@ let make_driver_test test_elem =
           `Success
 
         method get_feed url =
-          try `Xml (StringMap.find_nf url !downloadable_feeds)
+          try `Xml (XString.Map.find_nf url !downloadable_feeds)
           with Not_found -> `Problem "Unexpected feed requested"
       end in
 
@@ -161,12 +161,12 @@ let make_driver_test test_elem =
             | `Success sels -> sels
             | `Aborted_by_user -> assert false in
           if !fails then assert_failure "Expected run_solver to fail, but it didn't!";
-          let actual_env = ref StringMap.empty in
+          let actual_env = ref XString.Map.empty in
           let output = String.trim @@ Fake_system.capture_stdout (fun () ->
             let exec cmd ~env =
               ArrayLabels.iter env ~f:(fun binding ->
-                let (name, value) = Support.Utils.split_pair Support.Utils.re_equals binding in
-                actual_env := StringMap.add name value !actual_env
+                let (name, value) = XString.(split_pair_safe re_equals) binding in
+                actual_env := XString.Map.add name value !actual_env
               );
               print_endline ("Would execute: " ^ Support.Logging.format_argv_for_logging cmd) in
             match Zeroinstall.Exec.execute_selections ~exec {config with dry_run = !dry_run} sels (List.rev !args) with
@@ -178,10 +178,10 @@ let make_driver_test test_elem =
           if not (Str.string_match re output 0) then
             assert_failure (Printf.sprintf "Expected output '%s' but got '%s'" !expected_output output);
           (* Check all expected downloads happened. *)
-          StringSet.iter assert_failure !expected_downloads;
+          XString.Set.iter assert_failure !expected_downloads;
           (* Check environment *)
           ListLabels.iter !expected_envs ~f:(fun (name, value) ->
-            Fake_system.assert_str_equal value (StringMap.find_safe name !actual_env)
+            Fake_system.assert_str_equal value (XString.Map.find_safe name !actual_env)
           )
         )
       with Safe_exn.T e ->
@@ -252,7 +252,7 @@ let suite = "driver">::: [
       Distro.of_provider @@ object (_ : Distro.provider)
         method is_valid_package_name _ = true
         method is_installed = failwith "is_installed"
-        method get_impls_for_feed ~problem:_ _feed = StringMap.empty
+        method get_impls_for_feed ~problem:_ _feed = XString.Map.empty
         method check_for_candidates = Safe_exn.failf "Unexpected check_for_candidates"
         method install_distro_packages = Safe_exn.failf "install_distro_packages"
         method match_name = (=) "dummy"

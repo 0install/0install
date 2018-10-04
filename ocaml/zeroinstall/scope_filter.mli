@@ -4,14 +4,14 @@
 
 (** Used for filtering and ranking implementations before passing them to the solver. *)
 
-open Support.Common
+open Support
 
 type t = {
-  extra_restrictions : Impl.restriction StringMap.t;  (* iface -> test *)
+  extra_restrictions : Impl.restriction XString.Map.t;  (* iface -> test *)
   os_ranks : Arch.os_ranking;
   machine_ranks : Arch.machine_ranking;
   languages : int Support.Locale.LangMap.t;
-  allowed_uses : StringSet.t;                         (* deprecated *)
+  allowed_uses : XString.Set.t;                         (* deprecated *)
   may_compile : bool;       (* For each source impl, add the potential binary that could be made from it *)
 }
 

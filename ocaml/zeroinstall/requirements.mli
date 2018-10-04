@@ -4,13 +4,13 @@
 
 (** A structure representing constraints/requirements specified by the user *)
 
-open Support.Common
+open Support
 
 type t = {
   interface_uri : Sigs.iface_uri;
   command : string option;
   source : bool;
-  extra_restrictions : string StringMap.t;  (* iface -> range *)
+  extra_restrictions : string XString.Map.t;  (* iface -> range *)
   os : Arch.os option;
   cpu : Arch.machine option;
   message : string option;

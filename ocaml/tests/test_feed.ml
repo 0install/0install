@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open Support
 open Support.Common
 open OUnit
 open Zeroinstall.General
@@ -58,17 +59,17 @@ let suite = "feed">::: [
 
     let overrides = F.load_feed_overrides config (`Local_feed feed_url) in
     assert_equal None overrides.F.last_checked;
-    assert_equal 0 (StringMap.cardinal overrides.F.user_stability);
+    assert_equal 0 (XString.Map.cardinal overrides.F.user_stability);
 
     F.save_feed_overrides config (`Local_feed feed_url) {
-      F.user_stability = StringMap.add digest Stability.Developer overrides.F.user_stability;
+      F.user_stability = XString.Map.add digest Stability.Developer overrides.F.user_stability;
       F.last_checked = Some 100.0;
     };
 
     (* Rating now visible *)
     let overrides = F.load_feed_overrides config (`Local_feed feed_url) in
-    assert_equal 1 (StringMap.cardinal overrides.F.user_stability);
-    assert_equal Stability.Developer (StringMap.find_safe digest overrides.F.user_stability);
+    assert_equal 1 (XString.Map.cardinal overrides.F.user_stability);
+    assert_equal Stability.Developer (XString.Map.find_safe digest overrides.F.user_stability);
     assert_equal (Some 100.0) overrides.F.last_checked;
   );
 
@@ -78,18 +79,18 @@ let suite = "feed">::: [
     let feed = F.parse config.system root (Some path) in
 
     let path name impl =
-      let command = StringMap.find_safe name impl.Impl.props.Impl.commands in
+      let command = XString.Map.find_safe name impl.Impl.props.Impl.commands in
       Element.path command.Impl.command_qdom |> Fake_system.expect in
 
-    let a = StringMap.find_safe "a" feed.F.implementations in
+    let a = XString.Map.find_safe "a" feed.F.implementations in
     Fake_system.assert_str_equal "foo" @@ path "run" a;
     Fake_system.assert_str_equal "test-foo" @@ path "test" a;
 
-    let b = StringMap.find_safe "b" feed.F.implementations in
+    let b = XString.Map.find_safe "b" feed.F.implementations in
     Fake_system.assert_str_equal "bar" @@ path "run" b;
     Fake_system.assert_str_equal "test-foo" @@ path "test" b;
 
-    let c = StringMap.find_safe "c" feed.F.implementations in
+    let c = XString.Map.find_safe "c" feed.F.implementations in
     Fake_system.assert_str_equal "test-gui" @@ path "run" c;
     Fake_system.assert_str_equal "test-baz" @@ path "test" c;
   );
@@ -111,7 +112,7 @@ let suite = "feed">::: [
       </interface>" in
     let root = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None |> Element.parse_feed in
     let feed = F.parse config.system root (Some "/local.xml") in
-    begin match StringMap.bindings feed.F.implementations with
+    begin match XString.Map.bindings feed.F.implementations with
     | [("sha1=124", s124); ("sha1=234", s234); ("sha1=345", s345)] ->
         assert_equal [("fr", None)] @@ Impl.get_langs s124;
         assert_equal [("fr", None); ("en", Some "gb")] @@ Impl.get_langs s234;
@@ -146,7 +147,7 @@ let suite = "feed">::: [
     let root = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None |> Element.parse_feed in
     let feed = F.parse config.system root (Some "/local.xml") in
 
-    begin match StringMap.bindings feed.F.implementations with
+    begin match XString.Map.bindings feed.F.implementations with
     | [("sha1=123", impl)] ->
         begin match impl.Impl.props.Impl.bindings |> List.map Element.classify_binding |> List.map B.parse_binding with
         | [B.EnvironmentBinding {B.mode = B.Replace; _}] -> ()
@@ -233,7 +234,7 @@ let suite = "feed">::: [
         </group>\n\
       </interface>" in
 
-    match feed.F.implementations |> StringMap.bindings with
+    match feed.F.implementations |> XString.Map.bindings with
     | [("sha1=123", impl)] ->
         begin match impl.Impl.props.Impl.requires with
         | [dep; dep2] ->
@@ -262,7 +263,7 @@ let suite = "feed">::: [
         <implementation id='used' version='2' if-0install-version='1..'/>\n\
       </interface>" in
 
-    match feed.F.implementations |> StringMap.bindings with
+    match feed.F.implementations |> XString.Map.bindings with
     | [("sha1=123", impl); ("used", used)] ->
         Fake_system.assert_str_equal "1.0-rc3-pre" @@ Zeroinstall.Version.to_string impl.Impl.parsed_version;
         Fake_system.assert_str_equal "2" @@ Zeroinstall.Version.to_string used.Impl.parsed_version;
@@ -284,7 +285,7 @@ let suite = "feed">::: [
         </group>\n\
       </interface>" in
 
-    match feed.F.implementations |> StringMap.bindings with
+    match feed.F.implementations |> XString.Map.bindings with
     | [("sha1=123", impl1); ("sha1=124", impl2)] ->
         let check expected name impl =
           let attr = Q.AttrMap.get name impl.Impl.props.Impl.attrs |> default "" in

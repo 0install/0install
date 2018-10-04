@@ -4,6 +4,7 @@
 
 (** OS and CPU types. *)
 
+open Support
 open Support.Common
 
 type os
@@ -58,5 +59,5 @@ val platform : system -> os * machine
 val linux : os
 val x86_64 : machine
 
-val custom_os_ranking : int StringMap.t -> os_ranking
-val custom_machine_ranking : int StringMap.t -> machine_ranking
+val custom_os_ranking : int XString.Map.t -> os_ranking
+val custom_machine_ranking : int XString.Map.t -> machine_ranking

@@ -75,32 +75,6 @@ let makedirs (system:#filesystem) path mode =
   try loop path
   with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... creating directory %s" path
 
-let starts_with str prefix =
-  let ls = String.length str in
-  let lp = String.length prefix in
-  if lp > ls then false else
-    let rec loop i =
-      if i = lp then true
-      else if str.[i] <> prefix.[i] then false
-      else loop (i + 1)
-    in loop 0
-
-let ends_with str prefix =
-  let ls = String.length str in
-  let lp = String.length prefix in
-  if lp > ls then false else
-    let offset = ls - lp in
-    let rec loop i =
-      if i = lp then true
-      else if str.[i + offset] <> prefix.[i] then false
-      else loop (i + 1)
-    in loop 0
-
-let string_tail s i =
-  let len = String.length s in
-  if i > len then failwith ("String '" ^ s ^ "' too short to split at " ^ (string_of_int i))
-  else String.sub s i (len - i)
-
 let path_is_absolute path = not (Filename.is_relative path)
 
 (** Find the next "/" in [path]. On Windows, also accept "\\".
@@ -114,7 +88,7 @@ let split_path_str path =
   let rec find_rest i =
     if i < l then (
       if is_sep path.[i] then find_rest (i + 1)
-      else string_tail path i
+      else XString.tail path i
     ) else (
       ""
     ) in
@@ -181,18 +155,11 @@ let getenv_ex system name =
   | Some value -> value
   | None -> Safe_exn.failf "Environment variable '%s' not set" name
 
-let re_dash = Str.regexp_string "-"
-let re_slash = Str.regexp_string "/"
-let re_space = Str.regexp_string " "
-let re_tab = Str.regexp_string "\t"
 let re_dir_sep = Str.regexp_string Filename.dir_sep
 let re_path_sep = Str.regexp_string path_sep
-let re_colon = Str.regexp_string ":"
-let re_equals = Str.regexp_string "="
-let re_semicolon = Str.regexp_string ";"
 
 let find_in_path (system:system) name =
-  let name = if on_windows && not (ends_with name ".exe") then name ^ ".exe" else name in
+  let name = if on_windows && not (XString.ends_with name ".exe") then name ^ ".exe" else name in
   let check p = if system#file_exists p then Some p else None in
   if String.contains name Filename.dir_sep.[0] then (
     (* e.g. "/bin/sh", "./prog" or "foo/bar" *)
@@ -254,12 +221,6 @@ let check_output ?env ?stderr ?reaper (system:#processes) fn (argv:string list) 
       let cmd = Logging.format_argv_for_logging argv in
       Safe_exn.reraise_with ex "... trying to read output of: %s" cmd
 
-let split_pair re str =
-  match Str.bounded_split_delim re str 2 with
-  | [key; value] -> (key, value)
-  | [_] -> Safe_exn.failf "Not a pair '%s'" str
-  | _ -> assert false
-
 let re_section = Str.regexp "^[ \t]*\\[[ \t]*\\([^]]*\\)[ \t]*\\][ \t]*$"
 let re_key_value = Str.regexp "^[ \t]*\\([^= ]+\\)[ \t]*=[ \t]*\\(.*\\)$"
 
@@ -281,7 +242,7 @@ let parse_ini (system:#filesystem) fn =
   )
 
 let rmtree ~even_if_locked (sys:#filesystem) root =
-  if starts_with (sys#getcwd ^ Filename.dir_sep) (root ^ Filename.dir_sep) then
+  if XString.starts_with (sys#getcwd ^ Filename.dir_sep) (root ^ Filename.dir_sep) then
     log_warning "Removing tree (%s) containing the current directory (%s) - this will not work on Windows" root sys#getcwd;
 
   try
@@ -356,15 +317,15 @@ let realpath (system:#filesystem) path =
       match system#readlink newpath with
       | Some target ->
           (* path + symlink/rest *)
-          begin match StringMap.find newpath seen with
+          begin match XString.Map.find newpath seen with
           | Some (Some cached_path) -> join_realpath cached_path rest seen
           | Some None -> (normpath (newpath +/ rest), false)    (* Loop; give up *)
           | None ->
               (* path + symlink/rest -> realpath(path + target) + rest *)
-              match join_realpath path target (StringMap.add newpath None seen) with
+              match join_realpath path target (XString.Map.add newpath None seen) with
               | path, false ->
                   (normpath (path +/ rest), false)   (* Loop; give up *)
-              | path, true -> join_realpath path rest (StringMap.add newpath (Some path) seen)
+              | path, true -> join_realpath path rest (XString.Map.add newpath (Some path) seen)
           end
       | None ->
           (* path + name/rest -> path/name + rest (name is not a symlink) *)
@@ -396,7 +357,7 @@ let realpath (system:#filesystem) path =
     if on_windows then
       abspath system path
     else (
-      fst @@ join_realpath system#getcwd path StringMap.empty
+      fst @@ join_realpath system#getcwd path XString.Map.empty
     )
   with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... in realpath(%s)" path
 
@@ -461,10 +422,6 @@ let read_file (system:#filesystem) path =
       );
       Bytes.unsafe_to_string buf
 
-let safe_int_of_string s =
-  try int_of_string s
-  with Failure msg -> Safe_exn.failf "Invalid integer '%s' (%s)" s msg
-
 let make_tmp_dir system ?(prefix="tmp-") ?(mode=0o700) parent =
   let rec mktmp = function
     | 0 -> Safe_exn.failf "Failed to generate temporary directroy name!"
@@ -516,7 +473,7 @@ let stream_of_lines data =
         let nl =
           try String.index_from data !i '\n'
           with Not_found ->
-            Safe_exn.failf "Extra data at end (no endline): %s" (String.escaped @@ string_tail data !i) in
+            Safe_exn.failf "Extra data at end (no endline): %s" (String.escaped @@ XString.tail data !i) in
         let line = String.sub data !i (nl - !i) in
         i := nl + 1;
         Some line

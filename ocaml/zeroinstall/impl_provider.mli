@@ -4,7 +4,7 @@
 
 (** Provides implementation candidates to the solver. *)
 
-open Support.Common
+open Support
 
 (** Why we rejected an implementation *)
 type rejection_reason
@@ -32,7 +32,7 @@ class type impl_provider =
     (** Should the solver consider this dependency? *)
     method is_dep_needed : Impl.dependency -> bool
 
-    method extra_restrictions : Impl.restriction StringMap.t
+    method extra_restrictions : Impl.restriction XString.Map.t
   end
 
 class default_impl_provider : General.config -> Feed_provider.feed_provider -> Scope_filter.t -> impl_provider

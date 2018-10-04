@@ -101,7 +101,7 @@ let have_source_for feed_provider iface =
       match feed_provider#get_feed url with
       | None -> false
       | Some (feed, _overrides) ->
-          feed.Feed.implementations |> StringMap.exists (fun _id impl -> Impl.is_source impl)
+          feed.Feed.implementations |> XString.Map.exists (fun _id impl -> Impl.is_source impl)
     )
   )
 
@@ -183,8 +183,8 @@ let set_impl_stability config {Feed_url.feed; Feed_url.id} rating =
   let overrides = {
     overrides with F.user_stability =
       match rating with
-      | None -> StringMap.remove id overrides.F.user_stability
-      | Some rating -> StringMap.add id rating overrides.F.user_stability
+      | None -> XString.Map.remove id overrides.F.user_stability
+      | Some rating -> XString.Map.add id rating overrides.F.user_stability
   } in
   F.save_feed_overrides config feed overrides
 

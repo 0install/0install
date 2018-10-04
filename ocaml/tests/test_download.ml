@@ -47,7 +47,7 @@ let remove_cached config selections_path =
   let sels = Zeroinstall.Selections.load_selections config.system selections_path in
   let sel = Zeroinstall.Selections.(get_selected_ex {iface = "http://example.com:8000/Hello.xml"; source = false}) sels in
   let stored = expect @@ get_sel_path config sel in
-  assert (U.starts_with (Filename.basename stored) "sha1");
+  assert (XString.starts_with (Filename.basename stored) "sha1");
   U.rmtree ~even_if_locked:true config.system stored
 
 let fake_gui =
@@ -274,7 +274,7 @@ let suite = "download">::: [
 
     (* Check we imported the interface after trusting the key *)
     let hello = FC.get_cached_feed config (`Remote_feed "http://localhost:8000/Hello") |> Fake_system.expect in
-    assert_equal 1 @@ StringMap.cardinal hello.F.implementations;
+    assert_equal 1 @@ XString.Map.cardinal hello.F.implementations;
 
     (* Shouldn't need to prompt the second time *)
     let out = run_0install fake_system ~stdin:"" ["import"; Test_0install.feed_dir +/ "Hello"] in
@@ -299,7 +299,7 @@ let suite = "download">::: [
     ));
 
     let feed = Fake_system.expect @@ FC.get_cached_feed config (`Remote_feed native_url) in
-    assert_equal 0 @@ StringMap.cardinal feed.F.implementations;
+    assert_equal 0 @@ XString.Map.cardinal feed.F.implementations;
 
     let dpkgdir = Test_0install.feed_dir +/ "dpkg" in
     let old_path = Unix.getenv "PATH" in
@@ -770,7 +770,7 @@ let suite = "download">::: [
 
     (* Check background select - update metadata only *)
     let url = "http://example.com:8000/Hello.xml" in
-    F.save_feed_overrides config (`Remote_feed url) F.({last_checked = None; user_stability = StringMap.empty});
+    F.save_feed_overrides config (`Remote_feed url) F.({last_checked = None; user_stability = XString.Map.empty});
     let rel_path = config_site +/ config_prog +/ "last-check-attempt" +/ Zeroinstall.Escape.pretty url in
     let basedirs = Support.Basedir.get_default_config config.system in
     let last_check_attempt = B.load_first config.system rel_path basedirs.B.cache |> expect in

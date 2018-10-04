@@ -4,6 +4,7 @@
 
 (** The tree of components in the main window. *)
 
+open Support
 open Support.Common
 open Gtk_common
 open Zeroinstall.General
@@ -231,7 +232,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
         | None ->
             let name =
               match master_feed with
-              | `Remote_feed url -> U.string_tail url (String.rindex url '/' + 1)
+              | `Remote_feed url -> XString.tail url (String.rindex url '/' + 1)
               | `Local_feed path -> path in
             (name, "", []) in
 
@@ -254,7 +255,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
       | `Selected (impl, children) ->
           let {Feed_url.id; feed = from_feed} = Impl.get_id impl in
           let overrides = Feed.load_feed_overrides config from_feed in
-          let user_stability = StringMap.find id overrides.Feed.user_stability in
+          let user_stability = XString.Map.find id overrides.Feed.user_stability in
 
           let version = impl.Impl.parsed_version |> Version.to_string in
           let stability_str =

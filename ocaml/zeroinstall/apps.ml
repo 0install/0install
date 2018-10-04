@@ -249,17 +249,17 @@ let get_selections_internal system app_path =
     None
 
 let list_app_names config =
-  let results = ref StringSet.empty in
+  let results = ref XString.Set.empty in
   let system = config.system in
   let scan_dir path =
     let check_app name =
       if Str.string_match re_app_name name 0 then
-        results := StringSet.add name !results in
+        results := XString.Set.add name !results in
     match system#readdir path with
     | Error _ -> ()
     | Ok files -> Array.iter check_app files in
   List.iter scan_dir (Paths.Config.(all_paths apps) config.paths);
-  StringSet.elements !results
+  XString.Set.elements !results
 
 let get_selections_may_update tools app_path =
   let system = tools#config.system in
@@ -313,7 +313,7 @@ let find_bin_dir_in ~warn_about_path config paths =
     | _ ->
       paths |> U.first_match (fun path ->
         let path = U.realpath system path in
-        let starts x = U.starts_with path x in
+        let starts x = XString.starts_with path x in
         if starts "/bin" || starts "/sbin" then None
         else if Paths.Cache.in_user_cache path config.paths then None (* print "Skipping cache: %s" path *)
         else (

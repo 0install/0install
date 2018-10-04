@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open Support
 open Support.Common
 open Gtk_common
 open Zeroinstall.General
@@ -9,13 +10,13 @@ module G = Support.Gpg
 
 let get_keys_by_domain gpg trust_db =
   let domains_of_key = trust_db#get_db in
-  let fingerprints = domains_of_key |> StringMap.map_bindings (fun key _domains -> key) in
+  let fingerprints = domains_of_key |> XString.Map.map_bindings (fun key _domains -> key) in
   G.load_keys gpg fingerprints >|= fun key_info ->
-  let keys_of_domain = ref StringMap.empty in
-  domains_of_key |> StringMap.iter (fun key domains ->
-    domains |> StringSet.iter (fun domain ->
-      let keys = default [] @@ StringMap.find domain !keys_of_domain in
-      keys_of_domain := !keys_of_domain |> StringMap.add domain (key :: keys)
+  let keys_of_domain = ref XString.Map.empty in
+  domains_of_key |> XString.Map.iter (fun key domains ->
+    domains |> XString.Set.iter (fun domain ->
+      let keys = default [] @@ XString.Map.find domain !keys_of_domain in
+      keys_of_domain := !keys_of_domain |> XString.Map.add domain (key :: keys)
     )
   );
   (key_info, !keys_of_domain)
@@ -80,12 +81,12 @@ let freshness_levels = [
 let find_open_rows (view:GTree.view) column =
   let model = view#model in
   match model#get_iter_first with
-  | None -> StringSet.empty
+  | None -> XString.Set.empty
   | Some iter ->
-      let results = ref StringSet.empty in
+      let results = ref XString.Set.empty in
       let rec loop () =
         if model#get_path iter |> view#row_expanded then (
-          results := !results |> StringSet.add (model#get ~row:iter ~column);
+          results := !results |> XString.Set.add (model#get ~row:iter ~column);
         );
         if model#iter_next iter then loop ()
       in
@@ -144,13 +145,13 @@ let add_key_list ~packing gpg trust_db =
 
     model#clear ();
 
-    keys_of_domain |> StringMap.iter (fun domain keys ->
+    keys_of_domain |> XString.Map.iter (fun domain keys ->
       let domain_row = model#append () in
       model#set ~row:domain_row ~column:name domain;
 
       keys |> List.iter (fun key ->
         let key_row = model#append ~parent:domain_row () in
-        let key_name = StringMap.find key key_info |> pipe_some (fun info -> info.G.name) |> default key in
+        let key_name = XString.Map.find key key_info |> pipe_some (fun info -> info.G.name) |> default key in
         model#set ~row:key_row ~column:fingerprint key;
         model#set ~row:key_row ~column:name key_name
       )
@@ -158,7 +159,7 @@ let add_key_list ~packing gpg trust_db =
 
     model#get_iter_first |> if_some (fun iter ->
       let rec loop () =
-        if StringSet.mem (model#get ~row:iter ~column:name) previously_open then
+        if XString.Set.mem (model#get ~row:iter ~column:name) previously_open then
           view#expand_row (model#get_path iter);
         if model#iter_next iter then loop () in
       loop ()

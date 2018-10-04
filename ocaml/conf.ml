@@ -37,7 +37,7 @@ let parse_interval value =
     let l = String.length value in
     if l < 2 then
       Safe_exn.failf "Bad interval '%s' (use e.g. '7d')" value;
-      let value, unt = String.sub value 0 (l - 1), U.string_tail value (l - 1) in
+      let value, unt = String.sub value 0 (l - 1), XString.tail value (l - 1) in
       let value = try float_of_string value with Failure _ -> Safe_exn.failf "Invalid number '%s'" value in
       match unt with
       | "s" -> value

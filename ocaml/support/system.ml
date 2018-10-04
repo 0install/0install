@@ -49,7 +49,7 @@ let dev_null =
 
 (* Maps machine type names used in packages to their Zero Install versions
    (updates to this might require changing the reverse Java mapping) *)
-let canonical_machines = List.fold_left (fun map (k, v) -> StringMap.add k v map) StringMap.empty [
+let canonical_machines = List.fold_left (fun map (k, v) -> XString.Map.add k v map) XString.Map.empty [
   ("all", "*");
   ("any", "*");
   ("noarch", "*");
@@ -64,11 +64,11 @@ let canonical_machines = List.fold_left (fun map (k, v) -> StringMap.add k v map
 
 (** Return the canonical name for this CPU, or [s] if we don't know one. *)
 let canonical_machine s =
-  StringMap.find (String.lowercase_ascii s) canonical_machines |? lazy s
+  XString.Map.find (String.lowercase_ascii s) canonical_machines |? lazy s
 
 let canonical_os = function
   | "SunOS" -> "Solaris"
-  | x when Utils.starts_with x "CYGWIN_NT" -> "Cygwin"
+  | x when XString.starts_with x "CYGWIN_NT" -> "Cygwin"
   | x -> x
 
 module RealSystem (U : UnixType) =

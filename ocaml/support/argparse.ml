@@ -10,7 +10,7 @@ exception Usage_error of int    (* exit code: e.g. 0 for success, 1 for error *)
 
 type raw_option = (string * string list)
 
-let starts_with = Utils.starts_with
+let starts_with = XString.starts_with
 
 class type ['b] option_reader =
   object
@@ -47,15 +47,15 @@ type 'b complete =
   | CompleteLiteral of string     (** This is the single possible completion *)
 
 let make_option_map options_spec =
-  let map = ref StringMap.empty in
+  let map = ref XString.Map.empty in
   let add (names, _nargs, _help, handler) =
     ListLabels.iter names ~f:(fun name ->
-      if StringMap.mem name !map then (
+      if XString.Map.mem name !map then (
         let reader = handler#get_reader in
-        if reader != (StringMap.find_safe name !map)#get_reader then
+        if reader != (XString.Map.find_safe name !map)#get_reader then
           failwith ("Option '" ^ name ^ "' has two different readers")
       ) else (
-        map := StringMap.add name handler !map
+        map := XString.Map.add name handler !map
       )
     ) in
   List.iter add options_spec;
@@ -69,7 +69,7 @@ let read_args ?(cword) (spec : ('a,'b) argparse_spec) input_args =
   let options_map = make_option_map spec.options_spec in
 
   let lookup_option x =
-    StringMap.find x options_map |> pipe_some (fun r -> Some r#get_reader) in
+    XString.Map.find x options_map |> pipe_some (fun r -> Some r#get_reader) in
 
   let allow_options = ref true in
   let stream = Stream.of_list input_args in
@@ -156,7 +156,7 @@ let read_args ?(cword) (spec : ('a,'b) argparse_spec) input_args =
       let carg = if do_completion then Some (-1) else None in
       handle_option opt_stream opt_name ~carg;
       i := !i + 1;
-      if do_completion && !is_valid && not (StringMap.mem opt_name options_map) then
+      if do_completion && !is_valid && not (XString.Map.mem opt_name options_map) then
         is_valid := false;
     done;
     if do_completion then (
@@ -193,7 +193,7 @@ let parse_options valid_options raw_options =
 
   let parse_option = function
     | (name, values) ->
-        match StringMap.find name map with
+        match XString.Map.find name map with
         | None -> Safe_exn.failf "Option '%s' is not valid here" name
         | Some reader ->
             try (name, reader#parse values)

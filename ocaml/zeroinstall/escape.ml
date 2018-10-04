@@ -86,17 +86,17 @@ let escape_interface_uri uri =
     try
       let i = String.index rest '/' in
       let host = String.sub rest 0 i in
-      let path = U.string_tail rest (i + 1) in
+      let path = XString.tail rest (i + 1) in
       [underscore_escape host; underscore_escape path]
     with Not_found ->
       Safe_exn.failf "Invalid URL '%s' (missing third slash)" uri in
 
-  if U.starts_with uri "http://" then
-    "http" :: (handle_rest @@ U.string_tail uri 7)
-  else if U.starts_with uri "https://" then
-    "http" :: (handle_rest @@ U.string_tail uri 8)
+  if XString.starts_with uri "http://" then
+    "http" :: (handle_rest @@ XString.tail uri 7)
+  else if XString.starts_with uri "https://" then
+    "http" :: (handle_rest @@ XString.tail uri 8)
   else (
     if not (U.path_is_absolute uri) then
       Safe_exn.failf "Invalid interface path '%s' (not absolute)" uri;
-    "file" :: [underscore_escape @@U.string_tail uri 1]
+    "file" :: [underscore_escape @@ XString.tail uri 1]
   )

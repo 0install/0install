@@ -23,7 +23,7 @@ let read_chunk ch : J.json option Lwt.t =
   read_line ch >>= function
   | None -> Lwt.return None
   | Some size ->
-      let size = U.safe_int_of_string size in
+      let size = XString.to_int_safe size in
       let buf = Bytes.create size in
       Lwt_io.read_into_exactly ch buf 0 size >>= fun () ->
       let buf = Bytes.unsafe_to_string buf in
@@ -34,7 +34,7 @@ let read_xml_chunk ch =
   read_line ch >>= function
   | None -> Safe_exn.failf "Got end-of-stream while waiting for XML chunk"
   | Some size ->
-      let size = U.safe_int_of_string size in
+      let size = XString.to_int_safe size in
       let buf = Bytes.create size in
       Lwt_io.read_into_exactly ch buf 0 size >|= fun () ->
       let buf = Bytes.unsafe_to_string buf in

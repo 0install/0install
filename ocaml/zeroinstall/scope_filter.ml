@@ -2,14 +2,14 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-open Support.Common
+open Support
 
 type t = {
-  extra_restrictions : Impl.restriction StringMap.t;  (* iface -> test *)
+  extra_restrictions : Impl.restriction XString.Map.t;  (* iface -> test *)
   os_ranks : Arch.os_ranking;
   machine_ranks : Arch.machine_ranking;
   languages : int Support.Locale.LangMap.t;
-  allowed_uses : StringSet.t;                         (* deprecated *)
+  allowed_uses : XString.Set.t;                         (* deprecated *)
   may_compile : bool;
 }
 
@@ -23,7 +23,7 @@ let lang_ok t (lang, _country) =
   Support.Locale.LangMap.mem (lang, None) t.languages
 
 let use_ok t = function
-  | Some use when not (StringSet.mem use t.allowed_uses) -> false
+  | Some use when not (XString.Set.mem use t.allowed_uses) -> false
   | _ -> true
 
 let os_rank t os = Arch.os_rank t.os_ranks os
@@ -34,7 +34,7 @@ let lang_rank t lang =
   try Support.Locale.LangMap.find lang t.languages
   with Not_found -> 0
 
-let user_restriction_for t iface = StringMap.find iface t.extra_restrictions
+let user_restriction_for t iface = XString.Map.find iface t.extra_restrictions
 
 let use_feed t ~want_source feed =
   let machine_ok =

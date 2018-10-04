@@ -84,7 +84,7 @@ let get_digests elem =
 
   let id = Element.id elem in
   let same_as_id =
-    match Str.bounded_split_delim U.re_equals id 2 with
+    match Str.bounded_split_delim XString.re_equals id 2 with
     | ["sha1" | "sha1new" | "sha256" as key; value] ->
         let digest = (key, value) in
         digests := [digest];

@@ -10,7 +10,7 @@ open Support
 open Support.Common
 open Support.Argparse
 
-let starts_with = Support.Utils.starts_with
+let starts_with = XString.starts_with
 
 let i_ x = x
 

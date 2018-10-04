@@ -143,7 +143,7 @@ let import_key system key_data =
 let get_key_details system key_id : string array list Lwt.t =
   (* Note: GnuPG 2 always uses --fixed-list-mode *)
   run_gpg system ["--fixed-list-mode"; "--with-colons"; "--list-keys"; "--"; key_id] >>= fun output ->
-  let parse_line line = Str.split U.re_colon line |> Array.of_list in
+  let parse_line line = Str.split XString.re_colon line |> Array.of_list in
   output |> Str.split re_newline |> List.map parse_line |> Lwt.return
 
 (** Get the first human-readable name from the details. *)
@@ -191,7 +191,7 @@ let make_bad args = BadSig args.(0)
 let make_err args = ErrSig (
   (* GnuPG 2.1.16 sets the higher bits (possibly by mistake).
      See: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=846834 *)
-  match U.safe_int_of_string args.(5) land 0xffff with
+  match XString.to_int_safe args.(5) land 0xffff with
   | 4 -> UnsupportedAlgorithm args.(1)
   | 9 -> UnknownKey args.(0)
   | x -> UnknownSigError x
@@ -200,8 +200,8 @@ let make_err args = ErrSig (
 (** Parse the status output from gpg as a list of signatures. *)
 let sigs_from_gpg_status_output status =
   status |> Str.split re_newline |> U.filter_map (fun line ->
-    if U.starts_with line "[GNUPG:] " then (
-      match U.string_tail line 9 |> Str.split_delim U.re_space with
+    if XString.starts_with line "[GNUPG:] " then (
+      match XString.tail line 9 |> Str.split_delim XString.re_space with
       | [] -> None
       | code :: args ->
           let args = Array.of_list args in
@@ -220,7 +220,7 @@ let sigs_from_gpg_status_output status =
 
 (** Verify the GPG signature at the end of data. *)
 let verify (system:system) xml =
-  if not (U.starts_with xml "<?xml ") then (
+  if not (XString.starts_with xml "<?xml ") then (
     let len = min 120 (String.length xml) in
     let start = String.sub xml 0 len |> String.escaped in
     Safe_exn.failf "This is not a Zero Install feed! It should be an XML document, but it starts:\n%s" start
@@ -277,31 +277,31 @@ type key_info = {
 let load_keys system fingerprints =
   if fingerprints = [] then (
     (* Otherwise GnuPG returns everything... *)
-    Lwt.return StringMap.empty
+    Lwt.return XString.Map.empty
   ) else (
     run_gpg system @@ [
       "--fixed-list-mode"; "--with-colons"; "--list-keys";
       "--with-fingerprint"; "--with-fingerprint"] @ fingerprints
     >>= fun output ->
 
-    let keys = ref StringMap.empty in
+    let keys = ref XString.Map.empty in
 
     fingerprints |> List.iter (fun fpr ->
-      keys := StringMap.add fpr ({name = None}) !keys
+      keys := XString.Map.add fpr ({name = None}) !keys
     );
 
     let current_fpr = ref None in
     let current_uid = ref None in
 
     let maybe_set_name fpr name =
-      if StringMap.mem fpr !keys then
-        keys := StringMap.add fpr {name = Some name} !keys in
+      if XString.Map.mem fpr !keys then
+        keys := XString.Map.add fpr {name = Some name} !keys in
 
     output |> Str.split re_newline |> List.iter (fun line ->
-      if U.starts_with line "pub:" then (
+      if XString.starts_with line "pub:" then (
         current_fpr := None; current_uid := None
-      ) else if U.starts_with line "fpr:" then (
-        let fpr = List.nth (line |> Str.split_delim U.re_colon) 9 in
+      ) else if XString.starts_with line "fpr:" then (
+        let fpr = List.nth (line |> Str.split_delim XString.re_colon) 9 in
         current_fpr := Some fpr;
         match !current_uid with
         | None -> ()
@@ -310,13 +310,13 @@ let load_keys system fingerprints =
              * comes after the uid, not before. Note: we assume the subkey is
              * cross-certified, as recent always ones are. *)
             maybe_set_name fpr uid
-      ) else if U.starts_with line "uid:" then (
+      ) else if XString.starts_with line "uid:" then (
         match !current_fpr with
         | None -> assert false
         | Some fpr ->
             (* Only take primary UID *)
             if !current_uid = None then (
-              let uid = List.nth (line |> Str.split_delim U.re_colon) 9 in
+              let uid = List.nth (line |> Str.split_delim XString.re_colon) 9 in
               maybe_set_name fpr uid;
               current_uid := Some uid
             )

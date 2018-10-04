@@ -61,7 +61,7 @@ and properties = {
   attrs : Support.Qdom.AttrMap.t;
   requires : dependency list;
   bindings : Element.binding_node Element.t list;
-  commands : command Support.Common.StringMap.t;
+  commands : command Support.XString.Map.t;
 }
 and +'a t = {
   qdom : [`Implementation | `Package_impl] Element.t;

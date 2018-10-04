@@ -45,4 +45,4 @@ val get_key_name : t -> fingerprint -> string option Lwt.t
 val verify : t -> string -> (signature list * string) Lwt.t
 
 (** Load a set of keys at once. Returns a map from fingerprints to information. *)
-val load_keys : t -> fingerprint list -> key_info Common.StringMap.t Lwt.t
+val load_keys : t -> fingerprint list -> key_info XString.Map.t Lwt.t

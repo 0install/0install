@@ -158,8 +158,8 @@ let check_no_output fn =
   else assert_failure (Printf.sprintf "Expected no output, but got %S" out)
 
 class fake_system ?(portable_base=true) tmpdir =
-  let extra_files : dentry StringMap.t ref = ref StringMap.empty in
-  let hidden_files = ref StringSet.empty in
+  let extra_files : dentry XString.Map.t ref = ref XString.Map.empty in
+  let hidden_files = ref XString.Set.empty in
   let redirect_writes = ref None in
 
   let read_ok = ref [] in   (* Always allow reading from these directories *)
@@ -171,38 +171,38 @@ class fake_system ?(portable_base=true) tmpdir =
     if Filename.is_relative path then path
     else (
       try
-        match StringMap.find_nf path !extra_files with
+        match XString.Map.find_nf path !extra_files with
         | Dir _ -> path
         | File (_mode, redirect_path) -> redirect_path
       with Not_found ->
-        if not (U.starts_with path "/home") then path
-        else if U.starts_with path src_dir then path
+        if not (XString.starts_with path "/home") then path
+        else if XString.starts_with path src_dir then path
         else (
           if !read_ok |> List.exists (fun dir ->
-            U.starts_with path dir || U.starts_with dir path) then path
+            XString.starts_with path dir || XString.starts_with dir path) then path
           else Safe_exn.failf "Attempt to read from '%s'" path
         )
     ) in
 
   let check_write path =
     match !redirect_writes with
-    | Some (from, target) when U.starts_with path from ->
-        target +/ (U.string_tail path (String.length from))
+    | Some (from, target) when XString.starts_with path from ->
+        target +/ (XString.tail path (String.length from))
     | _ ->
         match tmpdir with
-        | Some dir when U.starts_with path dir -> path
+        | Some dir when XString.starts_with path dir -> path
         | Some dir -> Safe_exn.failf "Attempt to write to %s (not in %s)" path dir
         | None -> Safe_exn.failf "Attempt to write to '%s' (no tmpdir)" path in
 
   (* It's OK to check whether these paths exists. We just say they don't,
      unless they're in extra_files (check there first). *)
   let hidden_subtree path =
-    U.starts_with path "/var/lib" ||
-    U.starts_with path "/var/log" in
+    XString.starts_with path "/var/lib" ||
+    XString.starts_with path "/var/log" in
 
   object (self : #system)
     val now = ref @@ 101. *. days
-    val mutable env = StringMap.empty
+    val mutable env = XString.Map.empty
     val mutable spawn_handler = None
     val mutable allow_spawn_detach = false
     val mutable device_boundary = None    (* Reject renames across here to simulate a mount *)
@@ -224,14 +224,14 @@ class fake_system ?(portable_base=true) tmpdir =
     method mkdir path mode =
       let path = check_write path in
       let parent = Filename.dirname path in
-      if not (real_system#file_exists parent) && StringMap.mem parent !extra_files then
+      if not (real_system#file_exists parent) && XString.Map.mem parent !extra_files then
         U.makedirs real_system parent 0o700;
       real_system#mkdir path mode
 
     method rename source target =
       device_boundary |> if_some (fun device_boundary ->
-        let a_dev = U.starts_with source device_boundary in
-        let b_dev = U.starts_with target device_boundary in
+        let a_dev = XString.starts_with source device_boundary in
+        let b_dev = XString.starts_with target device_boundary in
         if a_dev <> b_dev then
           raise (Unix.Unix_error (Unix.EXDEV, "rename", target))
       );
@@ -241,7 +241,7 @@ class fake_system ?(portable_base=true) tmpdir =
 
     method readdir path =
       try
-        match StringMap.find_nf path !extra_files with
+        match XString.Map.find_nf path !extra_files with
         | Dir (_mode, items) -> Ok (Array.of_list items)
         | _ -> failwith "Not a directory"
       with Not_found -> real_system#readdir (check_read path)
@@ -249,7 +249,7 @@ class fake_system ?(portable_base=true) tmpdir =
     method symlink ~target ~newlink = real_system#symlink ~target ~newlink:(check_write newlink)
 
     method readlink path =
-      if StringMap.mem path !extra_files then None    (* Not a link *)
+      if XString.Map.mem path !extra_files then None    (* Not a link *)
       else real_system#readlink (check_read path)
 
     method chmod path mode = real_system#chmod (check_write path) mode
@@ -257,18 +257,18 @@ class fake_system ?(portable_base=true) tmpdir =
     method file_exists path =
       if path = "/usr/bin/0install" then true
       else if path = "C:\\Windows\\system32\\0install.exe" then true
-      else if StringMap.mem path !extra_files then true
-      else if StringSet.mem path !hidden_files then (log_info "hide %s" path; false)
+      else if XString.Map.mem path !extra_files then true
+      else if XString.Set.mem path !hidden_files then (log_info "hide %s" path; false)
       else if tmpdir = None then false
       else if hidden_subtree path then false
       else real_system#file_exists (check_read path)
 
     method lstat path =
-      if StringSet.mem path !hidden_files then None
+      if XString.Set.mem path !hidden_files then None
       else (
         try
           let open Unix in
-          match StringMap.find_nf path !extra_files with
+          match XString.Map.find_nf path !extra_files with
           | Dir (mode, _items) -> Some (make_stat mode S_DIR)
           | File (_mode, target) -> real_system#lstat target
         with Not_found ->
@@ -277,11 +277,11 @@ class fake_system ?(portable_base=true) tmpdir =
       )
 
     method stat path =
-      if StringSet.mem path !hidden_files then None
+      if XString.Set.mem path !hidden_files then None
       else (
         try
           let open Unix in
-          match StringMap.find_nf path !extra_files with
+          match XString.Map.find_nf path !extra_files with
           | Dir (mode, _items) -> Some (make_stat mode S_DIR)
           | File (_mode, target) -> real_system#stat target
         with Not_found ->
@@ -336,15 +336,15 @@ class fake_system ?(portable_base=true) tmpdir =
 
     method environment =
       let to_str (name, value) = name ^ "=" ^ value in
-      Array.of_list (List.map to_str @@ StringMap.bindings env)
+      Array.of_list (List.map to_str @@ XString.Map.bindings env)
 
-    method getenv name = StringMap.find name env
+    method getenv name = XString.Map.find name env
 
     method putenv name value =
-      env <- StringMap.add name value env
+      env <- XString.Map.add name value env
 
     method unsetenv name =
-      env <- StringMap.remove name env
+      env <- XString.Map.remove name env
 
     method platform =
       let open Platform in {
@@ -354,15 +354,15 @@ class fake_system ?(portable_base=true) tmpdir =
       }
 
     method add_file path redirect_target =
-      extra_files := StringMap.add path (File (0o644, redirect_target)) !extra_files;
+      extra_files := XString.Map.add path (File (0o644, redirect_target)) !extra_files;
       let rec add_parent path =
         let parent = Filename.dirname path in
         if (parent <> path) then (
           let leaf = Filename.basename path in
           let () =
             try
-              match StringMap.find_nf parent !extra_files with
-              | Dir (mode, items) -> extra_files := StringMap.add parent (Dir (mode, leaf :: items)) !extra_files
+              match XString.Map.find_nf parent !extra_files with
+              | Dir (mode, items) -> extra_files := XString.Map.add parent (Dir (mode, leaf :: items)) !extra_files
               | _ -> failwith parent
             with Not_found ->
               self#add_dir parent [leaf] in
@@ -375,15 +375,15 @@ class fake_system ?(portable_base=true) tmpdir =
       redirect_writes := Some (src ^ Filename.dir_sep, target ^ Filename.dir_sep)
 
     method add_dir path items =
-      extra_files := StringMap.add path (Dir (0o755, items)) !extra_files;
+      extra_files := XString.Map.add path (Dir (0o755, items)) !extra_files;
       let add_file leaf =
         let full = path +/ leaf in
-        if not (StringMap.mem full !extra_files) then
+        if not (XString.Map.mem full !extra_files) then
           self#add_file full "" in
       List.iter add_file items
 
     method hide_path path =
-      hidden_files := StringSet.add path !hidden_files
+      hidden_files := XString.Set.add path !hidden_files
 
     method running_as_root = false
 

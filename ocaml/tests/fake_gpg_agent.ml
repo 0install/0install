@@ -2,6 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
+open Support
 open Support.Common
 module U = Support.Utils
 
@@ -18,9 +19,9 @@ let handle_connection client =
     Lwt_io.read_line from_client >>= fun got ->
     log_info "[fake-gpg-agent]: got '%s'" got;
     let resp =
-      if U.starts_with got "HAVEKEY" then
+      if XString.starts_with got "HAVEKEY" then
         "ERR 67108881 No secret key <GPG Agent>\n"
-      else if U.starts_with got "AGENT_ID" then
+      else if XString.starts_with got "AGENT_ID" then
         "ERR 67109139 Unknown IPC command <GPG Agent>\n"
       else "OK\n" in
     write client resp >>= fun () ->
@@ -37,7 +38,7 @@ let get_socket_dir gpg_dir =
   U.finally_do close_in ch @@ fun ch ->
   let rec aux () =
     let line = input_line ch in
-    match Str.bounded_split_delim U.re_colon line 2 with
+    match Str.bounded_split_delim XString.re_colon line 2 with
     | ["socketdir"; value] -> value
     | _ -> aux ()
   in

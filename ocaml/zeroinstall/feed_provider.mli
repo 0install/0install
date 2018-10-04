@@ -4,10 +4,10 @@
 
 (** Provides feeds to the solver. *)
 
-open Support.Common
+open Support
 
 type distro_impls = {
-  impls : Impl.distro_implementation StringMap.t;
+  impls : Impl.distro_implementation XString.Map.t;
   overrides : Feed.feed_overrides;
   problems : string list;
 }

@@ -9,8 +9,6 @@ open Support
 open Support.Common
 open General
 
-module U = Support.Utils
-
 type package_name = string
 type entry = Version.t * Arch.machine option
 
@@ -25,8 +23,8 @@ type cache_data = {
 }
 
 let re_invalid = Str.regexp ".*[\t\n]"
-let re_metadata_sep = U.re_equals
-let re_key_value_sep = U.re_tab
+let re_metadata_sep = XString.re_equals
+let re_key_value_sep = XString.re_tab
 
 let validate_key k =
   assert (not (Str.string_match re_invalid k 0))
@@ -48,21 +46,21 @@ let load_cache config data =
           | "" -> `End_of_headers
           | line ->
               (* log_info "Cache header: %s" line; *)
-              begin match U.split_pair re_metadata_sep line with
+              begin match XString.split_pair_safe re_metadata_sep line with
               | ("mtime", mtime) -> data.mtime <- Int64.of_string mtime
-              | ("size", size) -> data.size <- U.safe_int_of_string size
+              | ("size", size) -> data.size <- XString.to_int_safe size
               | _ -> () end;
               read_headers () in
         let `End_of_headers = read_headers () in
         try
           while true do
             let line = input_line ch in
-            let key, value = U.split_pair re_key_value_sep line in
+            let key, value = XString.split_pair_safe re_key_value_sep line in
             let prev = try Hashtbl.find data.content key with Not_found -> [] in
             if value = "-" then (
               Hashtbl.replace data.content key prev    (* Ensure empty list is in the table *)
             ) else (
-              let version, machine = U.split_pair U.re_tab value in
+              let version, machine = XString.(split_pair_safe re_tab) value in
               Hashtbl.replace data.content key @@ (Version.parse version, Arch.parse_machine machine) :: prev
             )
           done

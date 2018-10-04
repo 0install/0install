@@ -76,5 +76,5 @@ module Cache = struct
 
   let in_user_cache path t =
     let cache_home = List.hd t.dirs.Support.Basedir.cache in
-    Support.Utils.starts_with path (Filename.concat cache_home "")
+    Support.XString.starts_with path (Filename.concat cache_home "")
 end

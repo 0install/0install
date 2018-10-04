@@ -80,11 +80,11 @@ let make_ui config connection use_gui : Zeroinstall.Ui.ui_handler =
       | None -> make_no_gui connection
 
 let parse_restrictions = function
-  | `Null -> StringMap.empty
+  | `Null -> XString.Map.empty
   | `Assoc items ->
       items |> List.fold_left (fun map (iface, expr) ->
-        StringMap.add iface (J.Util.to_string expr) map
-      ) StringMap.empty
+        XString.Map.add iface (J.Util.to_string expr) map
+      ) XString.Map.empty
   | json -> raise (J.Util.Type_error ("Not a map", json))
 
 let parse_requirements json_assoc =

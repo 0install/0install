@@ -31,7 +31,7 @@ let discover_existing_apps config =
       | Error ex -> log_warning ~ex "Failed to scan directory '%s'" apps_dir
       | Ok items ->
           items |> Array.iter (fun desktop_file ->
-            if U.starts_with desktop_file "zeroinstall-" && U.ends_with desktop_file ".desktop" then (
+            if XString.starts_with desktop_file "zeroinstall-" && XString.ends_with desktop_file ".desktop" then (
               let full = apps_dir +/ desktop_file in
               try
                 full |> system#with_open_in [Open_rdonly] (fun ch ->
@@ -74,7 +74,7 @@ let show_help config sel =
   let id = Element.id sel in
 
   let path =
-    if U.starts_with id "package:" then (
+    if XString.starts_with id "package:" then (
       match help_dir with
       | None -> Safe_exn.failf "No doc-dir specified for package implementation"
       | Some help_dir ->

@@ -317,7 +317,7 @@ let show_log_on_failure fn () =
     (* Gc.full_major (); *)
     !async_exception |> if_some (fun ex -> raise ex)
   with ex ->
-    if U.starts_with (Printexc.to_string ex) "OUnitTest.Skip" then ()
+    if XString.starts_with (Printexc.to_string ex) "OUnitTest.Skip" then ()
     else (
       Fake_system.fake_log#dump;
       log_warning ~ex "Test failed";  (* Useful if you want a stack-trace *)

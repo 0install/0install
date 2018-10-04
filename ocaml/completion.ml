@@ -5,16 +5,15 @@
 (** Tab-completion for command-line arguments *)
 
 open Zeroinstall.General
-open Support.Common
+open Support
 open Support.Argparse
 open Options
 module Apps = Zeroinstall.Apps
 module Impl = Zeroinstall.Impl
 module Feed = Zeroinstall.Feed
 module Feed_cache = Zeroinstall.Feed_cache
-module U = Support.Utils
 
-let starts_with = Support.Utils.starts_with
+let starts_with = XString.starts_with
 let slice = Support.Utils.slice
 
 type ctype = Add | Prefix
@@ -71,17 +70,17 @@ class virtual completer ~print_endline command config =
         if Str.string_match re_start prefix 0 then (
           let add_if_matches uri =
             if starts_with uri prefix then self#add Add uri in
-          StringSet.iter add_if_matches (list_all_interfaces config)
+          XString.Set.iter add_if_matches (list_all_interfaces config)
         ) else (
           (* Start with just the domains *)
           let add_matching_domain uri s =
             if starts_with uri prefix && Str.string_match re_start uri 0 then
-              StringSet.add (Str.matched_group 1 uri) s
+              XString.Set.add (Str.matched_group 1 uri) s
             else
               s
           in
-          let domains = StringSet.fold add_matching_domain (list_all_interfaces config) StringSet.empty in
-          List.iter (self#add Prefix) (StringSet.elements domains)
+          let domains = XString.Set.fold add_matching_domain (list_all_interfaces config) XString.Set.empty in
+          List.iter (self#add Prefix) (XString.Set.elements domains)
         )
       );
       let re_scheme_sep = Str.regexp "https?://" in
@@ -91,14 +90,14 @@ class virtual completer ~print_endline command config =
 
 (* 0install <Tab> *)
 let complete_command (completer:completer) raw_options prefix group =
-  let add s (name, _values) = StringSet.add name s in
-  let options_used = List.fold_left add StringSet.empty raw_options in
+  let add s (name, _values) = XString.Set.add name s in
+  let options_used = List.fold_left add XString.Set.empty raw_options in
 
   let commands = group |> List.filter (fun (full, _) ->
-    if prefix = "" then not (U.starts_with full "_")
+    if prefix = "" then not (XString.starts_with full "_")
     else starts_with full prefix
   ) in
-  let compatible_with_command (_name, subcommand) = StringSet.subset options_used (Command_tree.set_of_option_names subcommand) in
+  let compatible_with_command (_name, subcommand) = XString.Set.subset options_used (Command_tree.set_of_option_names subcommand) in
   let valid_commands = List.filter compatible_with_command commands in
 
   let complete_commands = if List.length valid_commands = 0 then commands else valid_commands in
@@ -135,7 +134,7 @@ let complete_interfaces_with_feeds config completer pre =
       if iface_config.Feed_cache.extra_feeds <> [] then
         completer#add Add uri
     ) in
-  StringSet.iter check_iface (list_all_interfaces config)
+  XString.Set.iter check_iface (list_all_interfaces config)
 
 (* 0install remove-feed iface <Tab> *)
 let complete_extra_feed config completer iface pre =
@@ -226,7 +225,7 @@ class bash_completer ~print_endline command config =
         let colon_index = String.rindex current ':' in
         let ignored = (String.sub current 0 colon_index) ^ ":" in
         if starts_with value ignored then
-          use @@ Support.Utils.string_tail value (colon_index + 1)
+          use @@ XString.tail value (colon_index + 1)
         else
           ()
       with Not_found -> use value
@@ -243,7 +242,7 @@ class fish_completer ~print_endline command config =
       let cword = self#get_cword in
       let current = if cword < List.length args then List.nth args cword else "" in
       if starts_with current "--" then
-        match Str.bounded_split_delim U.re_equals current 2 with
+        match Str.bounded_split_delim XString.re_equals current 2 with
         | [name; _value] as pair ->
             response_prefix <- (name ^ "=");
             (cword + 1, (slice args ~start:0 ~stop:cword) @ pair @ (slice args ~start:cword))
@@ -335,15 +334,15 @@ let complete_option_value (completer:completer) args (_, handler, values, carg) 
 (** Filter the options to include only those compatible with the subcommand. *)
 let get_possible_options args node =
   let _, node, _ = Command_tree.lookup node args in
-  Command_tree.set_of_option_names node |> StringSet.elements
+  Command_tree.set_of_option_names node |> XString.Set.elements
 
 let handle_complete ~stdout config = function
   | (shell :: prog :: raw_args) -> (
       let command =
         let prog = Filename.basename prog in
-        if Support.Utils.starts_with prog "0launch" then `Launch
-        else if Support.Utils.starts_with prog "0store" then `Store
-        else if Support.Utils.starts_with prog "0desktop" then `Desktop
+        if starts_with prog "0launch" then `Launch
+        else if starts_with prog "0store" then `Store
+        else if starts_with prog "0desktop" then `Desktop
         else `Install in
       let print_endline s = Format.fprintf stdout "%s@." s in
       let completer = match shell with
