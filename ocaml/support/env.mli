@@ -4,15 +4,15 @@
 
 (** Environment variables (generic support code) *)
 
-open Support.Common
-
 type t
 
+type name = string
+
 val empty : t
-val put : varname -> string -> t -> t
-val get : varname -> t -> string option
-val get_exn : varname -> t -> string
-val unset : varname -> t -> t
+val put : name -> string -> t -> t
+val get : name -> t -> string option
+val get_exn : name -> t -> string
+val unset : name -> t -> t
 
 val of_array : string array -> t
 val to_array : t -> string array

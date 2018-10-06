@@ -5,7 +5,6 @@
 (** Common types and functions. This module is intended to be opened. *)
 
 type filepath = string
-type varname = string
 
 (** Raise this to exit the program. Allows finally blocks to run. *)
 exception System_exit of int
@@ -64,7 +63,7 @@ class type processes =
 
 class type environment =
   object
-    method getenv : varname -> string option
+    method getenv : Env.name -> string option
     method environment : string array
   end
 

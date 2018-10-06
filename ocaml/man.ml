@@ -9,7 +9,6 @@ open Support
 open Support.Common
 open Zeroinstall.General
 module U = Support.Utils
-module Env = Zeroinstall.Env
 
 (** Exec the man command. Never returns. *)
 let exec_man config ?env args =

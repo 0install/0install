@@ -4,6 +4,7 @@
 
 (** Binding elements: <environment>, <executable-in-*>, <binding> *)
 
+open Support
 open Support.Common
 
 type which_end = Prepend | Append
@@ -18,7 +19,7 @@ type env_source =
   | Value of string
 
 type exec_type = InPath | InVar
-type env_binding = {var_name: varname; mode: mode; source: env_source}
+type env_binding = {var_name: Env.name; mode: mode; source: env_source}
 type exec_binding = {exec_type: exec_type; name: string; command: string}
 
 type binding =

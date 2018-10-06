@@ -4,6 +4,7 @@
 
 (** <command> elements *)
 
+open Support
 open Support.Common
 
 (** [build_command sels reqs env] is the argv for the command to run to execute [sels] as requested by [reqs].
