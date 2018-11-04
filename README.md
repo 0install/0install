@@ -45,9 +45,10 @@ INSTALLATION
 0install is written in OCaml. You will need the OCaml build tools and some
 OCaml libraries to compile 0install.
 
-The easiest way to get the dependencies is using [OPAM](http://opam.ocamlpro.com/):
+The easiest way to get the dependencies is using [OPAM](http://opam.ocamlpro.com/).
+You will need opam version 2 or later.
 
-    $ opam sw 4.04.0
+    $ opam switch create 4.07.0
     $ eval `opam config env`
     $ opam install cppo yojson xmlm ounit lwt_react ocurl obus lablgtk lwt_glib sha cppo_ocamlbuild
 
