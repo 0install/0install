@@ -203,7 +203,7 @@ let suite = "driver">::: [
         method download_impls = failwith "download_impls"
 
         method get_feed = function
-          | "http://example.com/prog.xml" -> `File (Fake_system.tests_dir +/ "prog.xml")
+          | "http://example.com/prog.xml" -> `File (Fake_system.test_data "prog.xml")
           | url -> failwith url
       end in
     let get_distro_candidates = function
@@ -234,7 +234,7 @@ let suite = "driver">::: [
 
   "noNeedDl">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
-    let foo_path = Test_0install.feed_dir +/ "Foo.xml" in
+    let foo_path = Fake_system.test_data "Foo.xml" in
     let reqs = Requirements.({(run foo_path) with command = None}) in
     let tools = Fake_system.make_tools config in
     match Fake_system.null_ui#run_solver tools `Select_for_run reqs ~refresh:false |> Lwt_main.run with
@@ -246,7 +246,7 @@ let suite = "driver">::: [
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let config = {config with network_use = Full_network} in
     let import name =
-      U.copy_file config.system (Test_0install.feed_dir +/ name) (cache_path_for config @@ `Remote_feed ("http://foo/" ^ name)) 0o644 in
+      U.copy_file config.system (Fake_system.test_data name) (cache_path_for config @@ `Remote_feed ("http://foo/" ^ name)) 0o644 in
     import "Binary.xml";
     let distro =
       Distro.of_provider @@ object (_ : Distro.provider)
@@ -284,6 +284,6 @@ let suite = "driver">::: [
   );
 
   "driven">:::
-    let root = Support.Qdom.parse_file Fake_system.real_system "tests/driven.xml" in
+    let root = Support.Qdom.parse_file Fake_system.real_system (Fake_system.test_data "driven.xml") in
     List.map make_driver_test root.Support.Qdom.child_nodes
 ]

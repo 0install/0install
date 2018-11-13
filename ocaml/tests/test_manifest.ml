@@ -121,7 +121,7 @@ let suite = "manifest">::: [
     system#mkdir mydir 0o700;
 
     let mime_type = "application/x-compressed-tar" in
-    A.unpack_over config ~archive:(Test_0install.feed_dir +/ "unicode.tar.gz") ~tmpdir:home ~destdir:mydir ~mime_type |> Lwt_main.run;
+    A.unpack_over config ~archive:(Fake_system.test_data "unicode.tar.gz") ~tmpdir:home ~destdir:mydir ~mime_type |> Lwt_main.run;
     assert_str_equal
       "D /unicode\n\
        D /unicode/test-unic\xcc\xa7\xc3\xb8\xc3\xb0e\xcc\x88\n\

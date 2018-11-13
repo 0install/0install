@@ -122,12 +122,12 @@ let start_server system =
         | `ServeFile relpath ->
             send_response to_client 200 >>= fun () ->
             end_headers to_client >>= fun () ->
-            let data = U.read_file system (Test_0install.feed_dir +/ relpath) in
+            let data = U.read_file system (Fake_system.test_data relpath) in
             send_body to_client data;
         | `Serve ->
             send_response to_client 200 >>= fun () ->
             end_headers to_client >>= fun () ->
-            let data = U.read_file system (Test_0install.feed_dir +/ leaf) in
+            let data = U.read_file system (Fake_system.test_data leaf) in
             send_body to_client data;
         | `Chunked ->
             send_response to_client 200 >>= fun () ->

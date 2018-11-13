@@ -62,7 +62,7 @@ let suite =
       | None -> skip_if true "No dbus-daemon"; assert false
       | Some path -> path in
 
-    let dbus_config = Fake_system.tests_dir +/ "dbus.conf" in
+    let dbus_config = Fake_system.test_data "dbus.conf" in
     let addr = "unix:tmpdir=" ^ Fake_system.temp_dir_name in
     let dbus_args = [daemon_prog; "--nofork"; "--print-address"; "--address=" ^ addr; "--config-file"; dbus_config] in
     let r, w = Unix.pipe () in

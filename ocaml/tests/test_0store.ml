@@ -101,8 +101,8 @@ let suite = "0store">::: [
     skip_if on_windows "Pathnames cause trouble for tar on Windows";
     let digest = "sha1new=290eb133e146635fe37713fd58174324a16d595f" in
     check_adds config digest (fun () ->
-      assert_str_equal "" @@ Test_0install.run_0install fake_system ["store"; "add"; digest; Test_0install.feed_dir +/ "HelloWorld.tgz"];
-      assert_str_equal "" @@ Test_0install.run_0install fake_system ["store"; "add"; digest; Test_0install.feed_dir +/ "HelloWorld.tgz"];
+      assert_str_equal "" @@ Test_0install.run_0install fake_system ["store"; "add"; digest; Fake_system.test_data "HelloWorld.tgz"];
+      assert_str_equal "" @@ Test_0install.run_0install fake_system ["store"; "add"; digest; Fake_system.test_data "HelloWorld.tgz"];
     );
     Fake_system.fake_log#assert_contains "Target directory already exists in cache"
   );
@@ -111,7 +111,7 @@ let suite = "0store">::: [
     skip_if on_windows "Pathnames cause trouble for tar on Windows";
     let digest = "sha1new=491678c37f77fadafbaae66b13d48d237773a68f" in
     check_adds config digest (fun () ->
-      assert_str_equal "" @@ Test_0install.run_0install fake_system ["store"; "add"; digest; Test_0install.feed_dir +/ "HelloWorld.tgz"; "HelloWorld"];
+      assert_str_equal "" @@ Test_0install.run_0install fake_system ["store"; "add"; digest; Fake_system.test_data "HelloWorld.tgz"; "HelloWorld"];
     )
   );
 

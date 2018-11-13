@@ -37,7 +37,7 @@ let suite = "selections">::: [
   "selections">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     let import name =
       let url = `Remote_feed ("http://foo/" ^ name) in
-      U.copy_file config.system (Test_0install.feed_dir +/ name) (Test_driver.cache_path_for config url) 0o644;
+      U.copy_file config.system (Fake_system.test_data name) (Test_driver.cache_path_for config url) 0o644;
       Zeroinstall.Feed.update_last_checked_time config url in
     import "Source.xml";
     import "Compiler.xml";
@@ -127,7 +127,7 @@ let suite = "selections">::: [
   );
 
   "local-path">:: Fake_system.with_fake_config (fun (config, fake_system) ->
-    let iface = Test_0install.feed_dir +/ "Local.xml" in
+    let iface = Fake_system.test_data "Local.xml" in
 
     let index = get_sels config fake_system iface in
     let sel = Selections.get_selected_ex (binary iface) index in
@@ -137,7 +137,7 @@ let suite = "selections">::: [
           assert (fake_system#file_exists local_path);
       | _ -> assert false in
 
-    let iface = Test_0install.feed_dir +/ "Local2.xml" in
+    let iface = Fake_system.test_data "Local2.xml" in
     (* Add a newer implementation and try again *)
     let sels = get_sels config fake_system iface in
     let sel = Selections.get_selected_ex (binary iface) sels in
@@ -153,7 +153,7 @@ let suite = "selections">::: [
   );
 
   "commands">:: Fake_system.with_fake_config (fun (config, fake_system) ->
-    let iface = Test_0install.feed_dir +/ "Command.xml" in
+    let iface = Fake_system.test_data "Command.xml" in
     let sels = get_sels config fake_system iface in
     let sel = Selections.get_selected_ex (binary iface) sels in
 
@@ -171,8 +171,8 @@ let suite = "selections">::: [
           assert_equal "sha1=256" @@ Element.id dep_impl;
       | _ -> assert false in
 
-    let runexec = Test_0install.feed_dir +/ "runnable" +/ "RunExec.xml" in
-    let runnable = Test_0install.feed_dir +/ "runnable" +/ "Runnable.xml" in
+    let runexec = Fake_system.test_data "runnable" +/ "RunExec.xml" in
+    let runnable = Fake_system.test_data "runnable" +/ "Runnable.xml" in
 
     fake_system#set_argv [| Test_0install.test_0install; "download"; "--offline"; "--xml"; runexec|];
     let output = Fake_system.capture_stdout (fun () ->
@@ -189,7 +189,7 @@ let suite = "selections">::: [
   );
 
   "old-commands">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
-    let command_feed = Test_0install.feed_dir +/ "old-selections.xml" in
+    let command_feed = Fake_system.test_data "old-selections.xml" in
     let sels = Q.parse_file config.system command_feed |> Selections.create in
 
     let user_store = List.hd config.stores in
@@ -207,7 +207,7 @@ let suite = "selections">::: [
   );
 
   "source-sel">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
-    let feed = Test_0install.feed_dir +/ "source-sel.xml" in
+    let feed = Fake_system.test_data "source-sel.xml" in
     let sels = Q.parse_file config.system feed |> Selections.create in
     Format.asprintf "%a@." (Tree.print config) sels |> assert_str_equal
        "- URI: /test/BuildDepSource.xml\

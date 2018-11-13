@@ -160,8 +160,8 @@ let test_option_parsing () =
 let test_run_real tmpdir =
   Unix.putenv "ZEROINSTALL_PORTABLE_BASE" tmpdir;
   let sels_path =
-    if on_windows then "tests\\test_selections_win.xml"
-    else "tests/test_selections.xml" in
+    if on_windows then "tests\\data\\test_selections_win.xml"
+    else "tests/data/test_selections.xml" in
   let argv = [Fake_system.build_dir +/ "0install"; "run"; sels_path] in
   let line = Support.Utils.check_output real_system input_all argv in
   assert_str_equal "Hello World\n" line
@@ -170,8 +170,8 @@ let test_run_real tmpdir =
 let test_run_fake tmpdir =
   let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
   let sels_path = Support.Utils.abspath Fake_system.real_system (
-    if on_windows then "tests\\test_selections_win.xml"
-    else "tests/test_selections.xml"
+    if on_windows then "tests\\data\\test_selections_win.xml"
+    else "tests/data/test_selections.xml"
   ) in
   fake_system#add_file sels_path sels_path;
   try
@@ -280,8 +280,8 @@ let suite =
      try (ignore @@ Generic_select.canonical_iface_uri system arg); assert false
      with Safe_exn.T _ -> () in
    check "http://example.com/foo.xml" "http://example.com/foo.xml";
-   check "alias:./tests/v1-alias" "http://example.com/alias1.xml";
-   check "alias:./tests/v2-alias" "http://example.com/alias2.xml";
+   check "alias:./tests/data/v1-alias" "http://example.com/alias1.xml";
+   check "alias:./tests/data/v2-alias" "http://example.com/alias2.xml";
    check_err "http://example.com";
  );
  "test_locale">:: (fun () ->

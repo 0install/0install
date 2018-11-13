@@ -189,7 +189,7 @@ let make_solver_test test_elem =
         feed_provider#add_iface child
     | Some "import-interface" ->
         let leaf = ZI.get_attribute "from-python" child in
-        let root = Support.Qdom.parse_file system @@ Test_0install.feed_dir +/ leaf in
+        let root = Support.Qdom.parse_file system @@ Fake_system.test_data leaf in
         let fix_path attrs =
           if ZI.get_attribute_opt "uri" root = None then (
             attrs |> Q.AttrMap.add_no_ns "local-path" ("./" ^ leaf)
@@ -440,7 +440,7 @@ let suite = "solver">::: [
           let overrides = {result.Feed_provider.overrides with Feed.user_stability = XString.Map.singleton "package:buggy" Stability.Buggy} in
           {result with Feed_provider.overrides}
       end in
-    feed_provider#add_iface (Support.Qdom.parse_file Fake_system.real_system (Fake_system.tests_dir +/ "ranking.xml"));
+    feed_provider#add_iface (Support.Qdom.parse_file Fake_system.real_system (Fake_system.test_data "ranking.xml"));
     config.network_use <- Minimal_network;
 
     let scope_filter = { linux_multi_scope_filter with Scope_filter.
@@ -504,7 +504,7 @@ let suite = "solver">::: [
 
     let impl_provider = make_impl_provider config linux_multi_scope_filter in
 
-    let iface = Test_0install.feed_dir +/ "Ranking.xml" in
+    let iface = Fake_system.test_data "ranking-cpu.xml" in
 
     let test_solve =
       let impls = (impl_provider#get_implementations iface ~source:false).Impl_provider.impls in
@@ -521,7 +521,7 @@ let suite = "solver">::: [
   "details">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let import name =
-      U.copy_file config.system (Test_0install.feed_dir +/ name) (cache_path_for config @@ "http://foo/" ^ name) 0o644 in
+      U.copy_file config.system (Fake_system.test_data name) (cache_path_for config @@ "http://foo/" ^ name) 0o644 in
     let iface = "http://foo/Binary.xml" in
     import "Binary.xml";
     import "Compiler.xml";
@@ -587,7 +587,7 @@ let suite = "solver">::: [
 
   "command">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
-    let r = Requirements.run (Test_0install.feed_dir +/ "command-dep.xml") in
+    let r = Requirements.run (Fake_system.test_data "command-dep.xml") in
     let distro = Fake_distro.make config in
     let feed_provider = new Feed_provider_impl.feed_provider config distro in
     match Solver.solve_for config (feed_provider :> Feed_provider.feed_provider) r with
@@ -608,7 +608,7 @@ let suite = "solver">::: [
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
 
     let import name =
-      U.copy_file config.system (Test_0install.feed_dir +/ name) (cache_path_for config @@ "http://foo/" ^ name) 0o644 in
+      U.copy_file config.system (Fake_system.test_data name) (cache_path_for config @@ "http://foo/" ^ name) 0o644 in
 
     import "MultiArch.xml";
     import "MultiArchLib.xml";
@@ -647,8 +647,8 @@ let suite = "solver">::: [
 
   "restricts">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
-    let uri = Test_0install.feed_dir +/ "Conflicts.xml" in
-    let versions = Test_0install.feed_dir +/ "Versions.xml" in
+    let uri = Fake_system.test_data "Conflicts.xml" in
+    let versions = Fake_system.test_data "Versions.xml" in
     let r = Requirements.run uri in
 
     (* Selects 0.2 as the highest version, applying the restriction to versions < 4. *)
@@ -688,7 +688,7 @@ let suite = "solver">::: [
       let root_req = { Solver.Model.
         role = {
           Solver.scope = impl_provider;
-          iface = Test_0install.feed_dir +/ "Langs.xml";
+          iface = Fake_system.test_data "Langs.xml";
           source = false
         };
         command = None;
@@ -754,7 +754,7 @@ let suite = "solver">::: [
 
   "solver">:::
     U.handle_exceptions (fun () ->
-      let root = Support.Qdom.parse_file Fake_system.real_system "tests/solves.xml" in
+      let root = Support.Qdom.parse_file Fake_system.real_system (Fake_system.test_data "solves.xml") in
       let root = if on_windows then fixup_for_windows root else root in
       List.map make_solver_test root.Support.Qdom.child_nodes
     ) ()

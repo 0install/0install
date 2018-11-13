@@ -23,7 +23,7 @@ let impl_template = Impl.({
     attrs = Q.AttrMap.empty
       |> Q.AttrMap.add_no_ns "id" "test1"
       |> Q.AttrMap.add_no_ns "version" "1.0"
-      |> Q.AttrMap.add_no_ns "from-feed" (Test_0install.feed_dir +/ "test.xml");
+      |> Q.AttrMap.add_no_ns "from-feed" (Fake_system.test_data "test.xml");
     requires = [];
     bindings = [];
     commands = XString.Map.empty;
@@ -114,7 +114,7 @@ let suite = "fetch">::: [
     Fake_system.assert_raises_safe "Relative URL 'mylib-1.0.zip' in non-local feed 'http://example.com/feed.xml'" @@
       lazy (try_with ~template:remote_impl "<archive href='mylib-1.0.zip' size='100'/>");
 
-    Fake_system.assert_error_contains "tests/mylib-1.0.jar' does not exist"
+    Fake_system.assert_error_contains "data/mylib-1.0.jar' does not exist"
       (fun () -> try_with "<file href='mylib-1.0.jar' dest='lib/mylib.jar' size='100'/>");
 
     Fake_system.assert_error_contains "feed says 100, but actually 321 bytes"
@@ -178,7 +178,7 @@ let suite = "fetch">::: [
     let tools = Fake_system.make_tools config in
     let fetcher = tools#make_fetcher tools#ui#watcher in
 
-    let local_iface = Test_0install.feed_dir +/ "LocalArchive.xml" in
+    let local_iface = Fake_system.test_data "LocalArchive.xml" in
     let root = Q.parse_file config.system local_iface |> Zeroinstall.Element.parse_feed in
     let feed = F.parse config.system root (Some local_iface) in
 
@@ -221,8 +221,8 @@ let suite = "fetch">::: [
     let sels = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None |> Zeroinstall.Selections.create in
     assert (Zeroinstall.Driver.get_unavailable_selections config ~distro:tools#distro sels <> []);
 
-    check ~error:"Local file '.*tests.IDONTEXIST.tgz' does not exist" "impl2";
-    check ~error:"Wrong size for .*.tests.HelloWorld.tgz: feed says 177, but actually 176 bytes" "impl3";
+    check ~error:"Local file '.*data.IDONTEXIST.tgz' does not exist" "impl2";
+    check ~error:"Wrong size for .*.data.HelloWorld.tgz: feed says 177, but actually 176 bytes" "impl3";
     check ~testfile:"HelloWorld" "impl1";
     check ~testfile:"archive.tgz" "impl4";
   );

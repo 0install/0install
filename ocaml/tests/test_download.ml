@@ -69,7 +69,7 @@ let install_interceptor system checked_for_gui =
   Update.notify := (fun ~msg ~timeout:_ -> log_info "NOTIFY: 0install: %s" msg)
 
 let do_recipe config fake_system server ?(expected=[[("HelloWorld.tar.bz2", `Serve)]]) name =
-  let feed = Test_0install.feed_dir +/ name in
+  let feed = Fake_system.test_data name in
   server#expect expected;
   let out = run_0install fake_system ["download"; feed; "--command="; "--xml"] in
   let sels = `String (0, out) |> Xmlm.make_input |> Q.parse_input None |> Zeroinstall.Selections.create in
@@ -148,7 +148,7 @@ let suite = "download">::: [
        ("dummy_1-1_all.deb", `Serve)];
     ];
     Fake_system.assert_raises_safe ".*HelloWorld/Missing' does not exist" (lazy (
-      ignore @@ run_0install fake_system ["run"; Test_0install.feed_dir +/ "Recipe.xml"]
+      ignore @@ run_0install fake_system ["run"; Fake_system.test_data "Recipe.xml"]
     ))
   );
 
@@ -267,7 +267,7 @@ let suite = "download">::: [
 
     let domain = "localhost:8000" in
     assert (not (trust_db#is_trusted ~domain "DE937DD411906ACF7C263B396FCF121BE2390E0B"));
-    let out = run_0install fake_system ~stdin:"Y\n" ~include_stderr:true ["import"; "-v"; Test_0install.feed_dir +/ "Hello"] in
+    let out = run_0install fake_system ~stdin:"Y\n" ~include_stderr:true ["import"; "-v"; Fake_system.test_data "Hello"] in
     assert_contains "Warning: Nothing known about this key!" out;
     Fake_system.fake_log#assert_contains "Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for localhost:8000";
     assert (trust_db#is_trusted ~domain "DE937DD411906ACF7C263B396FCF121BE2390E0B");
@@ -277,7 +277,7 @@ let suite = "download">::: [
     assert_equal 1 @@ XString.Map.cardinal hello.F.implementations;
 
     (* Shouldn't need to prompt the second time *)
-    let out = run_0install fake_system ~stdin:"" ["import"; Test_0install.feed_dir +/ "Hello"] in
+    let out = run_0install fake_system ~stdin:"" ["import"; Fake_system.test_data "Hello"] in
     Fake_system.assert_str_equal "" out;
   );
 
@@ -301,7 +301,7 @@ let suite = "download">::: [
     let feed = Fake_system.expect @@ FC.get_cached_feed config (`Remote_feed native_url) in
     assert_equal 0 @@ XString.Map.cardinal feed.F.implementations;
 
-    let dpkgdir = Test_0install.feed_dir +/ "dpkg" in
+    let dpkgdir = Fake_system.test_data "dpkg" in
     let old_path = Unix.getenv "PATH" in
     Unix.putenv "PATH" (dpkgdir ^ ":" ^ old_path);
     fake_system#putenv "PATH" (dpkgdir ^ ":" ^ old_path);
@@ -431,7 +431,7 @@ let suite = "download">::: [
   );
 
   "selections">:: Server.with_server (fun (config, fake_system) server ->
-    let sels = Zeroinstall.Selections.load_selections config.system (Test_0install.feed_dir +/ "selections.xml") in
+    let sels = Zeroinstall.Selections.load_selections config.system (Fake_system.test_data "selections.xml") in
 
     server#expect [
       [("Hello.xml", `Serve)];
@@ -443,7 +443,7 @@ let suite = "download">::: [
     let sel = Zeroinstall.Selections.get_selected_ex (binary "http://example.com:8000/Hello.xml") sels in
     assert_equal None @@ get_sel_path config sel;
 
-    let out = run_0install fake_system ["download"; Test_0install.feed_dir +/ "selections.xml"] in
+    let out = run_0install fake_system ["download"; Fake_system.test_data "selections.xml"] in
     Fake_system.assert_str_equal "" out;
     Fake_system.fake_log#assert_contains "Automatically approving key for new feed";
 
@@ -696,7 +696,7 @@ let suite = "download">::: [
     let iface = "http://example.com:8000/Hello.xml" in
     let system = config.system in
     let cached = FC.get_save_cache_path config (`Remote_feed iface) in
-    U.copy_file system (Test_0install.feed_dir +/ "Hello-new.xml") cached 0o644;
+    U.copy_file system (Fake_system.test_data "Hello-new.xml") cached 0o644;
 
     let trust_db = new Zeroinstall.Trust.trust_db config in
     let domain = "example.com:8000" in
@@ -728,7 +728,7 @@ let suite = "download">::: [
 
     (* Must finish with the newest version *)
     let actual = U.read_file system cached in
-    let expected = U.read_file system (Test_0install.feed_dir +/ "Hello-new.xml") in
+    let expected = U.read_file system (Fake_system.test_data "Hello-new.xml") in
     assert_equal expected actual
   );
 
@@ -738,7 +738,7 @@ let suite = "download">::: [
     ];
     let tools = Fake_system.make_tools config in
     let feed_provider = new Zeroinstall.Feed_provider_impl.feed_provider config tools#distro in
-    let iface = Test_0install.feed_dir +/ "Binary.xml" in
+    let iface = Fake_system.test_data "Binary.xml" in
     Fake_system.assert_raises_safe "Error downloading 'http://localhost/missing.png': \
                                     The requested URL returned error: 404" (lazy (
       Lwt_main.run @@ Zeroinstall.Gui.download_icon (tools#make_fetcher tools#ui#watcher) feed_provider (`Local_feed iface);
@@ -764,7 +764,7 @@ let suite = "download">::: [
       [("6FCF121BE2390E0B.gpg", `Serve)];
       [("DE937DD411906ACF7C263B396FCF121BE2390E0B", `AcceptKey)];
     ];
-    let out = run_0install fake_system ["select"; Test_0install.feed_dir +/ "selections.xml"] in
+    let out = run_0install fake_system ["select"; Fake_system.test_data "selections.xml"] in
     assert_contains "Version: 1\n" out;
     assert_contains "(not cached)" out;
 
@@ -781,7 +781,7 @@ let suite = "download">::: [
     server#expect [
       [("Hello.xml", `Serve)];
     ];
-    let out = run_0install fake_system ["select"; Test_0install.feed_dir +/ "selections.xml"] in
+    let out = run_0install fake_system ["select"; Fake_system.test_data "selections.xml"] in
     assert_contains "Version: 1\n" out;
     assert_contains "(not cached)" out;
   );

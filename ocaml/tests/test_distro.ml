@@ -83,7 +83,7 @@ let suite = "distro">::: [
     skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
 
     let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
-    fake_system#add_file "/var/lib/pacman/local/python2-2.7.2-4/desc" "../tests/arch/local/python2-2.7.2-4/desc";
+    fake_system#add_file "/var/lib/pacman/local/python2-2.7.2-4/desc" (Fake_system.test_data "arch/local/python2-2.7.2-4/desc");
     fake_system#hide_path "/usr/bin/python2";
     fake_system#hide_path "/usr/bin/python3";
     assert (not @@ fake_system#file_exists "/usr/bin/python2");
@@ -103,7 +103,7 @@ let suite = "distro">::: [
 
   "arch2">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
-    let arch_db = Test_0install.feed_dir +/ "arch" in
+    let arch_db = Fake_system.test_data "arch" in
     let distro = Distro_impls.ArchLinux.arch_distribution ~arch_db ~packagekit config in
 
     distro#get_impls_for_feed ~problem:failwith gimp_feed |> to_impl_list |> assert_equal [];
@@ -117,7 +117,7 @@ let suite = "distro">::: [
 
   "slack">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
-    let slackdir = Test_0install.feed_dir +/ "slack" in
+    let slackdir = Fake_system.test_data "slack" in
     let packages_dir = slackdir +/ "packages" in
     let distro = Distro_impls.Slackware.slack_distribution ~packages_dir ~packagekit config in
 
@@ -133,7 +133,7 @@ let suite = "distro">::: [
 
   "gentoo">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
-    let pkgdir = Test_0install.feed_dir +/ "gentoo" in
+    let pkgdir = Fake_system.test_data "gentoo" in
     let distro = Distro_impls.Gentoo.gentoo_distribution ~pkgdir ~packagekit config in
 
     distro#get_impls_for_feed ~problem:failwith gimp_feed |> to_impl_list |> assert_equal [];
@@ -166,7 +166,7 @@ let suite = "distro">::: [
 
   "ports">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
-    let pkg_db = Test_0install.feed_dir +/ "ports" in
+    let pkg_db = Fake_system.test_data "ports" in
     let distro = Distro_impls.Ports.ports_distribution ~pkg_db ~packagekit config in
 
     begin match distro#get_impls_for_feed ~problem:failwith (make_test_feed "zeroinstall-injector") |> to_impl_list with
@@ -179,7 +179,7 @@ let suite = "distro">::: [
   "mac-ports">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
     fake_system#set_spawn_handler (Some Fake_system.real_spawn_handler);
-    let pkgdir = Test_0install.feed_dir +/ "macports" in
+    let pkgdir = Fake_system.test_data "macports" in
     let old_path = Unix.getenv "PATH" in
     fake_system#putenv "PATH" (pkgdir ^ ":" ^ old_path);
     Unix.putenv "PATH" (pkgdir ^ ":" ^ old_path);
@@ -251,7 +251,7 @@ let suite = "distro">::: [
 
   "rpm">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
-    let rpmdir = Test_0install.feed_dir +/ "rpm" in
+    let rpmdir = Fake_system.test_data "rpm" in
     let old_path = Unix.getenv "PATH" in
     Unix.putenv "PATH" (rpmdir ^ ":" ^ old_path);
 
@@ -320,7 +320,7 @@ let suite = "distro">::: [
 
     assert_equal 0 (XString.Map.cardinal feed.F.implementations);
 
-    let dpkgdir = Test_0install.feed_dir +/ "dpkg" in
+    let dpkgdir = Fake_system.test_data "dpkg" in
     let old_path = Unix.getenv "PATH" in
     Unix.putenv "PATH" (dpkgdir ^ ":" ^ old_path);
     fake_system#putenv "PATH" (dpkgdir ^ ":" ^ old_path);

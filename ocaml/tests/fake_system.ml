@@ -140,7 +140,7 @@ let () =
 
 let ocaml_dir = Sys.getcwd ()
 let src_dir = Filename.dirname ocaml_dir
-let tests_dir = ocaml_dir +/ "tests"
+let test_data x = ocaml_dir +/ "tests" +/ "data" +/ x
 let test_0install = U.realpath real_system (build_dir +/ "0install")
 
 let collect_output fn =

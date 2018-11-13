@@ -24,7 +24,7 @@ let suite = "feed-cache">::: [
 
     let url = `Remote_feed "http://localhost:8000/Hello" in
 
-    fake_system#add_file (cache_path_for config url) (Test_0install.feed_dir +/ "Hello");
+    fake_system#add_file (cache_path_for config url) (Fake_system.test_data "Hello");
 
     let one_second = {config with freshness = Some 1.0} in
     let long = {config with freshness = Some (fake_system#time +. 10.0)} in
@@ -64,7 +64,7 @@ let suite = "feed-cache">::: [
     let download_pool = Zeroinstall.Downloader.make_pool ~max_downloads_per_site:2 in
     let distro = Fake_distro.make config in
     let fetcher = Zeroinstall.Fetch.make config trust_db distro download_pool Fake_system.null_ui in
-    let foo_signed_xml = U.read_file config.system (Fake_system.tests_dir +/ "foo.xml") in
+    let foo_signed_xml = U.read_file config.system (Fake_system.test_data "foo-empty.xml") in
     let gpg = G.make config.system in
 
     (* Unsigned *)
@@ -95,7 +95,7 @@ let suite = "feed-cache">::: [
     assert_equal (Some 1380109390.) last_modified;
 
     (* Updated *)
-    let foo_signed_xml_new = U.read_file config.system (Fake_system.tests_dir +/ "foo-new.xml") in
+    let foo_signed_xml_new = U.read_file config.system (Fake_system.test_data "foo-new.xml") in
 
     let dryrun_fetcher = Zeroinstall.Fetch.make {config with dry_run = true} trust_db distro download_pool Fake_system.null_ui in
     Fake_system.capture_stdout_lwt (fun () ->
@@ -174,7 +174,7 @@ let suite = "feed-cache">::: [
       ("0install.net" +/ "site-packages" +/ "http" +/ "example.com" +/ expected_escape +/ "1.0" +/ "0install")
       basedirs.Basedir.data in
     let feed = meta_dir +/ "feed.xml" in
-    U.copy_file config.system (Test_0install.feed_dir +/ "Local.xml") feed 0o644;
+    U.copy_file config.system (Fake_system.test_data "Local.xml") feed 0o644;
 
     (* Check that we find the feed without us having to register it *)
     let iface = "http://example.com/section/prog_1.xml" in

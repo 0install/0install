@@ -8,12 +8,12 @@ open OUnit
 let assert_str_equal = Fake_system.assert_str_equal
 let assert_contains = Fake_system.assert_contains
 
-let arglist = Test_0install.feed_dir +/ "runnable" +/ "ArgList.xml"
-let runnable = Test_0install.feed_dir +/ "runnable" +/ "Runnable.xml"
-let runexec = Test_0install.feed_dir +/ "runnable" +/ "RunExec.xml"
-let recursive_runner = Test_0install.feed_dir +/ "runnable" +/ "RecursiveRunner.xml"
-let command_feed = Test_0install.feed_dir +/ "Command.xml"
-let package_selections = Test_0install.feed_dir +/ "package-selection.xml"
+let arglist = Fake_system.test_data "runnable" +/ "ArgList.xml"
+let runnable = Fake_system.test_data "runnable" +/ "Runnable.xml"
+let runexec = Fake_system.test_data "runnable" +/ "RunExec.xml"
+let recursive_runner = Fake_system.test_data "runnable" +/ "RecursiveRunner.xml"
+let command_feed = Fake_system.test_data "Command.xml"
+let package_selections = Fake_system.test_data "package-selection.xml"
 
 
 let run_0install (fake_system:Fake_system.fake_system) args =

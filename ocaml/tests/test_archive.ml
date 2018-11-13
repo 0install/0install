@@ -45,7 +45,7 @@ let test_archive config expected ?extract archive =
   let home = config.system#getenv "HOME" |> Fake_system.expect in
   let destdir = home +/ "dest" in
   config.system#mkdir destdir 0o700;
-  A.unpack_over config ~archive:(Test_0install.feed_dir +/ archive) ~tmpdir:home ~destdir:destdir ?extract ~mime_type |> Lwt_main.run;
+  A.unpack_over config ~archive:(Fake_system.test_data archive) ~tmpdir:home ~destdir:destdir ?extract ~mime_type |> Lwt_main.run;
   assert_manifest config.system expected destdir
 
 let suite = "archive">::: [
@@ -65,7 +65,7 @@ let suite = "archive">::: [
 
     let tmpdir = Zeroinstall.Stores.make_tmp_dir config.system config.stores in
     let destdir = U.make_tmp_dir config.system ~prefix:"0store-add-" tmpdir in
-    Lwt_main.run @@ A.unpack_over config ~archive:(Test_0install.feed_dir +/ "HelloWorld.tgz")
+    Lwt_main.run @@ A.unpack_over config ~archive:(Fake_system.test_data "HelloWorld.tgz")
       ~tmpdir ~destdir ~mime_type:"application/x-compressed-tar";
     let digest = ("sha1", "3ce644dc725f1d21cfcf02562c76f375944b266a") in
     Lwt_main.run @@ Stores.check_manifest_and_rename config digest destdir
@@ -76,7 +76,7 @@ let suite = "archive">::: [
     let system = config.system in
     let tmpdir = Zeroinstall.Stores.make_tmp_dir system config.stores in
     let destdir = U.make_tmp_dir system ~prefix:"0store-add-" tmpdir in
-    Lwt_main.run @@ A.unpack_over config ~archive:(Test_0install.feed_dir +/ "HelloWorld.tgz")
+    Lwt_main.run @@ A.unpack_over config ~archive:(Fake_system.test_data "HelloWorld.tgz")
       ~tmpdir ~destdir ~mime_type:"application/x-compressed-tar";
     let digest = ("sha1", "3ce644dc725f1d21cfcf02562c76f375944b266b") in
     Fake_system.assert_raises_safe "Incorrect manifest -- archive is corrupted" (lazy (

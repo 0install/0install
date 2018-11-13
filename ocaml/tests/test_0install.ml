@@ -26,7 +26,6 @@ let assert_error_contains expected fn =
   )
 
 let test_0install = Fake_system.test_0install
-let feed_dir = U.abspath Fake_system.real_system (".." +/ "tests")
 
 exception Ok
 
@@ -117,7 +116,7 @@ let check_man fake_system args expected =
       | x -> x in
     Fake_system.equal_str_lists expected man_args
 
-let generic_archive = U.handle_exceptions (U.read_file Fake_system.real_system) @@ feed_dir +/ "HelloWorld.tgz"
+let generic_archive = U.handle_exceptions (U.read_file Fake_system.real_system) @@ Fake_system.test_data "HelloWorld.tgz"
 
 let selections_of_string ?path s =
   `String (0, s) |> Xmlm.make_input |> Q.parse_input path |> Selections.create
@@ -126,7 +125,7 @@ let suite = "0install">::: [
   "select">:: Fake_system.with_tmpdir (fun tmpdir ->
     let (_config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let system = (fake_system :> system) in
-    fake_system#add_file (tmpdir +/ "cache" +/ "interfaces" +/ "http%3a%2f%2fexample.com%3a8000%2fHello.xml") (feed_dir +/ "Hello.xml");
+    fake_system#add_file (tmpdir +/ "cache" +/ "interfaces" +/ "http%3a%2f%2fexample.com%3a8000%2fHello.xml") (Fake_system.test_data "Hello.xml");
     fake_system#add_dir (tmpdir +/ "cache" +/ "implementations") ["sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"];
     fake_system#add_file "/lib/ld-linux.so.2" "/";    (* Enable multi-arch *)
 
@@ -188,15 +187,15 @@ let suite = "0install">::: [
 
     (* Updating a local feed with no dependencies *)
     let local_file = tmpdir +/ "Local.xml" in
-    U.copy_file system (feed_dir +/ "Local.xml") local_file 0o644;
+    U.copy_file system (Fake_system.test_data "Local.xml") local_file 0o644;
     let out = run ["update"; local_file] in
     assert_contains "No updates found" out;
 
     let fake_slave = new fake_slave config in
     fake_slave#install;
 
-    let binary_feed = Support.Utils.read_file system (feed_dir +/ "Binary.xml") in
-    let test_key = Support.Utils.read_file system (feed_dir +/ "6FCF121BE2390E0B.gpg") in
+    let binary_feed = Support.Utils.read_file system (Fake_system.test_data "Binary.xml") in
+    let test_key = Support.Utils.read_file system (Fake_system.test_data "6FCF121BE2390E0B.gpg") in
 
     (* Using a remote feed for the first time *)
     fake_slave#allow_download "http://example.com/Binary-1.0.tgz" generic_archive;
@@ -212,14 +211,14 @@ let suite = "0install">::: [
     assert_contains "No updates found" out;
 
     (* New binary release available. *)
-    let binary_feed = Support.Utils.read_file system (feed_dir +/ "Binary2.xml") in
+    let binary_feed = Support.Utils.read_file system (Fake_system.test_data "Binary2.xml") in
     fake_slave#allow_download "http://foo/Binary.xml" binary_feed;
     let out = run ["update"; "http://foo/Binary.xml"] in
     assert_contains "Binary.xml: 1.0 -> 1.1" out;
 
     (* Compiling from source for the first time. *)
-    let source_feed = U.read_file system (feed_dir +/ "Source.xml") in
-    let compiler_feed = U.read_file system (feed_dir +/ "Compiler.xml") in
+    let source_feed = U.read_file system (Fake_system.test_data "Source.xml") in
+    let compiler_feed = U.read_file system (Fake_system.test_data "Compiler.xml") in
     fake_slave#allow_download "http://example.com/Source-1.0.tgz" generic_archive;
     fake_slave#allow_download "http://example.com/Compiler-1.0.tgz" generic_archive;
     fake_slave#allow_download "http://foo/Compiler.xml" compiler_feed;
@@ -230,7 +229,7 @@ let suite = "0install">::: [
     assert_contains "Compiler.xml: new -> 1.0" out;
 
     (* New compiler released. *)
-    let new_compiler_feed = U.read_file system (feed_dir +/ "Compiler2.xml") in
+    let new_compiler_feed = U.read_file system (Fake_system.test_data "Compiler2.xml") in
     fake_slave#allow_download "http://foo/Compiler.xml" new_compiler_feed;
     fake_slave#allow_download "http://foo/Binary.xml" binary_feed;
     fake_slave#allow_download "http://foo/Source.xml" source_feed;
@@ -238,7 +237,7 @@ let suite = "0install">::: [
     assert_contains "Compiler.xml: 1.0 -> 1.1" out;
 
     (* A dependency disappears. *)
-    let new_source_feed = U.read_file system (feed_dir +/ "Source-missing-req.xml") in
+    let new_source_feed = U.read_file system (Fake_system.test_data "Source-missing-req.xml") in
     fake_slave#allow_download "http://foo/Compiler.xml" new_compiler_feed;
     fake_slave#allow_download "http://foo/Binary.xml" binary_feed;
     fake_slave#allow_download "http://foo/Source.xml" new_source_feed;
@@ -258,17 +257,17 @@ let suite = "0install">::: [
     assert (XString.starts_with out "Usage:");
     assert_contains "--show" out;
 
-    let out = run ["download"; (feed_dir +/ "Local.xml"); "--show"] in
+    let out = run ["download"; (Fake_system.test_data "Local.xml"); "--show"] in
     assert_contains "Version: 0.1" out;
 
-    let local_uri = U.abspath system (feed_dir +/ "Local.xml") in
+    let local_uri = U.abspath system (Fake_system.test_data "Local.xml") in
     let out = run ["download"; local_uri; "--xml"] in
     let sels = selections_of_string out in
     let sel = Selections.(get_selected_ex {iface = local_uri; source = false}) sels in
     assert_str_equal "0.1" @@ Element.version sel;
 
     let () =
-      try ignore @@ run ["download"; "--offline"; (feed_dir +/ "selections.xml")]; assert false
+      try ignore @@ run ["download"; "--offline"; (Fake_system.test_data "selections.xml")]; assert false
       with Safe_exn.T e ->
         let msg = Safe_exn.msg e in
         assert_contains "Can't download as in offline mode:\nhttp://example.com:8000/Hello.xml 1" msg in
@@ -277,11 +276,11 @@ let suite = "0install">::: [
     fake_slave#install;
     let digest = "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" in
     fake_slave#allow_download "http://example.com:8000/HelloWorld.tgz" generic_archive;
-    let out = run ["download"; (feed_dir +/ "Hello.xml"); "--show"] in
+    let out = run ["download"; (Fake_system.test_data "Hello.xml"); "--show"] in
     assert_contains digest out;
     assert_contains "Version: 1\n" out;
 
-    let out = run ["download"; "--offline"; (feed_dir +/ "selections.xml"); "--show"] in
+    let out = run ["download"; "--offline"; (Fake_system.test_data "selections.xml"); "--show"] in
     assert_contains digest out;
     assert_contains "Version: 1\n" out;
   );
@@ -296,11 +295,11 @@ let suite = "0install">::: [
     fake_slave#install;
     fake_slave#allow_download "http://example.com:8000/HelloWorld.tgz" generic_archive;
 
-    let hello = Support.Utils.read_file system (feed_dir +/ "Hello.xml") in
-    let key = Support.Utils.read_file system (feed_dir +/ "6FCF121BE2390E0B.gpg") in
+    let hello = Support.Utils.read_file system (Fake_system.test_data "Hello.xml") in
+    let key = Support.Utils.read_file system (Fake_system.test_data "6FCF121BE2390E0B.gpg") in
     fake_slave#allow_download "http://example.com:8000/Hello.xml" hello;
     fake_slave#allow_download "http://example.com:8000/6FCF121BE2390E0B.gpg" key;
-    let out = run ["download"; (feed_dir +/ "selections.xml"); "--show"] in
+    let out = run ["download"; (Fake_system.test_data "selections.xml"); "--show"] in
     assert_contains digest out;
     assert_contains "Version: 1\n" out;
     Lwt.return ()
@@ -338,7 +337,7 @@ let suite = "0install">::: [
     let out = run ~exit:1 ["destroy"; "local-app"; "uri"] in
     assert (XString.starts_with out "Usage:");
 
-    let local_feed = feed_dir +/ "Local.xml" in
+    let local_feed = Fake_system.test_data "Local.xml" in
 
     assert_error_contains "Invalid application name 'local:app'" (fun () ->
       run ["add"; "local:app"; local_feed]
@@ -372,7 +371,7 @@ let suite = "0install">::: [
     );
 
     let out = run ["man"; "--dry-run"; "local-app"] in
-    assert_contains "tests/test-echo.1" out;
+    assert_contains "data/test-echo.1" out;
 
     fake_system#putenv "COMP_CWORD" "2";
     let out = run ["_complete"; "bash"; "0install"; "select"] in
@@ -498,7 +497,7 @@ let suite = "0install">::: [
     Unix.mkdir (tmpdir +/ "bin") 0o700;
     fake_system#putenv "PATH" ((tmpdir +/ "bin") ^ path_sep ^ U.getenv_ex fake_system "PATH");
 
-    let local_feed = feed_dir +/ "Local.xml" in
+    let local_feed = Fake_system.test_data "Local.xml" in
     let data_home = tmpdir +/ "data" in
     let local_copy = data_home +/ "Local.xml" in
 
@@ -549,7 +548,7 @@ let suite = "0install">::: [
     fake_system#allow_spawn_detach true;
     (* Local feed is updated; now requires a download *)
     system#unlink (app +/ "last-check-attempt");
-    let hello_feed = (feed_dir +/ "Hello.xml") in
+    let hello_feed = (Fake_system.test_data "Hello.xml") in
     system#set_mtime (app +/ "last-solve") 400.0;
     U.copy_file system hello_feed local_copy 0o600;
     Fake_system.collect_logging (fun () ->
@@ -597,7 +596,7 @@ let suite = "0install">::: [
     assert_contains "usage:" @@ String.lowercase_ascii out;
     assert_contains "NEW-FEED" out;
 
-    let out = fake_system#with_stdin "\n" (lazy (run ["add-feed"; (feed_dir +/ "Source.xml")])) in
+    let out = fake_system#with_stdin "\n" (lazy (run ["add-feed"; (Fake_system.test_data "Source.xml")])) in
     assert_contains "Add as feed for 'http://foo/Binary.xml'" out;
     let iface_config = FC.load_iface_config config binary_iface in
     assert_equal 1 @@ List.length iface_config.FC.extra_feeds;
@@ -608,13 +607,13 @@ let suite = "0install">::: [
     assert_contains "file\n" @@ Test_completion.do_complete fake_system "zsh" ["remove-feed"; ""] 2;
     assert_contains "Source.xml" @@ Test_completion.do_complete fake_system "zsh" ["remove-feed"; binary_iface] 3;
 
-    let out = fake_system#with_stdin "\n" (lazy (run ["remove-feed"; (feed_dir +/ "Source.xml")])) in
+    let out = fake_system#with_stdin "\n" (lazy (run ["remove-feed"; (Fake_system.test_data "Source.xml")])) in
     assert_contains "Remove as feed for 'http://foo/Binary.xml'" out;
     let iface_config = FC.load_iface_config config binary_iface in
     assert_equal 0 @@ List.length iface_config.FC.extra_feeds;
 
     let tmp_feed, ch = Filename.open_temp_file "0install-" "-test-feed" in
-    feed_dir +/ "Source.xml" |> fake_system#with_open_in [Open_binary] (fun source_ch ->
+    Fake_system.test_data "Source.xml" |> fake_system#with_open_in [Open_binary] (fun source_ch ->
       U.copy_channel source_ch ch;
     );
     close_out ch;
@@ -639,7 +638,7 @@ let suite = "0install">::: [
   "digest">:: Fake_system.with_fake_config (fun (config, fake_system) ->
     skip_if on_windows "Uses tar";
     let run args = run_0install fake_system args in
-    let hw = feed_dir +/ "HelloWorld.tgz" in
+    let hw = Fake_system.test_data "HelloWorld.tgz" in
 
     let out = run ["digest"; "--algorithm=sha1"; hw] in
     assert_str_equal "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a\n" out;
@@ -667,11 +666,11 @@ let suite = "0install">::: [
     assert_contains "Usage:" out;
     assert_contains "--xml" out;
 
-    let out = run_0install fake_system ["show"; feed_dir +/ "selections.xml"] in
+    let out = run_0install fake_system ["show"; Fake_system.test_data "selections.xml"] in
     assert_contains "Version: 1\n" out;
     assert_contains "(not cached)" out;
 
-    let out = run_0install fake_system ["show"; feed_dir +/ "selections.xml"; "-r"] in
+    let out = run_0install fake_system ["show"; Fake_system.test_data "selections.xml"; "-r"] in
     assert_str_equal "http://example.com:8000/Hello.xml\n" out
   );
 
@@ -680,25 +679,25 @@ let suite = "0install">::: [
     assert_contains "Usage:" out;
     assert_contains "--xml" out;
 
-    let out = run_0install fake_system ["select"; feed_dir +/ "Local.xml"] in
+    let out = run_0install fake_system ["select"; Fake_system.test_data "Local.xml"] in
     assert_contains "Version: 0.1" out;
 
-    let out = run_0install fake_system ["select"; feed_dir +/ "Local.xml"; "--command="] in
+    let out = run_0install fake_system ["select"; Fake_system.test_data "Local.xml"; "--command="] in
     assert_contains "Version: 0.1" out;
 
-    let local_uri = U.realpath config.system (feed_dir +/ "Local.xml") in
-    let out = run_0install fake_system ["select"; feed_dir +/ "Local.xml"] in
+    let local_uri = U.realpath config.system (Fake_system.test_data "Local.xml") in
+    let out = run_0install fake_system ["select"; Fake_system.test_data "Local.xml"] in
     assert_contains "Version: 0.1" out;
 
-    let out = run_0install fake_system ["select"; feed_dir +/ "Local.xml"; "--xml"] in
+    let out = run_0install fake_system ["select"; Fake_system.test_data "Local.xml"; "--xml"] in
     let sels = selections_of_string ~path:local_uri out in
     let sel = Selections.(get_selected_ex {iface = local_uri; source = false}) sels in
     assert_str_equal "0.1" (Element.version sel);
 
-    let out = run_0install fake_system ["select"; feed_dir +/ "runnable/RunExec.xml"] in
+    let out = run_0install fake_system ["select"; Fake_system.test_data "runnable/RunExec.xml"] in
     assert_contains "Runner" out;
 
-    let local_uri = U.realpath config.system (feed_dir +/ "Hello.xml") in
+    let local_uri = U.realpath config.system (Fake_system.test_data "Hello.xml") in
     fake_system#putenv "DISPLAY" ":foo";
     let out = run_0install fake_system ["select"; "--xml"; local_uri] in
     let sels = selections_of_string ~path:local_uri out in
@@ -767,8 +766,8 @@ let suite = "0install">::: [
     assert_contains "FEED" out;
 
     let gpg = Support.Gpg.make config.system in
-    Support.Gpg.import_key gpg (U.read_file config.system (feed_dir +/ "6FCF121BE2390E0B.gpg")) >>= fun () ->
-    let out = run_0install fake_system ~include_stderr:true ["import"; feed_dir +/ "Hello.xml"] ~stdin:"Y\n" in
+    Support.Gpg.import_key gpg (U.read_file config.system (Fake_system.test_data "6FCF121BE2390E0B.gpg")) >>= fun () ->
+    let out = run_0install fake_system ~include_stderr:true ["import"; Fake_system.test_data "Hello.xml"] ~stdin:"Y\n" in
     assert_contains "Do you want to trust this key to sign feeds from 'example.com:8000'?" out;
     Fake_system.fake_log#assert_contains "Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000";
     Lwt.return ()
@@ -788,8 +787,8 @@ let suite = "0install">::: [
     assert_str_equal "" out;
 
     let gpg = Support.Gpg.make config.system in
-    Support.Gpg.import_key gpg (U.read_file config.system (feed_dir +/ "6FCF121BE2390E0B.gpg")) >>= fun () ->
-    ignore @@ run_0install fake_system ~include_stderr:true ["import"; feed_dir +/ "Hello.xml"] ~stdin:"Y\n";
+    Support.Gpg.import_key gpg (U.read_file config.system (Fake_system.test_data "6FCF121BE2390E0B.gpg")) >>= fun () ->
+    ignore @@ run_0install fake_system ~include_stderr:true ["import"; Fake_system.test_data "Hello.xml"] ~stdin:"Y\n";
 
     let out = run_0install fake_system ["list"] in
     assert_str_equal "http://example.com:8000/Hello.xml\n" out;
@@ -843,7 +842,7 @@ let suite = "0install">::: [
 
   "run">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
     Fake_system.assert_raises_safe ".*test-echo' does not exist" (lazy (
-      run_0install fake_system ~binary:"0launch" [feed_dir +/ "Local.xml"] |> ignore
+      run_0install fake_system ~binary:"0launch" [Fake_system.test_data "Local.xml"] |> ignore
     ));
   );
 
@@ -880,23 +879,23 @@ let suite = "0install">::: [
 
   "need-download">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
     fake_system#putenv "DISPLAY" ":foo";
-    let out = run_0install fake_system ["download"; "--dry-run"; feed_dir +/ "Foo.xml"] in
+    let out = run_0install fake_system ["download"; "--dry-run"; Fake_system.test_data "Foo.xml"] in
     assert_str_equal "" out;
   );
 
   "hello">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
-    let out = run_0install fake_system ~binary:"0launch" ["--dry-run"; feed_dir +/ "Foo.xml"] in
+    let out = run_0install fake_system ~binary:"0launch" ["--dry-run"; Fake_system.test_data "Foo.xml"] in
     assert_contains "[dry-run] would execute: " out;
 
-    try run_0install fake_system ~binary:"0launch" ~exit:127 [feed_dir +/ "Foo.xml"] |> ignore
+    try run_0install fake_system ~binary:"0launch" ~exit:127 [Fake_system.test_data "Foo.xml"] |> ignore
     with Fake_system.Would_exec (false, _env, [path]) ->
       assert_contains "tests" path;
   );
 
   "ranges">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
-    let out = run_0install fake_system ["select"; "--before=1"; "--not-before=0.2"; feed_dir +/ "Foo.xml"] in
-    if on_windows then assert_contains "tests\\rpm" out
-    else assert_contains "tests/rpm" out;
+    let out = run_0install fake_system ["select"; "--before=1"; "--not-before=0.2"; Fake_system.test_data "Foo.xml"] in
+    if on_windows then assert_contains "data\\rpm" out
+    else assert_contains "data/rpm" out;
   );
 
   "logging">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
@@ -924,7 +923,7 @@ let suite = "0install">::: [
   );
 
   "select3">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
-    let command_feed = feed_dir +/ "Command.xml" in
+    let command_feed = Fake_system.test_data "Command.xml" in
     let out = run_0install fake_system ["select"; command_feed] in
     assert_contains "Local.xml" out
   );
@@ -951,14 +950,14 @@ let suite = "0install">::: [
     assert (XString.starts_with out "Usage:");
     assert_contains "URI" out;
 
-    let out = run_0install fake_system ["run"; "--dry-run"; feed_dir +/ "runnable/Runnable.xml"; "--help"] in
+    let out = run_0install fake_system ["run"; "--dry-run"; Fake_system.test_data "runnable/Runnable.xml"; "--help"] in
     assert_contains "arg-for-runner" out;
     assert_contains "--help" out;
   );
 
   "update-alias">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
     skip_if on_windows "Aliases don't work on Windows";
-    let local_feed = feed_dir +/ "Local.xml" in
+    let local_feed = Fake_system.test_data "Local.xml" in
     let bindir = fake_system#tmpdir +/ "bin" in
     fake_system#mkdir bindir 0o700;
     let launcher_script = bindir +/ "my-test-alias" in
@@ -978,18 +977,18 @@ let suite = "0install">::: [
     check_man fake_system ["git"; "config"] ["man"; "git"; "config"];
     check_man fake_system [] ["man"];
 
-    let local_feed = feed_dir +/ "Local.xml" in
+    let local_feed = Fake_system.test_data "Local.xml" in
     let bindir = fake_system#tmpdir +/ "bin" in
     fake_system#mkdir bindir 0o700;
     let launcher_script = bindir +/ "my-test-alias" in
     write_script fake_system launcher_script local_feed;
-    check_man fake_system ["my-test-alias"] ["man"; "tests/test-echo.1"];
+    check_man fake_system ["my-test-alias"] ["man"; "tests/data/test-echo.1"];
 
     check_man fake_system ["__i_dont_exist"] ["man"; "__i_dont_exist"];
     check_man fake_system ["ls"] ["man"; "ls"];
 
     (* No man-page *)
-    let binary_feed = feed_dir +/ "Command.xml" |> U.realpath config.system in
+    let binary_feed = Fake_system.test_data "Command.xml" |> U.realpath config.system in
     let launcher_script = bindir +/ "my-binary-alias" in
     write_script fake_system launcher_script binary_feed;
 
@@ -1002,7 +1001,7 @@ let suite = "0install">::: [
     Unix.mkdir (tmpdir +/ "bin") 0o700;
     fake_system#putenv "PATH" ((tmpdir +/ "bin") ^ path_sep ^ U.getenv_ex fake_system "PATH");
 
-    let local_feed = feed_dir +/ "Local.xml" in
+    let local_feed = Fake_system.test_data "Local.xml" in
     let out = run_0install fake_system ~binary:"0alias" ["local-app"; local_feed] in
     assert_str_equal "(\"0alias\" is deprecated; using \"0install add\" instead)\n" out;
   );

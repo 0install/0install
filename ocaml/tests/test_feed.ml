@@ -25,7 +25,7 @@ let suite = "feed">::: [
   "langs">:: (fun () ->
     let (_config, fake_system) = Fake_system.get_fake_config None in
     let system = (fake_system :> system) in
-    let local_path = Test_0install.feed_dir +/ "Local.xml" in
+    let local_path = Fake_system.test_data "Local.xml" in
     let root = Q.parse_file system local_path |> Element.parse_feed in
     let feed = F.parse system root (Some local_path) in
 
@@ -54,7 +54,7 @@ let suite = "feed">::: [
   );
 
   "feed-overrides">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
-    let feed_url = Test_0install.feed_dir +/ "Hello.xml" in
+    let feed_url = Fake_system.test_data "Hello.xml" in
     let digest = "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" in
 
     let overrides = F.load_feed_overrides config (`Local_feed feed_url) in
@@ -74,7 +74,7 @@ let suite = "feed">::: [
   );
 
   "command">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
-    let path = Test_0install.feed_dir +/ "Command.xml" in
+    let path = Fake_system.test_data "Command.xml" in
     let root = Q.parse_file config.system path |> Element.parse_feed in
     let feed = F.parse config.system root (Some path) in
 
@@ -342,7 +342,7 @@ let suite = "feed">::: [
 
   "replaced">:: (fun () ->
     let system = (new Fake_system.fake_system None :> system) in
-    let iface = Test_0install.feed_dir +/ "Replaced.xml" in
+    let iface = Fake_system.test_data "Replaced.xml" in
     let root = Q.parse_file system iface |> Element.parse_feed in
     let feed = F.parse system root (Some iface) in
     Fake_system.assert_str_equal "http://localhost:8000/Hello" (Fake_system.expect feed.F.replacement)
