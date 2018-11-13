@@ -23,7 +23,7 @@ cat > ~/.config/0install.net/injector/trustdb.xml <<EOF
 </trusted-keys>
 EOF
 
-make
+make all
 sudo make install
 0install add-feed http://0install.net/tools/0install.xml dist/0install/feed.xml
 git clone https://github.com/0install/0compile.git -b use-ocaml
