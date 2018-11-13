@@ -1,11 +1,5 @@
-*.ui.h
 README.html
-*.pyc
-.tags
-share/locale/zero-install.pot
 /build/
-/tests/TEST*.xml
-/tests/coverage.xml
-/ocaml/_build
+/_build/
 /dist
-ocaml/0install
+/0install.install

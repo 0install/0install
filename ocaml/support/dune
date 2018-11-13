@@ -1,0 +1,62 @@
+(* -*- tuareg -*- *)
+
+let windows = Sys.os_type = "Win32"
+
+let windres =
+  match windows with
+  | false ->
+    {| (rule
+          (targets extra_objects.sexp)
+          (action (write-file %{targets} "()")))
+    |}
+  | true ->
+    let bin =
+      try
+        match Sys.getenv "WINDRES" with
+        | "" -> raise Not_found
+        | x  -> x
+      with Not_found ->
+        if Sys.word_size = 32 then
+          "i686-w64-mingw32-windres"
+        else
+          "x86_64-w64-mingw32-windres"
+    in {|
+       (rule
+          (targets extra_objects.sexp)
+          (action (chdir %{workspace_root}
+		    (write-file %{targets} "(\"%{dep:0install.exe.o}\")"))))
+       |} ^
+       Printf.sprintf
+         "(rule
+           (targets 0install.exe.o)
+           (deps 0install.exe.rc 0install.exe.manifest)
+           (action (run %s
+             --input-format rc
+             --input 0install.exe.rc
+             --output-format coff
+             --output 0install.exe.o)))" bin
+
+let cppo_flags =
+  if windows then "-D WINDOWS" else ""
+
+let extra_stubs =
+  if windows then "windows" else ""
+
+let c_flags =
+  if windows then "(c_flags -lwindows -lshell32)" else ""
+
+let dune = String.concat "" [ {|
+  (rule
+   (targets windows_api.ml)
+   (deps    (:first-dep windows_api.cppo.ml))
+   (action  (run %{bin:cppo} |}; cppo_flags; {| %{first-dep} -o %{targets})))
+
+  (library
+   (name        support) |};
+   c_flags; {|
+   (c_names     utils |}; extra_stubs; {| )
+   (libraries   lwt lwt.unix sha str xmlm))
+|}; windres ]
+
+let () =
+  Jbuild_plugin.V1.send dune

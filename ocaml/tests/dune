@@ -1,0 +1,16 @@
+(rule
+  (targets 0install%{ext_exe})
+  (deps ../static_0install.exe)
+  (action (copy %{deps} %{targets})))
+
+(rule
+  (targets 0install-runenv.exe)
+  (deps ../runenv.exe)
+  (action (copy %{deps} %{targets})))
+
+(test
+  (name test)
+  (deps (source_tree data)
+        (alias ../../install)     ; Build the GTK plugin if possible
+        0install%{ext_exe} 0install-runenv.exe)
+  (libraries oUnit zeroinstall zeroinstall_cli))

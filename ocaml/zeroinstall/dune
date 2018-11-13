@@ -1,0 +1,10 @@
+(library
+ (name        zeroinstall)
+ (modules (:standard \ With_dbus Without_dbus))
+ (modules_without_implementation feed_provider progress sigs ui)
+ (libraries curl curl.lwt dynlink lwt_react support yojson
+            (select dbus.ml from
+             (obus.network-manager
+              obus.notification    -> with_dbus.ml)
+             (                     -> without_dbus.ml))
+ ))

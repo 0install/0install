@@ -2,7 +2,7 @@
  * See the README file for details, or visit http://0install.net.
  *)
 
-(* The stand-alone 0install-runenv.exe (only built on Windows) *)
+(* The stand-alone 0install-runenv.exe (only used on Windows) *)
 
 module RealSystem = Support.System.RealSystem(Unix)
 

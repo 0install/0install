@@ -346,7 +346,7 @@ let try_get_gui config ~use_gui =
               (* Is 0install is installed as distro package? *)
               sys_lib +/ "0install.net";
               (* Are we running via 0install? *)
-              bindir;
+              bindir +/ "gui_gtk";
             ] in
 
           match plugin_path with

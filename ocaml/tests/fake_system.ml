@@ -49,7 +49,10 @@ let real_system = new RealSystem.real_system
 let real_spawn_handler ?env args cin cout cerr =
   real_system#create_process ?env args cin cout cerr
 
-let build_dir = Filename.dirname @@ Filename.dirname Sys.argv.(0)
+let tests_dir = Utils.abspath real_system "."
+let build_dir = Filename.dirname tests_dir
+let test_data x = tests_dir +/ "data" +/ x
+let test_0install = tests_dir +/ "0install"
 
 let make_stat st_perm kind =
   let open Unix in {
@@ -138,11 +141,6 @@ let () =
     | _ -> None
   )
 
-let ocaml_dir = Sys.getcwd ()
-let src_dir = Filename.dirname ocaml_dir
-let test_data x = ocaml_dir +/ "tests" +/ "data" +/ x
-let test_0install = U.realpath real_system (build_dir +/ "0install")
-
 let collect_output fn =
   let b = Buffer.create 100 in
   let f = Format.formatter_of_buffer b in
@@ -176,7 +174,7 @@ class fake_system ?(portable_base=true) tmpdir =
         | File (_mode, redirect_path) -> redirect_path
       with Not_found ->
         if not (XString.starts_with path "/home") then path
-        else if XString.starts_with path src_dir then path
+        else if XString.starts_with path tests_dir then path
         else (
           if !read_ok |> List.exists (fun dir ->
             XString.starts_with path dir || XString.starts_with dir path) then path
@@ -570,24 +568,24 @@ let get_fake_config ?portable_base tmpdir =
         dir in
   system#putenv "HOME" home;
   if on_windows then (
-    system#add_file (src_dir +/ "0install-runenv.exe") (build_dir +/ "0install-runenv.exe");
+    system#add_file (build_dir +/ "0install-runenv.exe") (tests_dir +/ "0install-runenv.exe");
     system#putenv "PATH" ("c:\\bin;" ^ Sys.getenv "PATH");
     system#add_dir "c:\\bin" [];
-    system#add_file "c:\\bin\\0install-runenv.exe" (build_dir +/ "0install-runenv.exe");
-    system#add_file "c:\\bin\\0install.exe" (build_dir +/ "0install.exe");
-    system#add_file "c:\\bin\\0launch.exe" (build_dir +/ "0install.exe");
-    system#add_file "c:\\bin\\0alias.exe" (build_dir +/ "0install.exe");
+    system#add_file "c:\\bin\\0install-runenv.exe" (tests_dir +/ "0install-runenv.exe");
+    system#add_file "c:\\bin\\0install.exe" (tests_dir +/ "0install.exe");
+    system#add_file "c:\\bin\\0launch.exe" (tests_dir +/ "0install.exe");
+    system#add_file "c:\\bin\\0alias.exe" (tests_dir +/ "0install.exe");
     match tmpdir with
     | Some tmpdir -> Support.Windows_api.windowsAPI := Some (fake_win_dirs tmpdir);
     | None -> ()
   ) else (
     system#putenv "PATH" @@ (home +/ "bin") ^ ":" ^ (Sys.getenv "PATH");
-    system#add_file test_0install (build_dir +/ "0install");
-    system#add_file "/usr/bin/0install" (build_dir +/ "0install");
-    system#add_file "/usr/bin/0launch" (build_dir +/ "0install");
-    system#add_file "/usr/bin/0alias" (build_dir +/ "0install");
+    system#add_file test_0install (tests_dir +/ "0install");
+    system#add_file "/usr/bin/0install" (tests_dir +/ "0install");
+    system#add_file "/usr/bin/0launch" (tests_dir +/ "0install");
+    system#add_file "/usr/bin/0alias" (tests_dir +/ "0install");
   );
-  system#allow_read src_dir;
+  system#allow_read tests_dir;
   (* Allow reading from all PATH directories *)
   Str.split_delim U.re_path_sep (system#getenv "PATH" |? lazy (failwith "PATH")) |> List.iter (fun dir ->
     system#allow_read dir

@@ -26,13 +26,10 @@ interfere with those provided by the distribution.
     <release:action phase="generate-archive">rm .gitignore</release:action>
   </release:management>
 
-  <group arch="*-src" license="OSI Approved :: GNU Lesser General Public License (LGPL)">
+  <group arch="*-src" license="OSI Approved :: GNU Lesser General Public License (LGPL)" compile:dup-src='true'>
     <command name="compile">
       <runner interface="http://repo.roscidus.com/devel/make">
-	<arg>-f</arg>
-	<arg>${SRCDIR}/Makefile</arg>
 	<arg>SRCDIR=${SRCDIR}</arg>
-	<arg>BUILDDIR=${BUILDDIR}</arg>
 	<arg>DISTDIR=${DISTDIR}</arg>
       </runner>
 

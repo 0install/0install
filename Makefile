@@ -1,12 +1,9 @@
 # When building with 0compile, these will get overridden.
-# The defaults are the same as when building with 0compile in-place (e.g.
-# in a Git checkout), so you don't need 0compile to build 0install, which
-# would create a bootstapping problem.
 SRCDIR = $(abspath .)
 DISTDIR = $(abspath dist)
-BUILDDIR = $(abspath build)
 
-SH = ${SRCDIR}/share/0install.net/unlzma
+# Using PROFILE=dev makes warnings fatal and makes the build faster by doing fewer optimisations
+PROFILE ?= release
 
 # There are several things you might want to do:
 #
@@ -16,61 +13,71 @@ SH = ${SRCDIR}/share/0install.net/unlzma
 #
 # New users and distribution packagers will want to do (1).
 #
-# When you do a plain "make":
+# When you do a plain "make", $DISTDIR ends up with a complete distribution
+# suitable for publishing or registering with 0install. $DISTDIR contains:
 #
-# a) $DISTDIR ends up with a complete distribution suitable for publishing or
-#    registering with 0install. $DISTDIR contains:
-#    - Python source code
-#    - Cross-platform OCaml bytecode
-#    - A 0install binary feed, which can be registered with "0install add"
-#
-# b) A native "0install" executable is created in $BUILDDIR, but is not copied
-#    to $DISTDIR (since it's not portable).
+# - The compiled binaries
+# - A 0install binary feed, which can be registered with "0install add"
 #
 # To install as a normal package:	make && sudo make install
 # To test without installing:     	make && ./dist/bin/0install
 # To use as a library with other tools: 0compile build && 0compile register
 # To publish a release on 0install.net: use 0release
-# To make a generic build/static_dist:  make static_dist
-#
-# Running plain "make" does most of the same things that "0compile build" would do,
-# except that it doesn't generate/update the binary feed (dist/0install/feed.xml).
 
 default: all test
-
-# Ubuntu's make requires this to come before the %:: default rule.
-%.ui.h: %.ui
-	intltool-extract --type=gettext/glade --update "$<"
 
 %.html: %.md
 	redcarpet $< > $@ || (rm -f $@; false)
 
-# Make needs to run from the build directory, but people always want to run it from
-# the source directory. This rule matches all targets not defined here (i.e. those
-# which operate on the build directory) and runs make again from the build directory,
-# with Makefile.build.
-%::
-	[ -d "${BUILDDIR}" ] || mkdir "${BUILDDIR}"
-	[ -d "${DISTDIR}" ] || mkdir "${DISTDIR}"
-	$(MAKE) -C "${BUILDDIR}" -f "${SRCDIR}/Makefile.build" "$@" SRCDIR="${SRCDIR}" BUILDDIR="${BUILDDIR}" DISTDIR="${DISTDIR}" DESTDIR="${DESTDIR}"
-
-share/locale/zero-install.pot: $(SH)
-	xgettext --sort-by-file --language=Shell -j --output=$@ $(SH)
-
-update-po: share/locale/zero-install.pot
-	@for po in share/locale/*/LC_MESSAGES/zero-install.po; do \
-	    echo -e "Merge: $$po: \c"; \
-	    msgmerge -v -U $$po share/locale/zero-install.pot; \
-	done
-
-check-po:
-	@for po in share/locale/*/LC_MESSAGES/zero-install.po; do \
-	    echo -e "Check: $$po: \c"; \
-	    msgfmt -o /dev/null --statistics -v -c $$po; \
-	done
-
 clean:
-	rm -rf build
-	rm -rf dist
+	dune clean --root=. --profile=${PROFILE}
+	rm -rf build dist
 
-.PHONY: update-po check-po clean default
+DOCS = README.md COPYING
+MANPAGES = 0launch.1 0store-secure-add.1 0store.1 0desktop.1 0install.1
+
+OS = $(shell uname -s)
+MACHINE = $(shell uname -m)
+VERSION = $(shell sed -n 's/let version = "\(.*\)"/\1/p' ${SRCDIR}/ocaml/zeroinstall/about.ml)
+
+all:
+	dune build --root=. --profile=${PROFILE} @install
+	install -d "${DISTDIR}"
+	install -d "${DISTDIR}/files"
+	install -d "${DISTDIR}/files/gui_gtk"
+	install -d "${DISTDIR}/files/share"
+	(cd "${SRCDIR}" && cp ${DOCS} "${DISTDIR}/")
+	-install _build/install/default/lib/0install/gui_gtk.cma "${DISTDIR}/files/gui_gtk/"
+	-install _build/install/default/lib/0install/gui_gtk.cmxs "${DISTDIR}/files/gui_gtk/"
+	install _build/install/default/bin/0install "${DISTDIR}/files/0install"
+	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0launch"
+	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0store"
+	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0store-secure-add"
+	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0desktop"
+	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0alias"
+	(cd "${SRCDIR}/ocaml" && cp ${MANPAGES} "${DISTDIR}/files")
+	install "${SRCDIR}/install.sh.src" "${DISTDIR}/install.sh"
+	(cd "${SRCDIR}" && cp -r share/0install.net share/applications share/metainfo share/bash-completion share/fish share/icons share/zsh "${DISTDIR}/files/share/")
+	install -d "${DISTDIR}/0install"
+	[ -f "${DISTDIR}/0install/build-environment.xml" ] || sed 's/@ARCH@/${OS}-${MACHINE}/;s/@VERSION@/${VERSION}/' "${SRCDIR}/binary-feed.xml.in" > "${DISTDIR}/0install/feed.xml"
+
+test:
+	dune runtest --root=. --profile=${PROFILE}
+
+doc:
+	dune build --root=. --profile=${PROFILE} @doc
+
+install: install_local
+
+install_home:
+	(cd "${DISTDIR}" && ./install.sh home)
+
+install_system:
+	(cd "${DISTDIR}" && ./install.sh system)
+
+install_local:
+	(cd "${DISTDIR}" && ./install.sh local)
+
+.PHONY: all install test
+
+.PHONY: clean default

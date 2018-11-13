@@ -1,0 +1,36 @@
+(executable
+ (public_name 0install)
+ (name        static_0install)
+ (modules     static_0install)
+ (ocamlopt_flags -linkall)	; Needed for the GUI plugin
+ (ocamlc_flags   -linkall -custom)
+ (link_flags  (:include support/extra_objects.sexp))
+ (package     0install)
+ (libraries   zeroinstall_cli zeroinstall))
+
+(executable
+ (public_name 0install-runenv.exe)
+ (name        runenv)
+ (modules     runenv)
+ (link_flags  (:include support/extra_objects.sexp))
+ (libraries   zeroinstall_cli zeroinstall))
+
+(install
+  (section bin)
+  (files
+     (static_0install.exe as 0launch)
+     (static_0install.exe as 0store)
+     (static_0install.exe as 0store-secure-add)
+     (static_0install.exe as 0desktop)
+     (static_0install.exe as 0alias)
+  ))
+
+(install
+  (section man)
+  (files 
+     (0launch.1           as man1/0launch.1)
+     (0store-secure-add.1 as man1/0store-secure-add.1)
+     (0store.1            as man1/0store.1)
+     (0desktop.1          as man1/0desktop.1)
+     (0install.1          as man1/0install.1)
+  ))

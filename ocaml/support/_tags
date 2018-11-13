@@ -1,2 +1,0 @@
-true: for-pack(Support)
-"windows.cma": dllib(-lwindows)

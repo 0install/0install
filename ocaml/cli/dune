@@ -1,0 +1,5 @@
+(library
+ (name        zeroinstall_cli)
+ (modules_without_implementation options)
+ (wrapped     false)
+ (libraries   zeroinstall))
