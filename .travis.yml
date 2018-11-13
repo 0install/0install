@@ -5,7 +5,6 @@ install: wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.t
 script: bash .travis-extra-deps.sh
 env:
   global:
-    - OPAMVERBOSE=y
     - POST_INSTALL_HOOK="bash .travis-test-compile.sh"
   matrix:
     - OCAML_VERSION=4.03
