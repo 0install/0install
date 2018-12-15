@@ -440,7 +440,8 @@ class Selections(object):
 
 			fetch_impls = config.fetcher.download_impls(needed_impls, stores)
 			yield fetch_impls
-			tasks.check(fetch_impls)
+			if fetch_impls is not None:
+				tasks.check(fetch_impls)
 		return download()
 
 	# These (deprecated) methods are to make a Selections object look like the old Policy.implementation map...
