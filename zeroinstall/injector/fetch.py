@@ -637,7 +637,7 @@ class Fetcher(object):
 		installation should proceed.
 		@type implementations: [L{zeroinstall.injector.model.ZeroInstallImplementation}]
 		@type stores: L{zeroinstall.zerostore.Stores}
-		@rtype: L{zeroinstall.support.tasks.Blocker}"""
+		@rtype: L{zeroinstall.support.tasks.Blocker} or None"""
 		if self.external_fetcher:
 			self._download_with_external_fetcher(implementations)
 			return None
