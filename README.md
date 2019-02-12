@@ -50,7 +50,7 @@ You will need opam version 2 or later.
 
     $ opam switch create 4.07.0
     $ eval `opam config env`
-    $ opam install cppo yojson xmlm ounit lwt_react ocurl obus lablgtk lwt_glib sha cppo_ocamlbuild
+    $ opam install cppo yojson xmlm ounit lwt_react ocurl obus lablgtk lwt_glib sha dune
 
 Note: some of these are optional:
 
