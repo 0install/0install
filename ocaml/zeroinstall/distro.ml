@@ -44,16 +44,28 @@ module Query = struct
     feed : Feed.feed;                 (* The feed containing the <package-element> *)
     results : Impl.distro_implementation Support.XString.Map.t ref;
     problem : string -> unit;
+    version_ok : Version.version_expr;
   }
 
-  let make feed elem elem_props results problem = {
-    elem;
-    package_name = Element.package elem;
-    elem_props;
-    feed;
-    results;
-    problem;
-  }
+  let any_version _ = true
+
+  let make feed elem elem_props results problem =
+    let version_ok =
+      match Element.version_opt elem with
+      | Some pattern -> Version.parse_expr pattern
+      | None -> any_version
+    in
+    {
+      elem;
+      package_name = Element.package elem;
+      elem_props;
+      feed;
+      results;
+      problem;
+      version_ok;
+    }
+
+  let meets_restrictions t ~version = t.version_ok version
 
   let package t = t.package_name
 
@@ -141,41 +153,43 @@ class virtual distribution config =
 
     (** Convenience wrapper for [add_result] that builds a new implementation from the given attributes. *)
     method private add_package_implementation ?id ?main (query:Query.t) ~version ~machine ~quick_test ~package_state ~distro_name =
-      let version_str = Version.to_string version in
-      let { Query.package_name; elem_props = props; elem; _ } = query in
-      let id = id |? lazy (Printf.sprintf "%s:%s:%s:%s" id_prefix package_name version_str (Arch.format_machine_or_star machine)) in
-      let props =
-        match main with
-        | None -> props
-        | Some path -> with_main_path path props
-      in
-      let new_attrs = ref props.Impl.attrs in
-      let set name value =
-        new_attrs := Q.AttrMap.add_no_ns name value !new_attrs in
-      set "id" id;
-      set "version" version_str;
-      set "from-feed" @@ "distribution:" ^ (Q.AttrMap.get_no_ns "from-feed" !new_attrs |? lazy (Safe_exn.failf "BUG: Missing feed!"));
+      if Query.meets_restrictions query ~version then (
+        let version_str = Version.to_string version in
+        let { Query.package_name; elem_props = props; elem; _ } = query in
+        let id = id |? lazy (Printf.sprintf "%s:%s:%s:%s" id_prefix package_name version_str (Arch.format_machine_or_star machine)) in
+        let props =
+          match main with
+          | None -> props
+          | Some path -> with_main_path path props
+        in
+        let new_attrs = ref props.Impl.attrs in
+        let set name value =
+          new_attrs := Q.AttrMap.add_no_ns name value !new_attrs in
+        set "id" id;
+        set "version" version_str;
+        set "from-feed" @@ "distribution:" ^ (Q.AttrMap.get_no_ns "from-feed" !new_attrs |? lazy (Safe_exn.failf "BUG: Missing feed!"));
 
-      begin match quick_test with
-      | None -> ()
-      | Some (path, cond) ->
-          set FeedAttr.quick_test_file path;
-          match cond with
-          | Exists -> ()
-          | UnchangedSince mtime ->
+        begin match quick_test with
+          | None -> ()
+          | Some (path, cond) ->
+            set FeedAttr.quick_test_file path;
+            match cond with
+            | Exists -> ()
+            | UnchangedSince mtime ->
               set FeedAttr.quick_test_mtime (Int64.of_float mtime |> Int64.to_string) end;
-      let impl =
-        Impl.make
-          ~elem
-          ~os:None
-          ~machine
-          ~stability:Stability.Packaged
-          ~props:{props with Impl.attrs = !new_attrs}
-          ~version
-          (`Package_impl { Impl.package_state; package_distro = distro_name })
-      in
-      if package_state = `Installed then self#fixup_main impl;
-      Query.add_result query id impl
+        let impl =
+          Impl.make
+            ~elem
+            ~os:None
+            ~machine
+            ~stability:Stability.Packaged
+            ~props:{props with Impl.attrs = !new_attrs}
+            ~version
+            (`Package_impl { Impl.package_state; package_distro = distro_name })
+        in
+        if package_state = `Installed then self#fixup_main impl;
+        Query.add_result query id impl
+      )
 
     (** Test whether this <selection> element is still valid. The default implementation tries to load the feed from the
      * feed cache, calls [distribution#get_impls_for_feed] on it and checks whether the required implementation ID is in the

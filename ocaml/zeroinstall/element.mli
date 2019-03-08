@@ -55,7 +55,7 @@ val deps_and_bindings : [< `Selection | attr_node] t ->
 val arch : [< `Selection | `Feed_import | `Compile_impl] t -> string option
 val id : [< `Selection | `Implementation] t -> string
 val version : [`Selection] t -> string
-val version_opt : [< `Selection | dependency_node] t -> string option   (* Messy: `Selection only for failed solves *)
+val version_opt : [< `Selection | `Package_impl | dependency_node] t -> string option   (* Messy: `Selection only for failed solves *)
 val compile_min_version : [`Selection] t -> string option
 val doc_dir : [`Selection] t -> filepath option
 val source : [< `Selections | dependency_node] t -> bool option

@@ -51,6 +51,15 @@ let test_feed = "<?xml version='1.0'?>\n\
   <package-implementation distributions='MacPorts' main='/opt/local/bin/python2.7' package='python27'/>\n\
 </interface>"
 
+let test_duplicates = "<?xml version='1.0'?>\n\
+<interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface' uri='http://repo.roscidus.com/python/python'>\n\
+  <name>Test</name>\n\
+\n\
+  <package-implementation distributions='Arch' package='python2' version='2..!2.7'/>\n\
+  <package-implementation distributions='Arch' main='/usr/bin/python2' package='python2' version='2.7..'/>\n\
+  <package-implementation distributions='Arch' package='python2' version='2..!2.7'/>\n\
+</interface>"
+
 let test_gobject_feed = "<?xml version='1.0'?>\n\
 <interface xmlns='http://zero-install.sourceforge.net/2004/injector/interface' uri='http://repo.roscidus.com/python/python-gobject'>\n\
   <name>gobject</name>\n\
@@ -58,7 +67,7 @@ let test_gobject_feed = "<?xml version='1.0'?>\n\
 </interface>"
 
 let load_feed system xml =
-    let root = Q.parse_input None @@ Xmlm.make_input (`String (0, xml)) |> Element.parse_feed in
+    let root = Q.parse_input (Some "test-input") @@ Xmlm.make_input (`String (0, xml)) |> Element.parse_feed in
     F.parse system root None
 
 let to_impl_list map : _ Impl.t list =
@@ -113,6 +122,27 @@ let suite = "distro">::: [
         assert_str_equal "package:arch:zeroinstall-injector:1.5-1:*" @@ Impl.get_attr_ex "id" impl;
         assert_str_equal "1.5-1" @@ Impl.get_attr_ex "version" impl
     | impls -> assert_failure @@ Printf.sprintf "want 1, got %d" (List.length impls) end;
+  );
+
+  "duplicates">:: Fake_system.with_tmpdir (fun tmpdir ->
+    skip_if (Sys.os_type = "Win32") "Paths get messed up on Windows";
+    let (config, fake_system) = Fake_system.get_fake_config (Some tmpdir) in
+    fake_system#add_file "/var/lib/pacman/local/python2-2.7.2-4/desc" (Fake_system.test_data "arch/local/python2-2.7.2-4/desc");
+    fake_system#hide_path "/usr/bin/python2";
+    fake_system#hide_path "/usr/bin/python3";
+    assert (not @@ fake_system#file_exists "/usr/bin/python2");
+    fake_system#add_dir "/bin" ["python2"; "python3"];
+    let system = (fake_system :> system) in
+    let distro = Distro_impls.ArchLinux.arch_distribution ~packagekit config in
+    let feed = load_feed system test_duplicates in
+    let impls = distro#get_impls_for_feed ~problem:failwith feed |> to_impl_list in
+    let open Impl in
+    match impls with
+    | [impl] ->
+        assert_str_equal "2.7.2-4" (Zeroinstall.Version.to_string impl.parsed_version);
+        let run = XString.Map.find_safe "run" impl.props.commands in
+        assert_str_equal "/bin/python2" (Element.path run.command_qdom |> Fake_system.expect)
+    | impls -> assert_failure @@ Printf.sprintf "want 1 Python, got %d" (List.length impls)
   );
 
   "slack">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
