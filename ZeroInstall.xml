@@ -26,7 +26,7 @@ interfere with those provided by the distribution.
     <release:action phase="generate-archive">rm .gitignore</release:action>
   </release:management>
 
-  <group arch="*-src" license="OSI Approved :: GNU Lesser General Public License (LGPL)" compile:dup-src='true'>
+  <group arch="*-src" compile:dup-src="true" license="OSI Approved :: GNU Lesser General Public License (LGPL)">
     <command name="compile">
       <runner interface="http://repo.roscidus.com/devel/make">
 	<arg>SRCDIR=${SRCDIR}</arg>
@@ -42,6 +42,6 @@ interfere with those provided by the distribution.
       </compile:implementation>
     </command>
 
-    <implementation id="." version="2.13-post"/>
+    <implementation id="." released="2019-03-23" version="2.14"/>
   </group>
 </interface>
