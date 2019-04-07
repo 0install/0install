@@ -264,7 +264,7 @@ class Setup(object):
 			os.environ["ZEROINSTALL_RUNENV_ARGS_" + name] = support.windows_args_escape(args[1:])
 		else:
 			import json
-			os.environ["0install-runenv-" + name] = json.dumps(args)
+			os.environ["py_install_runenv_" + name] = json.dumps(args)
 
 	def _check_runenv(self):
 		# Create the runenv.py helper script under ~/.cache if missing or out-of-date

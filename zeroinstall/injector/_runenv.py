@@ -10,5 +10,5 @@ import os, sys
 def main():
 	envname = os.path.basename(sys.argv[0])
 	import json
-	args = json.loads(os.environ["0install-runenv-" + envname])
+	args = json.loads(os.environ["py_install_runenv_" + envname])
 	os.execv(args[0], args + sys.argv[1:])
