@@ -228,7 +228,7 @@ module RealSystem (U : UnixType) =
             result
           with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... trying to write '%s'" path
 
-        method hardlink = Unix.link
+        method hardlink src dst = Unix.link src dst
 
         method getenv name =
           try Some (Sys.getenv name)
