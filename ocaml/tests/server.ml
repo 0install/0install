@@ -105,7 +105,7 @@ let start_server system =
         | `Give404 -> send_error to_client 404 ("Missing: " ^ leaf)
         | `Redirect redirect_target ->
             send_response to_client 302 >>= fun () ->
-            send_header to_client "Location" redirect_target >>= fun () ->
+            send_header to_client "LocatioN" redirect_target >>= fun () ->
             let msg = "<html>\n\
                          <head>\n\
                           <title>302 Found</title>\n\

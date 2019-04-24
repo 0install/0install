@@ -50,7 +50,7 @@ let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.
   Lwt.catch (fun () ->
     let redirect = ref None in
     let check_header header =
-      if XString.starts_with header "Location:" then (
+      if XString.starts_with (String.lowercase_ascii header) "location:" then (
         redirect := Some (XString.tail header 9 |> String.trim)
       );
       String.length header in
