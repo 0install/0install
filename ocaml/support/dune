@@ -55,7 +55,7 @@ let dune = String.concat "" [ {|
    (name        support) |};
    c_flags; {|
    (c_names     utils |}; extra_stubs; {| )
-   (libraries   lwt lwt.unix sha str xmlm))
+   (libraries   lwt lwt.unix sha str xmlm yojson))
 |}; windres ]
 
 let () =
