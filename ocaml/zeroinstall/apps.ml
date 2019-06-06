@@ -205,7 +205,13 @@ let check_for_updates tools app_path sels =
           return sels
       | Some new_sels ->
           log_info "Quick solve succeeded; saving new selections";
-          set_selections config app_path new_sels ~touch_last_checked:false;
+          begin try
+              set_selections config app_path new_sels ~touch_last_checked:false;
+            with Safe_exn.T e ->
+              log_warning "Failed to save new selections for %S: %a"
+                (Filename.basename app_path)
+                Safe_exn.pp e
+          end;
           return new_sels
       | None when unavailable_sels ->
           log_info "Quick solve failed; we need to download something";
