@@ -15,7 +15,6 @@ let create title sections =
       dialog |> if_some (fun box -> box#destroy ());
       let box = GWindow.dialog
         ~title
-        ~no_separator:true
         ~position:`CENTER
         () in
       dialog <- Some box;

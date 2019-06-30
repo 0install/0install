@@ -92,8 +92,8 @@ let make_dialog opt_message mode ~systray =
   (* The optional message *)
   opt_message |> if_some (fun message ->
     let label = GMisc.label ~packing:vbox#pack ~xalign:0.0 ~line_wrap:true ~text:message () in
-    let font = Pango.Font.copy label#misc#pango_context#font_description in
-    Pango.Font.set_weight font `BOLD;
+    let font = label#misc#pango_context#font_description#copy in
+    Pango.Font.set_weight font#fd `BOLD;
     label#misc#modify_font font
   );
 
@@ -319,7 +319,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
         if downloads = [] then (
           widgets.progress_area#misc#hide ();
           Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.default_cursor)
-        ) else if not (widgets.progress_area#misc#get_flag `VISIBLE) then (
+        ) else if not widgets.progress_area#misc#visible then (
           widgets.progress_area#misc#show ();
           Gdk.Window.set_cursor dialog#misc#window (Lazy.force Gtk_utils.busy_cursor)
         );

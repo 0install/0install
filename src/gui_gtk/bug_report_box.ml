@@ -34,7 +34,7 @@ let text_area ?(mono=false) ?(text="") ~packing () =
   tv#buffer#insert text;
 
   if mono then
-    tv#misc#modify_font (GPango.font_description "mono");
+    tv#misc#modify_font (GPango.font_description_from_string "mono");
 
   tv#buffer
 
@@ -45,7 +45,6 @@ let create config ?run_test ?last_error ~role ~results =
   (* Create dialog box *)
   let box = GWindow.dialog
     ~title:"Report a Bug"
-    ~no_separator:true
     ~position:`CENTER
     () in
 

@@ -154,7 +154,6 @@ let confirm_keys gpg trust_db ?parent feed_url valid_sigs =
   let dialog = GWindow.dialog
     ?parent
     ~title:"Confirm trust"
-    ~no_separator:true
     ~position:`CENTER
     () in
 
