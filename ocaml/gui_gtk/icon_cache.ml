@@ -29,7 +29,7 @@ let create config ~fetcher =
         If no icon is found but the feed gives a download location then we start a download in
         the background and call [update] when the new icon arrives. *)
     method get ~update ~feed_provider iface =
-      match icon_of_iface |> XString.Map.find iface with
+      match icon_of_iface |> XString.Map.find_opt iface with
       | Some icon -> icon
       | None ->
           (* Not in the memory cache. Try the disk cache next. *)

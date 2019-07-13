@@ -52,9 +52,7 @@ let split_pair_safe re str =
 
 module Map = struct
   include Map.Make(String)
-  let find_nf = find
   let find_safe key map = try find key map with Not_found -> Safe_exn.failf "BUG: Key '%s' not found in XString.Map!" key
-  let find key map = try Some (find key map) with Not_found -> None
   let map_bindings fn map = fold (fun key value acc -> fn key value :: acc) map []
 end
 

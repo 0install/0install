@@ -37,10 +37,7 @@ module Role = struct
     | x -> x
 end
 
-module RoleMap = struct
-  include Map.Make(Role)
-  let find key map = try Some (find key map) with Not_found -> None
-end
+module RoleMap = Map.Make(Role)
 
 type t = {
   root : [`Selections] Element.t;
@@ -96,7 +93,7 @@ let root_command sels =
   | None | Some "" -> None
   | Some _ as command -> command
 
-let get_selected role sels = RoleMap.find role sels.index
+let get_selected role sels = RoleMap.find_opt role sels.index
 
 let get_selected_ex role sels =
   get_selected role sels
@@ -107,7 +104,7 @@ let root_role sels =
   let source = Element.source sels.root
     |? lazy (
       (* This is an old (0install < 2.8) selections document, with no source attribute. *)
-      RoleMap.find {iface; source = true} sels.index <> None
+      RoleMap.find_opt {iface; source = true} sels.index <> None
     ) in
   {iface; source}
 

@@ -251,7 +251,7 @@ let suite = "distro">::: [
       let impls = Distro.get_impls_for_feed distro ~problem:failwith feed in
       let host_python = find_host impls in
       let python_run =
-        try XString.Map.find_nf "run" host_python.props.commands
+        try XString.Map.find "run" host_python.props.commands
         with Not_found -> assert_failure "No run command for host Python" in
       assert (Fake_system.real_system#file_exists (Element.path python_run.command_qdom |> Fake_system.expect)) in
 

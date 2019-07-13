@@ -34,7 +34,7 @@ let lang_rank t lang =
   try Support.Locale.LangMap.find lang t.languages
   with Not_found -> 0
 
-let user_restriction_for t iface = XString.Map.find iface t.extra_restrictions
+let user_restriction_for t iface = XString.Map.find_opt iface t.extra_restrictions
 
 let use_feed t ~want_source feed =
   let machine_ok =

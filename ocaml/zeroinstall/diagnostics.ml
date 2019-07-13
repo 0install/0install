@@ -162,7 +162,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
     end
 
   let find_component_ex role report =
-    match RoleMap.find role report with
+    match RoleMap.find_opt role report with
     | Some c -> c
     | None -> Safe_exn.failf "Can't find component %a!" format_role role
 
@@ -177,7 +177,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
   let get_dependency_problem role report impl =
     let check_dep dep =
       let dep_info = Model.dep_info dep in
-      match RoleMap.find dep_info.Model.dep_role report with
+      match RoleMap.find_opt dep_info.Model.dep_role report with
       | None -> None      (* Not in the selections => can't be part of a conflict *)
       | Some required_component ->
           match required_component#impl with
@@ -200,7 +200,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
       of the required interface were rejected. *)
   let examine_dep requiring_role requiring_impl report dep =
     let {Model.dep_role = other_role; dep_importance = _; dep_required_commands} = Model.dep_info dep in
-    match RoleMap.find other_role report with
+    match RoleMap.find_opt other_role report with
     | None -> ()
     | Some required_component ->
         let dep_restrictions = Model.restrictions dep in
@@ -228,7 +228,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
       | Some replacement when RoleMap.mem replacement report -> (
           component#note (ReplacedByConflict replacement);
           component#reject_all (`ConflictsRole replacement);
-          match RoleMap.find replacement report with
+          match RoleMap.find_opt replacement report with
           | Some replacement_component ->
               replacement_component#note (ReplacesConflict role);
               replacement_component#reject_all (`ConflictsRole role)

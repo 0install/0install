@@ -15,9 +15,7 @@ type t = {
   cache : (G.fingerprint, Progress.key_vote list Lwt.t) Hashtbl.t
 }
 
-let lookup t fingerprint =
-  try Some (Hashtbl.find t.cache fingerprint)
-  with Not_found -> None
+let lookup t fingerprint = Hashtbl.find_opt t.cache fingerprint
 
 let make config = {config; cache = Hashtbl.create 10}
 

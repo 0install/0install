@@ -43,7 +43,7 @@ class dryrun_system (underlying:system) =
         let dir = Filename.dirname path in
         let base = Filename.basename path in
 
-        match XString.Map.find dir fake_dirs with
+        match XString.Map.find_opt dir fake_dirs with
         | Some items -> XString.Set.mem base items
         | None -> false
       )
@@ -62,7 +62,7 @@ class dryrun_system (underlying:system) =
       let dir = Filename.dirname path in
       let base = Filename.basename path in
 
-      let dir_entries = default XString.Set.empty @@ XString.Map.find dir fake_dirs in
+      let dir_entries = default XString.Set.empty @@ XString.Map.find_opt dir fake_dirs in
 
       fake_dirs <- XString.Map.add dir (XString.Set.add base dir_entries) fake_dirs
 

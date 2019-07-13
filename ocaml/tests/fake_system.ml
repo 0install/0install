@@ -169,7 +169,7 @@ class fake_system ?(portable_base=true) tmpdir =
     if Filename.is_relative path then path
     else (
       try
-        match XString.Map.find_nf path !extra_files with
+        match XString.Map.find path !extra_files with
         | Dir _ -> path
         | File (_mode, redirect_path) -> redirect_path
       with Not_found ->
@@ -238,11 +238,10 @@ class fake_system ?(portable_base=true) tmpdir =
     method set_device_boundary b = device_boundary <- b
 
     method readdir path =
-      try
-        match XString.Map.find_nf path !extra_files with
-        | Dir (_mode, items) -> Ok (Array.of_list items)
-        | _ -> failwith "Not a directory"
-      with Not_found -> real_system#readdir (check_read path)
+      match XString.Map.find_opt path !extra_files with
+      | Some (Dir (_mode, items)) -> Ok (Array.of_list items)
+      | Some _ -> failwith "Not a directory"
+      | None -> real_system#readdir (check_read path)
 
     method symlink ~target ~newlink = real_system#symlink ~target ~newlink:(check_write newlink)
 
@@ -264,12 +263,11 @@ class fake_system ?(portable_base=true) tmpdir =
     method lstat path =
       if XString.Set.mem path !hidden_files then None
       else (
-        try
-          let open Unix in
-          match XString.Map.find_nf path !extra_files with
-          | Dir (mode, _items) -> Some (make_stat mode S_DIR)
-          | File (_mode, target) -> real_system#lstat target
-        with Not_found ->
+        let open Unix in
+        match XString.Map.find_opt path !extra_files with
+        | Some Dir (mode, _items) -> Some (make_stat mode S_DIR)
+        | Some File (_mode, target) -> real_system#lstat target
+        | None ->
           if hidden_subtree path then None
           else real_system#lstat (check_read path)
       )
@@ -277,12 +275,11 @@ class fake_system ?(portable_base=true) tmpdir =
     method stat path =
       if XString.Set.mem path !hidden_files then None
       else (
-        try
-          let open Unix in
-          match XString.Map.find_nf path !extra_files with
-          | Dir (mode, _items) -> Some (make_stat mode S_DIR)
-          | File (_mode, target) -> real_system#stat target
-        with Not_found ->
+        let open Unix in
+        match XString.Map.find_opt path !extra_files with
+        | Some Dir (mode, _items) -> Some (make_stat mode S_DIR)
+        | Some File (_mode, target) -> real_system#stat target
+        | None ->
           if tmpdir = None then None
           else if hidden_subtree path then None
           else real_system#stat (check_read path)
@@ -336,7 +333,7 @@ class fake_system ?(portable_base=true) tmpdir =
       let to_str (name, value) = name ^ "=" ^ value in
       Array.of_list (List.map to_str @@ XString.Map.bindings env)
 
-    method getenv name = XString.Map.find name env
+    method getenv name = XString.Map.find_opt name env
 
     method putenv name value =
       env <- XString.Map.add name value env
@@ -358,12 +355,10 @@ class fake_system ?(portable_base=true) tmpdir =
         if (parent <> path) then (
           let leaf = Filename.basename path in
           let () =
-            try
-              match XString.Map.find_nf parent !extra_files with
-              | Dir (mode, items) -> extra_files := XString.Map.add parent (Dir (mode, leaf :: items)) !extra_files
-              | _ -> failwith parent
-            with Not_found ->
-              self#add_dir parent [leaf] in
+            match XString.Map.find_opt parent !extra_files with
+            | Some Dir (mode, items) -> extra_files := XString.Map.add parent (Dir (mode, leaf :: items)) !extra_files
+            | Some _ -> failwith parent
+            | None -> self#add_dir parent [leaf] in
           add_parent parent
         ) in
       add_parent path

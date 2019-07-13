@@ -15,7 +15,7 @@ let get_keys_by_domain gpg trust_db =
   let keys_of_domain = ref XString.Map.empty in
   domains_of_key |> XString.Map.iter (fun key domains ->
     domains |> XString.Set.iter (fun domain ->
-      let keys = default [] @@ XString.Map.find domain !keys_of_domain in
+      let keys = default [] @@ XString.Map.find_opt domain !keys_of_domain in
       keys_of_domain := !keys_of_domain |> XString.Map.add domain (key :: keys)
     )
   );
@@ -151,7 +151,7 @@ let add_key_list ~packing gpg trust_db =
 
       keys |> List.iter (fun key ->
         let key_row = model#append ~parent:domain_row () in
-        let key_name = XString.Map.find key key_info |> pipe_some (fun info -> info.G.name) |> default key in
+        let key_name = XString.Map.find_opt key key_info |> pipe_some (fun info -> info.G.name) |> default key in
         model#set ~row:key_row ~column:fingerprint key;
         model#set ~row:key_row ~column:name key_name
       )

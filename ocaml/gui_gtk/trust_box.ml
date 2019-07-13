@@ -215,7 +215,7 @@ let confirm_keys gpg trust_db ?parent feed_url valid_sigs =
 
   valid_sigs |> List.iter (fun (fpr, hints) ->
     let name =
-      XString.Map.find fpr key_names
+      XString.Map.find_opt fpr key_names
       |> pipe_some (fun info -> info.G.name)
       |> default "<unknown>" in
     let page = GPack.vbox ~homogeneous:false ~spacing:4 ~border_width:8 () in

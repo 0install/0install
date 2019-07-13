@@ -49,7 +49,7 @@ let get_args elem env =
   with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... expanding %a" Element.pp elem
 
 let find_ex role impls =
-  Selections.RoleMap.find role impls
+  Selections.RoleMap.find_opt role impls
   |? lazy (Safe_exn.failf "Missing a selection for role '%a'" Selections.Role.pp role)
 
 (* [command_rel_path command] is the "path" attribute on the <command> element, if any.

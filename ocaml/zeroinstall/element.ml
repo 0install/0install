@@ -69,7 +69,7 @@ let parse_selections root =
         let index = ref (make_selection_map root) in
         old_commands |> List.iter (fun command ->
           let current_iface = !iface |? lazy (Q.raise_elem "No additional command expected here!" command) in
-          let sel = XString.Map.find current_iface !index |? lazy (Q.raise_elem "Missing selection for '%s' needed by" current_iface command) in
+          let sel = XString.Map.find_opt current_iface !index |? lazy (Q.raise_elem "Missing selection for '%s' needed by" current_iface command) in
           let command = {command with Q.attrs = command.Q.attrs |> AttrMap.add_no_ns "name" "run"} in
           index := !index |> XString.Map.add current_iface {sel with Q.child_nodes = command :: sel.Q.child_nodes};
           match get_runner command with

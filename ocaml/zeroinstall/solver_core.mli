@@ -15,7 +15,7 @@ module Make : functor (Model : Sigs.SOLVER_INPUT) -> sig
     diagnostics : diagnostics;          (** Extra information useful for diagnostics *)
   }
 
-  module RoleMap : Sigs.MAP with type key = Model.Role.t
+  module RoleMap : Map.S with type key = Model.Role.t
 
   (** [do_solve model req] finds an implementation matching the given requirements, plus any other implementations needed
    * to satisfy its dependencies.

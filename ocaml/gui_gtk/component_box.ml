@@ -562,7 +562,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
       let get_overrides =
         let cache = ref XString.Map.empty in
         fun feed ->
-          match !cache |> XString.Map.find feed with
+          match !cache |> XString.Map.find_opt feed with
           | Some result -> result
           | None ->
               let result = F.load_feed_overrides config (Feed_url.parse feed) in
@@ -574,7 +574,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
         let impl_id = Impl.get_attr_ex FeedAttr.id impl in
         let overrides = get_overrides from_feed in
         let stability_value =
-          match XString.Map.find impl_id overrides.F.user_stability with
+          match XString.Map.find_opt impl_id overrides.F.user_stability with
           | Some user_stability -> Stability.to_string user_stability |> String.uppercase_ascii
           | None -> Q.AttrMap.get_no_ns FeedAttr.stability impl.Impl.props.Impl.attrs |> default "testing" in
 

@@ -85,7 +85,7 @@ class type impl_provider =
 (** Convert a map of impls to a list, applying any overrides to the stability fields. *)
 let do_overrides overrides =
   XString.Map.map_bindings (fun id impl ->
-    match XString.Map.find id overrides.Feed.user_stability with
+    match XString.Map.find_opt id overrides.Feed.user_stability with
     | Some stability -> Impl.with_stability stability impl
     | None -> impl
   )

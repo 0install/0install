@@ -117,7 +117,7 @@ let get_exec_args config ?main sels args =
     bindings |> Support.Utils.filter_map (fun (role, binding) -> match Binding.parse_binding binding with
       | Binding.EnvironmentBinding b ->
           let sel = lazy (
-            Selections.RoleMap.find role impls
+            Selections.RoleMap.find_opt role impls
             |? lazy (Safe_exn.failf "Missing role '%a' in selections!" Selections.Role.pp role)
           ) in
           Binding.do_env_binding env sel b; None

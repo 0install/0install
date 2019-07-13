@@ -95,7 +95,7 @@ let of_source ~host_arch impl =
   let open Impl in
   let local_dir = local_dir_of impl in
   let props = impl.props in
-  match XString.Map.find "compile" props.commands with
+  match XString.Map.find_opt "compile" props.commands with
   | None -> `Reject `No_compile_command
   | Some command ->
   let id = get_attr_ex "id" impl in

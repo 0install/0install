@@ -34,12 +34,6 @@ val re_semicolon : Str.regexp
 module Map : sig
   include Map.S with type key = string
 
-  val find : string -> 'a t -> 'a option
-  (** [find k t] is the value for [k], or [None] if [k] isn't in the map. *)
-
-  val find_nf : string -> 'a t -> 'a
-  (** Like [find], but raises [Not_found] if the key is missing. *)
-
   val find_safe : string -> 'a t -> 'a
   (** Like [find], but raises [Safe_exn.t] if the key is missing,
       with a message that includes the name of the missing key. *)

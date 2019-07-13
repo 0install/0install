@@ -69,7 +69,7 @@ let read_args ?(cword) (spec : ('a,'b) argparse_spec) input_args =
   let options_map = make_option_map spec.options_spec in
 
   let lookup_option x =
-    XString.Map.find x options_map |> pipe_some (fun r -> Some r#get_reader) in
+    XString.Map.find_opt x options_map |> pipe_some (fun r -> Some r#get_reader) in
 
   let allow_options = ref true in
   let stream = Stream.of_list input_args in
@@ -193,7 +193,7 @@ let parse_options valid_options raw_options =
 
   let parse_option = function
     | (name, values) ->
-        match XString.Map.find name map with
+        match XString.Map.find_opt name map with
         | None -> Safe_exn.failf "Option '%s' is not valid here" name
         | Some reader ->
             try (name, reader#parse values)

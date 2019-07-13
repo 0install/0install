@@ -317,7 +317,7 @@ let realpath (system:#filesystem) path =
       match system#readlink newpath with
       | Some target ->
           (* path + symlink/rest *)
-          begin match XString.Map.find newpath seen with
+          begin match XString.Map.find_opt newpath seen with
           | Some (Some cached_path) -> join_realpath cached_path rest seen
           | Some None -> (normpath (newpath +/ rest), false)    (* Loop; give up *)
           | None ->

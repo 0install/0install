@@ -91,12 +91,12 @@ let parse_requirements json_assoc =
   let table = Hashtbl.create (List.length json_assoc) in
   json_assoc |> List.iter (fun (name, value) -> Hashtbl.add table name value);
   let pop name =
-    try
-      let value = Hashtbl.find table name in
+    match Hashtbl.find_opt table name with
+    | None -> `Null
+    | Some value ->
       Hashtbl.remove table name;
       value
-    with Not_found -> `Null in
-
+  in
   let reqs =
     Zeroinstall.Requirements.({
       interface_uri = pop "interface" |> J.Util.to_string;

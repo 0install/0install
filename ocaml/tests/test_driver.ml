@@ -147,7 +147,7 @@ let make_driver_test test_elem =
           `Success
 
         method get_feed url =
-          try `Xml (XString.Map.find_nf url !downloadable_feeds)
+          try `Xml (XString.Map.find url !downloadable_feeds)
           with Not_found -> `Problem "Unexpected feed requested"
       end in
 

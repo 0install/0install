@@ -20,8 +20,9 @@ module AttrMap =
     let empty = M.empty
 
     let get name attrs =
-      try Some (M.find name attrs |> snd)
-      with Not_found -> None
+      match M.find_opt name attrs with
+      | Some (_, value) -> Some value
+      | None -> None
 
     let get_no_ns name attrs =
       get ("", name) attrs
@@ -154,8 +155,7 @@ let parse_file (system:#filesystem) ?name path =
 (** Helper functions. *)
 
 let find pred node =
-  try Some (List.find pred node.child_nodes)
-  with Not_found -> None
+  List.find_opt pred node.child_nodes
 
 let rec show_with_loc elem =
   match elem.source_hint with

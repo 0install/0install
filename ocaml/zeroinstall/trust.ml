@@ -47,7 +47,7 @@ class trust_db config =
             ) in
 
   let get_domains fingerprint db =
-    default XString.Set.empty @@ XString.Map.find fingerprint db in
+    default XString.Set.empty @@ XString.Map.find_opt fingerprint db in
 
   let is_trusted db ~domain fingerprint =
     let domains = get_domains fingerprint db in

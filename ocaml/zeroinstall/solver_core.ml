@@ -30,7 +30,7 @@ module Cache(CacheEntry : CACHE_ENTRY) : sig
   (** The cache is used in [build_problem], while the clauses are still being added. *)
   type t
 
-  module M : Sigs.MAP with
+  module M : Map.S with
    type key = CacheEntry.t
 
   (** Once the problem is built, an immutable snapshot is taken. *)
@@ -53,11 +53,7 @@ module Cache(CacheEntry : CACHE_ENTRY) : sig
 
   val filter_map : (CacheEntry.t -> 'a -> 'b option) -> 'a M.t -> 'b M.t
 end = struct
-  module M = struct
-    include Map.Make(CacheEntry)
-    let find_exn = find
-    let find key map = try Some (find_exn key map) with Not_found -> None
-  end
+  module M = Map.Make(CacheEntry)
 
   type snapshot = CacheEntry.value M.t
   type t = snapshot ref
@@ -65,7 +61,7 @@ end = struct
   let create () = ref M.empty
 
   let lookup table make key =
-    M.find key !table |? lazy (
+    M.find_opt key !table |? lazy (
       let value, process = make key in
       table := M.add key value !table;
       process ();
@@ -74,8 +70,8 @@ end = struct
 
   let snapshot table = !table
 
-  let get = M.find
-  let get_exn = M.find_exn
+  let get = M.find_opt
+  let get_exn = M.find
 
   let filter_map f m =
     M.merge (fun key ao _bo ->

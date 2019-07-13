@@ -208,9 +208,9 @@ module Debian = struct
         )
 
     let cached_result t package_name =
-      match Hashtbl.find t package_name with
-      | exception Not_found -> `Not_checked
-      | x -> (x :> [`Available of entry | `Unavailable | `Not_checked])
+      match Hashtbl.find_opt t package_name with
+      | None -> `Not_checked
+      | Some x -> (x :> [`Available of entry | `Unavailable | `Not_checked])
 
     let is_available t package_name =
       match cached_result t package_name with
@@ -535,7 +535,7 @@ module ArchLinux = struct
         let package_name = Query.package query in
         log_debug "Looking up distribution packages for %s" package_name;
         let items = get_entries () in
-        match XString.Map.find package_name items with
+        match XString.Map.find_opt package_name items with
         | None -> ()
         | Some version ->
             let entry = package_name ^ "-" ^ version in

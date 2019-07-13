@@ -78,10 +78,7 @@ let optimise_impl system stats first_copy ~tmpfile impl_dir impl =
         | `File info ->
             let (_x, _hash, _mtime, size) = info in
             let new_full = dir_path +/ name in
-            let prev =
-              try Some (Hashtbl.find first_copy info)
-              with Not_found -> None in
-            match prev with
+            match Hashtbl.find_opt first_copy info with
             | None ->
                 Hashtbl.add first_copy info new_full;
                 stats.uniq_size <- Int64.add stats.uniq_size size

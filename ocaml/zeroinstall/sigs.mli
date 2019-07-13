@@ -12,13 +12,6 @@ type iface_uri = string
 
 type feed_url = string
 
-module type MAP = sig
-  include Map.S
-
-  (** Safe version of [find] that returns an option. *)
-  val find : key -> 'a t -> 'a option
-end
-
 module type CORE_MODEL = sig
   module Role : sig
     (** A role that needs to be filled by a single implementation.
@@ -119,7 +112,7 @@ module type SELECTIONS = sig
   val selected_commands : t -> Role.t -> command_name list
   val requirements : t -> requirements
 
-  module RoleMap : MAP with type key = Role.t
+  module RoleMap : Map.S with type key = Role.t
 end
 
 module type SOLVER_RESULT = sig

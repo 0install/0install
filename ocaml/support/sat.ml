@@ -500,8 +500,7 @@ module MakeSAT(User : USER) =
 
         method best_undecided =
           (* if debug then log_debug "best_undecided: %s" (string_of_lits lits); *)
-          try Some (List.find (fun l -> lit_value l = Undecided) lits)
-          with Not_found -> None
+          List.find_opt (fun l -> lit_value l = Undecided) lits
 
         method get_selected =
           !current

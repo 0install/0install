@@ -174,7 +174,7 @@ let success_ids resolutions =
 
 (* Resolve a query with its results and problems. *)
 let resolve_query ~resolutions ~sizes (name, resolver) =
-  let impls = XString.Map.find name resolutions |> default [] in
+  let impls = XString.Map.find_opt name resolutions |> default [] in
   let problems = ref [] in
   if impls = [] then
     problems := Printf.sprintf "'%s' details not in PackageKit response" name :: !problems;
@@ -184,7 +184,7 @@ let resolve_query ~resolutions ~sizes (name, resolver) =
     | `Ok impl ->
     let rm = impl.retrieval_method in
     let packagekit_id = get_packagekit_id rm in
-    match XString.Map.find packagekit_id sizes with
+    match XString.Map.find_opt packagekit_id sizes with
     | Some _ as size -> Some {impl with retrieval_method = {rm with Impl.distro_size = size}}
     | None ->
         log_info "No size returned for '%s'" packagekit_id;
@@ -228,8 +228,7 @@ end = struct
   let make () = Hashtbl.create 10
 
   let get t package_name =
-    try Some (Hashtbl.find t package_name)
-    with Not_found -> None
+    Hashtbl.find_opt t package_name
 
   let ensure_fetching t name =
     let start () =

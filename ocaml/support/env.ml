@@ -21,7 +21,7 @@ let of_array =
 
 let put = XString.Map.add
 let unset = XString.Map.remove
-let get = XString.Map.find
+let get = XString.Map.find_opt
 
 let get_exn k t =
   match get k t with

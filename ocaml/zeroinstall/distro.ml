@@ -74,7 +74,7 @@ module Query = struct
     t.problem msg
 
   let add_result t id impl =
-    begin match XString.Map.find id !(t.results) with
+    begin match XString.Map.find_opt id !(t.results) with
       | None -> ()
       | Some existing ->
         (* On Debian at least, we sometimes add duplicates for the same element.
@@ -111,7 +111,7 @@ class type virtual provider =
 let with_main_path path props =
   let open Impl in
   let run_command =
-    match XString.Map.find "run" props.commands with
+    match XString.Map.find_opt "run" props.commands with
     | Some command ->
       (* Keep any existing bindings and dependencies *)
       {command with command_qdom = Element.make_command ~path ~source_hint:None "run"}
@@ -207,7 +207,7 @@ class virtual distribution config =
       | Some master_feed ->
           let wanted_id = Element.id elem in
           let impls = self#get_impls_for_feed ~problem:ignore master_feed in
-          match XString.Map.find wanted_id impls with
+          match XString.Map.find_opt wanted_id impls with
           | None -> false
           | Some {Impl.impl_type = `Package_impl {Impl.package_state; _}; _} -> package_state = `Installed
 
@@ -277,7 +277,7 @@ let install_distro_packages (t:t) ui impls : [ `Ok | `Cancel ] Lwt.t =
     | `Installed -> Safe_exn.failf "BUG: package %s already installed!" (Impl.get_id impl).Feed_url.id
     | `Uninstalled rm ->
         let (typ, _info) = rm.Impl.distro_install_info in
-        let items = default [] @@ XString.Map.find typ !groups in
+        let items = default [] @@ XString.Map.find_opt typ !groups in
         groups := XString.Map.add typ ((impl, rm) :: items) !groups
   );
 

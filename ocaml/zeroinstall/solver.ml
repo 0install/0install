@@ -87,7 +87,7 @@ module CoreModel = struct
 
   let get_command impl name =
     if impl == dummy_impl then Some dummy_command
-    else XString.Map.find name impl.Impl.props.Impl.commands
+    else XString.Map.find_opt name impl.Impl.props.Impl.commands
 
   let make_deps role zi_deps self_bindings =
     let impl_provider = role.scope in
@@ -218,7 +218,7 @@ module CoreModel = struct
     (candidates.Impl_provider.rejects, candidates.Impl_provider.feed_problems)
 
   let user_restrictions role =
-    XString.Map.find role.iface role.scope#extra_restrictions
+    XString.Map.find_opt role.iface role.scope#extra_restrictions
 end
 
 module Core = Solver_core.Make(CoreModel)
@@ -237,7 +237,7 @@ module Model =
     let format_version impl = Version.to_string impl.Impl.parsed_version
 
     let get_selected role result =
-      RoleMap.find role result.selections |> pipe_some (fun selection ->
+      RoleMap.find_opt role result.selections |> pipe_some (fun selection ->
         let impl = Core.(selection.impl) in
         if impl == dummy_impl then None
         else Some impl
@@ -246,7 +246,7 @@ module Model =
     let requirements result = result.root_req
 
     let explain result role =
-      match RoleMap.find role result.selections with
+      match RoleMap.find_opt role result.selections with
       | Some sel -> Core.explain sel.Core.diagnostics
       | None -> "Role not used!"
 
@@ -254,7 +254,7 @@ module Model =
       result.selections |> RoleMap.map (fun sel -> sel.Core.impl)
 
     let selected_commands result role =
-      match RoleMap.find role result.selections with
+      match RoleMap.find_opt role result.selections with
       | Some selection -> Core.(selection.commands)
       | None -> []
   end

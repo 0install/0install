@@ -47,14 +47,10 @@ let rec set_of_option_names = function
   | Group group ->
       group |> List.fold_left (fun set (_name, node) -> XString.Set.union set (set_of_option_names node)) XString.Set.empty
 
-let assoc key items =
-  try Some (List.assoc key items)
-  with Not_found -> None
-
 let rec lookup node args =
   match node, args with
   | Group items, name :: args ->
-      let subnode = assoc name items |? lazy (Safe_exn.failf "Unknown 0install sub-command '%s': try --help" name) in
+      let subnode = List.assoc_opt name items |? lazy (Safe_exn.failf "Unknown 0install sub-command '%s': try --help" name) in
       let prefix, node, args = lookup subnode args in
       (name :: prefix, node, args)
   | _ -> ([], node, args)

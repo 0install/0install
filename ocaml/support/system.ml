@@ -64,7 +64,7 @@ let canonical_machines = List.fold_left (fun map (k, v) -> XString.Map.add k v m
 
 (** Return the canonical name for this CPU, or [s] if we don't know one. *)
 let canonical_machine s =
-  XString.Map.find (String.lowercase_ascii s) canonical_machines |? lazy s
+  XString.Map.find_opt (String.lowercase_ascii s) canonical_machines |? lazy s
 
 let canonical_os = function
   | "SunOS" -> "Solaris"
@@ -230,9 +230,7 @@ module RealSystem (U : UnixType) =
 
         method hardlink src dst = Unix.link src dst
 
-        method getenv name =
-          try Some (Sys.getenv name)
-          with Not_found -> None
+        method getenv name = Sys.getenv_opt name
 
         method environment = Unix.environment ()
 

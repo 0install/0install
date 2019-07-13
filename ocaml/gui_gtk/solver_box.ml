@@ -202,7 +202,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
 
   (* Connect up the component tree view *)
   let show_component role ~select_versions_tab =
-    match RoleMap.find role !component_boxes with
+    match RoleMap.find_opt role !component_boxes with
     | Some box -> box#dialog#present ()
     | None ->
         let box = Component_box.create tools ~trust_db reqs role ~recalculate ~select_versions_tab ~watcher in
@@ -364,7 +364,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
         |> RoleMap.mapi (fun new_role _impl -> new_role) in
 
       !component_boxes |> RoleMap.iter (fun old_role box ->
-        RoleMap.find old_role new_roles |> box#update
+        RoleMap.find_opt old_role new_roles |> box#update
       );
 
       component_tree#update

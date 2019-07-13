@@ -86,7 +86,7 @@ let os_ok ranking = function
   | Some required -> XString.Map.mem required ranking
 let machine_ok = os_ok
 
-let os_rank ranks v = XString.Map.find v ranks
+let os_rank ranks v = XString.Map.find_opt v ranks
 let machine_rank = os_rank
 
 let custom_os_ranking x = x

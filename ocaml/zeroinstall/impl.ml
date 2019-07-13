@@ -259,10 +259,10 @@ let existing_source = function
   | {impl_type = `Binary_of source; _} -> source
   | {impl_type = #existing; _} as existing -> existing
 
-let get_command_opt command_name impl = XString.Map.find command_name impl.props.commands
+let get_command_opt command_name impl = XString.Map.find_opt command_name impl.props.commands
 
 let get_command_ex command_name impl : command =
-  XString.Map.find command_name impl.props.commands |? lazy (Safe_exn.failf "Command '%s' not found in %a" command_name Element.pp impl.qdom)
+  XString.Map.find_opt command_name impl.props.commands |? lazy (Safe_exn.failf "Command '%s' not found in %a" command_name Element.pp impl.qdom)
 
 (** The list of languages provided by this implementation. *)
 let get_langs impl =

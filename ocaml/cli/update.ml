@@ -189,7 +189,7 @@ let wait_for_network = ref (fun () ->
     `Connected
   ) else (
     log_info "Not yet connected to network. Sleeping for 2 min...";
-    begin try ignore @@ Sys.getenv "ZEROINSTALL_TEST_BACKGROUND" with Not_found -> sleep_for 120 end;
+    if Sys.getenv_opt "ZEROINSTALL_TEST_BACKGROUND" = None then sleep_for 120;
     get_network_state ()
   );
 )
