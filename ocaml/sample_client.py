@@ -20,7 +20,7 @@ else:
 	print("Usage: %s IFACE" % sys.argv[0])
 	sys.exit(1)
 
-slave_args = ["./0install", "--console", "slave", "2.7"]
+slave_args = ["dune", "exec", "--", "0install", "--console", "slave", "2.7"]
 if verbosity > 1: slave_args.append("-v")
 
 c = subprocess.Popen(slave_args, stdin = subprocess.PIPE, stdout = subprocess.PIPE)
