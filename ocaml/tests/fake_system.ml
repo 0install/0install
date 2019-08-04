@@ -71,8 +71,8 @@ let make_stat st_perm kind =
   }
 
 let flush_all () =
-  Pervasives.flush Pervasives.stdout;
-  Pervasives.flush Pervasives.stderr
+  flush stdout;
+  flush stderr
 
 let capture_stdout ?(include_stderr=false) fn =
   let open Unix in
