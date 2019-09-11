@@ -103,7 +103,7 @@ class ErrSig(Signature):
 	"""Error while checking a signature."""
 	KEYID = 0
 	ALG = 1
-	RC = -1
+	RC = 5
 
 	def __str__(self):
 		"""@rtype: str"""
