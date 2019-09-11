@@ -44,7 +44,7 @@ interfere with those provided by the distribution.
       <executable-in-var name="ZEROINSTALL_GPG"/>
     </requires>
 
-    <restricts interface="http://repo.roscidus.com/python/python" version="2.6..!3 | 3.2.2.."/>
+    <restricts interface="http://repo.roscidus.com/python/python" version="2.6..!3 | 3.2.2..!3.7"/>
 
     <requires interface="http://repo.roscidus.com/python/python-gobject" os="POSIX"/>
 
