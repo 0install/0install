@@ -20,6 +20,7 @@ class Requirements(object):
 		'extra_restrictions',		# {str: str} (iface -> range)
 		'os', 'cpu',
 		'message',
+		'may_compile',			# (for compatibility with OCaml version of 0install)
 	]
 
 	def __init__(self, interface_uri):
@@ -29,6 +30,7 @@ class Requirements(object):
 		self.source = False
 		self.os = self.cpu = None
 		self.message = None
+		self.may_compile = False
 		self.extra_restrictions = {}
 
 	def parse_options(self, options):
@@ -92,6 +94,8 @@ class Requirements(object):
 				gui_args.insert(0, '--version-for')
 		if self.source:
 			gui_args.insert(0, '--source')
+		if self.may_compile:
+			gui_args.insert(0, '--may-compile')
 		if self.message:
 			gui_args.insert(0, self.message)
 			gui_args.insert(0, '--message')
