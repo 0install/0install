@@ -144,7 +144,7 @@ module Debian = struct
       size : Int64.t option;
     }
 
-    type t = (string, [`Available of entry | `Unavailable]) Hashtbl.t
+    type t = (string, [`Available of entry | `Unavailable] Lwt.t) Hashtbl.t
 
     let make () = Hashtbl.create 10
 
@@ -159,11 +159,16 @@ module Debian = struct
         | "Size:" -> `Size (Int64.of_string v)
         | _ -> `Unknown
 
+    (* Avoid running too many apt-cache processes at the same time. *)
+    let mux = Lwt_mutex.create ()
+
     let run system package =
       Lwt.catch
         (fun () ->
            let stderr = if Support.Logging.will_log Support.Logging.Debug then None else Some `Dev_null in
-           Lwt_process.pread ?stderr (U.make_command system ["apt-cache"; "--no-all-versions"; "show"; "--"; package]) >>= fun out ->
+           Lwt_mutex.with_lock mux (fun () ->
+               Lwt_process.pread ?stderr (U.make_command system ["apt-cache"; "--no-all-versions"; "show"; "--"; package])
+             ) >>= fun out ->
            let machine = ref None in
            let version = ref None in
            let size = ref None in
@@ -195,10 +200,13 @@ module Debian = struct
       Lwt.catch
         (fun () ->
            package_names |> Lwt_list.iter_s (fun package ->
-               run system package >>= fun result ->
                (* (multi-arch support? can there be multiple candidates?) *)
-               Hashtbl.replace t package result;
-               Lwt.return ()
+               match Hashtbl.find_opt t package with
+               | Some result when Lwt.state result = Lwt.Sleep -> result >|= ignore  (* Already checking *)
+               | _ ->
+                 let result = run system package in
+                 Hashtbl.replace t package result;
+                 result >|= ignore
              )
            >|= fun () -> `Ok
         )
@@ -210,7 +218,10 @@ module Debian = struct
     let cached_result t package_name =
       match Hashtbl.find_opt t package_name with
       | None -> `Not_checked
-      | Some x -> (x :> [`Available of entry | `Unavailable | `Not_checked])
+      | Some x ->
+        match Lwt.state x with
+        | Lwt.Return x -> (x :> [`Available of entry | `Unavailable | `Not_checked])
+        | Lwt.Sleep | Lwt.Fail _ -> `Not_checked
 
     let is_available t package_name =
       match cached_result t package_name with
