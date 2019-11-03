@@ -25,7 +25,8 @@ conflicts: [
   "lablgtk" {< "2.18.2"}
 ]
 depexts: [
-  ["unzip"] {os-distribution = "ubuntu"}
-  ["unzip"] {os-distribution = "debian"}
+  ["gnupg" "unzip"] {os-distribution = "ubuntu"}
+  ["gnupg" "unzip"] {os-distribution = "debian"}
+  ["gnupg" "unzip"] {os-distribution = "alpine"}
   ["gnupg"] {os = "macos" & os-distribution = "homebrew"}
 ]
