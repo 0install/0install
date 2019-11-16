@@ -59,7 +59,7 @@ let load_config config =
   | None -> ()
   | Some path -> Support.Utils.parse_ini config.system handle_ini_mapping path
 
-let default_key_info_server = Some "https://keylookup.appspot.com"
+let default_key_info_server = Some "https://keylookup.0install.net"
 
 (** [get_default_config path_to_0install] creates a configuration from the current environment.
     [path_to_0install] is used when creating launcher scripts. If it contains no slashes, then

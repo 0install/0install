@@ -72,7 +72,7 @@ class fake_slave _config =
 
   let handle_download ?if_slow:_ ?size:_ ?modification_time:_ ch url =
     let contents =
-      if XString.starts_with url "https://keylookup.appspot.com/key/" then (
+      if XString.starts_with url "https://keylookup.0install.net/key/" then (
         "<key-lookup><item vote='good'>Looks legit</item></key-lookup>"
       ) else (
         XString.Map.find_safe url !pending_feed_downloads
