@@ -13,4 +13,4 @@
   (deps (source_tree data)
         (alias ../../install)     ; Build the GTK plugin if possible
         0install%{ext_exe} 0install-runenv.exe)
-  (libraries oUnit zeroinstall zeroinstall_cli))
+  (libraries oUnit zeroinstall zeroinstall_cli support lwt lwt.unix lwt_react xmlm yojson))

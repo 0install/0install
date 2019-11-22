@@ -2,4 +2,4 @@
  (name        zeroinstall_cli)
  (modules_without_implementation options)
  (wrapped     false)
- (libraries   zeroinstall))
+ (libraries   zeroinstall support yojson xmlm lwt lwt.unix curl))

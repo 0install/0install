@@ -6,14 +6,14 @@
  (ocamlc_flags   -linkall -custom)
  (link_flags  (:include support/extra_objects.sexp))
  (package     0install)
- (libraries   zeroinstall_cli zeroinstall))
+ (libraries   zeroinstall_cli zeroinstall support))
 
 (executable
  (public_name 0install-runenv.exe)
  (name        runenv)
  (modules     runenv)
  (link_flags  (:include support/extra_objects.sexp))
- (libraries   zeroinstall_cli zeroinstall))
+ (libraries   zeroinstall_cli zeroinstall support))
 
 (install
   (section bin)

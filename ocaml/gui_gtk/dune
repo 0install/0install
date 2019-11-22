@@ -17,7 +17,7 @@ let plugin_ext =
 let dune = {|
   (library
    (name        gui_gtk_lib)
-   (libraries   lablgtk2 lwt_glib zeroinstall))
+   (libraries   lablgtk2 lwt_glib zeroinstall support lwt lwt.unix lwt_react))
 
   (rule
     (targets gui_gtk.cmxs)
