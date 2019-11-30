@@ -177,7 +177,10 @@ let connect lang_spec =
           | Dbus.OBus_bus.Service_unknown msg | Dbus.OBus_error.Unknown_object msg ->
             log_info "PackageKit not available: %s" msg;
             Lwt.return (`Unavailable (Printf.sprintf "PackageKit not available: %s" msg))
-          | ex -> Lwt.fail ex
+          | ex ->
+            (* obus 1.2.0 raises `E` *)
+            log_info ~ex "PackageKit not available";
+            Lwt.return (`Unavailable (Printf.sprintf "PackageKit not available: %s" (Printexc.to_string ex)))
         )
 
 let create_transaction t =

@@ -3,6 +3,8 @@
  (modules_without_implementation feed_provider progress sigs ui)
  (libraries curl curl.lwt dynlink lwt lwt.unix react lwt_react support yojson xmlm
             (select dbus.ml from
+             (obus.network_manager
+              obus.notification    -> dbus.with.ml)
              (obus.network-manager
               obus.notification    -> dbus.with.ml)
              (                     -> dbus.without.ml))))

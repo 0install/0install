@@ -5,7 +5,6 @@
 (* These tests actually run a dummy web-server. *)
 
 open Zeroinstall.General
-open Support
 open Support.Common
 open OUnit
 
@@ -57,6 +56,7 @@ let test ?(package="gnupg") ?(expected_problems=[]) config fake_system =
 
 let suite =
   "packagekit">:: Fake_system.with_fake_config (fun (config, fake_system) ->
+    skip_if (not Zeroinstall.Dbus.have_dbus) "No D-BUS support compiled in";
     let daemon_prog =
       match U.find_in_path config.system "dbus-daemon" with
       | None -> skip_if true "No dbus-daemon"; assert false
@@ -82,11 +82,7 @@ let suite =
             assert_equal 0 @@ test config fake_system
               ~expected_problems:["gnupg: PackageKit not available: .*"];
 
-            let destroy =
-              try Lwt_main.run (Pk_service.start [| 0; 8; 1 |])
-              with Safe_exn.T e when Safe_exn.msg e = "No D-BUS!" ->
-                skip_if true "No D-BUS support compiled in"; assert false
-            in
+            let destroy = Lwt_main.run (Pk_service.start [| 0; 8; 1 |]) in
             assert_equal 1 @@ test config fake_system;
             Fake_system.fake_log#assert_contains "confirm: The following components need to be installed using native packages.";
 

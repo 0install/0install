@@ -52,3 +52,5 @@ let system () =
       log_debug ~ex "Failed to get D-BUS system bus";
       return (`Error "Failed to get D-BUS system bus")
     )
+
+let have_dbus = true

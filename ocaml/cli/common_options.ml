@@ -46,13 +46,15 @@ let show_version f system =
   let prog = if XString.starts_with prog "0launch" then "0launch" else "0install" in
   Format.fprintf f
     "%s (zero-install) %s@,\
-     Copyright (C) 2016 Thomas Leonard@\n\
+     Copyright (C) 2019 Thomas Leonard@\n\
      This program comes with ABSOLUTELY NO WARRANTY,@ \
      to the extent permitted by law.@ \
      You may redistribute copies of this program@ \
      under the terms of the GNU Lesser General Public License.@ \
-     For more information about these matters, see the file named COPYING.@."
+     For more information about these matters, see the file named COPYING.@.\
+     Compiled with D-Bus support: %b@."
      prog Zeroinstall.About.version
+     Zeroinstall.Dbus.have_dbus
 
 let show_help (system:system) valid_options help f extra_fn =
   let prog = Filename.basename system#argv.(0) in

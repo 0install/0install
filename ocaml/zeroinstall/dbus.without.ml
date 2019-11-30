@@ -169,3 +169,5 @@ module OBus_signal =
     let make _signal = no_dbus
     let emit _info _obj ?peer:_ = no_dbus
   end
+
+let have_dbus = false
