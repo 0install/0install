@@ -23,8 +23,6 @@ type download_result =
  | `Network_failure of string
  | `Tmpfile of Support.Common.filepath ]
 
-exception Unmodified
-
 let is_in_progress dl =
   let (_, _, finished) = Lwt_react.S.value dl.progress in
   not finished
@@ -120,7 +118,7 @@ let download_no_follow ~cancelled ?size ?modification_time ?(start_offset=Int64.
           (* Curl.cleanup connection; - leave it open for the next request *)
 
           if modification_time <> None && actual_size = 0.0 then (
-            raise Unmodified  (* ocurl is missing CURLINFO_CONDITION_UNMET *)
+            `Unmodified  (* ocurl is missing CURLINFO_CONDITION_UNMET *)
           ) else (
             size |> if_some (fun expected ->
                 let expected = Int64.to_float expected in
@@ -268,7 +266,7 @@ let catch_cancel task =
       | ex -> Lwt.fail ex
     )
 
-let download t ~switch ?modification_time ?if_slow ?size ?start_offset ?hint url =
+let download_if_unmodified t ~switch ?modification_time ?if_slow ?size ?start_offset ?hint url =
   let hint = hint |> pipe_some (fun feed -> Some (Feed_url.format_url feed)) in
   log_debug "Download URL '%s'... (for %s)" url (default "no feed" hint);
   let progress, set_progress = Lwt_react.S.create (Int64.zero, size, false) in
@@ -281,7 +279,7 @@ let download t ~switch ?modification_time ?if_slow ?size ?start_offset ?hint url
     | `Success ->
         close_out !ch;
         `Tmpfile tmpfile |> Lwt.return
-    | (`Network_failure _ | `Aborted_by_user) as result ->
+    | (`Network_failure _ | `Aborted_by_user | `Unmodified) as result ->
         close_out !ch;
         Lwt.return result
     | `Redirect target ->
@@ -320,15 +318,10 @@ let download t ~switch ?modification_time ?if_slow ?size ?start_offset ?hint url
       Lwt.return ()
     )
 
-let download_if_unmodified t ~switch ?modification_time ?if_slow ?size ?start_offset ?hint url =
-  Lwt.catch
-    (fun () -> download t ~switch ?modification_time ?if_slow ?size ?start_offset ?hint url)
-    (function
-      | Unmodified -> Lwt.return `Unmodified
-      | ex -> Lwt.fail ex
-    )
-
-let download = download ?modification_time:None
+let download t ~switch ?if_slow ?size ?start_offset ?hint url =
+  download_if_unmodified t ~switch ?if_slow ?size ?start_offset ?hint url >|= function
+  | `Unmodified -> failwith "BUG: got Unmodified, but no expected modification time provided!"
+  | #download_result as x -> x
 
 class type download_pool =
   object
