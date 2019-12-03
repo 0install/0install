@@ -59,7 +59,7 @@ let for_impl config impl =
 let for_archive config url =
   match config.mirror with
   | Some mirror when can_try_mirror url ->
-      let escaped = Str.global_replace (Str.regexp_string "/") "#" url |> Curl.escape in
+      let escaped = Str.global_replace (Str.regexp_string "/") "#" url |> Http.escape in
       Some (mirror ^ "/archive/" ^ escaped)
   | _ -> None
 

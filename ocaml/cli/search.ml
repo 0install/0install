@@ -25,7 +25,7 @@ let handle options flags args =
   match config.mirror with
   | None -> Safe_exn.failf "No mirror configured; search is unavailable"
   | Some mirror ->
-      let url = mirror ^ "/search/?q=" ^ Curl.escape (String.concat " " args) in
+      let url = mirror ^ "/search/?q=" ^ Zeroinstall.Http.escape (String.concat " " args) in
       log_info "Fetching %s..." url;
       Lwt_main.run begin
         U.with_switch @@ fun switch ->

@@ -52,9 +52,11 @@ let show_version f system =
      You may redistribute copies of this program@ \
      under the terms of the GNU Lesser General Public License.@ \
      For more information about these matters, see the file named COPYING.@.\
-     Compiled with D-Bus support: %b@."
+     Compiled with D-Bus support: %b@.\
+     HTTP client library: %s@."
      prog Zeroinstall.About.version
      Zeroinstall.Dbus.have_dbus
+     Zeroinstall.Http.variant
 
 let show_help (system:system) valid_options help f extra_fn =
   let prog = Filename.basename system#argv.(0) in

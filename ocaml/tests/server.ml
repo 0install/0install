@@ -8,7 +8,7 @@ open Support
 open Support.Common
 module U = Support.Utils
 
-let re_http_get = Str.regexp "^GET \\([^ ]*\\) HTTP/.*"
+let re_http_request = Str.regexp {|^\(GET\|POST\) \([^ ]*\) HTTP/.*|}
 
 let send_response ch code =
   Lwt_io.write ch (Printf.sprintf "HTTP/1.1 %d Code\r\n" code)
@@ -46,10 +46,18 @@ let ignore_cancelled f =
       | ex -> Lwt.fail ex
     )
 
-let rec skip_headers from_client =
-  Lwt_io.read_line from_client >>= fun line ->
-  if String.trim line = "" then Lwt.return ()
-  else skip_headers from_client
+let read_headers from_client =
+  let rec aux acc =
+    Lwt_io.read_line from_client >>= fun line ->
+    if String.trim line = "" then Lwt.return acc
+    else (
+      let key, value = XString.(split_pair_safe re_colon) line in
+      let key = String.trim key |> String.lowercase_ascii in
+      let value = String.trim value in
+      aux (XString.Map.add key value acc)
+    )
+  in
+  aux XString.Map.empty
 
 let start_server system =
   let () = log_info "start_server" in
@@ -155,11 +163,17 @@ let start_server system =
              let from_client = Lwt_io.of_fd ~mode:Lwt_io.input connection in
              Lwt_io.read_line from_client >>= fun request ->
              log_info "Got: %s" request;
-
-             skip_headers from_client >>= fun () ->
-
-             if Str.string_match re_http_get request 0 then (
-               let resource = Str.matched_group 1 request in
+             read_headers from_client >>= fun headers ->
+             begin
+               match XString.Map.find_opt "content-length" headers with
+               | None -> Lwt.return ()
+               | Some size ->
+                 let size = int_of_string size in
+                 Lwt_io.read ~count:size from_client >|= fun body ->
+                 log_info "Got body %S" body
+             end >>= fun () ->
+             if Str.string_match re_http_request request 0 then (
+               let resource = Str.matched_group 2 request in
                let _host, path = Support.Urlparse.split_path resource in
                let to_client = Lwt_io.of_fd ~mode:Lwt_io.output connection in
                Lwt.catch
