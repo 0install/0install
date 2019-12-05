@@ -59,6 +59,8 @@ let read_headers from_client =
   in
   aux XString.Map.empty
 
+let re_3a = Str.regexp_string "%3A"
+
 let start_server system =
   let () = log_info "start_server" in
   let server_socket = Lwt_unix.(socket PF_INET SOCK_STREAM 0) in
@@ -81,7 +83,10 @@ let start_server system =
     port in
 
   let handle_request path to_client =
-    let path = path |> Str.global_replace re_escaped_dot "." in
+    let path = path
+               |> Str.global_replace re_escaped_dot "."
+               |> Str.global_replace re_3a ":" (* Curl escapes :, but Uri doesn't - accept either *)
+    in
     log_info "Handling request for '%s'" path;
 
     request_log := path :: !request_log;

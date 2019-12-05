@@ -58,6 +58,8 @@ Note: some of these are optional:
   native packages using PackageKit, and using NetworkManager to check
   the network status before doing background updates.
 - `lablgtk` and `lwt_glib` provide a GTK GUI.
+- `ocurl` selects the C-based libcurl backend for HTTP. You can instead install
+  the packages `cohttp-lwt-unix lwt_ssl` to get a pure OCaml HTTP client.
 
 Alternatively, you can use your distribution's packages if you prefer (and if
 they are new enough). For example, on Debian:

@@ -332,12 +332,12 @@ let suite = "download">::: [
       [("/0mirror/feeds/http/example.com:8000/Hello.xml/latest.xml", `ServeFile "Hello.xml")];
       [("/0mirror/keys/6FCF121BE2390E0B.gpg", `Serve)];
       [("/HelloWorld.tgz", `Give404)];
-      [("/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz", `ServeFile "HelloWorld.tgz")];
+      [("/0mirror/archive/http:%23%23example.com:8000%23HelloWorld.tgz", `ServeFile "HelloWorld.tgz")];
     ];
     let out = Fake_system.collect_logging (fun () ->
       run_0install fake_system ["download"; "http://example.com:8000/Hello.xml"; "--xml"]
     ) in
-    Fake_system.fake_log#assert_contains "Primary download failed; trying mirror URL 'http://roscidus.com/0mirror/archive/http%3A%23%23example\\(.\\|%2E\\)com%3A8000%23HelloWorld\\(.\\|%2E\\)tgz'";
+    Fake_system.fake_log#assert_contains {|Primary download failed; trying mirror URL 'http://roscidus.com/0mirror/archive/http\(%3A\|:\)%23%23example\(.\|%2E\)com\(%3A\|:\)8000%23HelloWorld\(.\|%2E\)tgz'|};
     let sels = parse_sels out in
     let sel = Zeroinstall.Selections.get_selected_ex (binary "http://example.com:8000/Hello.xml") sels in
     assert (fake_system#file_exists (expect (get_sel_path config sel) +/ "HelloWorld" +/ "main"))
@@ -358,7 +358,7 @@ let suite = "download">::: [
       [("/Hello.xml", `Serve)];
       [("/6FCF121BE2390E0B.gpg", `Serve)];
       [("/HelloWorld.tgz", `Give404)];
-      [("/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz", `Give404)];
+      [("/0mirror/archive/http:%23%23example.com:8000%23HelloWorld.tgz", `Give404)];
       [("/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a",
           `ServeFile "HelloWorld.tar.bz2")];
     ];
@@ -390,7 +390,7 @@ let suite = "download">::: [
       [("/Hello.xml", `Serve)];
       [("/6FCF121BE2390E0B.gpg", `Serve)];
       [("/HelloWorld.tgz", `Give404)];
-      [("/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz", `Give404)];
+      [("/0mirror/archive/http:%23%23example.com:8000%23HelloWorld.tgz", `Give404)];
       [("/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a", `Give404)];
     ];
 
@@ -407,7 +407,7 @@ let suite = "download">::: [
       (* The original archive: *)
       ".*http://example.com:8000/HelloWorld.tgz";
       (* Mirror of original archive: *)
-      ".*http://roscidus.com/0mirror/archive/http%3A%23%23example\\(.\\|%2E\\)com%3A8000%23HelloWorld\\(.\\|%2E\\)tgz";
+      {|.*http://roscidus.com/0mirror/archive/http\(:\|%3A\)%23%23example\(.\|%2E\)com\(:\|%3A\)8000%23HelloWorld\(.\|%2E\)tgz|};
       (* Mirror of implementation: *)
       ".*http://roscidus.com/0mirror/feeds/http/example.com:8000/Hello.xml/impl/sha1=3ce644dc725f1d21cfcf02562c76f375944b266a"
     ] |> List.iter Fake_system.fake_log#assert_contains
@@ -420,12 +420,13 @@ let suite = "download">::: [
       Fake_system.collect_logging (fun () ->
         do_recipe config fake_system server ~expected:[
           [("/HelloWorld.tgz", `Give404)];
-          [("/0mirror/archive/http%3A%23%23example.com%3A8000%23HelloWorld.tgz", `ServeFile "HelloWorld.tgz")];
+          [("/0mirror/archive/http:%23%23example.com:8000%23HelloWorld.tgz", `ServeFile "HelloWorld.tgz")];
         ] "Hello.xml"
       ) in
 
-    Fake_system.fake_log#assert_contains "Primary download failed; trying mirror URL \
-    'http://roscidus.com/0mirror/archive/http%3A%23%23example\\(.\\|%2E\\)com%3A8000%23HelloWorld\\(.\\|%2E\\)tgz'...";
+    Fake_system.fake_log#assert_contains @@
+    {|Primary download failed; trying mirror URL |} ^
+    {|'http://roscidus.com/0mirror/archive/http\(:\|%3A\)%23%23example\(.\|%2E\)com\(:\|%3A\)8000%23HelloWorld\(.\|%2E\)tgz'...|};
 
     assert (fake_system#file_exists (path +/ "HelloWorld" +/ "main"))
   );

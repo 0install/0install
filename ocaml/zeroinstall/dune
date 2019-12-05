@@ -4,6 +4,7 @@
  (libraries dynlink lwt lwt.unix react lwt_react support yojson xmlm
             (select http.ml from
              (curl curl.lwt -> http.curl.ml)
+             (cohttp cohttp-lwt cohttp-lwt-unix lwt_ssl -> http.cohttp.ml)
             )
             (select dbus.ml from
              (obus.network_manager
