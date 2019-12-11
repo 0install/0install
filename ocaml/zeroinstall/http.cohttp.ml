@@ -1,8 +1,84 @@
 open Support
 open Support.Common
 
+module Certificates = struct
+  (* Possible certificate files; stop after finding one.
+     Based on https://golang.org/src/crypto/x509 *)
+  let cert_files = [
+    "/etc/ssl/certs/ca-certificates.crt";                (* Debian/Ubuntu/Gentoo etc. *)
+    "/etc/pki/tls/certs/ca-bundle.crt";                  (* Fedora/RHEL 6 *)
+    "/etc/ssl/ca-bundle.pem";                            (* OpenSUSE *)
+    "/etc/pki/tls/cacert.pem";                           (* OpenELEC *)
+    "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"; (* CentOS/RHEL 7 *)
+    "/etc/ssl/cert.pem";                                 (* Alpine Linux / OpenBSD *)
+  
+    "/var/ssl/certs/ca-bundle.crt";           (* AIX *)
+  
+    "/usr/local/etc/ssl/cert.pem";            (* FreeBSD *)
+    "/usr/local/share/certs/ca-root-nss.crt"; (* DragonFly *)
+    "/etc/openssl/certs/ca-certificates.crt"; (* NetBSD *)
+  
+    "/sys/lib/tls/ca.pem";                (* Plan9 *)
+  
+    "/etc/certs/ca-certificates.crt";     (* Solaris 11.2+ *)
+    "/etc/ssl/cacert.pem";                (* OmniOS *)
+  ]
+  
+  (* Possible directories with certificate files; stop after successfully
+     reading at least one file from a directory.
+     Based on https://golang.org/src/crypto/x509/root_unix.go *)
+  let cert_directories = [
+    "/etc/ssl/certs";               (* Debian, SLES10/SLES11, https://golang.org/issue/12139 *)
+    "/system/etc/security/cacerts"; (* Android *)
+    "/usr/local/share/certs";       (* FreeBSD *)
+    "/etc/pki/tls/certs";           (* Fedora/RHEL *)
+    "/etc/openssl/certs";           (* NetBSD *)
+    "/var/ssl/certs";               (* AIX *)
+  ]
+  
+  let is_file path =
+    log_debug "Checking for certificate file %S" path;
+    match Unix.stat path with
+    | x -> x.Unix.st_kind = Unix.S_REG;
+    | exception _ -> false
+  
+  let is_dir path =
+    log_debug "Checking for certificate directory %S" path;
+    match Unix.stat path with
+    | x -> x.Unix.st_kind = Unix.S_DIR;
+    | exception _ -> false
+  
+  let ctx = lazy (
+    let ctx = Conduit_lwt_unix_ssl.Client.create_ctx () in
+    begin
+      match List.find_opt is_file cert_files with
+      | Some cert_file -> Ssl.load_verify_locations ctx cert_file ""
+      | None ->
+        match List.find_opt is_dir cert_directories with
+        | Some dir -> Ssl.load_verify_locations ctx "" dir
+        | None ->
+          log_warning "@[<v2>No certificates found! I tried these files:@,%a@]@.@[<v2>and these directories:@,%a@]@.Hint: try installing 'ca-certificates'@."
+            Format.(pp_print_list ~pp_sep:pp_print_cut pp_print_string) cert_directories
+            Format.(pp_print_list ~pp_sep:pp_print_cut pp_print_string) cert_files;
+    end;
+    ctx
+  )
+end
+
 module Net = struct
-  include Cohttp_lwt_unix.Net
+  module IO = struct
+    (* [Cohttp_lwt_unix.IO] requires us to provide a [Conduit_lwt_unix.flow], but that type is private.
+       It can only be created by [Conduit_lwt_unix], which doesn't let us specify the CA certificates.
+       Luckily, cohttp doesn't need it for anything, so just use unit here instead. *)
+    include (Cohttp_lwt_unix.IO : Cohttp_lwt.S.IO
+             with type ic = Lwt_io.input_channel
+              and type oc = Lwt_io.output_channel
+              and type conn := Conduit_lwt_unix.flow
+              and type error = exn)
+    type conn = unit
+  end
+
+  include (Cohttp_lwt_unix.Net : module type of Cohttp_lwt_unix.Net with module IO := Cohttp_lwt_unix.IO)
 
   (* Look up the IP address of host. Return an IPv4 address if available, or an IPv6 one if not. *)
   let ip_of_host host =
@@ -22,11 +98,14 @@ module Net = struct
       match Uri.scheme uri with
       | Some "http" ->
         let port = Uri.port uri |> default 80 in
-        Conduit_lwt_unix.connect ~ctx:ctx.Cohttp_lwt_unix.Net.ctx (`TCP (`IP ip, `Port port))
+        Conduit_lwt_unix.connect ~ctx:ctx.Cohttp_lwt_unix.Net.ctx (`TCP (`IP ip, `Port port)) >|= fun (_flow, ic, oc) ->
+        ((), ic, oc)
       | Some "https" ->
         let port = Uri.port uri |> default 443 in
         (* Force use of OpenSSL because conduit's ocaml-tls support disables certificate validation. *)
-        Conduit_lwt_unix.connect ~ctx:ctx.Cohttp_lwt_unix.Net.ctx (`OpenSSL (`Hostname host, `IP ip, `Port port))
+        let sa = Unix.ADDR_INET (Ipaddr_unix.to_inet_addr ip ,port) in
+        Conduit_lwt_unix_ssl.Client.connect ~ctx:(Lazy.force Certificates.ctx) ~hostname:host sa >|= fun (_fd, ic, oc) ->
+        ((), ic, oc)
       | Some s -> Safe_exn.failf "Unsupported scheme %S in %a" s Uri.pp uri
       | None -> Safe_exn.failf "Missing URI scheme in %a" Uri.pp uri
 end

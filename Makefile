@@ -31,7 +31,7 @@ default: all test
 
 clean:
 	dune clean --root=. --profile=${PROFILE}
-	rm -rf build dist
+	rm -rf build dist static/dist.tgz
 
 DOCS = README.md COPYING
 MANPAGES = 0launch.1 0store-secure-add.1 0store.1 0desktop.1 0install.1
@@ -81,3 +81,15 @@ install_local:
 .PHONY: all install test
 
 .PHONY: clean default
+
+.PHONY: static-test
+
+static/dist.tgz: static/Dockerfile
+	docker build -t talex5/0install-static-build -f static/Dockerfile .
+	docker run talex5/0install-static-build tar czf - dist > static/dist.tgz
+
+static-test-%: static/Dockerfile-test-% static/dist.tgz
+	docker build -f $< ./static -t 0install-test
+	docker run --rm -it -v "${SRCDIR}/static:/mnt:ro" 0install-test /mnt/run-tests.sh
+
+static-test: static-test-debian-10 static-test-fedora-30

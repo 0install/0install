@@ -1,0 +1,2 @@
+FROM fedora:30
+RUN dnf install -y unzip gpg ca-certificates gtk2 findutils bzip2 python2 pygobject2
