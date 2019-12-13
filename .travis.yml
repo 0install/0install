@@ -6,13 +6,22 @@ script: bash .travis-extra-deps.sh
 env:
   global:
     - POST_INSTALL_HOOK="bash .travis-test-compile.sh"
-  matrix:
-    - OCAML_VERSION=4.05
-    - OCAML_VERSION=4.07
-    - OCAML_VERSION=4.08
-os:
-  - linux
-  - osx
+jobs:
+  include:
+    - env: OCAML_VERSION=4.05
+      os: linux
+    - env: OCAML_VERSION=4.08
+      os: linux
+    - env: OCAML_VERSION=4.09
+      os: linux
+
+    - env: STATIC_DIST=true
+      os: linux
+      services:
+        - docker
+
+    - env: OCAML_VERSION=4.08
+      os: osx
 addons:
   apt:
     update: true
