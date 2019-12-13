@@ -26,7 +26,8 @@ let handle_exceptions main args =
   | System_exit x -> exit x
   | Safe_exn.T payload as ex ->
       Format.eprintf "%a@." Safe_exn.pp payload;
-      Printexc.print_backtrace stderr;
+      if Logging.(will_log Info) then
+        Printexc.print_backtrace stderr;
       Logging.dump_crash_log ~ex ();
       exit 1
   | ex ->
