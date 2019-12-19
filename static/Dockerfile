@@ -10,7 +10,7 @@ RUN wget https://github.com/ocaml/opam/releases/download/2.0.5/opam-2.0.5-x86_64
 RUN chmod a+x /usr/local/bin/opam
 RUN opam init --compiler=4.08.1 --disable-sandboxing
 ENV OPAMYES="1" OPAMERRLOGLEN="0"
-RUN opam install cppo yojson xmlm ounit lwt_react cohttp-lwt-unix lwt_ssl obus lablgtk lwt_glib sha dune
+RUN opam install yojson xmlm ounit lwt_react cohttp-lwt-unix lwt_ssl obus lablgtk lwt_glib sha dune
 COPY . /src/
 RUN opam exec -- make
 RUN ldd /src/dist/files/0install

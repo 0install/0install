@@ -1,0 +1,6 @@
+(library
+ (name        zeroinstall_windows)
+ (enabled_if  (or (= %{os_type} "Win32")
+                  (= %{os_type} "Cygwin")))
+ (c_flags     -lwindows -lshell32)
+ (c_names     windows))

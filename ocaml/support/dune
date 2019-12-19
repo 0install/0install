@@ -36,26 +36,19 @@ let windres =
              --output-format coff
              --output 0install.exe.o)))" bin
 
-let cppo_flags =
-  if windows then "-D WINDOWS" else ""
-
-let extra_stubs =
-  if windows then "windows" else ""
-
 let c_flags =
   if windows then "(c_flags -lwindows -lshell32)" else ""
 
 let dune = String.concat "" [ {|
-  (rule
-   (targets windows_api.ml)
-   (deps    (:first-dep windows_api.cppo.ml))
-   (action  (run %{bin:cppo} |}; cppo_flags; {| %{first-dep} -o %{targets})))
-
   (library
    (name        support) |};
    c_flags; {|
-   (c_names     utils |}; extra_stubs; {| )
-   (libraries   lwt lwt.unix sha str xmlm yojson))
+   (c_names     utils)
+   (libraries   lwt lwt.unix sha str xmlm yojson
+    (select windows_api.ml from
+     (zeroinstall_windows -> windows_api.enabled.ml)
+     (                    -> windows_api.disabled.ml))
+   ))
 |}; windres ]
 
 let () =

@@ -1,2 +1,2 @@
-(lang dune 1.4)
+(lang dune 1.11)
 (name 0install)
