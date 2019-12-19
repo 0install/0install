@@ -30,18 +30,18 @@ let get_unix_home (system:#system) =
   let home = default "/root" (system#getenv "HOME") in
   if not system#running_as_root then (
     home    (* We're not root; no problem *)
-  ) else if (Unix.stat home).Unix.st_uid = 0 then (
-    home    (* We're root and $HOME is set correctly *)
-  ) else (
-    (* We're running as root and $HOME isn't root's home. Try to find
-       correct value for root's home, or we're likely to fill the user's
-       home directory with unreadable root-owned files. *)
-    let root_home =
-      try (Unix.getpwuid 0).Unix.pw_dir
-      with Not_found -> "/" in
-    Logging.log_info "Running as root, but $HOME (%s) is not owned by root. Using %s instead." home root_home;
-    root_home
-  )
+  ) else match Unix.stat home with
+    | { Unix.st_uid = 0; _ } -> home    (* We're root and $HOME is set correctly *)
+    | exception ex -> log_warning ~ex "Error checking $HOME (%S)" home; home
+    | _ ->
+      (* We're running as root and $HOME isn't root's home. Try to find
+         correct value for root's home, or we're likely to fill the user's
+         home directory with unreadable root-owned files. *)
+      let root_home =
+        try (Unix.getpwuid 0).Unix.pw_dir
+        with Not_found -> "/" in
+      log_warning "Running as root, but $HOME (%S) is not owned by root. Using %S instead." home root_home;
+      root_home
 
 let get_default_config (system:#system) =
   let get = get_path system in
