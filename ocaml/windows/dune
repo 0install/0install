@@ -1,6 +1,33 @@
+(* -*- tuareg -*- *)
+
+let bin =
+  try
+    match Sys.getenv "WINDRES" with
+    | "" -> raise Not_found
+    | x  -> x
+  with Not_found ->
+    if Sys.word_size = 32 then
+      "i686-w64-mingw32-windres"
+    else
+      "x86_64-w64-mingw32-windres"
+
+let dune = Printf.sprintf {|
 (library
  (name        zeroinstall_windows)
- (enabled_if  (or (= %{os_type} "Win32")
-                  (= %{os_type} "Cygwin")))
+ (enabled_if  (or (= %%{os_type} "Win32")
+                  (= %%{os_type} "Cygwin")))
  (c_flags     -lwindows -lshell32)
  (c_names     windows))
+
+(rule
+ (targets 0install.exe.o)
+ (deps 0install.exe.rc 0install.exe.manifest)
+ (action (run %s
+   --input-format rc
+   --input 0install.exe.rc
+   --output-format coff
+   --output 0install.exe.o)))
+|} bin
+
+let () =
+  Jbuild_plugin.V1.send dune
