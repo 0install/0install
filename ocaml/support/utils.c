@@ -14,12 +14,6 @@
 #include <caml/unixsupport.h>
 
 #include <sys/types.h>
-#ifndef _WIN32
-#include <utime.h>
-#else
-#include <sys/utime.h>
-#endif
-
 #include <errno.h>
 
 #ifndef _WIN32
@@ -27,11 +21,6 @@
 #include <sys/ioctl.h>
 #include <stdio.h>
 #include <unistd.h>
-#endif
-
-#ifdef WIN32
-#include <stdint.h>
-#include <windows.h>
 #endif
 
 /* Based on code in extunix (LGPL-2.1) */

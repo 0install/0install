@@ -36,13 +36,9 @@ let windres =
              --output-format coff
              --output 0install.exe.o)))" bin
 
-let c_flags =
-  if windows then "(c_flags -lwindows -lshell32)" else ""
-
 let dune = String.concat "" [ {|
   (library
-   (name        support) |};
-   c_flags; {|
+   (name        support)
    (c_names     utils)
    (libraries   lwt lwt.unix sha str xmlm yojson
     (select windows_api.ml from
