@@ -14,4 +14,4 @@ open Support.Common
 val run : filepath -> unit Lwt.t
 
 (** [with_gpg test] creates a temporary directory with a fake agent socket and runs [test tmpdir] inside it. *)
-val with_gpg : (filepath -> unit Lwt.t) -> (unit -> unit)
+val with_gpg : (filepath -> unit) -> (unit -> unit)

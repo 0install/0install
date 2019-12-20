@@ -106,7 +106,7 @@ let with_tal_key test =
   Fake_gpg_agent.with_gpg (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let gpg = G.make config.system in
-    G.import_key gpg thomas_key >>= fun () ->
+    Lwt_main.run @@ G.import_key gpg thomas_key;
     test gpg
   )
 
@@ -114,85 +114,97 @@ let suite = "gpg">::: [
   "import-bad">:: Fake_gpg_agent.with_gpg (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let gpg = G.make config.system in
-    Lwt.catch
-      (fun () -> G.import_key gpg "Bad key" >>= fun () -> assert false)
-      (function
-        | Safe_exn.T _ -> Lwt.return ()
-        | ex -> Lwt.fail ex
-      )
+    try
+      Lwt_main.run @@ G.import_key gpg "Bad key";
+      assert false
+    with Safe_exn.T _ -> ()
   );
 
   "error-sig">:: Fake_gpg_agent.with_gpg (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
     let gpg = G.make config.system in
-    G.verify gpg err_sig >>= fun (sigs, warnings) ->
-    assert (warnings <> "");
-    match sigs with
-    | [ G.ErrSig (G.UnknownKey "7AB89A977DAAA397") ] -> Lwt.return ()
-    | _ -> assert_failure "Expected ErrSig"
+    Lwt_main.run begin
+      G.verify gpg err_sig >>= fun (sigs, warnings) ->
+      assert (warnings <> "");
+      match sigs with
+      | [ G.ErrSig (G.UnknownKey "7AB89A977DAAA397") ] -> Lwt.return ()
+      | _ -> assert_failure "Expected ErrSig"
+    end
   );
 
   "bad-sig">:: with_tal_key (fun gpg ->
-    G.verify gpg bad_sig >>= fun (sigs, warnings) ->
-    assert (warnings <> "");
-    match sigs with
-    | [ G.BadSig "AE07828059A53CC1" ] -> Lwt.return ()
-    | _ -> assert_failure "Expected BadSig"
+      Lwt_main.run begin
+        G.verify gpg bad_sig >>= fun (sigs, warnings) ->
+        assert (warnings <> "");
+        match sigs with
+        | [ G.BadSig "AE07828059A53CC1" ] -> Lwt.return ()
+        | _ -> assert_failure "Expected BadSig"
+      end
   );
 
   "invalid-sigs">:: Fake_gpg_agent.with_gpg (fun tmpdir ->
     let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
-    let gpg = G.make config.system in
-    invalid_xmls_sigs |> Lwt_list.iter_s (fun (expected, xml) ->
-      let xml = "<?xml version='1.0'?>\n<root/>\n" ^ xml in
-      Lwt.catch
-        (fun () ->
-           G.verify gpg xml >>= fun _ ->
-           assert_failure expected
+    Lwt_main.run begin
+      let gpg = G.make config.system in
+      invalid_xmls_sigs |> Lwt_list.iter_s (fun (expected, xml) ->
+          let xml = "<?xml version='1.0'?>\n<root/>\n" ^ xml in
+          Lwt.catch
+            (fun () ->
+               G.verify gpg xml >>= fun _ ->
+               assert_failure expected
+            )
+            (function
+              | Safe_exn.T e ->
+                let msg = Safe_exn.msg e in
+                Fake_system.assert_str_equal expected msg;
+                Lwt.return ()
+              | ex -> Lwt.fail ex
+            )
         )
-        (function
-          | Safe_exn.T e ->
-            let msg = Safe_exn.msg e in
-            Fake_system.assert_str_equal expected msg;
-            Lwt.return ()
-          | ex -> Lwt.fail ex
-        )
-    )
+    end
   );
 
   "good-sig">:: with_tal_key (fun gpg ->
-    G.verify gpg good_sig >>= fun (sigs, _stderr) ->
-    match sigs with
-    | [ G.ValidSig details ] -> 
-        Fake_system.assert_str_equal "92429807C9853C0744A68B9AAE07828059A53CC1" details.G.fingerprint;
-        G.get_key_name gpg details.G.fingerprint >>= fun name ->
-        Fake_system.assert_str_equal "Thomas Leonard <tal197@users.sourceforge.net>" (Fake_system.expect name);
-        Lwt.return ()
-    | _ -> assert_failure "Expected ValidSig"
+      Lwt_main.run begin
+        G.verify gpg good_sig >>= fun (sigs, _stderr) ->
+        match sigs with
+        | [ G.ValidSig details ] -> 
+          Fake_system.assert_str_equal "92429807C9853C0744A68B9AAE07828059A53CC1" details.G.fingerprint;
+          G.get_key_name gpg details.G.fingerprint >>= fun name ->
+          Fake_system.assert_str_equal "Thomas Leonard <tal197@users.sourceforge.net>" (Fake_system.expect name);
+          Lwt.return ()
+        | _ -> assert_failure "Expected ValidSig"
+      end
   );
 
   "not-xml">:: Fake_gpg_agent.with_gpg (fun tmpdir ->
-    let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
-    let gpg = G.make config.system in
-    Fake_system.assert_raises_safe_lwt "This is not a Zero Install feed! It should be an XML document, but it starts:\nHello"
-      (fun () -> G.verify gpg "Hello" >|= ignore)
-  );
+      Lwt_main.run begin
+        let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
+        let gpg = G.make config.system in
+        Fake_system.assert_raises_safe_lwt "This is not a Zero Install feed! It should be an XML document, but it starts:\nHello"
+          (fun () -> G.verify gpg "Hello" >|= ignore)
+      end
+    );
 
   "no-sigs">:: Fake_gpg_agent.with_gpg (fun tmpdir ->
-    let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
-    let empty_sig = "<?xml version='1.0'?><root/>\n<!-- Base64 Signature\n-->" in
-    let gpg = G.make config.system in
-    G.verify gpg empty_sig >>= fun (sigs, _stderr) ->
-    assert_equal [] sigs;
-    Lwt.return ()
-  );
+      Lwt_main.run begin
+        let (config, _fake_system) = Fake_system.get_fake_config (Some tmpdir) in
+        let empty_sig = "<?xml version='1.0'?><root/>\n<!-- Base64 Signature\n-->" in
+        let gpg = G.make config.system in
+        G.verify gpg empty_sig >>= fun (sigs, _stderr) ->
+        assert_equal [] sigs;
+        Lwt.return ()
+      end
+    );
 
   "load-keys">:: with_tal_key (fun gpg ->
-    G.load_keys gpg [] >>= fun keys ->
-    assert_equal XString.Map.empty keys;
-    G.load_keys gpg [thomas_fingerprint] >>= fun keys ->
-    let info = XString.Map.find_safe thomas_fingerprint keys in
-    Fake_system.assert_str_equal "Thomas Leonard <tal197@users.sourceforge.net>" (Fake_system.expect info.G.name);
-    Lwt.return ()
-  );
+      Lwt_main.run begin
+        G.load_keys gpg [] >>= fun keys ->
+        assert_equal XString.Map.empty keys;
+        G.load_keys gpg [thomas_fingerprint] >>= fun keys ->
+        let info = XString.Map.find_safe thomas_fingerprint keys in
+        Fake_system.assert_str_equal "Thomas Leonard <tal197@users.sourceforge.net>" (Fake_system.expect info.G.name);
+        Lwt.return ()
+      end
+    );
 ]

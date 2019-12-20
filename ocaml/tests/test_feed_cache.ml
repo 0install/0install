@@ -58,61 +58,63 @@ let suite = "feed-cache">::: [
   );
 
   "check-signed">:: Fake_gpg_agent.with_gpg (fun tmpdir ->
-    let config, _fake_system = Fake_system.get_fake_config (Some tmpdir) in
-    let trust_db = new Zeroinstall.Trust.trust_db config in
-    trust_db#trust_key "92429807C9853C0744A68B9AAE07828059A53CC1" ~domain:"foo";
-    let download_pool = Zeroinstall.Downloader.make_pool ~max_downloads_per_site:2 in
-    let distro = Fake_distro.make config in
-    let fetcher = Zeroinstall.Fetch.make config trust_db distro download_pool Fake_system.null_ui in
-    let foo_signed_xml = U.read_file config.system (Fake_system.test_data "foo-empty.xml") in
-    let gpg = G.make config.system in
+      Lwt_main.run begin
+        let config, _fake_system = Fake_system.get_fake_config (Some tmpdir) in
+        let trust_db = new Zeroinstall.Trust.trust_db config in
+        trust_db#trust_key "92429807C9853C0744A68B9AAE07828059A53CC1" ~domain:"foo";
+        let download_pool = Zeroinstall.Downloader.make_pool ~max_downloads_per_site:2 in
+        let distro = Fake_distro.make config in
+        let fetcher = Zeroinstall.Fetch.make config trust_db distro download_pool Fake_system.null_ui in
+        let foo_signed_xml = U.read_file config.system (Fake_system.test_data "foo-empty.xml") in
+        let gpg = G.make config.system in
 
-    (* Unsigned *)
-    Fake_system.assert_raises_safe_lwt
-      "This is not a Zero Install feed! It should be an XML document, but it starts:\nhello"
-      (fun () -> G.verify gpg "hello" >|= ignore)
-    >>= fun () ->
+        (* Unsigned *)
+        Fake_system.assert_raises_safe_lwt
+          "This is not a Zero Install feed! It should be an XML document, but it starts:\nhello"
+          (fun () -> G.verify gpg "hello" >|= ignore)
+        >>= fun () ->
 
-    G.import_key gpg Test_gpg.thomas_key >>= fun () ->
+        G.import_key gpg Test_gpg.thomas_key >>= fun () ->
 
-    (* Signed, wrong URL *)
-    Fake_system.assert_raises_safe_lwt
-      ("URL mismatch in feed:\n\
-        http://foo/wrong expected\n\
-        http://foo/ given in 'uri' attribute on <interface> at http://foo/wrong:3:97")
-      (fun () -> fetcher#import_feed (`Remote_feed "http://foo/wrong") foo_signed_xml)
-    >>= fun () ->
+        (* Signed, wrong URL *)
+        Fake_system.assert_raises_safe_lwt
+          ("URL mismatch in feed:\n\
+            http://foo/wrong expected\n\
+            http://foo/ given in 'uri' attribute on <interface> at http://foo/wrong:3:97")
+          (fun () -> fetcher#import_feed (`Remote_feed "http://foo/wrong") foo_signed_xml)
+        >>= fun () ->
 
-    (* Signed *)
-    let feed_url = `Remote_feed "http://foo/" in
-    fetcher#import_feed feed_url foo_signed_xml >>= fun () ->
+        (* Signed *)
+        let feed_url = `Remote_feed "http://foo/" in
+        fetcher#import_feed feed_url foo_signed_xml >>= fun () ->
 
-    assert_equal ["http://foo/"] @@ XString.Set.elements @@ Feed_cache.list_all_feeds config;
+        assert_equal ["http://foo/"] @@ XString.Set.elements @@ Feed_cache.list_all_feeds config;
 
-    let new_xml = Feed_cache.get_cached_feed_path config feed_url |> Fake_system.expect |> U.read_file config.system in
-    G.verify gpg new_xml >>= fun (sigs, _) ->
-    let last_modified = trust_db#oldest_trusted_sig "foo" sigs in
-    assert_equal (Some 1380109390.) last_modified;
+        let new_xml = Feed_cache.get_cached_feed_path config feed_url |> Fake_system.expect |> U.read_file config.system in
+        G.verify gpg new_xml >>= fun (sigs, _) ->
+        let last_modified = trust_db#oldest_trusted_sig "foo" sigs in
+        assert_equal (Some 1380109390.) last_modified;
 
-    (* Updated *)
-    let foo_signed_xml_new = U.read_file config.system (Fake_system.test_data "foo-new.xml") in
+        (* Updated *)
+        let foo_signed_xml_new = U.read_file config.system (Fake_system.test_data "foo-new.xml") in
 
-    let dryrun_fetcher = Zeroinstall.Fetch.make {config with dry_run = true} trust_db distro download_pool Fake_system.null_ui in
-    Fake_system.capture_stdout_lwt (fun () ->
-      dryrun_fetcher#import_feed feed_url foo_signed_xml_new
-    ) >>= fun out ->
-    assert (XString.starts_with out "[dry-run] would cache feed http://foo/ as");
+        let dryrun_fetcher = Zeroinstall.Fetch.make {config with dry_run = true} trust_db distro download_pool Fake_system.null_ui in
+        Fake_system.capture_stdout_lwt (fun () ->
+            dryrun_fetcher#import_feed feed_url foo_signed_xml_new
+          ) >>= fun out ->
+        assert (XString.starts_with out "[dry-run] would cache feed http://foo/ as");
 
-    fetcher#import_feed feed_url foo_signed_xml_new >>= fun () ->
+        fetcher#import_feed feed_url foo_signed_xml_new >>= fun () ->
 
-    (* Can't 'update' to an older copy *)
-    Fake_system.assert_raises_safe_lwt
-      ("New feed's modification time is before old version!\n\
-        Interface: http://foo/\n\
-        Old time: 2013-09-25T11:57:28Z\n\
-        New time: 2013-09-25T11:43:10Z\n\
-        Refusing update.")
-      (fun () -> fetcher#import_feed feed_url foo_signed_xml)
+        (* Can't 'update' to an older copy *)
+        Fake_system.assert_raises_safe_lwt
+          ("New feed's modification time is before old version!\n\
+            Interface: http://foo/\n\
+            Old time: 2013-09-25T11:57:28Z\n\
+            New time: 2013-09-25T11:43:10Z\n\
+            Refusing update.")
+          (fun () -> fetcher#import_feed feed_url foo_signed_xml)
+      end
   );
 
   "test-list">:: Fake_system.with_fake_config ~portable_base:false (fun (config, _fake_system) ->

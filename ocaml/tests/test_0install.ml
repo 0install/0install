@@ -243,8 +243,6 @@ let suite = "0install">::: [
     fake_slave#allow_download "http://foo/Source.xml" new_source_feed;
     let out = run ["update"; "http://foo/Binary.xml"; "--source"] in
     assert_contains "No longer used: http://foo/Compiler.xml" out;
-
-    Lwt.return ()
   );
 
   "download">:: Fake_system.with_tmpdir (fun tmpdir ->
@@ -301,8 +299,7 @@ let suite = "0install">::: [
     fake_slave#allow_download "http://example.com:8000/6FCF121BE2390E0B.gpg" key;
     let out = run ["download"; (Fake_system.test_data "selections.xml"); "--show"] in
     assert_contains digest out;
-    assert_contains "Version: 1\n" out;
-    Lwt.return ()
+    assert_contains "Version: 1\n" out
   );
 
   "display">:: Fake_system.with_tmpdir (fun tmpdir ->
@@ -766,11 +763,10 @@ let suite = "0install">::: [
     assert_contains "FEED" out;
 
     let gpg = Support.Gpg.make config.system in
-    Support.Gpg.import_key gpg (U.read_file config.system (Fake_system.test_data "6FCF121BE2390E0B.gpg")) >>= fun () ->
+    Lwt_main.run @@ Support.Gpg.import_key gpg (U.read_file config.system (Fake_system.test_data "6FCF121BE2390E0B.gpg"));
     let out = run_0install fake_system ~include_stderr:true ["import"; Fake_system.test_data "Hello.xml"] ~stdin:"Y\n" in
     assert_contains "Do you want to trust this key to sign feeds from 'example.com:8000'?" out;
-    Fake_system.fake_log#assert_contains "Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000";
-    Lwt.return ()
+    Fake_system.fake_log#assert_contains "Trusting DE937DD411906ACF7C263B396FCF121BE2390E0B for example.com:8000"
   );
 
   "list">:: Fake_gpg_agent.with_gpg (fun tmpdir ->
@@ -787,7 +783,7 @@ let suite = "0install">::: [
     assert_str_equal "" out;
 
     let gpg = Support.Gpg.make config.system in
-    Support.Gpg.import_key gpg (U.read_file config.system (Fake_system.test_data "6FCF121BE2390E0B.gpg")) >>= fun () ->
+    Lwt_main.run @@ Support.Gpg.import_key gpg (U.read_file config.system (Fake_system.test_data "6FCF121BE2390E0B.gpg"));
     ignore @@ run_0install fake_system ~include_stderr:true ["import"; Fake_system.test_data "Hello.xml"] ~stdin:"Y\n";
 
     let out = run_0install fake_system ["list"] in
@@ -797,9 +793,7 @@ let suite = "0install">::: [
     assert_str_equal "" out;
 
     let out = run_0install fake_system ["list"; "hello"] in
-    assert_str_equal "http://example.com:8000/Hello.xml\n" out;
-
-    Lwt.return ()
+    assert_str_equal "http://example.com:8000/Hello.xml\n" out
   );
 
   "help">:: Fake_system.with_fake_config (fun (_config, fake_system) ->

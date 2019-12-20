@@ -35,7 +35,7 @@ let handle options flags args =
         | `Network_failure msg -> Safe_exn.failf "%s" msg
         | `Tmpfile path ->
             let results = U.read_file config.system path in
-            Lwt_main.run (Lwt_switch.turn_off switch);
+            Lwt_switch.turn_off switch >>= fun () ->
             let root = `String (0, results) |> Xmlm.make_input |> Q.parse_input (Some url) in
 
             Msg.check_tag "results" root;

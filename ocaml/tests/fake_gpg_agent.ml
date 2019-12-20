@@ -69,11 +69,9 @@ let run gpg_dir =
 
 let with_gpg test =
   Fake_system.with_tmpdir (fun tmpdir ->
-    OUnit.skip_if on_windows "No PF_UNIX on Windows";
-    let agent = run tmpdir in
-    Lwt_main.run (
-      Lwt.finalize
-        (fun () -> test tmpdir)
-        (fun () -> Lwt.cancel agent; Lwt.return ())
+      OUnit.skip_if on_windows "No PF_UNIX on Windows";
+      U.finally_do
+        (fun agent -> Lwt.cancel agent)
+        (run tmpdir)
+        (fun _ -> test tmpdir)
     )
-  )
