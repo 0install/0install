@@ -46,12 +46,12 @@ let get_unix_home (system:#system) =
 let get_default_config (system:#system) =
   let get = get_path system in
   if on_windows then (
-    match !Windows_api.windowsAPI with
+    match system#windows_api with
     | None -> failwith "Failed to load Windows support module!"
     | Some api -> (
-        let app_data = api#get_appdata () in
-        let local_app_data = api#get_local_appdata () in
-        let common_app_data = api#get_common_appdata () in
+        let app_data = api#get_appdata in
+        let local_app_data = api#get_local_appdata in
+        let common_app_data = api#get_common_appdata in
         {
           data = get "XDG_DATA_HOME" "XDG_DATA_DIRS" [app_data; common_app_data];
           cache = get "XDG_CACHE_HOME" "XDG_CACHE_DIRS" [local_app_data; common_app_data];

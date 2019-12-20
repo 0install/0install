@@ -155,6 +155,15 @@ let check_no_output fn =
   if out = "" then r
   else assert_failure (Printf.sprintf "Expected no output, but got %S" out)
 
+let fake_win_dirs tmpdir =
+  object (_ : Support.Common.windows_api)
+    method get_appdata = tmpdir +/ "AppData"
+    method get_local_appdata = tmpdir +/ "LocalAppData"
+    method get_common_appdata = "C:\\ProgramData"
+    method read_registry_string key value ~key64:_ = log_info "read_registry_string %S %S -> None" key value; None
+    method read_registry_int key value ~key64:_ = log_info "read_registry_int %S %S -> None" key value; None
+  end
+
 class fake_system ?(portable_base=true) tmpdir =
   let extra_files : dentry XString.Map.t ref = ref XString.Map.empty in
   let hidden_files = ref XString.Set.empty in
@@ -347,6 +356,11 @@ class fake_system ?(portable_base=true) tmpdir =
         release = "3.10.3-1-ARCH";
         machine = "x86_64";
       }
+
+    method windows_api =
+      match tmpdir with
+      | Some tmpdir -> Some (fake_win_dirs tmpdir)
+      | None -> Some (fake_win_dirs "\\no-tmp-dir")
 
     method add_file path redirect_target =
       extra_files := XString.Map.add path (File (0o644, redirect_target)) !extra_files;
@@ -543,15 +557,6 @@ let with_tmpdir fn () =
         tmppath fn
     )
 
-let fake_win_dirs tmpdir =
-  object (_ : Support.Windows_api.windows_api)
-    method get_appdata () = tmpdir +/ "AppData"
-    method get_local_appdata () = tmpdir +/ "LocalAppData"
-    method get_common_appdata () = "C:\\ProgramData"
-    method read_registry_string key value _wow = log_info "read_registry_string %S %S -> None" key value; None
-    method read_registry_int key value _wow = log_info "read_registry_int %S %S -> None" key value; None
-  end
-
 let get_fake_config ?portable_base tmpdir =
   let system = new fake_system ?portable_base tmpdir in
   let home =
@@ -570,9 +575,6 @@ let get_fake_config ?portable_base tmpdir =
     system#add_file "c:\\bin\\0install.exe" (tests_dir +/ "0install.exe");
     system#add_file "c:\\bin\\0launch.exe" (tests_dir +/ "0install.exe");
     system#add_file "c:\\bin\\0alias.exe" (tests_dir +/ "0install.exe");
-    match tmpdir with
-    | Some tmpdir -> Support.Windows_api.windowsAPI := Some (fake_win_dirs tmpdir);
-    | None -> ()
   ) else (
     system#putenv "PATH" @@ (home +/ "bin") ^ ":" ^ (Sys.getenv "PATH");
     system#add_file test_0install (tests_dir +/ "0install");

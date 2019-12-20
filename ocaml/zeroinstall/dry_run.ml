@@ -35,6 +35,7 @@ class dryrun_system (underlying:system) =
     method environment = underlying#environment
     method readlink = underlying#readlink
     method platform = underlying#platform
+    method windows_api = underlying#windows_api
     method running_as_root = underlying#running_as_root
 
     method file_exists path =

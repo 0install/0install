@@ -67,6 +67,15 @@ class type environment =
     method environment : string array
   end
 
+class type windows_api =
+  object
+    method get_appdata : string
+    method get_local_appdata : string
+    method get_common_appdata : string
+    method read_registry_string : string -> string -> key64:bool -> string option  (* Reads from HKEY_LOCAL_MACHINE *)
+    method read_registry_int : string -> string -> key64:bool -> int option        (* Reads from HKEY_LOCAL_MACHINE *)
+  end
+
 class type system =
   object
     inherit filesystem
@@ -81,6 +90,7 @@ class type system =
      * place when running under sudo. *)
     method running_as_root : bool
     method platform : Platform.t
+    method windows_api : windows_api option
 
     (** In dry-run mode, returns the underlying system. *)
     method bypass_dryrun : system

@@ -278,6 +278,12 @@ module RealSystem (U : UnixType) =
 
         method running_as_root = Sys.os_type = "Unix" && Unix.geteuid () = 0
 
+        method windows_api =
+          if on_windows then (
+            let wow64 = self#platform.Platform.machine = "x86_64" in
+            Some (Windows_api.v ~wow64)
+          ) else None
+
         method bypass_dryrun = (self :> system)
       end
   end

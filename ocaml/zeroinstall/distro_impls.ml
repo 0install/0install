@@ -715,19 +715,11 @@ end
 
 module Win = struct
   let windows_distribution config =
-    let api = !Support.Windows_api.windowsAPI |? lazy (Safe_exn.failf "Failed to load Windows support module!") in
+    let api = config.system#windows_api |? lazy (Safe_exn.failf "Failed to load Windows support module!") in
 
     let read_hklm_reg reader =
-      let open Support.Windows_api in
-      match config.system#platform.Platform.machine with
-      | "x86_64" ->
-          let value32 = reader KEY_WOW64_32KEY in
-          let value64 = reader KEY_WOW64_64KEY in
-          (value32, value64)
-      | _ ->
-          let value32 = reader KEY_WOW64_NONE in
-          (value32, None) in
-
+      (reader ~key64:false, reader ~key64:true)
+    in
     object (self)
       inherit Distro.distribution config
       val check_host_python = false (* (0install's bundled Python may not be generally usable) *)
