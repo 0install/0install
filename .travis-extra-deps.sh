@@ -22,9 +22,9 @@ EOF
     sudo hdiutil attach XQuartz-2.7.6.dmg
     sudo installer -verbose -pkg /Volumes/XQuartz-2.7.6/XQuartz.pkg -target /
     brew update &> /dev/null
-    brew unlink python	# Python 3 conflicts with Python 2's /usr/local/bin/2to3-2 file
+    brew unlink python@2 # Python 3 conflicts with Python 2's /usr/local/bin/2to3-2 file
     brew upgrade gnupg wget
-    brew install gtk+ pygobject
+    brew install gtk+
     export PKG_CONFIG_PATH=/usr/local/Library/Homebrew/os/mac/pkgconfig/10.9:/usr/lib/pkgconfig
   }
 
