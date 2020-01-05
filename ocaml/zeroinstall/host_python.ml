@@ -121,7 +121,8 @@ let make_host_impl t path version ~package ?(commands=XString.Map.empty) ?(requi
     )
 
 let get t = function
-  | `Remote_feed "http://repo.roscidus.com/python/python" as url ->
+  | `Remote_feed "http://repo.roscidus.com/python/python"
+  | `Remote_feed "https://apps.0install.net/python/python.xml" as url ->
       (* We support Python on platforms with unsupported package managers
          by running it manually and parsing the output. Ideally we would
          cache this information on disk. *)
@@ -138,6 +139,15 @@ let get t = function
         | Some info ->
             let id = "package:host:python-gobject:" ^ info.version in
             let requires = [make_restricts_distro "http://repo.roscidus.com/python/python" "host"] in
+            Some (id, make_host_impl t ~package:"host-python-gobject" info.path info.version ~requires url id)
+        | None -> None
+      )
+  | `Remote_feed "https://apps.0install.net/python/pygobject.xml" as url ->
+      Lazy.force t.python_installations |> Utils.filter_map (fun installation ->
+        match installation.python_gobject with
+        | Some info ->
+            let id = "package:host:python-gobject:" ^ info.version in
+            let requires = [make_restricts_distro "https://apps.0install.net/python/python.xml" "host"] in
             Some (id, make_host_impl t ~package:"host-python-gobject" info.path info.version ~requires url id)
         | None -> None
       )
