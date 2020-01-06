@@ -13,9 +13,9 @@ replace, the operating system's package management. 0install packages never
 interfere with those provided by the distribution.
 </description>
 
-  <homepage>http://0install.net/</homepage>
+  <homepage>https://0install.net/</homepage>
 
-  <icon href="http://0install.net/feed_icons/ZeroInstall.png" type="image/png"/>
+  <icon href="https://0install.net/feed_icons/ZeroInstall.png" type="image/png"/>
 
   <feed-for interface="http://0install.net/tools/0install.xml"/>
   <category>System</category>
@@ -28,7 +28,7 @@ interfere with those provided by the distribution.
 
   <group arch="*-src" compile:dup-src="true" license="OSI Approved :: GNU Lesser General Public License (LGPL)">
     <command name="compile">
-      <runner interface="http://repo.roscidus.com/devel/make">
+      <runner interface="https://apps.0install.net/devel/make.xml">
 	<arg>SRCDIR=${SRCDIR}</arg>
 	<arg>DISTDIR=${DISTDIR}</arg>
       </runner>
@@ -36,7 +36,7 @@ interfere with those provided by the distribution.
       <compile:implementation main="files/0install">
 	<command name="run" path="files/0install"/>
 
-	<requires interface="http://repo.roscidus.com/security/gnupg">
+	<requires interface="https://apps.0install.net/utils/gnupg.xml">
 	  <executable-in-var name="ZEROINSTALL_GPG"/>
 	</requires>
       </compile:implementation>

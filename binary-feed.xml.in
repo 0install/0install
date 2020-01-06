@@ -6,7 +6,7 @@
   <implementation id=".." license="OSI Approved :: GNU Lesser General Public License (LGPL)" main="files/0install"
     		  version="@VERSION@" arch="@ARCH@">
     <command name="run" path="files/0install"/>
-    <requires interface="http://repo.roscidus.com/security/gnupg">
+    <requires interface="https://apps.0install.net/utils/gnupg.xml">
       <executable-in-var name="ZEROINSTALL_GPG"/>
     </requires>
   </implementation>
