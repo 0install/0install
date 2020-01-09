@@ -29,24 +29,24 @@ interfere with those provided by the distribution.
 
   <group license="OSI Approved :: GNU Lesser General Public License (LGPL)" main="0launch">
     <command name="run" path="0launch">
-      <runner interface="http://repo.roscidus.com/python/python"/>
+      <runner interface="https://apps.0install.net/python/python.xml"/>
     </command>
     <command name="0install" path="0install">
-      <runner interface="http://repo.roscidus.com/python/python"/>
+      <runner interface="https://apps.0install.net/python/python.xml"/>
     </command>
     <command name="test" path="tests/testall.py">
-      <runner interface="http://repo.roscidus.com/python/python">
+      <runner interface="https://apps.0install.net/python/python.xml">
 	<arg>-tt</arg>
       </runner>
     </command>
 
-    <requires interface="http://repo.roscidus.com/security/gnupg">
+    <requires interface="https://apps.0install.net/utils/gnupg.xml">
       <executable-in-var name="ZEROINSTALL_GPG"/>
     </requires>
 
-    <restricts interface="http://repo.roscidus.com/python/python" version="2.6..!3 | 3.2.2..!3.7"/>
+    <requires interface="https://apps.0install.net/python/python.xml" version="2.6..!3 | 3.2.2..!3.7"/>
 
-    <requires interface="http://repo.roscidus.com/python/python-gobject"/>
+    <requires interface="https://apps.0install.net/python/pygobject.xml"/>
 
     <requires interface="http://0install.net/2012/interfaces/0install-runenv-cli.xml" os="Windows">
       <environment insert="runenv.cli.template" mode="replace" name="ZEROINSTALL_CLI_TEMPLATE"/>
