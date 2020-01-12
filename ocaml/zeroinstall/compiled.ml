@@ -78,6 +78,13 @@ let make_binary_element ~id ~host_arch ~version ~src_impl command =
       ) else None
     ) in
 
+  (* Give the absolute path of the source code, and convert from old-style
+     impls without a local-path attribute. *)
+  let add_local_path attrs =
+    match src_impl.impl_type with
+    | `Local_impl path -> Q.AttrMap.add_no_ns "local-path" path attrs
+    | _ -> attrs in
+
   (* We don't need to handle compile:pin-components here because it's up to the compiler to build
    * something compatible with the binaries we choose. *)
 
@@ -87,6 +94,7 @@ let make_binary_element ~id ~host_arch ~version ~src_impl command =
     (attrs
       |> Q.AttrMap.add_no_ns "id" id
       |> Q.AttrMap.add_no_ns "version" version
+      |> add_local_path
       |> add_arch
       |> add_license
     )

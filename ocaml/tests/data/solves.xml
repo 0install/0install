@@ -1596,7 +1596,7 @@ Can't find all required implementations:
     <requirements interface='./Compiler.xml' command='run' may-compile='true'/>
 
     <selections interface='/root/Compiler.xml' command='run' source='false'>
-      <selection id="src" interface='/root/Compiler.xml' version='2.0' arch='Linux-x86_64' requires-compilation='true'>
+      <selection id="src" interface='/root/Compiler.xml' local-path='/root' version='2.0' arch='Linux-x86_64' requires-compilation='true'>
 	<command name="run" path="cc"/>
 	<requires interface="/root/jar.xml"/>
 	<requires interface='/root/libfoo.xml' source='true'/>
@@ -1605,11 +1605,11 @@ Can't find all required implementations:
 	</requires>
 	<requires interface='/root/libfoo.xml'/>
       </selection>
-      <selection id="jar-src" interface="/root/jar.xml" requires-compilation="true" version="1.2.3-post1" license='Public domain'/>
-      <selection arch="Linux-x86_64" id="ld-src" interface="/root/ld.xml" requires-compilation="true" version="1.0" compile:lib-mappings="foo:1">
+      <selection id="jar-src" interface="/root/jar.xml" local-path='/root' requires-compilation="true" version="1.2.3-post1" license='Public domain'/>
+      <selection arch="Linux-x86_64" id="ld-src" local-path='/root' interface="/root/ld.xml" requires-compilation="true" version="1.0" compile:lib-mappings="foo:1">
 	<command name="run" path="ld"/>
       </selection>
-      <selection arch="Linux-x86_64" id="foo-src" interface="/root/libfoo.xml" requires-compilation="true" version="1.0"/>
+      <selection arch="Linux-x86_64" id="foo-src" local-path='/root' interface="/root/libfoo.xml" requires-compilation="true" version="1.0"/>
       <selection arch="*-src" id="foo-src" interface="/root/libfoo.xml" local-path="/root" version="1.0"/>
 
     </selections>
