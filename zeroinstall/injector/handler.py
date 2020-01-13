@@ -59,7 +59,7 @@ class Handler(object):
 		self.monitored_downloads.add(dl)
 		self.downloads_changed()
 
-		@tasks.async
+		@tasks.aasync
 		def download_done_stats():
 			yield dl.downloaded
 			# NB: we don't check for exceptions here; someone else should be doing that
@@ -88,7 +88,7 @@ class Handler(object):
 		@deprecated: use tasks.wait_for_blocker instead"""
 		tasks.wait_for_blocker(blocker)
 	
-	@tasks.async
+	@tasks.aasync
 	def confirm_import_feed(self, pending, valid_sigs):
 		"""Sub-classes should override this method to interact with the user about new feeds.
 		If multiple feeds need confirmation, L{trust.TrustMgr.confirm_keys} will only invoke one instance of this
@@ -165,7 +165,7 @@ class Handler(object):
 			print(_("Trusting %(key_fingerprint)s for %(domain)s") % {'key_fingerprint': key.fingerprint, 'domain': domain}, file=sys.stderr)
 			trust.trust_db.trust_key(key.fingerprint, domain)
 
-	@tasks.async
+	@tasks.aasync
 	def confirm_install(self, msg):
 		"""We need to check something with the user before continuing with the install.
 		@raise download.DownloadAborted: if the user cancels"""
@@ -275,7 +275,7 @@ class ConsoleHandler(Handler):
 		self.clear_display()
 		self.disable_progress += 1
 		blocker = Handler.confirm_import_feed(self, pending, valid_sigs)
-		@tasks.async
+		@tasks.aasync
 		def enable():
 			yield blocker
 			self.disable_progress -= 1

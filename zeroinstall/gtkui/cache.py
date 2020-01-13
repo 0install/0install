@@ -538,7 +538,7 @@ class CacheExplorer(object):
 		self.window.get_window().set_cursor(gtkutils.get_busy_pointer())
 		gtk.gdk.flush()
 		# (async so that the busy pointer works on GTK 3)
-		@tasks.async
+		@tasks.aasync
 		def populate():
 			populate = self._populate_model()
 			yield populate
@@ -565,7 +565,7 @@ class CacheExplorer(object):
 		finally:
 			self.window.get_window().set_cursor(None)
 
-	@tasks.async
+	@tasks.aasync
 	def _populate_model(self):
 		# Find cached implementations
 

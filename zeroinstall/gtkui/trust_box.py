@@ -66,7 +66,7 @@ def make_hints_area(closed, key_info_fetcher):
 		status = left(key_info_fetcher.status)
 		hints.add(status)
 
-		@tasks.async
+		@tasks.aasync
 		def update_when_ready():
 			while key_info_fetcher.blocker:
 				yield key_info_fetcher.blocker, closed

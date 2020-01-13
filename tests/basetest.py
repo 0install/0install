@@ -122,7 +122,7 @@ class TestFetcher:
 		self.allowed_feed_downloads[url] = feed_xml
 
 	def download_impls(self, impls, stores):
-		@tasks.async
+		@tasks.aasync
 		def fake_download():
 			yield
 			for impl in impls:
@@ -132,7 +132,7 @@ class TestFetcher:
 		return fake_download()
 
 	def download_and_import_feed(self, feed_url, iface_cache, force = False):
-		@tasks.async
+		@tasks.aasync
 		def fake_download():
 			yield
 			feed_xml = self.allowed_feed_downloads.get(feed_url, None)

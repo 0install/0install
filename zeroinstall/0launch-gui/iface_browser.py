@@ -328,7 +328,7 @@ class InterfaceBrowser(object):
 					if iface.uri not in self.cached_icon:
 						self.cached_icon[iface.uri] = None	# Only try once
 
-					@tasks.async
+					@tasks.aasync
 					def update_display():
 						yield fetcher
 						try:

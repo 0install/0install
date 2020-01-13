@@ -195,7 +195,7 @@ class TrustMgr(object):
 		self.config = config
 		self._current_confirm = None	# (a lock to prevent asking the user multiple questions at once)
 
-	@tasks.async
+	@tasks.aasync
 	def confirm_keys(self, pending):
 		"""We don't trust any of the signatures yet. Collect information about them and add the keys to the
 		trusted list, possibly after confirming with the user (via config.handler).

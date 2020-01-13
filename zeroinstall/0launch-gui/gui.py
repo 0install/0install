@@ -45,7 +45,7 @@ class GUIHandler(handler.Handler):
 	def impl_added_to_store(self, impl):
 		self.mainwindow.update_download_status(only_update_visible = True)
 
-	@tasks.async
+	@tasks.aasync
 	def _switch_to_main_window(self, reason):
 		if self.mainwindow.systray_icon:
 			self.mainwindow.systray_icon.set_tooltip(reason)
@@ -55,7 +55,7 @@ class GUIHandler(handler.Handler):
 			yield self.mainwindow.systray_icon_blocker
 			yield tasks.TimeoutBlocker(0.5, 'Delay')
 
-	@tasks.async
+	@tasks.aasync
 	def confirm_import_feed(self, pending, valid_sigs):
 		yield self._switch_to_main_window(_('Need to confirm a new GPG key'))
 
@@ -64,7 +64,7 @@ class GUIHandler(handler.Handler):
 		box.show()
 		yield box.closed
 
-	@tasks.async
+	@tasks.aasync
 	def confirm_install(self, message):
 		yield self._switch_to_main_window(_('Need to confirm installation of distribution packages'))
 

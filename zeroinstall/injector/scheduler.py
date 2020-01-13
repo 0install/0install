@@ -37,7 +37,7 @@ class DownloadScheduler(object):
 	def __init__(self):
 		self._sites = defaultdict(lambda: Site())	# (scheme://host:port) -> Site
 	
-	@tasks.async
+	@tasks.aasync
 	def download(self, dl, timeout = None):
 		"""@type dl: L{zeroinstall.injector.download.Download}"""
 
@@ -126,7 +126,7 @@ class Site(object):
 		self.queue = []
 		self.active = 0
 
-	@tasks.async
+	@tasks.aasync
 	def download(self, step, timeout = None):
 		"""
 		Queue up this download. If it takes too long, trigger step.dl.timeout (if any), but

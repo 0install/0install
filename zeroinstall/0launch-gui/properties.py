@@ -346,7 +346,7 @@ class Properties(object):
 		ranked_items.sort()
 		self.use_list.set_items(ranked_items)
 
-@tasks.async
+@tasks.aasync
 def add_remote_feed(config, parent, interface):
 	try:
 		iface_cache = config.iface_cache

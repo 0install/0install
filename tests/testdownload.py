@@ -725,7 +725,7 @@ class TestDownload(BaseTest):
 		d.solver.solve(r.interface_uri, arch.get_host_architecture())
 		assert d.solver.ready, d.solver.get_failure_reason()
 
-		@tasks.async
+		@tasks.aasync
 		def choose_download(registed_cb, nid, actions):
 			try:
 				assert actions == ['download', 'Download'], actions

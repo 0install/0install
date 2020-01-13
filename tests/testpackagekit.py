@@ -55,7 +55,7 @@ def makeFakePackageKit(version):
 					assert isinstance(query, dbus.UInt64), query
 				else:
 					assert query == 'none'
-				@tasks.async
+				@tasks.aasync
 				def later():
 					yield
 					result = "success"
@@ -72,7 +72,7 @@ def makeFakePackageKit(version):
 
 		class Tid2(Tid):
 			def GetDetails(self, package_ids):
-				@tasks.async
+				@tasks.aasync
 				def later():
 					yield
 					for package_id in package_ids:
@@ -110,7 +110,7 @@ def makeFakePackageKit(version):
 					package_ids = arg2
 
 				assert only_trusted == False
-				@tasks.async
+				@tasks.aasync
 				def later():
 					yield
 					for package_id in package_ids:
@@ -211,7 +211,7 @@ class TestPackageKit(BaseTest):
 		blocker = pk.fetch_candidates(["gimp"])
 		blocker2 = pk.fetch_candidates(["gimp"])		# Check batching too
 
-		@tasks.async
+		@tasks.aasync
 		def wait():
 			yield blocker, blocker2
 			if blocker.happened:

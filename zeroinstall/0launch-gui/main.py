@@ -110,7 +110,7 @@ def run_gui(args):
 			config.stores.stores.append(zerostore.Store(os.path.abspath(x)))
 
 	if len(args) < 1:
-		@tasks.async
+		@tasks.aasync
 		def prefs_main():
 			import preferences
 			box = preferences.show_preferences(config)
@@ -151,7 +151,7 @@ def run_gui(args):
 	if options.systray:
 		window.use_systray_icon()
 
-	@tasks.async
+	@tasks.aasync
 	def main():
 		force_refresh = bool(options.refresh)
 		while True:

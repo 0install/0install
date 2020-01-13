@@ -66,7 +66,7 @@ class KeyInfoFetcher(object):
 
 		from xml.dom import minidom
 
-		@tasks.async
+		@tasks.aasync
 		def fetch_key_info():
 			tempfile = dl.tempfile
 			try:
@@ -118,7 +118,7 @@ class Fetcher(object):
 		return self._scheduler
 
 	# (force is deprecated and ignored)
-	@tasks.async
+	@tasks.aasync
 	def cook(self, required_digest, recipe, stores, force = False, impl_hint = None, dry_run = False, may_use_mirror = True):
 		"""Follow a Recipe.
 		@type required_digest: str
@@ -214,7 +214,7 @@ class Fetcher(object):
 		@rtype: str"""
 		return self._get_mirror_url(impl.feed.url, 'impl/' + _escape_slashes(impl.id))
 
-	@tasks.async
+	@tasks.aasync
 	def get_packagekit_feed(self, feed_url):
 		"""Send a query to PackageKit (if available) for information about this package.
 		On success, the result is added to iface_cache.
@@ -430,7 +430,7 @@ class Fetcher(object):
 			raise SafeException(_("Unknown digest algorithms '%(algorithms)s' for '%(implementation)s' version %(version)s") %
 					{'algorithms': impl.digests, 'implementation': impl.feed.get_name(), 'version': impl.get_version()})
 
-		@tasks.async
+		@tasks.aasync
 		def download_impl(method):
 			original_exception = None
 			while True:
@@ -607,7 +607,7 @@ class Fetcher(object):
 
 		dl = self.download_url(source, hint = interface, modification_time = modification_time)
 
-		@tasks.async
+		@tasks.aasync
 		def download_and_add_icon():
 			stream = dl.tempfile
 			try:
@@ -657,7 +657,7 @@ class Fetcher(object):
 			if isinstance(source, DistributionSource) and source.needs_confirmation:
 				unsafe_impls.append(source.package_id)
 
-		@tasks.async
+		@tasks.aasync
 		def download_impls():
 			if unsafe_impls:
 				confirm = self.handler.confirm_install(_('The following components need to be installed using native packages. '

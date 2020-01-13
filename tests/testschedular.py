@@ -36,7 +36,7 @@ class TestSchedular(BaseTest):
 
 		downloads = {}
 
-		@tasks.async
+		@tasks.aasync
 		def dummy_spawn_thread(step):
 			resume = tasks.Blocker('complete ' + step.url)
 			downloads[step.url] = resume
@@ -59,7 +59,7 @@ class TestSchedular(BaseTest):
 			s.dl = dl
 			steps.append(site.download(s))
 
-		@tasks.async
+		@tasks.aasync
 		def collect():
 			# Let the first two downloads start
 			for x in range(10): yield

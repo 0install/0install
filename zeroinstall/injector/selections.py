@@ -417,7 +417,7 @@ class Selections(object):
 			from zeroinstall import NeedDownload
 			raise NeedDownload(', '.join([str(x) for x in needed_downloads]))
 
-		@tasks.async
+		@tasks.aasync
 		def download():
 			# We're missing some. For each one, get the feed it came from
 			# and find the corresponding <implementation> in that. This will

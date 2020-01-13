@@ -100,7 +100,7 @@ class MainWindow(object):
 	def set_response_sensitive(self, response, sensitive):
 		self.window.set_response_sensitive(response, sensitive)
 
-	@tasks.async
+	@tasks.aasync
 	def download_and_run(self, run_button, cancelled):
 		try:
 			if not self.select_only:

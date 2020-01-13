@@ -69,7 +69,7 @@ class Driver(object):
 				uncached.append((iface_cache.get_interface(uri), impl))
 		return uncached
 
-	@tasks.async
+	@tasks.aasync
 	def solve_with_downloads(self, force = False, update_local = False):
 		"""Run the solver, then download any feeds that are missing or
 		that need to be updated. Each time a new feed is imported into
@@ -144,7 +144,7 @@ class Driver(object):
 					if distro_feed_url in downloads_in_progress:
 						del downloads_in_progress[distro_feed_url]
 
-	@tasks.async
+	@tasks.aasync
 	def solve_and_download_impls(self, refresh = False, select_only = False):
 		"""Run L{solve_with_downloads} and then get the selected implementations too.
 		@type refresh: bool

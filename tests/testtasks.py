@@ -13,7 +13,7 @@ class TestTasks(BaseTest):
 		b = tasks.InputBlocker(r, "waiting for input")
 		t = tasks.TimeoutBlocker(0.01, "timeout")
 
-		@tasks.async
+		@tasks.aasync
 		def run():
 			yield b, t
 			assert t.happened

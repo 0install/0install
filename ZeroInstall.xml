@@ -44,7 +44,7 @@ interfere with those provided by the distribution.
       <executable-in-var name="ZEROINSTALL_GPG"/>
     </requires>
 
-    <requires interface="https://apps.0install.net/python/python.xml" version="2.6..!3 | 3.2.2..!3.7"/>
+    <requires interface="https://apps.0install.net/python/python.xml" version="2.6..!3 | 3.2.2.."/>
 
     <requires interface="https://apps.0install.net/python/pygobject.xml"/>
 

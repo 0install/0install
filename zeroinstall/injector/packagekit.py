@@ -91,7 +91,7 @@ class PackageKit(object):
 				return dl.downloaded
 			impl.download_sources.append(model.DistributionSource(package_name, candidate['size'], install))
 
-	@tasks.async
+	@tasks.aasync
 	def fetch_candidates(self, package_names):
 		"""@type package_names: [str]"""
 		assert self.pk
