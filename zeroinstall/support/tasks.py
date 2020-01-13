@@ -65,7 +65,8 @@ def get_loop():
 		glib = gobject
 
 	if glib:
-		glib.threads_init()
+		if gi_version < (3, 11, 0):
+			glib.threads_init()
 
 		class _Handler(object):
 			def cancel(self):

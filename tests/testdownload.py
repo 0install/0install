@@ -973,6 +973,7 @@ class TestDownload(BaseTest):
 		tasks.check(dl.downloaded)
 		tmp.seek(0)
 		self.assertEqual(b'hello world', tmp.read())
+		tmp.close()
 		kill_server_process()
 
 	def testAbort(self):
