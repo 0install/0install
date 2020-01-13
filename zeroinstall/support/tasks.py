@@ -38,10 +38,10 @@ callbacks. See the Task class (below) for more information.
 from zeroinstall import _, support, logger
 import sys
 
-tulip = None
+asyncio = None
 _loop = None
 def get_loop():
-	global _loop, tulip
+	global _loop, asyncio
 	if _loop:
 		return _loop
 
@@ -132,15 +132,15 @@ def get_loop():
 		loop.gobject = gobject
 	else:
 		try:
-			import tulip
+			import asyncio
 		except ImportError:
 			# Delay the error until we actually need a mainloop
 			class Fail(object):
 				def __getattr__(self, x):
-					raise Exception("No mainloop available: install python3-gi or tulip")
-			tulip = loop = Fail()
+					raise Exception("No mainloop available: install python3-gi or Python >= 3.7")
+			asyncio = loop = Fail()
 		else:
-			loop = tulip.get_event_loop()
+			loop = asyncio.get_event_loop()
 			loop.glib = None
 
 	_loop = loop
@@ -284,7 +284,7 @@ class TimeoutBlocker(Blocker):
 
 def _io_callback(blocker):
 	"""@type blocker: L{InputBlocker} | L{OutputBlocker}"""
-	blocker._tag.cancel()
+	blocker._cancel()
 	blocker.trigger()
 
 class InputBlocker(Blocker):
@@ -301,14 +301,26 @@ class InputBlocker(Blocker):
 		"""@type task: L{Task}"""
 		Blocker.add_task(self, task)
 		if self._tag is None:
-			self._tag = get_loop().add_reader(self._stream, _io_callback, self)
+			loop = get_loop()
+			if asyncio is None:
+				self._tag = loop.add_reader(self._stream, _io_callback, self)
+			else:
+				loop.add_reader(self._stream, _io_callback, self)
+				self._tag = True
+
+	def _cancel(self):
+		assert self._tag is not None
+		if asyncio is None:
+			self._tag.cancel()
+		else:
+			get_loop().remove_reader(self._stream)
+		self._tag = None
 
 	def remove_task(self, task):
 		"""@type task: L{Task}"""
 		Blocker.remove_task(self, task)
-		if not self._zero_lib_tasks:
-			self._tag.cancel()
-			self._tag = None
+		if self._tag is not None and not self._zero_lib_tasks:
+			self._cancel()
 
 # Note: this isn't used within 0install
 class OutputBlocker(Blocker):
@@ -489,13 +501,13 @@ def wait_for_blocker(blocker):
 				wait_for_blocker.x.set_result(None)
 		Task(quitter(), "quitter")
 
-		wait_for_blocker.x = glib.MainLoop() if glib else tulip.Future()
+		wait_for_blocker.x = glib.MainLoop() if glib else loop.create_future()
 		try:
 			logger.debug(_("Entering mainloop, waiting for %s"), blocker)
 			if glib:
 				wait_for_blocker.x.run()
 			else:
-				get_loop().run_until_complete(wait_for_blocker.x)
+				loop.run_until_complete(wait_for_blocker.x)
 		finally:
 			wait_for_blocker.x = None
 
