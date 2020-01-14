@@ -112,7 +112,11 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
       [candidates] is the result from the impl_provider.
       [impl] is the selected implementation, or [None] if we chose [dummy_impl].
       [diagnostics] can be used to produce diagnostics as a last resort. *)
-  class component (candidates, orig_bad, feed_problems) (diagnostics:string Lazy.t) (selected_impl:Model.impl option) =
+  class component
+      (candidates, orig_bad, feed_problems)
+      (diagnostics:string Lazy.t)
+      (selected_impl:Model.impl option)
+      (selected_commands:Model.command_name list) =
     let {Model.impls = orig_good; Model.replacement} = candidates in
     let orig_bad : (Model.impl * rejection_reason) list =
       List.map (fun (impl, reason) -> (impl, `Model_rejection reason)) orig_bad in
@@ -152,6 +156,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
       method diagnostics = diagnostics
       method replacement = replacement
       method impl = selected_impl
+      method commands = selected_commands
       method notes = List.rev notes
 
       method good = good
@@ -241,7 +246,14 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
         (* For each dependency of our selected impl, explain why it rejected impls in the dependency's interface. *)
         let deps, _commands_needed = Model.requires role our_impl in
         (* We can ignore [commands_needed] here because we obviously were selected. *)
-        List.iter (examine_dep role our_impl report) deps
+        List.iter (examine_dep role our_impl report) deps;
+        component#commands |> List.iter (fun name ->
+            match Model.get_command our_impl name with
+            | None -> log_warning "BUG: missing command!"    (* Can't happen - it's a "selected" command *)
+            | Some command ->
+              let deps, _commands_needed = Model.command_requires role command in
+              List.iter (examine_dep role our_impl report) deps;
+          )
     | None ->
         (* For each of our remaining unrejected impls, check whether a dependency prevented its selection. *)
         component#filter_impls (get_dependency_problem role report)
@@ -302,7 +314,8 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
         let impl = if impl == Model.dummy_impl then None else Some impl in
         let impl_candidates = Model.implementations role in
         let rejects, feed_problems = Model.rejects role in
-        new component (impl_candidates, rejects, feed_problems) diagnostics impl in
+        let selected_commands = Model.selected_commands result role in
+        new component (impl_candidates, rejects, feed_problems) diagnostics impl selected_commands in
       RoleMap.mapi get_selected impls in
 
     process_root_req report root_req;

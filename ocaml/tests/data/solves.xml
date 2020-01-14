@@ -1615,4 +1615,58 @@ Can't find all required implementations:
     </selections>
   </test>
 
+  <test name='command-conflict'>
+    <interface local-path='python.xml'>
+      <name>Python</name>
+      <summary>Versions 2 and 3</summary>
+      <group>
+	<command name='run' path='python.exe'/>
+	<implementation id='2' local-path='.' version='2'/>
+	<implementation id='3' local-path='.' version='3'/>
+      </group>
+    </interface>
+
+    <interface local-path='0publish.xml'>
+      <name>0publish</name>
+      <summary>Still only Python 2</summary>
+      <group>
+	<command name='run'>
+	  <runner interface='/root/python.xml' version='..!3'/>
+	</command>
+	<implementation id='pub1' local-path='.' version='0.25-post'/>
+      </group>
+    </interface>
+
+    <interface local-path='0test.xml'>
+      <name>0test</name>
+      <summary>Upgrade to Python 3</summary>
+      <group>
+	<command name='test'>
+	  <runner interface='/root/python.xml' version='3..'/>
+	  <requires interface='/root/0publish.xml'>
+	    <executable-in-path name='0publish'/>
+	  </requires>
+	</command>
+	<implementation id='test1' local-path='.' version='0.9-post'/>
+      </group>
+    </interface>
+
+    <requirements fails='true' interface='./0test.xml' command='test'/>
+
+    <problem>
+Can't find all required implementations:
+- /root/0publish.xml -> 0.25-post (pub1)
+    /root/0test.xml 0.9-post requires 'run' command
+- /root/0test.xml -> 0.9-post (test1)
+- /root/python.xml -> (problem)
+    /root/0publish.xml 0.25-post requires version ..!3
+    /root/0publish.xml 0.25-post requires 'run' command
+    /root/0test.xml 0.9-post requires version 3..
+    /root/0test.xml 0.9-post requires 'run' command
+    Rejected candidates:
+      3 (3): Incompatible with restriction: version ..!3
+      2 (2): Incompatible with restriction: version 3..
+    </problem>
+  </test>
+
 </test-cases>
