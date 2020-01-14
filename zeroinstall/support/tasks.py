@@ -481,7 +481,7 @@ def aasync(fn):
 	return run
 
 if sys.version_info[:2] < (3, 7):
-	from async_compat import *
+	from .async_compat import *
 
 def wait_for_blocker(blocker):
 	"""Run a recursive mainloop until blocker is triggered.
