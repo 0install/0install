@@ -401,14 +401,24 @@ class _PackageKitTransaction(object):
 		except Exception as ex:
 			_logger_pk.warn("__package_cb(%s, %s, %s): %s", status, id, summary, ex)
 
-	def __details_cb(self, id, licence, group, detail, url, size):
+	def __details_cb(self, *args):
 		"""@type id: str
 		@type licence: str
 		@type group: str
 		@type detail: str
 		@type url: str
 		@type size: int"""
-		details = {'licence': str(licence),
+		if len(args) == 1:
+			details, = args
+			id = str(details['package-id'])
+			details = {'licence': str(details.get('licence')),
+				   'group': str(details.get('group')),
+				   'detail': str(details.get('detail')),
+				   'url': str(details.get('url')),
+				   'size': int(details.get('size'))}
+		else:
+			id, licence, group, detail, url, size = args
+			details = {'licence': str(licence),
 				   'group': str(group),
 				   'detail': str(detail),
 				   'url': str(url),
