@@ -234,7 +234,7 @@ class ConsoleHandler(Handler):
 		url_width = item_width - 7
 
 		msg = ""
-		for url, dl in sorted(urls):
+		for url, dl in sorted(urls, key = lambda x: x[0]):
 			so_far = dl.get_bytes_downloaded_so_far()
 			if url.endswith('/latest.xml'):
 				url = url[:-10]		# remove latest.xml from mirror URLs
