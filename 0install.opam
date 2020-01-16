@@ -14,18 +14,24 @@ depends: [
   "yojson"
   "xmlm"
   "ounit" {with-test}
+  "lwt"
   "lwt_react"
   "ocurl" {>= "0.7.9"}
   "sha" {>= "1.9"}
-  "dune"
+  "dune" {>= "1.11"}
 ]
 depopts: ["obus" "lablgtk" "lwt_glib"]
 conflicts: [
   "lablgtk" {< "2.18.2"}
 ]
 depexts: [
-  ["gnupg" "unzip"] {os-distribution = "ubuntu"}
-  ["gnupg" "unzip"] {os-distribution = "debian"}
+  ["gnupg" "unzip"] {os-family = "debian"}
   ["gnupg" "unzip"] {os-distribution = "alpine"}
   ["gnupg"] {os = "macos" & os-distribution = "homebrew"}
 ]
+description: """
+Zero Install is a decentralised cross-distribution software installation system.
+Other features include full support for shared libraries (with a SAT solver for
+dependency resolution), sharing between users, and integration with native platform
+package managers. It supports both binary and source packages, and works on Linux,
+macOS, Unix and Windows systems."""
