@@ -48,7 +48,7 @@ let find_distro_impl feed_provider id master_feed =
 (** Find a cached implementation. Not_found if the feed isn't cached or doesn't contain [id]. *)
 let find_zi_impl feed_provider id url =
   let (feed, _) = feed_provider#get_feed url |? lazy (raise Not_found) in
-  XString.Map.find id feed.Feed.implementations
+  XString.Map.find id (Feed.zi_implementations feed)
 
 module DownloadElt =
   struct

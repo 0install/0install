@@ -226,9 +226,9 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
         let master_feed = Feed_url.master_feed_of_iface uri in
         match feed_provider#get_feed master_feed with
         | Some (main_feed, _overrides) ->
-            (main_feed.F.name,
+            (F.name main_feed,
              default "-" @@ F.get_summary config.langs main_feed,
-             main_feed.F.imported_feeds);
+             (F.imported_feeds main_feed))
         | None ->
             let name =
               match master_feed with

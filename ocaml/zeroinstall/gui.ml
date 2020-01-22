@@ -76,7 +76,7 @@ let have_source_for feed_provider iface =
   let imported =
     match feed_provider#get_feed master_feed with
     | None -> []
-    | Some (feed, _overrides) -> feed.Feed.imported_feeds in
+    | Some (feed, _overrides) -> Feed.imported_feeds feed in
 
   let have_source = ref false in
   let to_check = ref [master_feed] in
@@ -101,7 +101,7 @@ let have_source_for feed_provider iface =
       match feed_provider#get_feed url with
       | None -> false
       | Some (feed, _overrides) ->
-          feed.Feed.implementations |> XString.Map.exists (fun _id impl -> Impl.is_source impl)
+        Feed.zi_implementations feed |> XString.Map.exists (fun _id impl -> Impl.is_source impl)
     )
   )
 
@@ -401,7 +401,7 @@ let format_para para =
 let generate_feed_description config trust_db feed overrides =
   let times = ref [] in
 
-  begin match feed.F.url with
+  begin match F.url feed with
   | `Local_feed _ -> Lwt.return []
   | `Remote_feed _ as feed_url ->
       let domain = Trust.domain_from_url feed_url in
@@ -441,7 +441,7 @@ let generate_feed_description config trust_db feed overrides =
     | Some description -> Str.split (Str.regexp_string "\n\n") description |> List.map format_para
     | None -> ["-"] in
 
-  let homepages = Element.feed_metadata feed.F.root |> U.filter_map (function
+  let homepages = Feed.root feed |> Element.feed_metadata |> U.filter_map (function
     | `Homepage homepage -> Some (Element.simple_content homepage)
     | _ -> None
   ) in

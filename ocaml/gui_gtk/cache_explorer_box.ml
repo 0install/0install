@@ -348,7 +348,7 @@ let open_cache_explorer config =
   let impl_of_digest = Hashtbl.create 1024 in
   !ok_feeds |> List.iter (fun feed ->
     (* For each implementation... *)
-    feed.F.implementations |> XString.Map.iter (fun _id impl ->
+    F.zi_implementations feed |> XString.Map.iter (fun _id impl ->
       match impl.Impl.impl_type with
       | `Cache_impl info ->
           (* For each digest... *)
@@ -368,7 +368,7 @@ let open_cache_explorer config =
     Unsorted_list.set model ~row ~column:impl_dir_col @@ dir +/ digest;
     try
       let feed, impl = Hashtbl.find impl_of_digest digest in
-      Unsorted_list.set model ~row ~column:owner_col feed.F.name;
+      Unsorted_list.set model ~row ~column:owner_col @@ F.name feed;
       Unsorted_list.set model ~row ~column:version_str_col @@ Impl.get_attr_ex FeedAttr.version impl;
     with Not_found ->
       try
@@ -412,7 +412,7 @@ let open_cache_explorer config =
               "arch:" ^ Zeroinstall.Arch.format_arch (impl.Impl.os, impl.Impl.machine);
               "langs:" ^ (Impl.get_langs impl |> List.map Support.Locale.format_lang |> String.concat ",");
             ] in
-            (Feed_url.format_url feed.F.url, dir, extra, true, true)
+            (Feed_url.format_url (F.url feed), dir, extra, true, true)
           with Not_found ->
             let extra =
               match config.system#readdir dir with

@@ -19,7 +19,7 @@ let check_for_replacement f config uri =
   match Zeroinstall.Feed_cache.get_cached_feed config feed with
   | None -> log_warning "Master feed for '%s' missing!" uri
   | Some feed ->
-      match feed.F.replacement with
+      match F.replacement feed with
       | Some replacement ->
         Format.fprintf f "Warning: interface %s has been replaced by %s@." uri replacement
       | None -> ()

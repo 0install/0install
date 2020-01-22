@@ -184,7 +184,7 @@ let suite = "fetch">::: [
 
     let check ?error ?testfile id =
       try
-        let impl = XString.Map.find_safe id feed.F.implementations in
+        let impl = XString.Map.find_safe id (F.zi_implementations feed) in
         let digests =
           match impl.Impl.impl_type with
           | `Cache_impl {Impl.digests; _} -> digests

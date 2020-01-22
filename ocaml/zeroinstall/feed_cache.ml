@@ -181,8 +181,8 @@ let get_cached_feed config = function
       | Some path ->
           let root = Q.parse_file config.system path |> Element.parse_feed in
           let feed = Feed.parse config.system root None in
-          if feed.Feed.url = remote_feed then Some feed
-          else Safe_exn.failf "Incorrect URL in cached feed - expected '%s' but found '%s'" url (Feed_url.format_url feed.Feed.url)
+          if Feed.url feed = remote_feed then Some feed
+          else Safe_exn.failf "Incorrect URL in cached feed - expected '%s' but found '%a'" url Feed.pp_url feed
 
 let get_last_check_attempt config url =
   match Paths.Cache.(first (last_check_attempt url)) config.paths with

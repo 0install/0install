@@ -22,9 +22,9 @@ let spf = Printf.sprintf
 let add_description_text ~heading_style ~link_style (buffer:GText.buffer) feed description =
   let open Gui in
   let iter = buffer#start_iter in
-  buffer#insert ~iter ~tags:[heading_style] feed.F.name;
+  buffer#insert ~iter ~tags:[heading_style] (F.name feed);
   buffer#insert ~iter (spf " (%s)" (default "-" @@ description.summary));
-  buffer#insert ~iter (spf "\n%s\n" (Feed_url.format_url feed.F.url));
+  buffer#insert ~iter (spf "\n%s\n" (Feed_url.format_url (F.url feed)));
 
   if description.times <> [] then (
     buffer#insert ~iter "\n";
@@ -52,7 +52,7 @@ let add_description_text ~heading_style ~link_style (buffer:GText.buffer) feed d
     )
   );
 
-  match feed.F.url, description.signatures with
+  match F.url feed, description.signatures with
   | `Local_feed _, _ -> ()
   | `Remote_feed _, [] ->
       buffer#insert ~iter "No signature information (old style feed or out-of-date cache)\n"
@@ -352,7 +352,7 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
       let imported_feeds =
         match watcher#feed_provider#get_feed master_feed with
         | None -> []
-        | Some (feed, _overrides) -> feed.F.imported_feeds in
+        | Some (feed, _overrides) -> F.imported_feeds feed in
 
       let main = F.({
         feed_src = master_feed;

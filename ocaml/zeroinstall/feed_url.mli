@@ -21,6 +21,8 @@ val parse : Sigs.feed_url -> parsed_feed_url
 
 val format_url : [< parsed_feed_url] -> Sigs.feed_url
 
+val pp : Format.formatter -> [< parsed_feed_url] -> unit
+
 (** Get the master feed for an interface URI. Internally, this is just [parse_non_distro]. *)
 val master_feed_of_iface : Sigs.iface_uri -> [> non_distro_feed]
 

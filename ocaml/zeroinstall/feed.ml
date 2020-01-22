@@ -276,10 +276,6 @@ let parse system root feed_local_path =
     imported_feeds = !imported_feeds;
   }
 
-(* Get all the implementations (note: only sorted by ID) *)
-let get_implementations feed =
-  XString.Map.map_bindings (fun _k impl -> impl) feed.implementations
-
 (** Load per-feed extra data (last-checked time and preferred stability.
     Probably we should use a simple timestamp file for the last-checked time and attach
     the stability ratings to the interface, not the feed. *)
@@ -363,3 +359,11 @@ let icons feed =
 
 let get_summary langs feed = Element.get_summary langs feed.root
 let get_description langs feed = Element.get_description langs feed.root
+let url t = t.url
+let zi_implementations t = t.implementations
+let package_implementations t = t.package_implementations
+let replacement t = t.replacement
+let imported_feeds t = t.imported_feeds
+let name t = t.name
+let pp_url f t = Feed_url.pp f t.url
+let root t = t.root

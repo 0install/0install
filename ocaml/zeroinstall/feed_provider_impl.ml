@@ -28,7 +28,7 @@ class feed_provider config distro =
         result
 
     method get_distro_impls feed =
-      let master_feed_url = feed.Feed.url in
+      let master_feed_url = Feed.url feed in
       let url = `Distribution_feed master_feed_url in
       try FeedMap.find master_feed_url distro_cache
       with Not_found ->

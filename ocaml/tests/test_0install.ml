@@ -54,7 +54,7 @@ let impl_from_json config = (function
   | `Assoc [("id", `String id); ("from-feed", `String feed_url)] ->
       let parsed = Zeroinstall.Feed_url.parse_non_distro feed_url in
       let feed = Zeroinstall.Feed_cache.get_cached_feed config parsed |? lazy (Safe_exn.failf "Not cached: %s" feed_url) in
-      XString.Map.find_safe id feed.F.implementations
+      XString.Map.find_safe id (F.zi_implementations feed)
   | _ -> assert false
 )
 

@@ -274,7 +274,7 @@ let suite = "download">::: [
 
     (* Check we imported the interface after trusting the key *)
     let hello = FC.get_cached_feed config (`Remote_feed "http://localhost:8000/Hello") |> Fake_system.expect in
-    assert_equal 1 @@ XString.Map.cardinal hello.F.implementations;
+    assert_equal 1 @@ XString.Map.cardinal (F.zi_implementations hello);
 
     (* Shouldn't need to prompt the second time *)
     let out = run_0install fake_system ~stdin:"" ["import"; Fake_system.test_data "Hello"] in
@@ -299,7 +299,7 @@ let suite = "download">::: [
     ));
 
     let feed = Fake_system.expect @@ FC.get_cached_feed config (`Remote_feed native_url) in
-    assert_equal 0 @@ XString.Map.cardinal feed.F.implementations;
+    assert_equal 0 @@ XString.Map.cardinal (F.zi_implementations feed);
 
     let dpkgdir = Fake_system.test_data "dpkg" in
     let old_path = Unix.getenv "PATH" in

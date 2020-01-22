@@ -36,7 +36,7 @@ let edit_feeds_interactive ~stdout config (mode:[`Add | `Remove]) feed_url =
   let feed = FC.get_cached_feed config feed_url |? lazy (failwith "Feed still not cached!") in
   let new_import = F.make_user_import feed_url in
   match F.get_feed_targets feed with
-  | [] -> Element.raise_elem "Missing <feed-for> element; feed can't be used as a feed for any other interface." feed.F.root
+  | [] -> Element.raise_elem "Missing <feed-for> element; feed can't be used as a feed for any other interface." (F.root feed)
   | candidate_interfaces ->
       (* Display the options to the user *)
       let i = ref 0 in

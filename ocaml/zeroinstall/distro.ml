@@ -16,7 +16,7 @@ module Q = Support.Qdom
 let get_matching_package_impls distro feed =
   let best_score = ref 0 in
   let best_impls = ref [] in
-  feed.Feed.package_implementations |> List.iter (function (elem, _) as package_impl ->
+  Feed.package_implementations feed |> List.iter (function (elem, _) as package_impl ->
     let package_name = Element.package elem in
     if distro#is_valid_package_name package_name then (
         let distributions = default "" @@ Element.distributions elem in
@@ -217,7 +217,7 @@ class virtual distribution config =
       let results = ref XString.Map.empty in
 
       if check_host_python then (
-        Host_python.get host_python feed.Feed.url |> List.iter (fun (id, impl) -> results := XString.Map.add id impl !results)
+        Host_python.get host_python (Feed.url feed) |> List.iter (fun (id, impl) -> results := XString.Map.add id impl !results)
       );
 
       match get_matching_package_impls self feed with
