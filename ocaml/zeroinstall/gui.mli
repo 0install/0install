@@ -70,4 +70,4 @@ val send_bug_report : Sigs.iface_uri -> string -> string Lwt.t
 
 val run_test : General.config -> Distro.t -> (Selections.t -> string Lwt.t) -> (bool * Solver.Model.t) -> string Lwt.t
 
-val generate_feed_description : General.config -> Trust.trust_db -> Feed.feed -> Feed.feed_overrides -> feed_description Lwt.t
+val generate_feed_description : General.config -> Trust.trust_db -> Feed.t -> Feed.feed_overrides -> feed_description Lwt.t

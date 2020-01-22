@@ -15,7 +15,7 @@ class feed_provider config distro =
     val mutable cache = FeedMap.empty
     val mutable distro_cache : Feed_provider.distro_impls FeedMap.t = FeedMap.empty
 
-    method get_feed url : (Feed.feed * Feed.feed_overrides) option =
+    method get_feed url : (Feed.t * Feed.feed_overrides) option =
       try FeedMap.find url cache
       with Not_found ->
         let result =

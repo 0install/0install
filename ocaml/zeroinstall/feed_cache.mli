@@ -15,7 +15,7 @@ type interface_config = {
 
 (** Load a cached feed.
  * As a convenience, this will also load local feeds. *)
-val get_cached_feed : config -> [< Feed_url.non_distro_feed] -> Feed.feed option
+val get_cached_feed : config -> [< Feed_url.non_distro_feed] -> Feed.t option
 val get_cached_feed_path : config -> Feed_url.remote_feed -> filepath option
 val get_save_cache_path : config -> Feed_url.remote_feed -> filepath
 

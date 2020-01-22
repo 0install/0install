@@ -29,7 +29,7 @@ type feed_import = {
   feed_type : feed_type;
 }
 
-type feed = {
+type t = {
   url : Feed_url.non_distro_feed;
   root : [`Feed] Element.t;
   name : string;
@@ -44,22 +44,22 @@ type feed = {
 }
 
 (** {2 Parsing} *)
-val parse : #filesystem -> [`Feed] Element.t -> filepath option -> feed
+val parse : #filesystem -> [`Feed] Element.t -> filepath option -> t
 
-val get_implementations : feed -> Impl.existing Impl.t list
+val get_implementations : t -> Impl.existing Impl.t list
 val default_attrs : url:string -> Support.Qdom.AttrMap.t
 val process_group_properties : local_dir:filepath option -> Impl.properties ->
   [<`Group | `Implementation | `Package_impl] Element.t -> Impl.properties
 val load_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides
 val save_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides -> unit
 val update_last_checked_time : General.config -> [< Feed_url.remote_feed] -> unit
-val get_summary : int Support.Locale.LangMap.t -> feed -> string option
-val get_description : int Support.Locale.LangMap.t -> feed -> string option
+val get_summary : int Support.Locale.LangMap.t -> t -> string option
+val get_description : int Support.Locale.LangMap.t -> t -> string option
 
 (** The <feed-for> elements' interfaces *)
-val get_feed_targets : feed -> Sigs.iface_uri list
+val get_feed_targets : t -> Sigs.iface_uri list
 val make_user_import : [< Feed_url.non_distro_feed] -> feed_import
 
-val get_category : feed -> string option
-val needs_terminal : feed -> bool
-val icons : feed -> [`Icon] Element.t list
+val get_category : t -> string option
+val needs_terminal : t -> bool
+val icons : t -> [`Icon] Element.t list

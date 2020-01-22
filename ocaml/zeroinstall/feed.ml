@@ -33,7 +33,7 @@ type feed_import = {
   feed_type: feed_type;
 }
 
-type feed = {
+type t = {
   url : Feed_url.non_distro_feed;
   root : [`Feed] Element.t;
   name : string;
