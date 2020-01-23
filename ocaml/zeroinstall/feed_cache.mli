@@ -32,7 +32,7 @@ val is_stale : config -> Feed_url.remote_feed -> bool
 
 (** Low-level part of [is_stale] that doesn't automatically load the feed overrides (needed to get [last_checked]).
  * Useful if you've already loaded them yourself (or confirmed they're missing) to avoid doing it twice. *)
-val internal_is_stale : config -> Feed_url.remote_feed -> Feed.feed_overrides option -> bool
+val internal_is_stale : config -> Feed_url.remote_feed -> Feed_metadata.t option -> bool
 
 (** Touch a 'last-check-attempt' timestamp file for this feed.
     This prevents us from repeatedly trying to download a failing feed many

@@ -207,7 +207,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
 
     let success () =
       if not config.dry_run then (
-        Feed.update_last_checked_time config feed;
+        Feed_metadata.update_last_checked_time config feed;
         log_info "Updated feed cache checked time for %s (modified %s)" feed_url pretty_time
       );
       `Ok new_root |> Lwt.return in

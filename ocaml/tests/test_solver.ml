@@ -114,9 +114,9 @@ class fake_feed_provider system (distro:Distro.provider option) =
   object (_ : #Feed_provider.feed_provider)
     method get_feed url =
       try
-        let overrides = {
-          Feed.last_checked = None;
-          Feed.user_stability = XString.Map.empty;
+        let overrides = { Feed_metadata.
+          last_checked = None;
+          user_stability = XString.Map.empty;
         } in
         Some (Hashtbl.find ifaces url, overrides)
       with Not_found -> None
@@ -125,9 +125,9 @@ class fake_feed_provider system (distro:Distro.provider option) =
       Hashtbl.add ifaces url feed
 
     method get_distro_impls feed =
-      let overrides = {
-        Feed.last_checked = None;
-        Feed.user_stability = XString.Map.empty;
+      let overrides = { Feed_metadata.
+        last_checked = None;
+        user_stability = XString.Map.empty;
       } in
       match distro with
       | None -> {Feed_provider.impls = XString.Map.empty; overrides; problems = []}
@@ -432,12 +432,14 @@ let suite = "solver">::: [
           match super#get_feed url with
           | None -> None
           | Some (feed, overrides) ->
-              let overrides = {overrides with Feed.user_stability = XString.Map.singleton "preferred_by_user" Stability.Preferred} in
+              let overrides = {
+                overrides with Feed_metadata.user_stability = XString.Map.singleton "preferred_by_user" Stability.Preferred
+              } in
               Some (feed, overrides)
 
         method! get_distro_impls feed =
           let result = super#get_distro_impls feed in
-          let overrides = {result.Feed_provider.overrides with Feed.user_stability = XString.Map.singleton "package:buggy" Stability.Buggy} in
+          let overrides = {result.Feed_provider.overrides with Feed_metadata.user_stability = XString.Map.singleton "package:buggy" Stability.Buggy} in
           {result with Feed_provider.overrides}
       end in
     feed_provider#add_iface (Support.Qdom.parse_file Fake_system.real_system (Fake_system.test_data "ranking.xml"));

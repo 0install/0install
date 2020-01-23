@@ -525,8 +525,9 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
             let menu = GMenu.menu () in
             let stability_menu = GMenu.menu_item ~packing:menu#add ~label:"Rating" () in
             let submenu = build_stability_menu (fun stability ->
-              Gui.set_impl_stability config (Impl.get_id impl) stability;
-              recalculate ~force:false
+                let {Feed_url.feed; id} = Impl.get_id impl in
+                Feed_metadata.update config feed (Feed_metadata.with_stability id stability);
+                recalculate ~force:false
             ) in
             stability_menu#set_submenu submenu;
 
@@ -565,7 +566,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
           match !cache |> XString.Map.find_opt feed with
           | Some result -> result
           | None ->
-              let result = F.load_feed_overrides config (Feed_url.parse feed) in
+              let result = Feed_metadata.load config (Feed_url.parse feed) in
               cache := !cache |> XString.Map.add feed result;
               result in
 
@@ -574,7 +575,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
         let impl_id = Impl.get_attr_ex FeedAttr.id impl in
         let overrides = get_overrides from_feed in
         let stability_value =
-          match XString.Map.find_opt impl_id overrides.F.user_stability with
+          match Feed_metadata.stability impl_id overrides with
           | Some user_stability -> Stability.to_string user_stability |> String.uppercase_ascii
           | None -> Q.AttrMap.get_no_ns FeedAttr.stability impl.Impl.props.Impl.attrs |> default "testing" in
 

@@ -57,9 +57,6 @@ val list_impls : Solver.Model.t -> Solver.role ->
 (* Returns (fetch-size, fetch-tooltip) *)
 val get_fetch_info : General.config -> Impl.generic_implementation -> (string * string)
 
-(** Set a user-override stability rating. *)
-val set_impl_stability : General.config -> Feed_url.global_id -> Stability.t option -> unit
-
 (** Get the initial text for the bug report dialog box. *)
 val get_bug_report_details : General.config -> role:Solver.role -> (bool * Solver.Model.t) -> string
 
@@ -70,4 +67,4 @@ val send_bug_report : Sigs.iface_uri -> string -> string Lwt.t
 
 val run_test : General.config -> Distro.t -> (Selections.t -> string Lwt.t) -> (bool * Solver.Model.t) -> string Lwt.t
 
-val generate_feed_description : General.config -> Trust.trust_db -> Feed.t -> Feed.feed_overrides -> feed_description Lwt.t
+val generate_feed_description : General.config -> Trust.trust_db -> Feed.t -> Feed_metadata.t -> feed_description Lwt.t

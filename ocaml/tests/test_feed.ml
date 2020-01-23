@@ -57,20 +57,20 @@ let suite = "feed">::: [
     let feed_url = Fake_system.test_data "Hello.xml" in
     let digest = "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" in
 
-    let overrides = F.load_feed_overrides config (`Local_feed feed_url) in
-    assert_equal None overrides.F.last_checked;
-    assert_equal 0 (XString.Map.cardinal overrides.F.user_stability);
+    let overrides = Feed_metadata.load config (`Local_feed feed_url) in
+    assert_equal None overrides.Feed_metadata.last_checked;
+    assert_equal 0 (XString.Map.cardinal overrides.Feed_metadata.user_stability);
 
-    F.save_feed_overrides config (`Local_feed feed_url) {
-      F.user_stability = XString.Map.add digest Stability.Developer overrides.F.user_stability;
-      F.last_checked = Some 100.0;
+    Feed_metadata.save config (`Local_feed feed_url) { Feed_metadata.
+      user_stability = XString.Map.add digest Stability.Developer overrides.Feed_metadata.user_stability;
+      last_checked = Some 100.0;
     };
 
     (* Rating now visible *)
-    let overrides = F.load_feed_overrides config (`Local_feed feed_url) in
-    assert_equal 1 (XString.Map.cardinal overrides.F.user_stability);
-    assert_equal Stability.Developer (XString.Map.find_safe digest overrides.F.user_stability);
-    assert_equal (Some 100.0) overrides.F.last_checked;
+    let overrides = Feed_metadata.load config (`Local_feed feed_url) in
+    assert_equal 1 (XString.Map.cardinal overrides.Feed_metadata.user_stability);
+    assert_equal Stability.Developer (XString.Map.find_safe digest overrides.Feed_metadata.user_stability);
+    assert_equal (Some 100.0) overrides.Feed_metadata.last_checked;
   );
 
   "command">:: Fake_system.with_fake_config (fun (config, _fake_system) ->

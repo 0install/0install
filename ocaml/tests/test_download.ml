@@ -771,7 +771,7 @@ let suite = "download">::: [
 
     (* Check background select - update metadata only *)
     let url = "http://example.com:8000/Hello.xml" in
-    F.save_feed_overrides config (`Remote_feed url) F.({last_checked = None; user_stability = XString.Map.empty});
+    Feed_metadata.save config (`Remote_feed url) {Feed_metadata.last_checked = None; user_stability = XString.Map.empty};
     let rel_path = config_site +/ config_prog +/ "last-check-attempt" +/ Zeroinstall.Escape.pretty url in
     let basedirs = Support.Basedir.get_default_config config.system in
     let last_check_attempt = B.load_first config.system rel_path basedirs.B.cache |> expect in

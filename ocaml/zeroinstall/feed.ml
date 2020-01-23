@@ -4,7 +4,6 @@
 
 (** Parsing feeds *)
 
-open General
 open Support
 open Support.Common
 module Q = Support.Qdom
@@ -12,11 +11,6 @@ module U = Support.Utils
 open Constants
 
 module AttrMap = Support.Qdom.AttrMap
-
-type feed_overrides = {
-  last_checked : float option;
-  user_stability : Stability.t XString.Map.t;
-}
 
 type t = {
   url : Feed_url.non_distro_feed;
@@ -260,55 +254,6 @@ let parse system root feed_local_path =
     package_implementations = package_implementations;
     imported_feeds = !imported_feeds;
   }
-
-(** Load per-feed extra data (last-checked time and preferred stability.
-    Probably we should use a simple timestamp file for the last-checked time and attach
-    the stability ratings to the interface, not the feed. *)
-let load_feed_overrides config feed_url =
-  match Paths.Config.(first (feed feed_url)) config.paths with
-  | None -> { last_checked = None; user_stability = XString.Map.empty }
-  | Some path ->
-      let root = Q.parse_file config.system path in
-
-      let last_checked =
-        match ZI.get_attribute_opt "last-checked" root with
-        | None -> None
-        | Some time -> Some (float_of_string time) in
-
-      let stability = ref XString.Map.empty in
-
-      root |> ZI.iter ~name:"implementation" (fun impl ->
-        let id = ZI.get_attribute "id" impl in
-        match ZI.get_attribute_opt FeedConfigAttr.user_stability impl with
-        | None -> ()
-        | Some s -> stability := XString.Map.add id (Stability.of_string ~from_user:true s) !stability
-      );
-
-      { last_checked; user_stability = !stability; }
-
-let save_feed_overrides config feed_url overrides =
-  let module B = Support.Basedir in
-  let {last_checked; user_stability} = overrides in
-  let feed_path = Paths.Config.(save_path (feed feed_url)) config.paths in
-
-  let attrs =
-    match last_checked with
-    | None -> AttrMap.empty
-    | Some last_checked -> AttrMap.singleton "last-checked" (Printf.sprintf "%.0f" last_checked) in
-  let child_nodes = user_stability |> XString.Map.map_bindings (fun id stability ->
-    ZI.make "implementation" ~attrs:(
-      AttrMap.singleton FeedAttr.id id
-      |> AttrMap.add_no_ns FeedConfigAttr.user_stability (Stability.to_string stability)
-    )
-  ) in
-  let root = ZI.make ~attrs ~child_nodes "feed-preferences" in
-  feed_path |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
-    Q.output (`Channel ch |> Xmlm.make_output) root;
-  )
-
-let update_last_checked_time config url =
-  let overrides = load_feed_overrides config url in
-  save_feed_overrides config url {overrides with last_checked = Some config.system#time}
 
 let get_feed_targets feed =
   Element.feed_metadata feed.root |> U.filter_map (function

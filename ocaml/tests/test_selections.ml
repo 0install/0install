@@ -38,7 +38,7 @@ let suite = "selections">::: [
     let import name =
       let url = `Remote_feed ("http://foo/" ^ name) in
       U.copy_file config.system (Fake_system.test_data name) (Test_driver.cache_path_for config url) 0o644;
-      Zeroinstall.Feed.update_last_checked_time config url in
+      Zeroinstall.Feed_metadata.update_last_checked_time config url in
     import "Source.xml";
     import "Compiler.xml";
     fake_system#set_argv [| Test_0install.test_0install; "select"; "--xml";  "--command=compile"; "--source"; "http://foo/Source.xml" |];

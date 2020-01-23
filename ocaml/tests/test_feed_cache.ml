@@ -32,7 +32,7 @@ let suite = "feed-cache">::: [
 
     assert (Feed_cache.is_stale never url);         (* Stale because no last checked time *)
     fake_system#set_time 100.0;
-    Feed.update_last_checked_time config url;
+    Feed_metadata.update_last_checked_time config url;
     fake_system#set_time 200.0;
 
     assert (Feed_cache.is_stale one_second url);

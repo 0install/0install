@@ -380,7 +380,7 @@ let suite = "distro">::: [
         inherit Zeroinstall.Feed_provider_impl.feed_provider config deb
         method! get_feed = function
           | (`Remote_feed "http://example.com/bittorrent") as url ->
-              let result = Some (feed, F.({ last_checked = None; user_stability = XString.Map.empty })) in
+              let result = Some (feed, Feed_metadata.{ last_checked = None; user_stability = XString.Map.empty }) in
               cache <- Zeroinstall.Feed_url.FeedMap.add url result cache;
               result
           | _ -> assert false

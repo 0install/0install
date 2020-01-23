@@ -254,9 +254,8 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
       match details with
       | `Selected (impl, children) ->
           let {Feed_url.id; feed = from_feed} = Impl.get_id impl in
-          let overrides = Feed.load_feed_overrides config from_feed in
-          let user_stability = XString.Map.find_opt id overrides.Feed.user_stability in
-
+          let overrides = Feed_metadata.load config from_feed in
+          let user_stability = Feed_metadata.stability id overrides in
           let version = impl.Impl.parsed_version |> Version.to_string in
           let stability_str =
             match user_stability with

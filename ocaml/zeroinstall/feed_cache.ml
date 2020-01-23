@@ -204,7 +204,7 @@ let internal_is_stale config (`Remote_feed url as feed_url) overrides =
   match overrides with
   | None -> is_stale ()
   | Some overrides ->
-      match overrides.Feed.last_checked with
+      match overrides.Feed_metadata.last_checked with
       | None ->
           log_debug "Feed '%s' has no last checked time, so needs update" url;
           is_stale ()
@@ -218,7 +218,7 @@ let internal_is_stale config (`Remote_feed url as feed_url) overrides =
           | _ -> false
 
 let is_stale config url =
-  let overrides = Feed.load_feed_overrides config url in
+  let overrides = Feed_metadata.load config url in
   internal_is_stale config url (Some overrides)
 
 let mark_as_checking config url =

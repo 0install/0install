@@ -178,16 +178,6 @@ let remove_feed config iface feed_url =
     Feed_cache.save_iface_config config iface {iface_config with Feed_cache.extra_feeds};
   )
 
-let set_impl_stability config {Feed_url.feed; Feed_url.id} rating =
-  let overrides = Feed.load_feed_overrides config feed in
-  let overrides = {
-    overrides with F.user_stability =
-      match rating with
-      | None -> XString.Map.remove id overrides.F.user_stability
-      | Some rating -> XString.Map.add id rating overrides.F.user_stability
-  } in
-  F.save_feed_overrides config feed overrides
-
 (** Run [argv] and return its stdout on success.
  * On error, report both stdout and stderr. *)
 let run_subprocess argv =
@@ -412,12 +402,12 @@ let generate_feed_description config trust_db feed overrides =
         | None -> ()
       );
 
-      overrides.F.last_checked |> if_some (fun last_checked ->
+      overrides.Feed_metadata.last_checked |> if_some (fun last_checked ->
         times := ("Last checked", last_checked) :: !times
       );
 
       Feed_cache.get_last_check_attempt config feed_url |> if_some (fun last_check_attempt ->
-        match overrides.F.last_checked with
+        match overrides.Feed_metadata.last_checked with
         | Some last_checked when last_check_attempt <= last_checked ->
             () (* Don't bother reporting successful attempts *)
         | _ ->

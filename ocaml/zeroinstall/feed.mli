@@ -7,25 +7,13 @@
 open Support
 open Support.Common
 
-(** {2 Types} **)
-
-type feed_overrides = {
-  last_checked : float option;
-  user_stability : Stability.t XString.Map.t;
-}
-
 type t
 
-(** {2 Parsing} *)
 val parse : #filesystem -> [`Feed] Element.t -> filepath option -> t
 
 val default_attrs : url:string -> Support.Qdom.AttrMap.t
 val process_group_properties : local_dir:filepath option -> Impl.properties ->
   [<`Group | `Implementation | `Package_impl] Element.t -> Impl.properties
-
-val load_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides
-val save_feed_overrides : General.config -> [< Feed_url.parsed_feed_url] -> feed_overrides -> unit
-val update_last_checked_time : General.config -> [< Feed_url.remote_feed] -> unit
 
 val url : t -> Feed_url.non_distro_feed
 val name : t -> string
