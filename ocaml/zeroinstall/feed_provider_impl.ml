@@ -67,7 +67,7 @@ class feed_provider config distro =
     (* Used after compiling a new version. *)
     method forget_user_feeds iface =
       let iface_config = self#get_iface_config iface in
-      iface_config.Feed_cache.extra_feeds |> List.iter (fun {Feed.feed_src; _} ->
-        cache <- FeedMap.remove feed_src cache
+      iface_config.Feed_cache.extra_feeds |> List.iter (fun {Feed_import.src; _} ->
+        cache <- FeedMap.remove src cache
       )
   end

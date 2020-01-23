@@ -18,27 +18,12 @@ type feed_overrides = {
   user_stability : Stability.t XString.Map.t;
 }
 
-type feed_type =
-  | Feed_import             (* A <feed> import element inside a feed *)
-  | User_registered         (* Added manually with "0install add-feed" : save to config *)
-  | Site_packages           (* Found in the site-packages directory : save to config for older versions, but flag it *)
-  | Distro_packages         (* Found in native_feeds : don't save *)
-
-type feed_import = {
-  feed_src : Feed_url.non_distro_feed;
-
-  feed_os : Arch.os option;           (* All impls requires this OS *)
-  feed_machine : Arch.machine option; (* All impls requires this CPU *)
-  feed_langs : string list option;    (* No impls for languages not listed *)
-  feed_type: feed_type;
-}
-
 type t = {
   url : Feed_url.non_distro_feed;
   root : [`Feed] Element.t;
   name : string;
   implementations : 'a. ([> `Cache_impl of Impl.cache_impl | `Local_impl of filepath] as 'a) Impl.t XString.Map.t;
-  imported_feeds : feed_import list;
+  imported_feeds : Feed_import.t list;
 
   (* The URI of the interface that replaced the one with the URI of this feed's URL.
      This is the value of the feed's <replaced-by interface'...'/> element. *)
@@ -236,12 +221,12 @@ let parse system root feed_local_path =
     | None -> None
     | Some langs -> Some (Str.split XString.re_space langs) in
 
-    {
-      feed_src = Feed_url.parse_non_distro @@ normalise_url (Element.src node) node;
-      feed_os;
-      feed_machine;
-      feed_langs;
-      feed_type = Feed_import;
+    { Feed_import.
+      src = Feed_url.parse_non_distro @@ normalise_url (Element.src node) node;
+      os = feed_os;
+      machine = feed_machine;
+      langs = feed_langs;
+      ty = Feed_import;
     } in
 
   let name = ref None in
@@ -330,14 +315,6 @@ let get_feed_targets feed =
     | `Feed_for f -> Some (Element.interface f)
     | _ -> None
   )
-
-let make_user_import feed_src = {
-  feed_src = (feed_src :> Feed_url.non_distro_feed);
-  feed_os = None;
-  feed_machine = None;
-  feed_langs = None;
-  feed_type = User_registered;
-}
 
 let get_category feed =
   Element.feed_metadata feed.root |> U.first_match (function

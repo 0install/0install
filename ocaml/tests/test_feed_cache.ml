@@ -136,9 +136,9 @@ let suite = "feed-cache">::: [
 
     Feed_cache.save_iface_config config iface {
       Feed_cache.stability_policy = Some Stability.Developer;
-      Feed_cache.extra_feeds = [
-        { F.feed_src = `Remote_feed "http://sys-feed"; F.feed_os = None; F.feed_machine = None; F.feed_langs = None; F.feed_type = F.Distro_packages };
-        { F.feed_src = `Remote_feed "http://user-feed"; F.feed_os = Some Arch.linux; F.feed_machine = None; F.feed_langs = None; F.feed_type = F.User_registered };
+      Feed_cache.extra_feeds = Feed_import.[
+        { src = `Remote_feed "http://sys-feed"; os = None; machine = None; langs = None; ty = Distro_packages };
+        { src = `Remote_feed "http://user-feed"; os = Some Arch.linux; machine = None; langs = None; ty = User_registered };
       ];
     };
 
@@ -146,7 +146,7 @@ let suite = "feed-cache">::: [
     let iface_config = Feed_cache.load_iface_config config iface in
     assert_equal (Some Stability.Developer) iface_config.Feed_cache.stability_policy;
     begin match iface_config.Feed_cache.extra_feeds with
-    | [ {F.feed_src = `Remote_feed "http://user-feed"; F.feed_os; F.feed_machine = None; _ } ] when feed_os = Some Arch.linux -> ()
+    | [ {Feed_import.src = `Remote_feed "http://user-feed"; os; machine = None; _ } ] when os = Some Arch.linux -> ()
     | _ -> assert false end;
   );
 
@@ -182,7 +182,7 @@ let suite = "feed-cache">::: [
     let iface = "http://example.com/section/prog_1.xml" in
     let iface_config = Feed_cache.load_iface_config config iface in
     begin match iface_config.Feed_cache.extra_feeds with
-    | [ {F.feed_type = F.Site_packages; _} ] -> ()
+    | [ Feed_import.{ty = Site_packages; _} ] -> ()
     | _ -> assert false end;
 
     (* Check that we write it out, so that older 0installs can find it *)

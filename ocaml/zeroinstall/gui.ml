@@ -82,10 +82,10 @@ let have_source_for feed_provider iface =
   let to_check = ref [master_feed] in
 
   (user_feeds @ imported) |> List.iter (fun feed_import ->
-    match feed_import.Feed.feed_machine with
+    match feed_import.Feed_import.machine with
     | x when Arch.is_src x -> have_source := true   (* Source-only feed *)
     | Some _ -> ()    (* Binary-only feed; can't contain source *)
-    | None -> to_check := feed_import.Feed.feed_src :: !to_check (* Mixed *)
+    | None -> to_check := feed_import.Feed_import.src :: !to_check (* Mixed *)
   );
 
   if !have_source then true
@@ -151,7 +151,7 @@ let add_feed config iface feed_url =
   match Feed.get_feed_targets feed with
   | [] -> Safe_exn.failf "Feed '%s' is not a feed for '%s'" url iface
   | feed_for when List.mem iface feed_for ->
-      let user_import = Feed.make_user_import feed_url in
+      let user_import = Feed_import.make_user feed_url in
       let iface_config = Feed_cache.load_iface_config config iface in
 
       let extra_feeds = iface_config.Feed_cache.extra_feeds in
@@ -170,7 +170,7 @@ let add_remote_feed config fetcher iface (feed_url:[`Remote_feed of Sigs.feed_ur
 
 let remove_feed config iface feed_url =
   let iface_config = Feed_cache.load_iface_config config iface in
-  let user_import = Feed.make_user_import feed_url in
+  let user_import = Feed_import.make_user feed_url in
   let extra_feeds = iface_config.Feed_cache.extra_feeds |> List.filter ((<>) user_import) in
   if iface_config.Feed_cache.extra_feeds = extra_feeds then (
     Safe_exn.failf "Can't remove '%s'; it is not a user-added feed of %s" (Feed_url.format_url feed_url) iface;

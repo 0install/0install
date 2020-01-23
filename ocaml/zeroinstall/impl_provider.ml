@@ -257,16 +257,16 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
       (* Don't look at a feed if it only provides things we can't use. *)
       if Scope_filter.use_feed scope_filter ~want_source feed_import
       then (
-        let feed = feed_provider#get_feed feed_import.Feed.feed_src in
+        let feed = feed_provider#get_feed feed_import.Feed_import.src in
         if feed = None then (
-          let feed_url = Feed_url.format_url feed_import.Feed.feed_src in
+          let feed_url = Feed_url.format_url feed_import.Feed_import.src in
           problem (Printf.sprintf "Imported feed '%s' not available" feed_url)
         );
         feed
       ) else None
     with Safe_exn.T _ as ex ->
       log_warning ~ex "Failed to get implementations";
-      let feed_url = Feed_url.format_url feed_import.Feed.feed_src in
+      let feed_url = Feed_url.format_url feed_import.Feed_import.src in
       problem (Printf.sprintf "Error getting imported feed '%s': %s" feed_url (Printexc.to_string ex));
       None
   in

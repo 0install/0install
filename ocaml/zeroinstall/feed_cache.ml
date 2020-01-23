@@ -14,7 +14,7 @@ open Constants
 
 type interface_config = {
   stability_policy : Stability.t option;
-  extra_feeds : Feed.feed_import list;
+  extra_feeds : Feed_import.t list;
 }
 
 (* If we started a check within this period, don't start another one *)
@@ -58,8 +58,7 @@ let load_iface_config config uri : interface_config =
                 None
               ) else  (
                 log_debug "Adding site-local feed '%s'" feed;
-                let open Feed in
-                Some { feed_src = `Local_feed feed; feed_os = None; feed_machine = None; feed_langs = None; feed_type = Site_packages }
+                Some { Feed_import.src = `Local_feed feed; os = None; machine = None; langs = None; ty = Site_packages }
               )
             )
           )
@@ -77,9 +76,9 @@ let load_iface_config config uri : interface_config =
       | Some path ->
           log_info "Adding native packager feed '%s'" path;
           (* Resolve any symlinks *)
-          let open Feed in [{
-            feed_src = `Local_feed (U.realpath config.system path);
-            feed_os = None; feed_machine = None; feed_langs = None; feed_type = Distro_packages
+          [{ Feed_import.
+             src = `Local_feed (U.realpath config.system path);
+             os = None; machine = None; langs = None; ty = Distro_packages
           }]
       in
 
@@ -97,12 +96,12 @@ let load_iface_config config uri : interface_config =
         | Some s -> Some (Stability.of_string s ~from_user:true) in
 
       (* User-registered feeds (0install add-feed) *)
-      let known_site_feeds = List.fold_left (fun map feed -> FeedSet.add feed.Feed.feed_src map) FeedSet.empty site_feeds in
+      let known_site_feeds = List.fold_left (fun map feed -> FeedSet.add feed.Feed_import.src map) FeedSet.empty site_feeds in
       let user_feeds =
         root |> ZI.filter_map (fun item ->
           match ZI.tag item with
           | Some "feed" -> (
-              let feed_src = ZI.get_attribute "src" item |> Feed_url.parse_non_distro in
+              let src = ZI.get_attribute "src" item |> Feed_url.parse_non_distro in
               (* (note: 0install 1.9..1.12 used a different scheme and the "site-package" attribute;
                  we deliberately use a different attribute name to avoid confusion) *)
               if ZI.get_attribute_opt IfaceConfigAttr.is_site_package item <> None then (
@@ -110,17 +109,16 @@ let load_iface_config config uri : interface_config =
                    since older versions will remove the attribute when saving the config
                    (hence the next test). *)
                 None
-              ) else if FeedSet.mem feed_src known_site_feeds then (
+              ) else if FeedSet.mem src known_site_feeds then (
                 None
               ) else (
-                let (feed_os, feed_machine) = match ZI.get_attribute_opt "arch" item with
+                let (os, machine) = match ZI.get_attribute_opt "arch" item with
                 | None -> (None, None)
                 | Some arch -> Arch.parse_arch arch in
-                let feed_langs = match ZI.get_attribute_opt "langs" item with
-                | None -> None
-                | Some langs -> Some (Str.split XString.re_space langs) in
-                let open Feed in
-                Some { feed_src; feed_os; feed_machine; feed_langs; feed_type = User_registered }
+                let langs = match ZI.get_attribute_opt "langs" item with
+                  | None -> None
+                  | Some langs -> Some (Str.split XString.re_space langs) in
+                Some { Feed_import.src; os; machine; langs; ty = User_registered }
               )
           )
           | _ -> None
@@ -138,13 +136,14 @@ let load_iface_config config uri : interface_config =
   with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... reading configuration settings for interface %s" uri
 
 let add_import_elem feed_import =
-  match feed_import.Feed.feed_type with
-  | Feed.Distro_packages | Feed.Feed_import -> None
-  | Feed.User_registered | Feed.Site_packages ->
-      let attrs = ref (Q.AttrMap.singleton IfaceConfigAttr.src (Feed_url.format_url feed_import.Feed.feed_src)) in
-      if feed_import.Feed.feed_type = Feed.Site_packages then
+  let open Feed_import in
+  match feed_import.ty with
+  | Distro_packages | Feed_import -> None
+  | User_registered | Site_packages ->
+      let attrs = ref (Q.AttrMap.singleton IfaceConfigAttr.src (Feed_url.format_url feed_import.src)) in
+      if feed_import.Feed_import.ty = Feed_import.Site_packages then
         attrs := !attrs |> Q.AttrMap.add_no_ns IfaceConfigAttr.is_site_package "True";
-      begin match feed_import.Feed.feed_os, feed_import.Feed.feed_machine with
+      begin match feed_import.os, feed_import.machine with
       | None, None -> ()
       | arch ->
           let arch = Arch.format_arch arch in

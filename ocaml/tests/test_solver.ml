@@ -361,8 +361,8 @@ let suite = "solver">::: [
     let iface_config = feed_provider#get_iface_config uri in
     assert (iface_config.stability_policy = None);
     match iface_config.extra_feeds with
-    | [ { Feed.feed_src = `Local_feed "/usr/share/0install.net/native_feeds/http:##example.com#prog";
-          Feed.feed_type = Feed.Distro_packages; _ } ] -> ()
+    | [ Feed_import.{ src = `Local_feed "/usr/share/0install.net/native_feeds/http:##example.com#prog";
+                      ty = Distro_packages; _ } ] -> ()
     | _ -> assert_failure "Didn't find native feed"
   );
 

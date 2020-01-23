@@ -237,7 +237,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
             (name, "", []) in
 
       let user_feeds = (feed_provider#get_iface_config uri).FC.extra_feeds in
-      let all_feeds = uri :: (user_feeds @ feed_imports |> List.map (fun {F.feed_src; _} -> Feed_url.format_url feed_src)) in
+      let all_feeds = uri :: (user_feeds @ feed_imports |> List.map (fun {Feed_import.src; _} -> Feed_url.format_url src)) in
 
       (* This is the set of feeds corresponding to this interface. It's used to correlate downloads with components.
        * Note: "distribution:" feeds give their master feed as their hint, so are not included here. *)

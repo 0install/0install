@@ -120,7 +120,7 @@ let suite = "feed">::: [
     | _ -> assert false end;
 
     begin match F.imported_feeds feed with
-    | [subfeed] -> assert_equal (Some ["fr"; "en_GB"]) subfeed.F.feed_langs
+    | [subfeed] -> assert_equal (Some ["fr"; "en_GB"]) subfeed.Feed_import.langs
     | _ -> assert false end;
   );
 

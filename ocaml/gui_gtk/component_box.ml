@@ -274,7 +274,7 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
     | [path] ->
         let iter = feeds_model#get_iter path in
         let feed_import = feeds_model#get ~row:iter ~column:feed_obj in
-        Gui.remove_feed config iface feed_import.F.feed_src;
+        Gui.remove_feed config iface feed_import.Feed_import.src;
         remove_feed#misc#set_sensitive false;
         recalculate ~force:false;
     | _ -> log_warning "Impossible selection!"
@@ -313,8 +313,8 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
           (* Only enable removing user_override feeds *)
           let iter = feeds_model#get_iter path in
           let feed_import = feeds_model#get ~row:iter ~column:feed_obj in
-          remove_feed#misc#set_sensitive @@ (feed_import.F.feed_type = F.User_registered);
-          begin match watcher#feed_provider#get_feed feed_import.F.feed_src with
+          remove_feed#misc#set_sensitive @@ Feed_import.(feed_import.ty = User_registered);
+          begin match watcher#feed_provider#get_feed feed_import.Feed_import.src with
           | None -> buffer#insert ~iter:buffer#start_iter "Not yet downloaded."; Lwt.return ()
           | Some (feed, overrides) ->
               Gui.generate_feed_description config trust_db feed overrides >|= fun description ->
@@ -354,24 +354,24 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
         | None -> []
         | Some (feed, _overrides) -> F.imported_feeds feed in
 
-      let main = F.({
-        feed_src = master_feed;
-        feed_os = None;
-        feed_machine = None;
-        feed_langs = None;
-        feed_type = Feed_import;
-      }) in
+      let main = Feed_import.{
+        src = master_feed;
+        os = None;
+        machine = None;
+        langs = None;
+        ty = Feed_import;
+      } in
 
       feeds_model#clear ();
       (main :: (imported_feeds @ extra_feeds)) |> List.iter (fun feed ->
         let row = feeds_model#append () in
         let arch_value =
-          match feed.F.feed_os, feed.F.feed_machine with
+          match Feed_import.(feed.os, feed.machine) with
           | None, None -> ""
           | arch -> Arch.format_arch arch in
-        feeds_model#set ~row ~column:url (Feed_url.format_url feed.F.feed_src);
+        feeds_model#set ~row ~column:url (Feed_url.format_url feed.Feed_import.src);
         feeds_model#set ~row ~column:arch arch_value;
-        feeds_model#set ~row ~column:used (watcher#feed_provider#was_used feed.F.feed_src);
+        feeds_model#set ~row ~column:used (watcher#feed_provider#was_used feed.Feed_import.src);
         feeds_model#set ~row ~column:feed_obj feed;
       );
 

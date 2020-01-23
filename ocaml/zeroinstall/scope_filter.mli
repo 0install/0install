@@ -42,4 +42,4 @@ val lang_rank : t -> Support.Locale.lang_spec -> int
 val user_restriction_for : t -> Sigs.iface_uri -> Impl.restriction option
 
 (* Should we consider this feed import? *)
-val use_feed : t -> want_source:bool -> Feed.feed_import -> bool
+val use_feed : t -> want_source:bool -> Feed_import.t -> bool
