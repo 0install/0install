@@ -51,11 +51,11 @@ let get_newest options feed_provider reqs =
 let check_replacement f = function
   | None -> ()
   | Some (feed, _) ->
-      match feed.F.replacement with
+      match F.replacement feed with
       | None -> ()
       | Some replacement ->
-        Format.fprintf f "Warning: interface %s has been replaced by %s@."
-          (Zeroinstall.Feed_url.format_url feed.F.url) replacement
+        Format.fprintf f "Warning: interface %a has been replaced by %s@."
+          Zeroinstall.Feed.pp_url feed replacement
 
 let check_for_updates options reqs old_sels =
   let tools = options.tools in

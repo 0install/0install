@@ -16,7 +16,7 @@ module Q = Support.Qdom
 let get_matching_package_impls distro feed =
   let best_score = ref 0 in
   let best_impls = ref [] in
-  feed.Feed.package_implementations |> List.iter (function (elem, _) as package_impl ->
+  Feed.package_implementations feed |> List.iter (function (elem, _) as package_impl ->
     let package_name = Element.package elem in
     if distro#is_valid_package_name package_name then (
         let distributions = default "" @@ Element.distributions elem in
@@ -41,7 +41,7 @@ module Query = struct
     elem : [`Package_impl] Element.t; (* The <package-element> which generated this query *)
     package_name : string;            (* The 'package' attribute on the <package-element> *)
     elem_props : Impl.properties;     (* Properties on or inherited by the <package-element> - used by [add_package_implementation] *)
-    feed : Feed.feed;                 (* The feed containing the <package-element> *)
+    feed : Feed.t;                    (* The feed containing the <package-element> *)
     results : Impl.distro_implementation Support.XString.Map.t ref;
     problem : string -> unit;
     version_ok : Version.version_expr;
@@ -100,9 +100,9 @@ class type virtual provider =
     method is_installed : Selections.selection -> bool
     method get_impls_for_feed :
       problem:(string -> unit) ->
-      Feed.feed ->
+      Feed.t ->
       Impl.distro_implementation Support.XString.Map.t
-    method virtual check_for_candidates : 'a. ui:(#Packagekit.ui as 'a) -> Feed.feed -> unit Lwt.t
+    method virtual check_for_candidates : 'a. ui:(#Packagekit.ui as 'a) -> Feed.t -> unit Lwt.t
     method install_distro_packages : 'a. (#Packagekit.ui as 'a) -> string -> (Impl.distro_implementation * Impl.distro_retrieval_method) list -> [ `Ok | `Cancel ] Lwt.t
     method is_valid_package_name : string -> bool
   end
@@ -213,11 +213,11 @@ class virtual distribution config =
 
     (** Get the native implementations (installed or candidates for installation) for this feed.
      * This default implementation finds the best <package-implementation> elements and calls [get_package_impls] on each one. *)
-    method get_impls_for_feed ~problem (feed:Feed.feed) : Impl.distro_implementation XString.Map.t =
+    method get_impls_for_feed ~problem (feed:Feed.t) : Impl.distro_implementation XString.Map.t =
       let results = ref XString.Map.empty in
 
       if check_host_python then (
-        Host_python.get host_python feed.Feed.url |> List.iter (fun (id, impl) -> results := XString.Map.add id impl !results)
+        Host_python.get host_python (Feed.url feed) |> List.iter (fun (id, impl) -> results := XString.Map.add id impl !results)
       );
 
       match get_matching_package_impls self feed with

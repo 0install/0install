@@ -40,12 +40,12 @@ class type virtual provider =
      * @param problem called to add warnings or notes about problems, for diagnostics *)
     method get_impls_for_feed :
       problem:(string -> unit) ->
-      Feed.feed ->
+      Feed.t ->
       Impl.distro_implementation Support.XString.Map.t
 
     (** Check (asynchronously) for available but currently uninstalled candidates. Once the returned
         promise resolves, the candidates should be included in future responses from [get_package_impls]. *)
-    method virtual check_for_candidates : 'a. ui:(#Packagekit.ui as 'a) -> Feed.feed -> unit Lwt.t
+    method virtual check_for_candidates : 'a. ui:(#Packagekit.ui as 'a) -> Feed.t -> unit Lwt.t
 
     (** Install a set of packages of a given type (as set previously by [check_for_candidates]).
      * Normally called only by the [Distro.install_distro_packages] function.
@@ -109,7 +109,7 @@ class virtual distribution : General.config ->
   end
 
 (** Return the <package-implementation> elements that best match this distribution. *)
-val get_matching_package_impls : #distribution -> Feed.feed -> ([`Package_impl] Element.t * Impl.properties) list
+val get_matching_package_impls : #distribution -> Feed.t -> ([`Package_impl] Element.t * Impl.properties) list
 
 (** {2 API for users of the distribution abstraction.} *)
 
@@ -122,12 +122,12 @@ val of_provider : #provider -> t
     @param problem called to add warnings or notes about problems, for diagnostics *)
 val get_impls_for_feed : t -> 
   problem:(string -> unit) ->
-  Feed.feed ->
+  Feed.t ->
   Impl.distro_implementation Support.XString.Map.t
 
 (** Check (asynchronously) for available but currently uninstalled candidates. Once the returned
     promise resolves, the candidates will be included in future responses from [get_impls_for_feed]. *)
-val check_for_candidates : t -> ui:#Packagekit.ui -> Feed.feed -> unit Lwt.t
+val check_for_candidates : t -> ui:#Packagekit.ui -> Feed.t -> unit Lwt.t
 
 (** Install these packages using the distribution's package manager. *)
 val install_distro_packages : t -> #Packagekit.ui -> Impl.distro_implementation list -> [ `Ok | `Cancel ] Lwt.t

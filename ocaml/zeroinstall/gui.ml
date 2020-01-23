@@ -76,16 +76,16 @@ let have_source_for feed_provider iface =
   let imported =
     match feed_provider#get_feed master_feed with
     | None -> []
-    | Some (feed, _overrides) -> feed.Feed.imported_feeds in
+    | Some (feed, _overrides) -> Feed.imported_feeds feed in
 
   let have_source = ref false in
   let to_check = ref [master_feed] in
 
   (user_feeds @ imported) |> List.iter (fun feed_import ->
-    match feed_import.Feed.feed_machine with
+    match feed_import.Feed_import.machine with
     | x when Arch.is_src x -> have_source := true   (* Source-only feed *)
     | Some _ -> ()    (* Binary-only feed; can't contain source *)
-    | None -> to_check := feed_import.Feed.feed_src :: !to_check (* Mixed *)
+    | None -> to_check := feed_import.Feed_import.src :: !to_check (* Mixed *)
   );
 
   if !have_source then true
@@ -101,7 +101,7 @@ let have_source_for feed_provider iface =
       match feed_provider#get_feed url with
       | None -> false
       | Some (feed, _overrides) ->
-          feed.Feed.implementations |> XString.Map.exists (fun _id impl -> Impl.is_source impl)
+        Feed.zi_implementations feed |> XString.Map.exists (fun _id impl -> Impl.is_source impl)
     )
   )
 
@@ -151,7 +151,7 @@ let add_feed config iface feed_url =
   match Feed.get_feed_targets feed with
   | [] -> Safe_exn.failf "Feed '%s' is not a feed for '%s'" url iface
   | feed_for when List.mem iface feed_for ->
-      let user_import = Feed.make_user_import feed_url in
+      let user_import = Feed_import.make_user feed_url in
       let iface_config = Feed_cache.load_iface_config config iface in
 
       let extra_feeds = iface_config.Feed_cache.extra_feeds in
@@ -170,23 +170,13 @@ let add_remote_feed config fetcher iface (feed_url:[`Remote_feed of Sigs.feed_ur
 
 let remove_feed config iface feed_url =
   let iface_config = Feed_cache.load_iface_config config iface in
-  let user_import = Feed.make_user_import feed_url in
+  let user_import = Feed_import.make_user feed_url in
   let extra_feeds = iface_config.Feed_cache.extra_feeds |> List.filter ((<>) user_import) in
   if iface_config.Feed_cache.extra_feeds = extra_feeds then (
     Safe_exn.failf "Can't remove '%s'; it is not a user-added feed of %s" (Feed_url.format_url feed_url) iface;
   ) else (
     Feed_cache.save_iface_config config iface {iface_config with Feed_cache.extra_feeds};
   )
-
-let set_impl_stability config {Feed_url.feed; Feed_url.id} rating =
-  let overrides = Feed.load_feed_overrides config feed in
-  let overrides = {
-    overrides with F.user_stability =
-      match rating with
-      | None -> XString.Map.remove id overrides.F.user_stability
-      | Some rating -> XString.Map.add id rating overrides.F.user_stability
-  } in
-  F.save_feed_overrides config feed overrides
 
 (** Run [argv] and return its stdout on success.
  * On error, report both stdout and stderr. *)
@@ -401,7 +391,7 @@ let format_para para =
 let generate_feed_description config trust_db feed overrides =
   let times = ref [] in
 
-  begin match feed.F.url with
+  begin match F.url feed with
   | `Local_feed _ -> Lwt.return []
   | `Remote_feed _ as feed_url ->
       let domain = Trust.domain_from_url feed_url in
@@ -412,12 +402,12 @@ let generate_feed_description config trust_db feed overrides =
         | None -> ()
       );
 
-      overrides.F.last_checked |> if_some (fun last_checked ->
+      overrides.Feed_metadata.last_checked |> if_some (fun last_checked ->
         times := ("Last checked", last_checked) :: !times
       );
 
       Feed_cache.get_last_check_attempt config feed_url |> if_some (fun last_check_attempt ->
-        match overrides.F.last_checked with
+        match overrides.Feed_metadata.last_checked with
         | Some last_checked when last_check_attempt <= last_checked ->
             () (* Don't bother reporting successful attempts *)
         | _ ->
@@ -441,7 +431,7 @@ let generate_feed_description config trust_db feed overrides =
     | Some description -> Str.split (Str.regexp_string "\n\n") description |> List.map format_para
     | None -> ["-"] in
 
-  let homepages = Element.feed_metadata feed.F.root |> U.filter_map (function
+  let homepages = Feed.root feed |> Element.feed_metadata |> U.filter_map (function
     | `Homepage homepage -> Some (Element.simple_content homepage)
     | _ -> None
   ) in

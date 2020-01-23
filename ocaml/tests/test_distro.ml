@@ -267,7 +267,7 @@ let suite = "distro">::: [
       match host_gobject.props.requires with
       | [ {dep_importance = `Restricts; dep_iface = "http://repo.roscidus.com/python/python"; dep_restrictions = [_]; _ } ] -> ()
       | _ -> assert_failure "No host restriction for host python-gobject" in
-    let from_feed = Zeroinstall.Feed_url.format_url (`Distribution_feed feed.F.url) in
+    let from_feed = Zeroinstall.Feed_url.format_url (`Distribution_feed (F.url feed)) in
     let attrs = host_gobject.props.attrs
       |> Q.AttrMap.add_no_ns "from-feed" from_feed in
     let sel = ZI.make "selection" ~attrs in
@@ -348,7 +348,7 @@ let suite = "distro">::: [
 
     let feed = F.parse config.system root (Some "/local.xml") in
 
-    assert_equal 0 (XString.Map.cardinal feed.F.implementations);
+    assert_equal 0 (XString.Map.cardinal (F.zi_implementations feed));
 
     let dpkgdir = Fake_system.test_data "dpkg" in
     let old_path = Unix.getenv "PATH" in
@@ -380,7 +380,7 @@ let suite = "distro">::: [
         inherit Zeroinstall.Feed_provider_impl.feed_provider config deb
         method! get_feed = function
           | (`Remote_feed "http://example.com/bittorrent") as url ->
-              let result = Some (feed, F.({ last_checked = None; user_stability = XString.Map.empty })) in
+              let result = Some (feed, Feed_metadata.{ last_checked = None; user_stability = XString.Map.empty }) in
               cache <- Zeroinstall.Feed_url.FeedMap.add url result cache;
               result
           | _ -> assert false

@@ -4,7 +4,6 @@
 
 (** Parsing feeds *)
 
-open General
 open Support
 open Support.Common
 module Q = Support.Qdom
@@ -13,32 +12,12 @@ open Constants
 
 module AttrMap = Support.Qdom.AttrMap
 
-type feed_overrides = {
-  last_checked : float option;
-  user_stability : Stability.t XString.Map.t;
-}
-
-type feed_type =
-  | Feed_import             (* A <feed> import element inside a feed *)
-  | User_registered         (* Added manually with "0install add-feed" : save to config *)
-  | Site_packages           (* Found in the site-packages directory : save to config for older versions, but flag it *)
-  | Distro_packages         (* Found in native_feeds : don't save *)
-
-type feed_import = {
-  feed_src : Feed_url.non_distro_feed;
-
-  feed_os : Arch.os option;           (* All impls requires this OS *)
-  feed_machine : Arch.machine option; (* All impls requires this CPU *)
-  feed_langs : string list option;    (* No impls for languages not listed *)
-  feed_type: feed_type;
-}
-
-type feed = {
+type t = {
   url : Feed_url.non_distro_feed;
   root : [`Feed] Element.t;
   name : string;
   implementations : 'a. ([> `Cache_impl of Impl.cache_impl | `Local_impl of filepath] as 'a) Impl.t XString.Map.t;
-  imported_feeds : feed_import list;
+  imported_feeds : Feed_import.t list;
 
   (* The URI of the interface that replaced the one with the URI of this feed's URL.
      This is the value of the feed's <replaced-by interface'...'/> element. *)
@@ -236,12 +215,12 @@ let parse system root feed_local_path =
     | None -> None
     | Some langs -> Some (Str.split XString.re_space langs) in
 
-    {
-      feed_src = Feed_url.parse_non_distro @@ normalise_url (Element.src node) node;
-      feed_os;
-      feed_machine;
-      feed_langs;
-      feed_type = Feed_import;
+    { Feed_import.
+      src = Feed_url.parse_non_distro @@ normalise_url (Element.src node) node;
+      os = feed_os;
+      machine = feed_machine;
+      langs = feed_langs;
+      ty = Feed_import;
     } in
 
   let name = ref None in
@@ -276,72 +255,11 @@ let parse system root feed_local_path =
     imported_feeds = !imported_feeds;
   }
 
-(* Get all the implementations (note: only sorted by ID) *)
-let get_implementations feed =
-  XString.Map.map_bindings (fun _k impl -> impl) feed.implementations
-
-(** Load per-feed extra data (last-checked time and preferred stability.
-    Probably we should use a simple timestamp file for the last-checked time and attach
-    the stability ratings to the interface, not the feed. *)
-let load_feed_overrides config feed_url =
-  match Paths.Config.(first (feed feed_url)) config.paths with
-  | None -> { last_checked = None; user_stability = XString.Map.empty }
-  | Some path ->
-      let root = Q.parse_file config.system path in
-
-      let last_checked =
-        match ZI.get_attribute_opt "last-checked" root with
-        | None -> None
-        | Some time -> Some (float_of_string time) in
-
-      let stability = ref XString.Map.empty in
-
-      root |> ZI.iter ~name:"implementation" (fun impl ->
-        let id = ZI.get_attribute "id" impl in
-        match ZI.get_attribute_opt FeedConfigAttr.user_stability impl with
-        | None -> ()
-        | Some s -> stability := XString.Map.add id (Stability.of_string ~from_user:true s) !stability
-      );
-
-      { last_checked; user_stability = !stability; }
-
-let save_feed_overrides config feed_url overrides =
-  let module B = Support.Basedir in
-  let {last_checked; user_stability} = overrides in
-  let feed_path = Paths.Config.(save_path (feed feed_url)) config.paths in
-
-  let attrs =
-    match last_checked with
-    | None -> AttrMap.empty
-    | Some last_checked -> AttrMap.singleton "last-checked" (Printf.sprintf "%.0f" last_checked) in
-  let child_nodes = user_stability |> XString.Map.map_bindings (fun id stability ->
-    ZI.make "implementation" ~attrs:(
-      AttrMap.singleton FeedAttr.id id
-      |> AttrMap.add_no_ns FeedConfigAttr.user_stability (Stability.to_string stability)
-    )
-  ) in
-  let root = ZI.make ~attrs ~child_nodes "feed-preferences" in
-  feed_path |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
-    Q.output (`Channel ch |> Xmlm.make_output) root;
-  )
-
-let update_last_checked_time config url =
-  let overrides = load_feed_overrides config url in
-  save_feed_overrides config url {overrides with last_checked = Some config.system#time}
-
 let get_feed_targets feed =
   Element.feed_metadata feed.root |> U.filter_map (function
     | `Feed_for f -> Some (Element.interface f)
     | _ -> None
   )
-
-let make_user_import feed_src = {
-  feed_src = (feed_src :> Feed_url.non_distro_feed);
-  feed_os = None;
-  feed_machine = None;
-  feed_langs = None;
-  feed_type = User_registered;
-}
 
 let get_category feed =
   Element.feed_metadata feed.root |> U.first_match (function
@@ -363,3 +281,11 @@ let icons feed =
 
 let get_summary langs feed = Element.get_summary langs feed.root
 let get_description langs feed = Element.get_description langs feed.root
+let url t = t.url
+let zi_implementations t = t.implementations
+let package_implementations t = t.package_implementations
+let replacement t = t.replacement
+let imported_feeds t = t.imported_feeds
+let name t = t.name
+let pp_url f t = Feed_url.pp f t.url
+let root t = t.root

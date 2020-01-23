@@ -274,7 +274,7 @@ let suite = "download">::: [
 
     (* Check we imported the interface after trusting the key *)
     let hello = FC.get_cached_feed config (`Remote_feed "http://localhost:8000/Hello") |> Fake_system.expect in
-    assert_equal 1 @@ XString.Map.cardinal hello.F.implementations;
+    assert_equal 1 @@ XString.Map.cardinal (F.zi_implementations hello);
 
     (* Shouldn't need to prompt the second time *)
     let out = run_0install fake_system ~stdin:"" ["import"; Fake_system.test_data "Hello"] in
@@ -299,7 +299,7 @@ let suite = "download">::: [
     ));
 
     let feed = Fake_system.expect @@ FC.get_cached_feed config (`Remote_feed native_url) in
-    assert_equal 0 @@ XString.Map.cardinal feed.F.implementations;
+    assert_equal 0 @@ XString.Map.cardinal (F.zi_implementations feed);
 
     let dpkgdir = Fake_system.test_data "dpkg" in
     let old_path = Unix.getenv "PATH" in
@@ -771,7 +771,7 @@ let suite = "download">::: [
 
     (* Check background select - update metadata only *)
     let url = "http://example.com:8000/Hello.xml" in
-    F.save_feed_overrides config (`Remote_feed url) F.({last_checked = None; user_stability = XString.Map.empty});
+    Feed_metadata.save config (`Remote_feed url) {Feed_metadata.last_checked = None; user_stability = XString.Map.empty};
     let rel_path = config_site +/ config_prog +/ "last-check-attempt" +/ Zeroinstall.Escape.pretty url in
     let basedirs = Support.Basedir.get_default_config config.system in
     let last_check_attempt = B.load_first config.system rel_path basedirs.B.cache |> expect in

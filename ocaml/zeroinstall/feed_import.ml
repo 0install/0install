@@ -1,0 +1,24 @@
+(* Copyright (C) 2020, Thomas Leonard
+   See the README file for details, or visit http://0install.net. *)
+
+type feed_type =
+  | Feed_import             (* A <feed> import element inside a feed *)
+  | User_registered         (* Added manually with "0install add-feed" : save to config *)
+  | Site_packages           (* Found in the site-packages directory : save to config for older versions, but flag it *)
+  | Distro_packages         (* Found in native_feeds : don't save *)
+
+type t = {
+  src : Feed_url.non_distro_feed;
+  os : Arch.os option;           (* All impls requires this OS *)
+  machine : Arch.machine option; (* All impls requires this CPU *)
+  langs : string list option;    (* No impls for languages not listed *)
+  ty : feed_type;
+}
+
+let make_user src = {
+  src = (src :> Feed_url.non_distro_feed);
+  os = None;
+  machine = None;
+  langs = None;
+  ty = User_registered;
+}

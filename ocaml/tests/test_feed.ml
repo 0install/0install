@@ -57,20 +57,20 @@ let suite = "feed">::: [
     let feed_url = Fake_system.test_data "Hello.xml" in
     let digest = "sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" in
 
-    let overrides = F.load_feed_overrides config (`Local_feed feed_url) in
-    assert_equal None overrides.F.last_checked;
-    assert_equal 0 (XString.Map.cardinal overrides.F.user_stability);
+    let overrides = Feed_metadata.load config (`Local_feed feed_url) in
+    assert_equal None overrides.Feed_metadata.last_checked;
+    assert_equal 0 (XString.Map.cardinal overrides.Feed_metadata.user_stability);
 
-    F.save_feed_overrides config (`Local_feed feed_url) {
-      F.user_stability = XString.Map.add digest Stability.Developer overrides.F.user_stability;
-      F.last_checked = Some 100.0;
+    Feed_metadata.save config (`Local_feed feed_url) { Feed_metadata.
+      user_stability = XString.Map.add digest Stability.Developer overrides.Feed_metadata.user_stability;
+      last_checked = Some 100.0;
     };
 
     (* Rating now visible *)
-    let overrides = F.load_feed_overrides config (`Local_feed feed_url) in
-    assert_equal 1 (XString.Map.cardinal overrides.F.user_stability);
-    assert_equal Stability.Developer (XString.Map.find_safe digest overrides.F.user_stability);
-    assert_equal (Some 100.0) overrides.F.last_checked;
+    let overrides = Feed_metadata.load config (`Local_feed feed_url) in
+    assert_equal 1 (XString.Map.cardinal overrides.Feed_metadata.user_stability);
+    assert_equal Stability.Developer (XString.Map.find_safe digest overrides.Feed_metadata.user_stability);
+    assert_equal (Some 100.0) overrides.Feed_metadata.last_checked;
   );
 
   "command">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
@@ -82,15 +82,15 @@ let suite = "feed">::: [
       let command = XString.Map.find_safe name impl.Impl.props.Impl.commands in
       Element.path command.Impl.command_qdom |> Fake_system.expect in
 
-    let a = XString.Map.find_safe "a" feed.F.implementations in
+    let a = XString.Map.find_safe "a" (F.zi_implementations feed) in
     Fake_system.assert_str_equal "foo" @@ path "run" a;
     Fake_system.assert_str_equal "test-foo" @@ path "test" a;
 
-    let b = XString.Map.find_safe "b" feed.F.implementations in
+    let b = XString.Map.find_safe "b" (F.zi_implementations feed) in
     Fake_system.assert_str_equal "bar" @@ path "run" b;
     Fake_system.assert_str_equal "test-foo" @@ path "test" b;
 
-    let c = XString.Map.find_safe "c" feed.F.implementations in
+    let c = XString.Map.find_safe "c" (F.zi_implementations feed) in
     Fake_system.assert_str_equal "test-gui" @@ path "run" c;
     Fake_system.assert_str_equal "test-baz" @@ path "test" c;
   );
@@ -112,15 +112,15 @@ let suite = "feed">::: [
       </interface>" in
     let root = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None |> Element.parse_feed in
     let feed = F.parse config.system root (Some "/local.xml") in
-    begin match XString.Map.bindings feed.F.implementations with
+    begin match XString.Map.bindings (F.zi_implementations feed) with
     | [("sha1=124", s124); ("sha1=234", s234); ("sha1=345", s345)] ->
         assert_equal [("fr", None)] @@ Impl.get_langs s124;
         assert_equal [("fr", None); ("en", Some "gb")] @@ Impl.get_langs s234;
         assert_equal [("en", None)] @@ Impl.get_langs s345;
     | _ -> assert false end;
 
-    begin match feed.F.imported_feeds with
-    | [subfeed] -> assert_equal (Some ["fr"; "en_GB"]) subfeed.F.feed_langs
+    begin match F.imported_feeds feed with
+    | [subfeed] -> assert_equal (Some ["fr"; "en_GB"]) subfeed.Feed_import.langs
     | _ -> assert false end;
   );
 
@@ -147,7 +147,7 @@ let suite = "feed">::: [
     let root = `String (0, xml) |> Xmlm.make_input |> Q.parse_input None |> Element.parse_feed in
     let feed = F.parse config.system root (Some "/local.xml") in
 
-    begin match XString.Map.bindings feed.F.implementations with
+    begin match XString.Map.bindings (F.zi_implementations feed) with
     | [("sha1=123", impl)] ->
         begin match impl.Impl.props.Impl.bindings |> List.map Element.classify_binding |> List.map B.parse_binding with
         | [B.EnvironmentBinding {B.mode = B.Replace; _}] -> ()
@@ -234,7 +234,7 @@ let suite = "feed">::: [
         </group>\n\
       </interface>" in
 
-    match feed.F.implementations |> XString.Map.bindings with
+    match F.zi_implementations feed |> XString.Map.bindings with
     | [("sha1=123", impl)] ->
         begin match impl.Impl.props.Impl.requires with
         | [dep; dep2] ->
@@ -263,7 +263,7 @@ let suite = "feed">::: [
         <implementation id='used' version='2' if-0install-version='1..'/>\n\
       </interface>" in
 
-    match feed.F.implementations |> XString.Map.bindings with
+    match F.zi_implementations feed |> XString.Map.bindings with
     | [("sha1=123", impl); ("used", used)] ->
         Fake_system.assert_str_equal "1.0-rc3-pre" @@ Zeroinstall.Version.to_string impl.Impl.parsed_version;
         Fake_system.assert_str_equal "2" @@ Zeroinstall.Version.to_string used.Impl.parsed_version;
@@ -285,7 +285,7 @@ let suite = "feed">::: [
         </group>\n\
       </interface>" in
 
-    match feed.F.implementations |> XString.Map.bindings with
+    match F.zi_implementations feed |> XString.Map.bindings with
     | [("sha1=123", impl1); ("sha1=124", impl2)] ->
         let check expected name impl =
           let attr = Q.AttrMap.get name impl.Impl.props.Impl.attrs |> default "" in
@@ -345,6 +345,6 @@ let suite = "feed">::: [
     let iface = Fake_system.test_data "Replaced.xml" in
     let root = Q.parse_file system iface |> Element.parse_feed in
     let feed = F.parse system root (Some iface) in
-    Fake_system.assert_str_equal "http://localhost:8000/Hello" (Fake_system.expect feed.F.replacement)
+    Fake_system.assert_str_equal "http://localhost:8000/Hello" (Fake_system.expect (F.replacement feed))
   );
 ]

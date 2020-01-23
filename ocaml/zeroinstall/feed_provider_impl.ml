@@ -15,20 +15,20 @@ class feed_provider config distro =
     val mutable cache = FeedMap.empty
     val mutable distro_cache : Feed_provider.distro_impls FeedMap.t = FeedMap.empty
 
-    method get_feed url : (Feed.feed * Feed.feed_overrides) option =
+    method get_feed url : (Feed.t * Feed_metadata.t) option =
       try FeedMap.find url cache
       with Not_found ->
         let result =
           match Feed_cache.get_cached_feed config url with
           | Some feed ->
-            let overrides = Feed.load_feed_overrides config url in
+            let overrides = Feed_metadata.load config url in
             Some (feed, overrides)
           | None -> None in
         cache <- FeedMap.add url result cache;
         result
 
     method get_distro_impls feed =
-      let master_feed_url = feed.Feed.url in
+      let master_feed_url = Feed.url feed in
       let url = `Distribution_feed master_feed_url in
       try FeedMap.find master_feed_url distro_cache
       with Not_found ->
@@ -36,7 +36,7 @@ class feed_provider config distro =
         let problem msg = problems := msg :: !problems in
         let result =
           let impls = Distro.get_impls_for_feed distro ~problem feed in
-          let overrides = Feed.load_feed_overrides config url in
+          let overrides = Feed_metadata.load config url in
           {Feed_provider.impls; overrides; problems = !problems} in
         distro_cache <- FeedMap.add master_feed_url result distro_cache;
         result
@@ -59,7 +59,7 @@ class feed_provider config distro =
       FeedMap.exists check cache
 
     method replace_feed url new_feed =
-      let overrides = Feed.load_feed_overrides config url in
+      let overrides = Feed_metadata.load config url in
       cache <- FeedMap.add url (Some (new_feed, overrides)) cache
 
     method forget_distro url = distro_cache <- FeedMap.remove url distro_cache
@@ -67,7 +67,7 @@ class feed_provider config distro =
     (* Used after compiling a new version. *)
     method forget_user_feeds iface =
       let iface_config = self#get_iface_config iface in
-      iface_config.Feed_cache.extra_feeds |> List.iter (fun {Feed.feed_src; _} ->
-        cache <- FeedMap.remove feed_src cache
+      iface_config.Feed_cache.extra_feeds |> List.iter (fun {Feed_import.src; _} ->
+        cache <- FeedMap.remove src cache
       )
   end

@@ -32,6 +32,8 @@ let format_url = function
   | `Distribution_feed master -> "distribution:" ^ (format_non_distro master)
   | #non_distro_feed as x -> format_non_distro x
 
+let pp f x = Format.pp_print_string f (format_url x)
+
 let master_feed_of_iface uri = parse_non_distro uri
 
 module FeedElt =

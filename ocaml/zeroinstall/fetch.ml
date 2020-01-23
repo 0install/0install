@@ -192,7 +192,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
 
     (* Check the new XML is valid before adding it *)
     let new_root = `String (0, new_xml) |> Xmlm.make_input |> Q.parse_input (Some feed_url) |> Element.parse_feed in
-    ignore (Feed.parse system new_root None).Feed.root;
+    ignore (Feed.parse system new_root None);
 
     let url_in_feed = Element.uri_exn new_root in
     if url_in_feed <> feed_url then
@@ -207,7 +207,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
 
     let success () =
       if not config.dry_run then (
-        Feed.update_last_checked_time config feed;
+        Feed_metadata.update_last_checked_time config feed;
         log_info "Updated feed cache checked time for %s (modified %s)" feed_url pretty_time
       );
       `Ok new_root |> Lwt.return in

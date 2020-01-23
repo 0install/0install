@@ -43,7 +43,7 @@ let discover_existing_apps config =
                       let name =
                         try
                           match FC.get_cached_feed config url with
-                          | Some feed -> feed.F.name
+                          | Some feed -> F.name feed
                           | None -> Filename.basename uri
                         with Safe_exn.T _ ->
                           Filename.basename uri in
@@ -144,7 +144,7 @@ let maybe_with_terminal system feed args =
       (* This is probably wrong, or at least inefficient (we ignore [args] and invoke 0launch again).
        * But I don't know how to make the escaping right - someone on OS X should check it... *)
       let osascript = U.find_in_path_ex system "osascript" in
-      let script = "0launch -- " ^ (Feed_url.format_url feed.F.url) in
+      let script = "0launch -- " ^ (Feed_url.format_url (F.url feed)) in
       [osascript; "-e"; "tell app \"Terminal\""; "-e"; "activate"; "-e"; "do script \"" ^ script ^ "\""; "-e"; "end tell"]
     ) else (
       let terminal_args =

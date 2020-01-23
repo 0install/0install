@@ -21,9 +21,9 @@ let xdg_add_to_menu config feed =
     (U.rmtree system ~even_if_locked:true)
     (U.make_tmp_dir system ~prefix:"0desktop-" (Filename.get_temp_dir_name ()))
     (fun tmpdir ->
-      let name = feed.F.name |> String.lowercase_ascii |> Str.global_replace U.re_dir_sep "-" |> Str.global_replace XString.re_space "" in
+      let name = F.name feed |> String.lowercase_ascii |> Str.global_replace U.re_dir_sep "-" |> Str.global_replace XString.re_space "" in
       let desktop_name = tmpdir +/ ("zeroinstall-" ^ name ^ ".desktop") in
-      let icon_path = FC.get_cached_icon_path config feed.F.url in
+      let icon_path = FC.get_cached_icon_path config (F.url feed) in
       desktop_name |> system#with_open_out [Open_wronly; Open_creat] ~mode:0o600 (fun ch ->
         Printf.fprintf ch
           "[Desktop Entry]\n\
@@ -35,9 +35,9 @@ let xdg_add_to_menu config feed =
           Comment=%s\n\
           Exec=0launch -- %s %%f\n\
           Categories=Application;%s\n"
-          feed.F.name
+          (F.name feed)
           (F.get_summary config.langs feed |> default "")
-          (Feed_url.format_url feed.F.url)
+          (Feed_url.format_url (F.url feed))
           (F.get_category feed |> default "");
 
         icon_path |> if_some (Printf.fprintf ch "Icon=%s\n");

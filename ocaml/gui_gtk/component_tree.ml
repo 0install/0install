@@ -226,9 +226,9 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
         let master_feed = Feed_url.master_feed_of_iface uri in
         match feed_provider#get_feed master_feed with
         | Some (main_feed, _overrides) ->
-            (main_feed.F.name,
+            (F.name main_feed,
              default "-" @@ F.get_summary config.langs main_feed,
-             main_feed.F.imported_feeds);
+             (F.imported_feeds main_feed))
         | None ->
             let name =
               match master_feed with
@@ -237,7 +237,7 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
             (name, "", []) in
 
       let user_feeds = (feed_provider#get_iface_config uri).FC.extra_feeds in
-      let all_feeds = uri :: (user_feeds @ feed_imports |> List.map (fun {F.feed_src; _} -> Feed_url.format_url feed_src)) in
+      let all_feeds = uri :: (user_feeds @ feed_imports |> List.map (fun {Feed_import.src; _} -> Feed_url.format_url src)) in
 
       (* This is the set of feeds corresponding to this interface. It's used to correlate downloads with components.
        * Note: "distribution:" feeds give their master feed as their hint, so are not included here. *)
@@ -254,9 +254,8 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
       match details with
       | `Selected (impl, children) ->
           let {Feed_url.id; feed = from_feed} = Impl.get_id impl in
-          let overrides = Feed.load_feed_overrides config from_feed in
-          let user_stability = XString.Map.find_opt id overrides.Feed.user_stability in
-
+          let overrides = Feed_metadata.load config from_feed in
+          let user_stability = Feed_metadata.stability id overrides in
           let version = impl.Impl.parsed_version |> Version.to_string in
           let stability_str =
             match user_stability with

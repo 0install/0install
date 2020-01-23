@@ -85,7 +85,7 @@ class type impl_provider =
 (** Convert a map of impls to a list, applying any overrides to the stability fields. *)
 let do_overrides overrides =
   XString.Map.map_bindings (fun id impl ->
-    match XString.Map.find_opt id overrides.Feed.user_stability with
+    match XString.Map.find_opt id overrides.Feed_metadata.user_stability with
     | Some stability -> Impl.with_stability stability impl
     | None -> impl
   )
@@ -236,7 +236,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
 
   let get_impls ~problem (feed, overrides) =
     let distro_impls = (get_distro_impls ~problem feed :> Impl.existing Impl.t list) in
-    let zi_impls = (do_overrides overrides feed.Feed.implementations :> Impl.existing Impl.t list) in
+    let zi_impls = do_overrides overrides (Feed.zi_implementations feed) in
     distro_impls @ zi_impls in
 
   let cached_digests = Stores.get_available_digests config.system config.stores in
@@ -257,16 +257,16 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
       (* Don't look at a feed if it only provides things we can't use. *)
       if Scope_filter.use_feed scope_filter ~want_source feed_import
       then (
-        let feed = feed_provider#get_feed feed_import.Feed.feed_src in
+        let feed = feed_provider#get_feed feed_import.Feed_import.src in
         if feed = None then (
-          let feed_url = Feed_url.format_url feed_import.Feed.feed_src in
+          let feed_url = Feed_url.format_url feed_import.Feed_import.src in
           problem (Printf.sprintf "Imported feed '%s' not available" feed_url)
         );
         feed
       ) else None
     with Safe_exn.T _ as ex ->
       log_warning ~ex "Failed to get implementations";
-      let feed_url = Feed_url.format_url feed_import.Feed.feed_src in
+      let feed_url = Feed_url.format_url feed_import.Feed_import.src in
       problem (Printf.sprintf "Error getting imported feed '%s': %s" feed_url (Printexc.to_string ex));
       None
   in
@@ -288,7 +288,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
           problem (Printf.sprintf "Main feed '%s' not available" iface);
           ([], None)
       | Some ((feed, _overrides) as pair) ->
-          let sub_feeds = U.filter_map (get_feed_if_useful ~problem want_source) feed.Feed.imported_feeds in
+          let sub_feeds = U.filter_map (get_feed_if_useful ~problem want_source) (Feed.imported_feeds feed) in
           let impls = List.concat (List.map (get_impls ~problem) (pair :: sub_feeds)) in
           (impls, iface_config.Feed_cache.stability_policy) in
 
@@ -304,7 +304,7 @@ class default_impl_provider config (feed_provider : Feed_provider.feed_provider)
     let replacement =
       match master_feed with
       | None -> None
-      | Some (feed, _overrides) -> feed.Feed.replacement in
+      | Some (feed, _overrides) -> Feed.replacement feed in
 
     let user_restrictions = Scope_filter.user_restriction_for scope_filter iface in
 

@@ -22,9 +22,9 @@ let spf = Printf.sprintf
 let add_description_text ~heading_style ~link_style (buffer:GText.buffer) feed description =
   let open Gui in
   let iter = buffer#start_iter in
-  buffer#insert ~iter ~tags:[heading_style] feed.F.name;
+  buffer#insert ~iter ~tags:[heading_style] (F.name feed);
   buffer#insert ~iter (spf " (%s)" (default "-" @@ description.summary));
-  buffer#insert ~iter (spf "\n%s\n" (Feed_url.format_url feed.F.url));
+  buffer#insert ~iter (spf "\n%s\n" (Feed_url.format_url (F.url feed)));
 
   if description.times <> [] then (
     buffer#insert ~iter "\n";
@@ -52,7 +52,7 @@ let add_description_text ~heading_style ~link_style (buffer:GText.buffer) feed d
     )
   );
 
-  match feed.F.url, description.signatures with
+  match F.url feed, description.signatures with
   | `Local_feed _, _ -> ()
   | `Remote_feed _, [] ->
       buffer#insert ~iter "No signature information (old style feed or out-of-date cache)\n"
@@ -274,7 +274,7 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
     | [path] ->
         let iter = feeds_model#get_iter path in
         let feed_import = feeds_model#get ~row:iter ~column:feed_obj in
-        Gui.remove_feed config iface feed_import.F.feed_src;
+        Gui.remove_feed config iface feed_import.Feed_import.src;
         remove_feed#misc#set_sensitive false;
         recalculate ~force:false;
     | _ -> log_warning "Impossible selection!"
@@ -313,8 +313,8 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
           (* Only enable removing user_override feeds *)
           let iter = feeds_model#get_iter path in
           let feed_import = feeds_model#get ~row:iter ~column:feed_obj in
-          remove_feed#misc#set_sensitive @@ (feed_import.F.feed_type = F.User_registered);
-          begin match watcher#feed_provider#get_feed feed_import.F.feed_src with
+          remove_feed#misc#set_sensitive @@ Feed_import.(feed_import.ty = User_registered);
+          begin match watcher#feed_provider#get_feed feed_import.Feed_import.src with
           | None -> buffer#insert ~iter:buffer#start_iter "Not yet downloaded."; Lwt.return ()
           | Some (feed, overrides) ->
               Gui.generate_feed_description config trust_db feed overrides >|= fun description ->
@@ -352,26 +352,26 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
       let imported_feeds =
         match watcher#feed_provider#get_feed master_feed with
         | None -> []
-        | Some (feed, _overrides) -> feed.F.imported_feeds in
+        | Some (feed, _overrides) -> F.imported_feeds feed in
 
-      let main = F.({
-        feed_src = master_feed;
-        feed_os = None;
-        feed_machine = None;
-        feed_langs = None;
-        feed_type = Feed_import;
-      }) in
+      let main = Feed_import.{
+        src = master_feed;
+        os = None;
+        machine = None;
+        langs = None;
+        ty = Feed_import;
+      } in
 
       feeds_model#clear ();
       (main :: (imported_feeds @ extra_feeds)) |> List.iter (fun feed ->
         let row = feeds_model#append () in
         let arch_value =
-          match feed.F.feed_os, feed.F.feed_machine with
+          match Feed_import.(feed.os, feed.machine) with
           | None, None -> ""
           | arch -> Arch.format_arch arch in
-        feeds_model#set ~row ~column:url (Feed_url.format_url feed.F.feed_src);
+        feeds_model#set ~row ~column:url (Feed_url.format_url feed.Feed_import.src);
         feeds_model#set ~row ~column:arch arch_value;
-        feeds_model#set ~row ~column:used (watcher#feed_provider#was_used feed.F.feed_src);
+        feeds_model#set ~row ~column:used (watcher#feed_provider#was_used feed.Feed_import.src);
         feeds_model#set ~row ~column:feed_obj feed;
       );
 
@@ -525,8 +525,9 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
             let menu = GMenu.menu () in
             let stability_menu = GMenu.menu_item ~packing:menu#add ~label:"Rating" () in
             let submenu = build_stability_menu (fun stability ->
-              Gui.set_impl_stability config (Impl.get_id impl) stability;
-              recalculate ~force:false
+                let {Feed_url.feed; id} = Impl.get_id impl in
+                Feed_metadata.update config feed (Feed_metadata.with_stability id stability);
+                recalculate ~force:false
             ) in
             stability_menu#set_submenu submenu;
 
@@ -565,7 +566,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
           match !cache |> XString.Map.find_opt feed with
           | Some result -> result
           | None ->
-              let result = F.load_feed_overrides config (Feed_url.parse feed) in
+              let result = Feed_metadata.load config (Feed_url.parse feed) in
               cache := !cache |> XString.Map.add feed result;
               result in
 
@@ -574,7 +575,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
         let impl_id = Impl.get_attr_ex FeedAttr.id impl in
         let overrides = get_overrides from_feed in
         let stability_value =
-          match XString.Map.find_opt impl_id overrides.F.user_stability with
+          match Feed_metadata.stability impl_id overrides with
           | Some user_stability -> Stability.to_string user_stability |> String.uppercase_ascii
           | None -> Q.AttrMap.get_no_ns FeedAttr.stability impl.Impl.props.Impl.attrs |> default "testing" in
 

@@ -26,7 +26,7 @@ let edit_feeds f config iface mode new_import =
   print "";
   print "Feed list for interface '%s' is now:" iface;
   if extra_feeds <> [] then
-    extra_feeds |> List.iter (fun feed -> print "- %s" (Zeroinstall.Feed_url.format_url feed.F.feed_src))
+    extra_feeds |> List.iter (fun feed -> print "- %s" (Zeroinstall.Feed_url.format_url feed.Feed_import.src))
   else
     print "(no feeds)"
 
@@ -34,9 +34,9 @@ let edit_feeds_interactive ~stdout config (mode:[`Add | `Remove]) feed_url =
   let (`Remote_feed url | `Local_feed url) = feed_url in
   let print f = Format.fprintf stdout (f ^^ "@.") in
   let feed = FC.get_cached_feed config feed_url |? lazy (failwith "Feed still not cached!") in
-  let new_import = F.make_user_import feed_url in
+  let new_import = Feed_import.make_user feed_url in
   match F.get_feed_targets feed with
-  | [] -> Element.raise_elem "Missing <feed-for> element; feed can't be used as a feed for any other interface." feed.F.root
+  | [] -> Element.raise_elem "Missing <feed-for> element; feed can't be used as a feed for any other interface." (F.root feed)
   | candidate_interfaces ->
       (* Display the options to the user *)
       let i = ref 0 in
@@ -119,7 +119,7 @@ let handle options flags args =
   | [iface; feed_src] ->
       let iface = G.canonical_iface_uri config.system iface in
       let feed_src = G.canonical_feed_url config.system feed_src in
-      let new_import = F.make_user_import feed_src in
+      let new_import = Feed_import.make_user feed_src in
 
       let iface_config = FC.load_iface_config config iface in
       if List.mem new_import iface_config.FC.extra_feeds then (

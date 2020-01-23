@@ -60,7 +60,7 @@ class virtual packagekit_distro ~(packagekit:Packagekit.packagekit Lazy.t) confi
           | `Unavailable _ -> Lwt.return ()
           | `Ok ->
               let package_names = matches |> List.map (fun (elem, _props) -> Element.package elem) in
-              let hint = Feed_url.format_url feed.Feed.url in
+              let hint = Feed_url.format_url (Feed.url feed) in
               packagekit#check_for_candidates ~ui ~hint package_names
 
     method! install_distro_packages ui typ items =
@@ -344,7 +344,7 @@ module Debian = struct
         match Distro.get_matching_package_impls self feed with
         | [] -> Lwt.return ()
         | matches ->
-            let hint = Feed_url.format_url feed.Feed.url in
+            let hint = Feed_url.format_url (Feed.url feed) in
             let packagekit = Lazy.force packagekit in
             let package_names = matches |> List.map (fun (elem, _props) -> Element.package elem) in
             (* Check apt-cache to see whether we have the pacakges. If PackageKit isn't available, we'll use these

@@ -21,8 +21,8 @@ let handle options flags args =
       begin match iface_config.FC.extra_feeds with
       | [] -> Format.fprintf options.stdout "(no feeds)@."
       | extra_feeds ->
-          extra_feeds |> List.iter (fun {F.feed_src; _} ->
-            Format.fprintf options.stdout "%s@." (Zeroinstall.Feed_url.format_url feed_src);
+          extra_feeds |> List.iter (fun {Zeroinstall.Feed_import.src; _} ->
+            Format.fprintf options.stdout "%s@." (Zeroinstall.Feed_url.format_url src);
           )
       end
   | _ -> raise (Support.Argparse.Usage_error 1)
