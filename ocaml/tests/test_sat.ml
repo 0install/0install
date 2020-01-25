@@ -17,7 +17,7 @@ module StringData =
     let unused = "unused"
   end
 
-module S = Support.Sat.MakeSAT(StringData)
+module S = Zeroinstall_solver.Sat.MakeSAT(StringData)
 
 let re_comma = Str.regexp_string ","
 

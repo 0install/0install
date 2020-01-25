@@ -19,6 +19,23 @@ module Option = struct
     | Some x -> Some (f x)
 end
 
+module List = struct
+  include List
+
+  let rec filter_map fn = function
+    | [] -> []
+    | (x::xs) ->
+      match fn x with
+      | None -> filter_map fn xs
+      | Some y -> y :: filter_map fn xs
+
+  let rec first_match f = function
+    | [] -> None
+    | (x::xs) -> match f x with
+      | Some _ as result -> result
+      | None -> first_match f xs
+end
+
 type ('a, 'b) partition_result =
   | Left of 'a
   | Right of 'b
@@ -95,7 +112,7 @@ end = struct
     ) m M.empty
 end
 
-module Make (Model : Sigs.SOLVER_INPUT) = struct
+module Make (Model : S.SOLVER_INPUT) = struct
   (** We attach this data to each SAT variable. *)
   module SolverData =
     struct
@@ -111,7 +128,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
         | Role role -> Model.Role.pp f role
     end
 
-  module S = Support.Sat.MakeSAT(SolverData)
+  module S = Sat.MakeSAT(SolverData)
 
   type decision_state =
     (* The next candidate to try *)
@@ -142,11 +159,11 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
           match Model.get_command impl name with
           | Some command -> Some (impl_var, command)
           | None -> None in
-        vars |> Support.Utils.filter_map match_command
+        vars |> List.filter_map match_command
 
       (** Get all variables, except dummy_impl (if present) *)
       method get_real_vars =
-        vars |> Support.Utils.filter_map (fun (var, impl) ->
+        vars |> List.filter_map (fun (var, impl) ->
           if is_dummy impl then None
           else Some var
         )
@@ -477,7 +494,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
           | Selected (deps, self_commands) ->
               (* We've already selected a candidate for this component. Now check its dependencies. *)
               let check_self_command name = find_undecided {req with Model.command = Some name} in
-              match Support.Utils.first_match check_self_command self_commands with
+              match List.first_match check_self_command self_commands with
               | Some _ as r -> r
               | None ->
               (* Self-commands already done; now try the dependencies *)
@@ -495,10 +512,10 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
                   | None ->
                       (* Command dependencies next *)
                       let check_command_dep name = find_undecided {Model.command = Some name; role = dep_role} in
-                      Support.Utils.first_match check_command_dep dep_required_commands
+                      List.first_match check_command_dep dep_required_commands
                 )
                 in
-              match Support.Utils.first_match check_dep deps with
+              match List.first_match check_dep deps with
               | Some _ as r -> r
               | None ->
               (* All dependencies checked; now to the impl (if we're a <command>) *)

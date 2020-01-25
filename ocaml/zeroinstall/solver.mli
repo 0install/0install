@@ -11,7 +11,7 @@ type role = {
   source : bool;
 }
 
-module Model : Sigs.SOLVER_RESULT with
+module Model : Zeroinstall_solver.S.SOLVER_RESULT with
   type Role.t = role and
   type impl = Impl.generic_implementation
 

@@ -226,7 +226,7 @@ module CoreModel = struct
     XString.Map.find_opt role.iface role.scope#extra_restrictions
 end
 
-module Core = Solver_core.Make(CoreModel)
+module Core = Zeroinstall_solver.Make(CoreModel)
 
 module Model =
   struct
@@ -336,12 +336,12 @@ let selections result =
     ZI.make ~attrs:root_attrs ~child_nodes "selections"
   )
 
-module Diagnostics = Diagnostics.Make (Model)
+module Diagnostics = Zeroinstall_solver.Diagnostics(Model)
 
 (** Return a message explaining why the solve failed. *)
 let get_failure_reason config result =
-  let msg = Diagnostics.get_failure_reason result in
-
+  let verbose = Support.Logging.(will_log Debug) in
+  let msg = Diagnostics.get_failure_reason ~verbose result in
   if config.network_use = Offline then
     msg ^ "\nNote: 0install is in off-line mode"
   else
