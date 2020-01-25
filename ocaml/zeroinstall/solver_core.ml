@@ -4,7 +4,20 @@
 
 (** Select a compatible set of components to run a program. *)
 
-open Support.Common
+module Option = struct
+  let iter f = function
+    | None -> ()
+    | Some x -> f x
+
+  let bind x f =
+    match x with
+    | None -> None
+    | Some x -> f x
+
+  let map f = function
+    | None -> None
+    | Some x -> Some (f x)
+end
 
 type ('a, 'b) partition_result =
   | Left of 'a
@@ -61,12 +74,13 @@ end = struct
   let create () = ref M.empty
 
   let lookup table make key =
-    M.find_opt key !table |? lazy (
+    match M.find_opt key !table with
+    | Some x -> x
+    | None ->
       let value, process = make key in
       table := M.add key value !table;
       process ();
       value
-    )
 
   let snapshot table = !table
 
@@ -233,7 +247,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
   let add_replaced_by_conflicts sat impl_clauses =
     List.iter (fun (clause, replacement) ->
       ImplCache.get replacement impl_clauses
-      |> if_some (fun replacement_candidates ->
+      |> Option.iter (fun replacement_candidates ->
         (* Our replacement was also added to [sat], so conflict with it. *)
         let our_vars = clause#get_real_vars in
         let replacements = replacement_candidates#get_real_vars in
@@ -259,7 +273,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
 
     (* If [impl] requires a particular machine group, add a constraint to the problem. *)
     fun impl_var impl ->
-      Model.machine_group impl |> if_some (fun group ->
+      Model.machine_group impl |> Option.iter (fun group ->
         let group_var =
           let open Arch in
           match group with
@@ -337,7 +351,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
     let clause = new impl_candidates role impl_clause impls dummy_impl in
 
     (* If we have a <replaced-by>, remember to add a conflict with our replacement *)
-    replacement |> if_some (fun replacement ->
+    replacement |> Option.iter (fun replacement ->
       replacements := (clause, replacement) :: !replacements;
     );
 
@@ -473,7 +487,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
               | Some _ as r -> r
               | None ->
               (* All dependencies checked; now to the impl (if we're a <command>) *)
-              req.Model.command |> pipe_some (fun _command -> find_undecided {req with Model.command = None})
+              Option.bind req.Model.command (fun _command -> find_undecided {req with Model.command = None})
         ) in
       find_undecided root_req in
 
@@ -486,7 +500,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
         let commands_needed = Hashtbl.create 10 in
         command_clauses
         |> CommandCache.M.iter (fun (command_name, role) candidates ->
-            candidates#get_clause |> if_some (fun clause ->
+            candidates#get_clause |> Option.iter (fun clause ->
               if S.get_selected clause <> None then
                 Hashtbl.add commands_needed role command_name
             )
@@ -495,9 +509,9 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
         Some (
           impl_clauses
           |> ImplCache.filter_map (fun role candidates ->
-              candidates#get_selected |> pipe_some (fun (lit, impl) ->
+              candidates#get_selected |> Option.map (fun (lit, impl) ->
                 let commands = Hashtbl.find_all commands_needed role in
-                Some {impl; commands; diagnostics = lit}
+                {impl; commands; diagnostics = lit}
               )
           )
         )
