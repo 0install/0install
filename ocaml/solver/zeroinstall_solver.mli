@@ -1,12 +1,12 @@
-(* Copyright (C) 2014, Thomas Leonard
- * See the README file for details, or visit http://0install.net.
- *)
+(* Copyright (C) 2020, Thomas Leonard
+   See the README file for details, or visit http://0install.net. *)
+
+module S = S
 
 (** Select a compatible set of components to run a program.
- * See [Solver] for the instantiation of this functor on the
- * actual 0install types. *)
-
-module Make : functor (Model : Sigs.SOLVER_INPUT) -> sig
+    See [Zeroinstall.Solver] for the instantiation of this functor on the
+    actual 0install types. *)
+module Make(Model : S.SOLVER_INPUT) : sig
   type diagnostics
 
   type selection = {
@@ -30,3 +30,15 @@ module Make : functor (Model : Sigs.SOLVER_INPUT) -> sig
    * Gets a report from the underlying SAT solver. *)
   val explain : diagnostics -> string
 end
+
+(** Explaining why a solve failed or gave an unexpected answer. *)
+module Diagnostics(Model : S.SOLVER_RESULT) : sig
+  (** Why did this solve fail? We take the partial solution from the solver and show,
+      for each component we couldn't select, which constraints caused the candidates
+      to be rejected.
+      @param verbose List all rejected candidates, not just the first few. *)
+  val get_failure_reason : ?verbose:bool -> Model.t -> string
+end
+
+(** The low-level SAT solver. *)
+module Sat = Sat

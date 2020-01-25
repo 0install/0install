@@ -4,7 +4,37 @@
 
 (** Select a compatible set of components to run a program. *)
 
-open Support.Common
+module Option = struct
+  let iter f = function
+    | None -> ()
+    | Some x -> f x
+
+  let bind x f =
+    match x with
+    | None -> None
+    | Some x -> f x
+
+  let map f = function
+    | None -> None
+    | Some x -> Some (f x)
+end
+
+module List = struct
+  include List
+
+  let rec filter_map fn = function
+    | [] -> []
+    | (x::xs) ->
+      match fn x with
+      | None -> filter_map fn xs
+      | Some y -> y :: filter_map fn xs
+
+  let rec first_match f = function
+    | [] -> None
+    | (x::xs) -> match f x with
+      | Some _ as result -> result
+      | None -> first_match f xs
+end
 
 type ('a, 'b) partition_result =
   | Left of 'a
@@ -61,12 +91,13 @@ end = struct
   let create () = ref M.empty
 
   let lookup table make key =
-    M.find_opt key !table |? lazy (
+    match M.find_opt key !table with
+    | Some x -> x
+    | None ->
       let value, process = make key in
       table := M.add key value !table;
       process ();
       value
-    )
 
   let snapshot table = !table
 
@@ -81,7 +112,7 @@ end = struct
     ) m M.empty
 end
 
-module Make (Model : Sigs.SOLVER_INPUT) = struct
+module Make (Model : S.SOLVER_INPUT) = struct
   (** We attach this data to each SAT variable. *)
   module SolverData =
     struct
@@ -97,7 +128,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
         | Role role -> Model.Role.pp f role
     end
 
-  module S = Support.Sat.MakeSAT(SolverData)
+  module S = Sat.Make(SolverData)
 
   type decision_state =
     (* The next candidate to try *)
@@ -128,11 +159,11 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
           match Model.get_command impl name with
           | Some command -> Some (impl_var, command)
           | None -> None in
-        vars |> Support.Utils.filter_map match_command
+        vars |> List.filter_map match_command
 
       (** Get all variables, except dummy_impl (if present) *)
       method get_real_vars =
-        vars |> Support.Utils.filter_map (fun (var, impl) ->
+        vars |> List.filter_map (fun (var, impl) ->
           if is_dummy impl then None
           else Some var
         )
@@ -233,7 +264,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
   let add_replaced_by_conflicts sat impl_clauses =
     List.iter (fun (clause, replacement) ->
       ImplCache.get replacement impl_clauses
-      |> if_some (fun replacement_candidates ->
+      |> Option.iter (fun replacement_candidates ->
         (* Our replacement was also added to [sat], so conflict with it. *)
         let our_vars = clause#get_real_vars in
         let replacements = replacement_candidates#get_real_vars in
@@ -245,28 +276,42 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
       )
     )
 
-  (** On multi-arch systems, we can select 32-bit or 64-bit implementations, but not both in the same
-   * set of selections. Returns a function that should be called for each implementation to add this
-   * restriction. *)
-  let require_machine_groups sat =
-    (* m64 is set if we select any 64-bit binary. mDef will be set if we select any binary that
-       needs any other CPU architecture. Don't allow both to be set together. *)
-    let machine_group_default = S.add_variable sat @@ SolverData.MachineGroup "mDef" in
-    let machine_group_64 = S.add_variable sat @@ SolverData.MachineGroup "m64" in
-    (* If we get to the end of the solve without deciding then nothing we selected cares about the
-       type of CPU. The solver will set them both to false at the end. *)
-    S.at_most_one sat [machine_group_default; machine_group_64] |> ignore;
+  (** On multi-arch systems, we can select 32-bit or 64-bit implementations,
+      but not both in the same set of selections. *)
+  module Machine_group = struct
+    module Map = Map.Make(struct type t = Model.machine_group let compare = compare end)
+
+    type t = {
+      sat : S.t;
+      mutable groups : S.lit Map.t;
+    }
+
+    let create sat = { sat; groups = Map.empty }
+
+    let var t name =
+      match Map.find_opt name t.groups with
+      | Some v -> v
+      | None ->
+        let v = S.add_variable t.sat @@ SolverData.MachineGroup ("m." ^ (name :> string)) in
+        t.groups <- Map.add name v t.groups;
+        v
 
     (* If [impl] requires a particular machine group, add a constraint to the problem. *)
-    fun impl_var impl ->
-      Model.machine_group impl |> if_some (fun group ->
-        let group_var =
-          let open Arch in
-          match group with
-          | Machine_group_default -> machine_group_default
-          | Machine_group_64 -> machine_group_64 in
-        S.implies sat ~reason:"machine group" impl_var [group_var];
+    let process t impl_var impl =
+      Model.machine_group impl |> Option.iter (fun group ->
+        S.implies t.sat ~reason:"machine group" impl_var [var t group]
       )
+
+    (* Call this at the end to add the final clause with all discovered groups.
+       [t] must not be used after this. *)
+    let seal t =
+      let xs = Map.bindings t.groups in
+      if List.length xs > 1 then (
+        (* If we get to the end of the solve without deciding then nothing we selected cares about the
+           type of CPU. The solver will set them all to false at the end. *)
+        S.at_most_one t.sat (List.map snd xs) |> ignore
+      )
+  end
 
   (** If this binding depends on a command (<executable-in-*>), add that to the problem.
    * @param user_var indicates when this binding is used
@@ -337,7 +382,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
     let clause = new impl_candidates role impl_clause impls dummy_impl in
 
     (* If we have a <replaced-by>, remember to add a conflict with our replacement *)
-    replacement |> if_some (fun replacement ->
+    replacement |> Option.iter (fun replacement ->
       replacements := (clause, replacement) :: !replacements;
     );
 
@@ -376,7 +421,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
     let impl_cache = ImplCache.create () in
     let command_cache = CommandCache.create () in
 
-    let require_machine_group = require_machine_groups sat in
+    let machine_groups = Machine_group.create sat in
 
     (* Handle <replaced-by> conflicts after building the problem. *)
     let replacements = ref [] in
@@ -385,7 +430,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
       let clause, impls = make_impl_clause sat ~dummy_impl replacements role in
       (clause, fun () ->
         impls |> List.iter (fun (impl_var, impl) ->
-          require_machine_group impl_var impl;
+          Machine_group.process machine_groups impl_var impl;
           let deps, self_commands = Model.requires role impl in
           process_self_commands impl_var role self_commands;
           process_deps impl_var deps
@@ -407,6 +452,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
     (* All impl_candidates and command_candidates have now been added, so snapshot the cache. *)
     let impl_clauses, command_clauses = ImplCache.snapshot impl_cache, CommandCache.snapshot command_cache in
     add_replaced_by_conflicts sat impl_clauses !replacements;
+    Machine_group.seal machine_groups;
     impl_clauses, command_clauses
 
   let do_solve ?dummy_impl root_req =
@@ -448,7 +494,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
           | Selected (deps, self_commands) ->
               (* We've already selected a candidate for this component. Now check its dependencies. *)
               let check_self_command name = find_undecided {req with Model.command = Some name} in
-              match Support.Utils.first_match check_self_command self_commands with
+              match List.first_match check_self_command self_commands with
               | Some _ as r -> r
               | None ->
               (* Self-commands already done; now try the dependencies *)
@@ -466,14 +512,14 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
                   | None ->
                       (* Command dependencies next *)
                       let check_command_dep name = find_undecided {Model.command = Some name; role = dep_role} in
-                      Support.Utils.first_match check_command_dep dep_required_commands
+                      List.first_match check_command_dep dep_required_commands
                 )
                 in
-              match Support.Utils.first_match check_dep deps with
+              match List.first_match check_dep deps with
               | Some _ as r -> r
               | None ->
               (* All dependencies checked; now to the impl (if we're a <command>) *)
-              req.Model.command |> pipe_some (fun _command -> find_undecided {req with Model.command = None})
+              Option.bind req.Model.command (fun _command -> find_undecided {req with Model.command = None})
         ) in
       find_undecided root_req in
 
@@ -486,7 +532,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
         let commands_needed = Hashtbl.create 10 in
         command_clauses
         |> CommandCache.M.iter (fun (command_name, role) candidates ->
-            candidates#get_clause |> if_some (fun clause ->
+            candidates#get_clause |> Option.iter (fun clause ->
               if S.get_selected clause <> None then
                 Hashtbl.add commands_needed role command_name
             )
@@ -495,9 +541,9 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
         Some (
           impl_clauses
           |> ImplCache.filter_map (fun role candidates ->
-              candidates#get_selected |> pipe_some (fun (lit, impl) ->
+              candidates#get_selected |> Option.map (fun (lit, impl) ->
                 let commands = Hashtbl.find_all commands_needed role in
-                Some {impl; commands; diagnostics = lit}
+                {impl; commands; diagnostics = lit}
               )
           )
         )

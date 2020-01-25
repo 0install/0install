@@ -4,12 +4,10 @@
 
 (** Explaining why a solve failed or gave an unexpected answer. *)
 
-open Support
-open Support.Common
+module List = Solver_core.List
+module Option = Solver_core.Option
 
-module U = Support.Utils
-
-module Make (Model : Sigs.SOLVER_RESULT) = struct
+module Make (Model : S.SOLVER_RESULT) = struct
   module RoleMap = Model.RoleMap
 
   let format_role = Model.Role.pp
@@ -56,7 +54,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
     | `DiagnosticsFailure msg -> spf "Reason for rejection unknown: %s" msg
 
   (* Add a textual description of this component's report to [buf]. *)
-  let format_report f role component =
+  let format_report ~verbose f role component =
     let prefix = ref "- " in
 
     let add fmt = Format.fprintf f ("%s" ^^ fmt) !prefix in
@@ -77,7 +75,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
       let () =
         try
           ListLabels.iter rejected ~f:(fun (impl, problem) ->
-            if !i = 5 && not Support.Logging.(will_log Debug) then (add "..."; raise Exit);
+            if !i = 5 && not verbose then (add "..."; raise Exit);
             add "%s (%a): %s" (name_impl impl) format_version impl (describe_problem impl problem);
             i := !i + 1
           );
@@ -169,7 +167,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
   let find_component_ex role report =
     match RoleMap.find_opt role report with
     | Some c -> c
-    | None -> Safe_exn.failf "Can't find component %a!" format_role role
+    | None -> failwith (Format.asprintf "Can't find component %a!" format_role role)
 
   (* Did any dependency of [impl] prevent it being selected?
      This can only happen if a component conflicts with something more important
@@ -191,15 +189,15 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
               let check_restriction r =
                 if Model.meets_restriction dep_impl r then None
                 else Some (`DepFailsRestriction (dep, r)) in
-              U.first_match check_restriction (Model.restrictions dep) in
+              List.first_match check_restriction (Model.restrictions dep) in
     let deps, commands_needed = Model.requires role impl in
-    commands_needed |> U.first_match (fun command ->
+    commands_needed |> List.first_match (fun command ->
       if Model.get_command impl command <> None then None
       else Some (`MissingCommand command : rejection_reason)
     )
     |> function
     | Some _ as r -> r
-    | None -> U.first_match check_dep deps
+    | None -> List.first_match check_dep deps
 
   (** A selected component has [dep] as a dependency. Use this to explain why some implementations
       of the required interface were rejected. *)
@@ -249,7 +247,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
         List.iter (examine_dep role our_impl report) deps;
         component#commands |> List.iter (fun name ->
             match Model.get_command our_impl name with
-            | None -> log_warning "BUG: missing command!"    (* Can't happen - it's a "selected" command *)
+            | None -> failwith "BUG: missing command!"    (* Can't happen - it's a "selected" command *)
             | Some command ->
               let deps, _commands_needed = Model.command_requires role command in
               List.iter (examine_dep role our_impl report) deps;
@@ -267,7 +265,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
   (* Check for user-supplied restrictions *)
   let examine_extra_restrictions report =
     report |> RoleMap.iter (fun role component ->
-      Model.user_restrictions role |> if_some (fun restriction ->
+      Model.user_restrictions role |> Option.iter (fun restriction ->
         component#note (UserRequested restriction);
         component#apply_restrictions [restriction]
       )
@@ -285,7 +283,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
 
   (** Find an implementation which requires a machine group. Use this to
       explain the rejection of all implementations requiring other groups. *)
-  exception Found of (Model.Role.t * Model.impl * Arch.machine_group)
+  exception Found of (Model.Role.t * Model.impl * Model.machine_group)
   let check_machine_groups report =
     let check role compoment =
       match compoment#impl with
@@ -326,16 +324,16 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
 
     report
 
-  let pp_rolemap f reasons =
+  let pp_rolemap ~verbose f reasons =
     let first = ref true in
     reasons |> RoleMap.iter (fun r ->
       if !first then first := false
       else Format.pp_print_cut f ();
-      format_report f r
+      format_report ~verbose f r
     )
 
   (** Return a message explaining why the solve failed. *)
-  let get_failure_reason result =
+  let get_failure_reason ?(verbose=false) result =
     let reasons = get_failure_report result in
-    spf "Can't find all required implementations:@\n@[<v0>%a@]" pp_rolemap reasons
+    spf "Can't find all required implementations:@\n@[<v0>%a@]" (pp_rolemap ~verbose) reasons
 end

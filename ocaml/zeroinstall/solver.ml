@@ -44,6 +44,7 @@ module CoreModel = struct
   type command_name = string
   type rejection = Impl_provider.rejection_reason
   type dependency = Role.t * Impl.dependency
+  type machine_group = string
   type dep_info = {
     dep_role : Role.t;
     dep_importance : [ `Essential | `Recommended | `Restricts ];
@@ -193,7 +194,11 @@ module CoreModel = struct
       ~child_nodes:(List.rev !child_nodes)
       ~source_hint:(Element.as_xml impl.Impl.qdom) "selection"
 
-  let machine_group impl = Arch.get_machine_group impl.Impl.machine
+  let machine_group impl =
+    match Arch.get_machine_group impl.Impl.machine with
+    | None -> None
+    | Some Arch.Machine_group_default -> Some "def"
+    | Some Arch.Machine_group_64 -> Some "64"
 
   let format_machine impl =
     match impl.Impl.machine with
@@ -221,7 +226,7 @@ module CoreModel = struct
     XString.Map.find_opt role.iface role.scope#extra_restrictions
 end
 
-module Core = Solver_core.Make(CoreModel)
+module Core = Zeroinstall_solver.Make(CoreModel)
 
 module Model =
   struct
@@ -331,12 +336,12 @@ let selections result =
     ZI.make ~attrs:root_attrs ~child_nodes "selections"
   )
 
-module Diagnostics = Diagnostics.Make (Model)
+module Diagnostics = Zeroinstall_solver.Diagnostics(Model)
 
 (** Return a message explaining why the solve failed. *)
 let get_failure_reason config result =
-  let msg = Diagnostics.get_failure_reason result in
-
+  let verbose = Support.Logging.(will_log Debug) in
+  let msg = Diagnostics.get_failure_reason ~verbose result in
   if config.network_use = Offline then
     msg ^ "\nNote: 0install is in off-line mode"
   else
