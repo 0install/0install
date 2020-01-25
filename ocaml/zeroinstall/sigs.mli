@@ -88,6 +88,12 @@ module type SOLVER_INPUT = sig
   (** A restriction limits which implementations can fill a role. *)
   type restriction
 
+  (** The solver will avoid selections with mixed machine groups.
+      This is useful if e.g. the CPU supports 32-bit and 64-bit programs,
+      but we can't mix them in a single process. The string simply has
+      to be unique for each group (e.g. "32" and "64"). *)
+  type machine_group = private string
+
   val pp_impl : Format.formatter -> impl -> unit
   val pp_command : Format.formatter -> command -> unit
 
@@ -98,7 +104,7 @@ module type SOLVER_INPUT = sig
   val restrictions : dependency -> restriction list
   val meets_restriction : impl -> restriction -> bool
 
-  val machine_group : impl -> Arch.machine_group option
+  val machine_group : impl -> machine_group option
 end
 
 module type SELECTIONS = sig

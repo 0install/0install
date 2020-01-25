@@ -259,28 +259,42 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
       )
     )
 
-  (** On multi-arch systems, we can select 32-bit or 64-bit implementations, but not both in the same
-   * set of selections. Returns a function that should be called for each implementation to add this
-   * restriction. *)
-  let require_machine_groups sat =
-    (* m64 is set if we select any 64-bit binary. mDef will be set if we select any binary that
-       needs any other CPU architecture. Don't allow both to be set together. *)
-    let machine_group_default = S.add_variable sat @@ SolverData.MachineGroup "mDef" in
-    let machine_group_64 = S.add_variable sat @@ SolverData.MachineGroup "m64" in
-    (* If we get to the end of the solve without deciding then nothing we selected cares about the
-       type of CPU. The solver will set them both to false at the end. *)
-    S.at_most_one sat [machine_group_default; machine_group_64] |> ignore;
+  (** On multi-arch systems, we can select 32-bit or 64-bit implementations,
+      but not both in the same set of selections. *)
+  module Machine_group = struct
+    module Map = Map.Make(struct type t = Model.machine_group let compare = compare end)
+
+    type t = {
+      sat : S.sat_problem;
+      mutable groups : S.lit Map.t;
+    }
+
+    let create sat = { sat; groups = Map.empty }
+
+    let var t name =
+      match Map.find_opt name t.groups with
+      | Some v -> v
+      | None ->
+        let v = S.add_variable t.sat @@ SolverData.MachineGroup ("m." ^ (name :> string)) in
+        t.groups <- Map.add name v t.groups;
+        v
 
     (* If [impl] requires a particular machine group, add a constraint to the problem. *)
-    fun impl_var impl ->
+    let process t impl_var impl =
       Model.machine_group impl |> Option.iter (fun group ->
-        let group_var =
-          let open Arch in
-          match group with
-          | Machine_group_default -> machine_group_default
-          | Machine_group_64 -> machine_group_64 in
-        S.implies sat ~reason:"machine group" impl_var [group_var];
+        S.implies t.sat ~reason:"machine group" impl_var [var t group]
       )
+
+    (* Call this at the end to add the final clause with all discovered groups.
+       [t] must not be used after this. *)
+    let seal t =
+      let xs = Map.bindings t.groups in
+      if List.length xs > 1 then (
+        (* If we get to the end of the solve without deciding then nothing we selected cares about the
+           type of CPU. The solver will set them all to false at the end. *)
+        S.at_most_one t.sat (List.map snd xs) |> ignore
+      )
+  end
 
   (** If this binding depends on a command (<executable-in-*>), add that to the problem.
    * @param user_var indicates when this binding is used
@@ -390,7 +404,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
     let impl_cache = ImplCache.create () in
     let command_cache = CommandCache.create () in
 
-    let require_machine_group = require_machine_groups sat in
+    let machine_groups = Machine_group.create sat in
 
     (* Handle <replaced-by> conflicts after building the problem. *)
     let replacements = ref [] in
@@ -399,7 +413,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
       let clause, impls = make_impl_clause sat ~dummy_impl replacements role in
       (clause, fun () ->
         impls |> List.iter (fun (impl_var, impl) ->
-          require_machine_group impl_var impl;
+          Machine_group.process machine_groups impl_var impl;
           let deps, self_commands = Model.requires role impl in
           process_self_commands impl_var role self_commands;
           process_deps impl_var deps
@@ -421,6 +435,7 @@ module Make (Model : Sigs.SOLVER_INPUT) = struct
     (* All impl_candidates and command_candidates have now been added, so snapshot the cache. *)
     let impl_clauses, command_clauses = ImplCache.snapshot impl_cache, CommandCache.snapshot command_cache in
     add_replaced_by_conflicts sat impl_clauses !replacements;
+    Machine_group.seal machine_groups;
     impl_clauses, command_clauses
 
   let do_solve ?dummy_impl root_req =

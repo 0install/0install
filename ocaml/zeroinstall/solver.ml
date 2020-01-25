@@ -44,6 +44,7 @@ module CoreModel = struct
   type command_name = string
   type rejection = Impl_provider.rejection_reason
   type dependency = Role.t * Impl.dependency
+  type machine_group = string
   type dep_info = {
     dep_role : Role.t;
     dep_importance : [ `Essential | `Recommended | `Restricts ];
@@ -193,7 +194,11 @@ module CoreModel = struct
       ~child_nodes:(List.rev !child_nodes)
       ~source_hint:(Element.as_xml impl.Impl.qdom) "selection"
 
-  let machine_group impl = Arch.get_machine_group impl.Impl.machine
+  let machine_group impl =
+    match Arch.get_machine_group impl.Impl.machine with
+    | None -> None
+    | Some Arch.Machine_group_default -> Some "def"
+    | Some Arch.Machine_group_64 -> Some "64"
 
   let format_machine impl =
     match impl.Impl.machine with

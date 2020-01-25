@@ -285,7 +285,7 @@ module Make (Model : Sigs.SOLVER_RESULT) = struct
 
   (** Find an implementation which requires a machine group. Use this to
       explain the rejection of all implementations requiring other groups. *)
-  exception Found of (Model.Role.t * Model.impl * Arch.machine_group)
+  exception Found of (Model.Role.t * Model.impl * Model.machine_group)
   let check_machine_groups report =
     let check role compoment =
       match compoment#impl with
