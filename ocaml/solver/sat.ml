@@ -43,7 +43,7 @@ module VarID :
       i
   end
 
-module MakeSAT(User : USER) =
+module Make(User : USER) =
   struct
     type var_value = True | False | Undecided
 
@@ -122,7 +122,7 @@ module MakeSAT(User : USER) =
       obj;
     }
 
-    type sat_problem = {
+    type t = {
       id_maker : VarID.mint;
 
       (* Propagation *)

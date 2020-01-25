@@ -1,12 +1,12 @@
-(* Copyright (C) 2014, Thomas Leonard
- * See the README file for details, or visit http://0install.net.
- *)
+(* Copyright (C) 2020, Thomas Leonard
+   See the README file for details, or visit http://0install.net. *)
+
+module S = S
 
 (** Select a compatible set of components to run a program.
- * See [Solver] for the instantiation of this functor on the
- * actual 0install types. *)
-
-module Make : functor (Model : S.SOLVER_INPUT) -> sig
+    See [Zeroinstall.Solver] for the instantiation of this functor on the
+    actual 0install types. *)
+module Make(Model : S.SOLVER_INPUT) : sig
   type diagnostics
 
   type selection = {
@@ -40,5 +40,5 @@ module Diagnostics(Model : S.SOLVER_RESULT) : sig
   val get_failure_reason : ?verbose:bool -> Model.t -> string
 end
 
+(** The low-level SAT solver. *)
 module Sat = Sat
-module S = S

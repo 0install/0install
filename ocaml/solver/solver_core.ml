@@ -128,7 +128,7 @@ module Make (Model : S.SOLVER_INPUT) = struct
         | Role role -> Model.Role.pp f role
     end
 
-  module S = Sat.MakeSAT(SolverData)
+  module S = Sat.Make(SolverData)
 
   type decision_state =
     (* The next candidate to try *)
@@ -282,7 +282,7 @@ module Make (Model : S.SOLVER_INPUT) = struct
     module Map = Map.Make(struct type t = Model.machine_group let compare = compare end)
 
     type t = {
-      sat : S.sat_problem;
+      sat : S.t;
       mutable groups : S.lit Map.t;
     }
 

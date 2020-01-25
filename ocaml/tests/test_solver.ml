@@ -18,7 +18,7 @@ module StringData =
     let unused = "unused"
   end
 
-module Sat = Zeroinstall_solver.Sat.MakeSAT(StringData)
+module Sat = Zeroinstall_solver.Sat.Make(StringData)
 
 open Sat
 
