@@ -107,36 +107,8 @@ module type SOLVER_INPUT = sig
   val meets_restriction : impl -> restriction -> bool
 
   val machine_group : impl -> machine_group option
-end
 
-module type SELECTIONS = sig
-  (** Some selections previously produced by a solver. *)
-
-  include CORE_MODEL
-
-  type t
-
-  val get_selected : Role.t -> t -> impl option
-  val selected_commands : t -> Role.t -> command_name list
-  val requirements : t -> requirements
-
-  module RoleMap : Map.S with type key = Role.t
-end
-
-module type SOLVER_RESULT = sig
-  (** The result of running the solver.
-      Unlike the plain [SELECTIONS] type, this type can relate the selections back
-      to the solver inputs, which is useful to provide diagnostics and the GUI. *)
-
-  include SOLVER_INPUT
-  include SELECTIONS with
-    module Role := Role and
-    type impl := impl and
-    type command := command and
-    type dependency := dependency and
-    type command_name := command_name and
-    type dep_info := dep_info and
-    type requirements := requirements
+  (** {2 The following are used for diagnostics only} *)
 
   (** The reason why the model rejected an implementation before it got to the solver.
       For example, the implementation was a Windows binary but the host is Linux. *)
@@ -159,13 +131,43 @@ module type SOLVER_RESULT = sig
   val string_of_restriction : restriction -> string
   val describe_problem : impl -> rejection -> string
 
-  (** Get diagnostics-of-last-resort. *)
-  val explain : t -> Role.t -> string
-
-  (** Get the final assignment of implementations to roles. *)
-  val raw_selections : t -> impl RoleMap.t
-
   (** A dummy implementation, used to get diagnostic information if the solve fails.
       It satisfies all requirements, even conflicting ones. *)
   val dummy_impl : impl
+end
+
+module type SELECTIONS = sig
+  (** Some selections previously produced by a solver. *)
+
+  include CORE_MODEL
+
+  module RoleMap : Map.S with type key = Role.t
+
+  type t
+
+  val to_map : t -> impl RoleMap.t
+  val get_selected : Role.t -> t -> impl option
+  val selected_commands : impl -> command_name list
+  val requirements : t -> requirements
+end
+
+module type SOLVER_RESULT = sig
+  (** The result of running the solver.
+      Unlike the plain [SELECTIONS] type, this type can relate the selections back
+      to the solver inputs, which is useful to provide diagnostics and the GUI. *)
+
+  module Input : SOLVER_INPUT
+
+  include SELECTIONS with
+    module Role = Input.Role and
+    type command = Input.command and
+    type dependency = Input.dependency and
+    type command_name = Input.command_name and
+    type dep_info = Input.dep_info and
+    type requirements = Input.requirements
+
+  val unwrap : impl -> Input.impl
+
+  (** Get diagnostics-of-last-resort. *)
+  val explain : t -> Role.t -> string
 end

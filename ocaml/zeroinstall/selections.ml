@@ -59,7 +59,7 @@ type dep_info = {
   dep_required_commands : command_name list;
 }
 
-let as_map t = t.index
+let to_map t = t.index
 
 let re_initial_slash = Str.regexp "^/"
 let re_package = Str.regexp "^package:"
@@ -215,11 +215,8 @@ let requires _role impl = make_deps (Element.deps_and_bindings impl)
 let command_requires _role command = make_deps (Element.command_children command)
 let get_command sel name = Element.get_command name sel
 
-let selected_commands sels role =
-  match get_selected role sels with
-  | None -> []
-  | Some sel ->
-      Element.deps_and_bindings sel |> U.filter_map (function
-        | `Command c -> Some (Element.command_name c)
-        | _ -> None
-      )
+let selected_commands sel =
+  Element.deps_and_bindings sel |> U.filter_map (function
+      | `Command c -> Some (Element.command_name c)
+      | _ -> None
+    )

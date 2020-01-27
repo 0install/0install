@@ -58,9 +58,6 @@ val as_xml : t -> Support.Qdom.element
 (** Return all bindings *)
 val collect_bindings : t -> (role * Element.binding) list
 
-(** [as_map t] is the map of the selections in [t]. *)
-val as_map : t -> selection RoleMap.t
-
 (** {2 Selection elements} *)
 
 val get_source : selection -> impl_source

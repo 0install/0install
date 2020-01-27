@@ -132,7 +132,7 @@ let run_sat_test expected problem =
     )
   );
 
-  let root_req = { Solver.Model.
+  let root_req = { Solver.Input.
     role = {
       Solver.scope = (impl_provider :> Impl_provider.impl_provider);
       iface = fst @@ List.hd expected_items;

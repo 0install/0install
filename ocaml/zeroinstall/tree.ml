@@ -39,7 +39,7 @@ module Make (Model : Sigs.SELECTIONS) = struct
                 let impl_deps, _self_commands = Model.requires role impl in
                 let deps = ref impl_deps in
 
-                Model.selected_commands result role |> List.iter (fun command_name ->
+                Model.selected_commands impl |> List.iter (fun command_name ->
                   let command = Model.get_command impl command_name
                     |? lazy (Safe_exn.failf "BUG: Missing selected command '%s'!" (command_name : Model.command_name :> string)) in
                   let command_deps, _self_commands = Model.command_requires role command in

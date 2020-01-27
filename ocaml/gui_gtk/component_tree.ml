@@ -62,7 +62,7 @@ let walk_tree (model:GTree.tree_store) ~start ~stop fn =
   try walk ~start
   with Stop_walk -> ()
 
-module SolverTree = Tree.Make(Solver.Model)
+module SolverTree = Tree.Make(Solver.Output)
 
 let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_bug ~recalculate ~watcher =
   (* Model *)
@@ -252,7 +252,8 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
       model#set ~row ~column:icon (icon_cache#get ~update ~feed_provider uri |> default default_icon);
 
       match details with
-      | `Selected (impl, children) ->
+      | `Selected (sel, children) ->
+          let impl = Solver.Output.unwrap sel in
           let {Feed_url.id; feed = from_feed} = Impl.get_id impl in
           let overrides = Feed_metadata.load config from_feed in
           let user_stability = Feed_metadata.stability id overrides in

@@ -621,7 +621,7 @@ let suite = "solver">::: [
         Scope_filter.machine_ranks = Arch.get_machine_ranks machine ~multiarch:true;
       } in
       let impl_provider = make_impl_provider config scope_filter in
-      let root_req = { Solver.Model.
+      let root_req = { Solver.Input.
         role = {
           Solver.scope = impl_provider;
           iface = "http://foo/MultiArch.xml";
@@ -687,7 +687,7 @@ let suite = "solver">::: [
         languages = Support.Locale.score_langs [Fake_system.expect @@ Support.Locale.parse_lang lang];
       } in
       let impl_provider = new Impl_provider.default_impl_provider config feed_provider scope_filter in
-      let root_req = { Solver.Model.
+      let root_req = { Solver.Input.
         role = {
           Solver.scope = impl_provider;
           iface = Fake_system.test_data "Langs.xml";

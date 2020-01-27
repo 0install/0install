@@ -7,8 +7,9 @@
 module List = Solver_core.List
 module Option = Solver_core.Option
 
-module Make (Model : S.SOLVER_RESULT) = struct
-  module RoleMap = Model.RoleMap
+module Make (Results : S.SOLVER_RESULT) = struct
+  module Model = Results.Input
+  module RoleMap = Results.RoleMap
 
   let format_role = Model.Role.pp
 
@@ -303,16 +304,17 @@ module Make (Model : S.SOLVER_RESULT) = struct
       RoleMap.iter filter report
 
   let get_failure_report result : component RoleMap.t =
-    let impls = Model.raw_selections result in
-    let root_req = Model.requirements result in
+    let impls = Results.to_map result in
+    let root_req = Results.requirements result in
 
     let report =
-      let get_selected role impl =
-        let diagnostics = lazy (Model.explain result role) in
+      let get_selected role sel =
+        let impl = Results.unwrap sel in
+        let diagnostics = lazy (Results.explain result role) in
         let impl = if impl == Model.dummy_impl then None else Some impl in
         let impl_candidates = Model.implementations role in
         let rejects, feed_problems = Model.rejects role in
-        let selected_commands = Model.selected_commands result role in
+        let selected_commands = Results.selected_commands sel in
         new component (impl_candidates, rejects, feed_problems) diagnostics impl selected_commands in
       RoleMap.mapi get_selected impls in
 

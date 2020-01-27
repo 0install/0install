@@ -608,7 +608,7 @@ let make_versions_tab config reqs ~recalculate ~watcher window role =
 
 let create tools ~trust_db reqs role ~recalculate ~select_versions_tab ~watcher =
   let config = tools#config in
-  let title = Format.asprintf "Properties for %a" Solver.Model.Role.pp role in
+  let title = Format.asprintf "Properties for %a" Solver.Input.Role.pp role in
   let dialog = GWindow.dialog ~title () in
   dialog#set_default_size
     ~width:(-1)

@@ -20,7 +20,7 @@ type role = {
   source : bool;
 }
 
-module CoreModel = struct
+module Input = struct
   (** See [Solver_types.MODEL] for documentation. *)
 
   module Role = struct
@@ -114,86 +114,6 @@ module CoreModel = struct
   let requires role impl = make_deps role Impl.(impl.props.requires) Impl.(impl.props.bindings)
   let command_requires role command = make_deps role Impl.(command.command_requires) Impl.(command.command_bindings)
 
-  let to_selection role commands impl =
-    let {scope = impl_provider; iface; source = _} = role in
-    let attrs = Impl.(impl.props.attrs)
-      |> AttrMap.remove ("", FeedAttr.stability)
-
-      (* Replaced by <command> *)
-      |> AttrMap.remove ("", FeedAttr.main)
-      |> AttrMap.remove ("", FeedAttr.self_test)
-
-      |> AttrMap.add_no_ns "interface" iface in
-
-    let attrs =
-      if Some iface = AttrMap.get_no_ns FeedAttr.from_feed attrs then (
-        (* Don't bother writing from-feed attr if it's the same as the interface *)
-        AttrMap.remove ("", FeedAttr.from_feed) attrs
-      ) else attrs in
-
-    let attrs =
-      match impl.Impl.impl_type with
-      | `Binary_of _ -> AttrMap.add_no_ns "requires-compilation" "true" attrs
-      | _ -> attrs in
-
-    let child_nodes = ref [] in
-    if impl != dummy_impl then (
-      let commands = List.sort compare commands in
-
-      let copy_qdom elem =
-        (* Copy elem into parent (and strip out <version> elements). *)
-        let open Qdom in
-        let imported = {elem with
-          child_nodes = List.filter (fun c -> ZI.tag c <> Some "version") elem.child_nodes;
-        } in
-        child_nodes := imported :: !child_nodes in
-
-      commands |> List.iter (fun name ->
-        let command = Impl.get_command_ex name impl in
-        let command_elem = command.Impl.command_qdom in
-        let want_command_child elem =
-          (* We'll add in just the dependencies we need later *)
-          match ZI.tag elem with
-          | Some "requires" | Some "restricts" | Some "runner" -> false
-          | _ -> true
-        in
-        let child_nodes = List.filter want_command_child (Element.as_xml command_elem).Qdom.child_nodes in
-        let add_command_dep child_nodes dep =
-          if dep.Impl.dep_importance <> `Restricts && impl_provider#is_dep_needed dep then
-            Element.as_xml dep.Impl.dep_qdom :: child_nodes
-          else
-            child_nodes in
-        let child_nodes = List.fold_left add_command_dep child_nodes command.Impl.command_requires in
-        let command_elem = {(Element.as_xml command_elem) with Qdom.child_nodes = child_nodes} in
-        copy_qdom command_elem
-      );
-
-      let copy_elem elem =
-        copy_qdom (Element.as_xml elem) in
-
-      Impl.(impl.props.bindings) |> List.iter copy_elem;
-      Impl.(impl.props.requires) |> List.iter (fun dep ->
-        if impl_provider#is_dep_needed dep && dep.Impl.dep_importance <> `Restricts then
-          copy_elem (dep.Impl.dep_qdom)
-      );
-
-      begin match impl.Impl.impl_type with
-      | `Cache_impl {Impl.digests = []; _} -> ()  (* todo: Shouldn't really happen *)
-      | `Cache_impl {Impl.digests; _} ->
-          let rec aux attrs = function
-            | [] -> attrs
-            | (name, value) :: ds -> aux (Qdom.AttrMap.add_no_ns name value attrs) ds in
-          let attrs = aux Qdom.AttrMap.empty digests in
-          let manifest_digest =
-            ZI.make ~attrs ~source_hint:(Element.as_xml impl.Impl.qdom) "manifest-digest" in
-          child_nodes := manifest_digest :: !child_nodes
-      | `Local_impl _ | `Package_impl _ | `Binary_of _ -> () end
-    );
-    ZI.make
-      ~attrs
-      ~child_nodes:(List.rev !child_nodes)
-      ~source_hint:(Element.as_xml impl.Impl.qdom) "selection"
-
   let machine_group impl =
     match Arch.get_machine_group impl.Impl.machine with
     | None -> None
@@ -224,57 +144,96 @@ module CoreModel = struct
 
   let user_restrictions role =
     XString.Map.find_opt role.iface role.scope#extra_restrictions
+
+  let format_version impl = Version.to_string impl.Impl.parsed_version
 end
 
-module Core = Zeroinstall_solver.Make(CoreModel)
+include Zeroinstall_solver.Make(Input)
 
-module Model =
-  struct
-    include CoreModel
+let to_xml role sel =
+  let impl = Output.unwrap sel in
+  let commands = Output.selected_commands sel in
+  let open Input in
+  let {scope = impl_provider; iface; source = _} = role in
+  let attrs = Impl.(impl.props.attrs)
+    |> AttrMap.remove ("", FeedAttr.stability)
 
-    module RoleMap = Core.RoleMap
+    (* Replaced by <command> *)
+    |> AttrMap.remove ("", FeedAttr.main)
+    |> AttrMap.remove ("", FeedAttr.self_test)
 
-    type t = {
-      root_req : requirements;
-      selections : Core.selection RoleMap.t;
-    }
+    |> AttrMap.add_no_ns "interface" iface in
 
-    let format_version impl = Version.to_string impl.Impl.parsed_version
+  let attrs =
+    if Some iface = AttrMap.get_no_ns FeedAttr.from_feed attrs then (
+      (* Don't bother writing from-feed attr if it's the same as the interface *)
+      AttrMap.remove ("", FeedAttr.from_feed) attrs
+    ) else attrs in
 
-    let get_selected role result =
-      RoleMap.find_opt role result.selections |> pipe_some (fun selection ->
-        let impl = Core.(selection.impl) in
-        if impl == dummy_impl then None
-        else Some impl
-      )
+  let attrs =
+    match impl.Impl.impl_type with
+    | `Binary_of _ -> AttrMap.add_no_ns "requires-compilation" "true" attrs
+    | _ -> attrs in
 
-    let requirements result = result.root_req
+  let child_nodes = ref [] in
+  if impl != dummy_impl then (
+    let commands = List.sort compare commands in
 
-    let explain result role =
-      match RoleMap.find_opt role result.selections with
-      | Some sel -> Core.explain sel.Core.diagnostics
-      | None -> "Role not used!"
+    let copy_qdom elem =
+      (* Copy elem into parent (and strip out <version> elements). *)
+      let open Qdom in
+      let imported = {elem with
+        child_nodes = List.filter (fun c -> ZI.tag c <> Some "version") elem.child_nodes;
+      } in
+      child_nodes := imported :: !child_nodes in
 
-    let raw_selections result =
-      result.selections |> RoleMap.map (fun sel -> sel.Core.impl)
+    commands |> List.iter (fun name ->
+      let command = Impl.get_command_ex name impl in
+      let command_elem = command.Impl.command_qdom in
+      let want_command_child elem =
+        (* We'll add in just the dependencies we need later *)
+        match ZI.tag elem with
+        | Some "requires" | Some "restricts" | Some "runner" -> false
+        | _ -> true
+      in
+      let child_nodes = List.filter want_command_child (Element.as_xml command_elem).Qdom.child_nodes in
+      let add_command_dep child_nodes dep =
+        if dep.Impl.dep_importance <> `Restricts && impl_provider#is_dep_needed dep then
+          Element.as_xml dep.Impl.dep_qdom :: child_nodes
+        else
+          child_nodes in
+      let child_nodes = List.fold_left add_command_dep child_nodes command.Impl.command_requires in
+      let command_elem = {(Element.as_xml command_elem) with Qdom.child_nodes = child_nodes} in
+      copy_qdom command_elem
+    );
 
-    let selected_commands result role =
-      match RoleMap.find_opt role result.selections with
-      | Some selection -> Core.(selection.commands)
-      | None -> []
-  end
+    let copy_elem elem =
+      copy_qdom (Element.as_xml elem) in
+
+    Impl.(impl.props.bindings) |> List.iter copy_elem;
+    Impl.(impl.props.requires) |> List.iter (fun dep ->
+      if impl_provider#is_dep_needed dep && dep.Impl.dep_importance <> `Restricts then
+        copy_elem (dep.Impl.dep_qdom)
+    );
+
+    begin match impl.Impl.impl_type with
+    | `Cache_impl {Impl.digests = []; _} -> ()  (* todo: Shouldn't really happen *)
+    | `Cache_impl {Impl.digests; _} ->
+        let rec aux attrs = function
+          | [] -> attrs
+          | (name, value) :: ds -> aux (Qdom.AttrMap.add_no_ns name value attrs) ds in
+        let attrs = aux Qdom.AttrMap.empty digests in
+        let manifest_digest =
+          ZI.make ~attrs ~source_hint:(Element.as_xml impl.Impl.qdom) "manifest-digest" in
+        child_nodes := manifest_digest :: !child_nodes
+    | `Local_impl _ | `Package_impl _ | `Binary_of _ -> () end
+  );
+  ZI.make
+    ~attrs
+    ~child_nodes:(List.rev !child_nodes)
+    ~source_hint:(Element.as_xml impl.Impl.qdom) "selection"
 
 let impl_provider role = role.scope
-
-let do_solve root_req ~closest_match =
-  let dummy_impl = if closest_match then Some Model.dummy_impl else None in
-  Core.do_solve ?dummy_impl root_req |> pipe_some (fun selections ->
-    (* Build the results object *)
-    Some { Model.
-      root_req;
-      selections;
-    }
-  )
 
 let get_root_requirements config requirements make_impl_provider =
   let { Requirements.command; interface_uri; source; may_compile; extra_restrictions; os; cpu; message = _ } = requirements in
@@ -301,7 +260,7 @@ let get_root_requirements config requirements make_impl_provider =
 
   let impl_provider = make_impl_provider scope_filter in
   let root_role = {scope = impl_provider; iface = interface_uri; source} in
-  {Model.command; role = root_role}
+  {Input.command; role = root_role}
 
 let solve_for config feed_provider requirements =
   try
@@ -321,22 +280,21 @@ let solve_for config feed_provider requirements =
  *)
 let selections result =
   Selections.create (
-    let open Model in
+    let open Input in
     let root_attrs =
-      begin match result.root_req.command with
+      let root_req = Output.requirements result in
+      begin match root_req.command with
       | Some command -> AttrMap.singleton "command" command
       | None -> AttrMap.empty end
-      |> AttrMap.add_no_ns "interface" result.root_req.role.iface
-      |> AttrMap.add_no_ns "source" (string_of_bool result.root_req.role.source) in
-    let child_nodes = result.selections
-      |> Core.RoleMap.bindings
-      |> List.map (fun (role, selection) ->
-        Model.to_selection role selection.Core.commands selection.Core.impl
-      ) in
+      |> AttrMap.add_no_ns "interface" root_req.role.iface
+      |> AttrMap.add_no_ns "source" (string_of_bool root_req.role.source) in
+    let child_nodes = Output.to_map result
+      |> Output.RoleMap.bindings
+      |> List.map (fun (role, selection) -> to_xml role selection) in
     ZI.make ~attrs:root_attrs ~child_nodes "selections"
   )
 
-module Diagnostics = Zeroinstall_solver.Diagnostics(Model)
+module Diagnostics = Zeroinstall_solver.Diagnostics(Output)
 
 (** Return a message explaining why the solve failed. *)
 let get_failure_reason config result =

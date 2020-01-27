@@ -14,7 +14,7 @@ module Requirements = Zeroinstall.Requirements
 module U = Support.Utils
 module Progress = Zeroinstall.Progress
 module Downloader = Zeroinstall.Downloader
-module RoleMap = Zeroinstall.Solver.Model.RoleMap
+module RoleMap = Zeroinstall.Solver.Output.RoleMap
 
 let main_window_help = Help_box.create "0install Help" [
 ("Overview",
@@ -360,7 +360,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
       widgets.ok_button#misc#set_sensitive ready;
 
       let new_roles =
-        Zeroinstall.Solver.Model.raw_selections results
+        Zeroinstall.Solver.Output.to_map results
         |> RoleMap.mapi (fun new_role _impl -> new_role) in
 
       !component_boxes |> RoleMap.iter (fun old_role box ->

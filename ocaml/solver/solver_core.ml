@@ -455,7 +455,55 @@ module Make (Model : S.SOLVER_INPUT) = struct
     Machine_group.seal machine_groups;
     impl_clauses, command_clauses
 
-  let do_solve ?dummy_impl root_req =
+  module Output = struct
+    module Input = Model
+    module Role = Input.Role
+    module RoleMap = RoleMap
+
+    type impl = selection
+    type command = Model.command
+    type command_name = Model.command_name
+    type dependency = Model.dependency
+
+    type dep_info = Model.dep_info = {
+      dep_role : Role.t;
+      dep_importance : [ `Essential | `Recommended | `Restricts ];
+      dep_required_commands : command_name list;
+    }
+
+    type requirements = Model.requirements = {
+      role : Role.t;
+      command : command_name option;
+    }
+
+    let dep_info = Model.dep_info
+    let requires role impl = Model.requires role impl.impl
+    let command_requires role cmd = Model.command_requires role cmd
+    let get_command impl name = Model.get_command impl.impl name
+
+    type t = {
+      root_req : requirements;
+      selections : selection RoleMap.t;
+    }
+
+    let to_map t = t.selections
+    let requirements t = t.root_req
+
+    let explain t role =
+      match RoleMap.find_opt role t.selections with
+      | Some sel -> explain sel.diagnostics
+      | None -> "Role not used!"
+
+    let get_selected role t =
+      match RoleMap.find_opt role t.selections with
+      | Some selection when selection.impl == Model.dummy_impl -> None
+      | x -> x
+
+    let selected_commands sel = sel.commands
+    let unwrap sel = sel.impl
+  end
+
+  let do_solve ~closest_match root_req =
     (* The basic plan is this:
        1. Scan the root interface and all dependencies recursively, building up a SAT problem.
        2. Solve the SAT problem. Whenever there are multiple options, try the most preferred one first.
@@ -470,7 +518,7 @@ module Make (Model : S.SOLVER_INPUT) = struct
      *)
 
     let sat = S.create () in
-
+    let dummy_impl = if closest_match then Some Model.dummy_impl else None in
     let impl_clauses, command_clauses = build_problem root_req sat ~dummy_impl in
 
     let lookup = function
@@ -538,13 +586,13 @@ module Make (Model : S.SOLVER_INPUT) = struct
             )
         );
 
-        Some (
+        let selections =
           impl_clauses
           |> ImplCache.filter_map (fun role candidates ->
               candidates#get_selected |> Option.map (fun (lit, impl) ->
                 let commands = Hashtbl.find_all commands_needed role in
                 {impl; commands; diagnostics = lit}
               )
-          )
-        )
+          ) in
+        Some { Output.root_req; selections }
 end

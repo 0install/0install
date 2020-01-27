@@ -97,7 +97,7 @@ let do_exec_binding dry_run builder env impls (role, {Binding.exec_type; Binding
 
 (* Make a map from InterfaceURIs to the selected <selection> and (for non-native packages) paths *)
 let make_selection_map system stores sels =
-  Selections.as_map sels |> Selections.RoleMap.mapi (fun role sel ->
+  Selections.to_map sels |> Selections.RoleMap.mapi (fun role sel ->
     let path =
       try Selections.get_path system stores sel
       with Stores.Not_stored msg ->

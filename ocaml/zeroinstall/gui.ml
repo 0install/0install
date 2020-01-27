@@ -108,7 +108,7 @@ let have_source_for feed_provider iface =
 let list_impls results role =
   let {Solver.iface; source; scope = _} = role in
   let impl_provider = Solver.impl_provider role in
-  let selected_impl = Solver.Model.get_selected role results in
+  let selected_impl = Solver.Output.get_selected role results |> map_some Solver.Output.unwrap in
   let candidates = impl_provider#get_implementations iface ~source in
 
   let by_version (a,_) (b,_) = compare b.Impl.parsed_version a.Impl.parsed_version in
@@ -251,7 +251,7 @@ let compile config feed_provider iface ~autocompile =
 let get_bug_report_details config ~role (ready, results) =
   let system = config.system in
   let sels = Solver.selections results in
-  let root_role = Solver.Model.((requirements results).role) in
+  let root_role = Solver.Output.((requirements results).role) in
   let issue_file = "/etc/issue" in
   let issue =
     if system#file_exists issue_file then
@@ -264,9 +264,9 @@ let get_bug_report_details config ~role (ready, results) =
     let do_add msg = Buffer.add_string b msg in
     Format.kasprintf do_add fmt in
 
-  add "Problem with %a\n" Solver.Model.Role.pp role;
+  add "Problem with %a\n" Solver.Output.Role.pp role;
   if role <> root_role then
-    add "  (while attempting to run %a)\n" Solver.Model.Role.pp root_role;
+    add "  (while attempting to run %a)\n" Solver.Output.Role.pp root_role;
   add "\n";
 
   add "0install version %s\n" About.version;
