@@ -79,12 +79,15 @@ let ensure_valid ?regenerate config data =
       data.warned_missing <- true
   | Some info ->
       let flush () =
-        data.cache_path |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
-          let mtime = Int64.of_float info.Unix.st_mtime in
-          Printf.fprintf ch "mtime=%Ld\nsize=%d\n\n" mtime info.Unix.st_size;
-          regenerate |> if_some (fun f -> f (add_entry ch))
-        );
-        load_cache config data in
+        if config.dry_run then Dry_run.log "would regenerate %s" data.cache_path
+        else (
+          data.cache_path |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->
+              let mtime = Int64.of_float info.Unix.st_mtime in
+              Printf.fprintf ch "mtime=%Ld\nsize=%d\n\n" mtime info.Unix.st_size;
+              regenerate |> if_some (fun f -> f (add_entry ch))
+            );
+          load_cache config data
+        ) in
       let actual_mtime = Int64.of_float info.Unix.st_mtime in
       if data.mtime <> actual_mtime then (
         if data.mtime <> -1L then
@@ -118,13 +121,17 @@ let create_lazy config ~cache_leaf ~source ~if_missing =
   let put key values =
     try
       Hashtbl.replace data.content key values;
-      data.cache_path |> config.system#with_open_out [Open_append; Open_creat] ~mode:0o644 (fun ch ->
-        if values = [] then (
-          validate_key key;
-          Printf.fprintf ch "%s\t-\n" key (* Cache negative results too *)
-        ) else (
-          values |> List.iter (add_entry ch key)
-        )
+      if config.dry_run then
+        Dry_run.log "would update %s (%s)" data.cache_path key
+      else (
+        data.cache_path |> config.system#with_open_out [Open_append; Open_creat] ~mode:0o644 (fun ch ->
+            if values = [] then (
+              validate_key key;
+              Printf.fprintf ch "%s\t-\n" key (* Cache negative results too *)
+            ) else (
+              values |> List.iter (add_entry ch key)
+            )
+          )
       )
     with Safe_exn.T _ as ex -> Safe_exn.reraise_with ex "... writing cache %s" data.cache_path in
   fun key ->
