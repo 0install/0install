@@ -1,3 +1,3 @@
-(lang dune 2.1)
+(lang dune 2.5)
 (name 0install)
 (formatting disabled)
