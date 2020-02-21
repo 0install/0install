@@ -38,7 +38,7 @@ MANPAGES = 0launch.1 0store-secure-add.1 0store.1 0desktop.1 0install.1
 
 OS = $(shell uname -s)
 MACHINE = $(shell uname -m)
-VERSION = $(shell sed -n 's/let version = "\(.*\)"/\1/p' ${SRCDIR}/ocaml/zeroinstall/about.ml)
+VERSION = $(shell sed -n 's/let version = "\(.*\)"/\1/p' ${SRCDIR}/src/zeroinstall/about.ml)
 
 all:
 	dune build --root=. --profile=${PROFILE} @install
@@ -55,7 +55,7 @@ all:
 	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0store-secure-add"
 	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0desktop"
 	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0alias"
-	(cd "${SRCDIR}/ocaml" && cp ${MANPAGES} "${DISTDIR}/files")
+	(cd "${SRCDIR}/src" && cp ${MANPAGES} "${DISTDIR}/files")
 	install "${SRCDIR}/install.sh.src" "${DISTDIR}/install.sh"
 	(cd "${SRCDIR}" && cp -r share/0install.net share/applications share/metainfo share/bash-completion share/fish share/icons share/zsh "${DISTDIR}/files/share/")
 	install -d "${DISTDIR}/0install"
