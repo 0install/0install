@@ -131,6 +131,7 @@ let suite = "archive">::: [
 
   "rpm">:: Fake_system.with_fake_config (fun (config, _fake_system) ->
     skip_if (U.find_in_path config.system "rpm2cpio" = None) "Not running; no rpm2cpio";
+    skip_if (U.find_in_path config.system "cpio" = None) "Not running; no cpio";
     test_archive config "sha1=7be9228c8fe2a1434d4d448c4cf130e3c8a4f53d" "dummy-1-1.noarch.rpm"
   );
 
