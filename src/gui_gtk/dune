@@ -43,6 +43,7 @@ let dune = {|
 
   (install
     (section lib)
+    (package 0install-gtk)
 |} ^ Printf.sprintf "(files gui_gtk.%s))" plugin_ext
 
 let () =

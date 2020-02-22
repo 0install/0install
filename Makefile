@@ -47,8 +47,8 @@ all:
 	install -d "${DISTDIR}/files/gui_gtk"
 	install -d "${DISTDIR}/files/share"
 	(cd "${SRCDIR}" && cp ${DOCS} "${DISTDIR}/")
-	-install _build/install/default/lib/0install/gui_gtk.cma "${DISTDIR}/files/gui_gtk/"
-	-install _build/install/default/lib/0install/gui_gtk.cmxs "${DISTDIR}/files/gui_gtk/"
+	-install _build/install/default/lib/0install-gtk/gui_gtk.cma "${DISTDIR}/files/gui_gtk/"
+	-install _build/install/default/lib/0install-gtk/gui_gtk.cmxs "${DISTDIR}/files/gui_gtk/"
 	install _build/install/default/bin/0install "${DISTDIR}/files/0install"
 	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0launch"
 	ln -f "${DISTDIR}/files/0install" "${DISTDIR}/files/0store"

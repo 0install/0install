@@ -10,7 +10,7 @@
 
 (test
   (name test)
-  (package 0install)
-  (deps (source_tree data)
-   0install%{ext_exe} 0install-runenv%{ext_exe})
-  (libraries oUnit zeroinstall zeroinstall_cli zeroinstall_solver support lwt lwt.unix lwt_react xmlm yojson))
+  (package 0install-gtk)
+  (deps (alias ../../install)     ; Build the GTK plugin if possible
+        0install%{ext_exe} 0install-runenv%{ext_exe})
+  (libraries oUnit zeroinstall support str))

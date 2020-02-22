@@ -263,7 +263,6 @@ let suite =
   Test_archive.suite;
   Test_manifest.suite;
   Test_packagekit.suite;
-  Test_gui.suite;
   Test_qdom.suite;
   Test_run.suite;
   Test_bug_reporter.suite;

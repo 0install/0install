@@ -9,28 +9,31 @@
  (libraries   zeroinstall_cli zeroinstall support))
 
 (executable
- (public_name 0install-runenv.exe)
+ (public_name 0install-runenv)
+ (package     0install)
  (name        runenv)
  (modules     runenv)
  (link_flags  (:include support/extra_objects.sexp))
  (libraries   zeroinstall_cli zeroinstall support))
 
 (install
-  (section bin)
-  (files
-     (static_0install.exe as 0launch)
-     (static_0install.exe as 0store)
-     (static_0install.exe as 0store-secure-add)
-     (static_0install.exe as 0desktop)
-     (static_0install.exe as 0alias)
-  ))
+ (package 0install)
+ (section bin)
+ (files
+  (static_0install.exe as 0launch)
+  (static_0install.exe as 0store)
+  (static_0install.exe as 0store-secure-add)
+  (static_0install.exe as 0desktop)
+  (static_0install.exe as 0alias)
+ ))
 
 (install
-  (section man)
-  (files 
-     (0launch.1           as man1/0launch.1)
-     (0store-secure-add.1 as man1/0store-secure-add.1)
-     (0store.1            as man1/0store.1)
-     (0desktop.1          as man1/0desktop.1)
-     (0install.1          as man1/0install.1)
-  ))
+ (package 0install)
+ (section man)
+ (files 
+  (0launch.1           as man1/0launch.1)
+  (0store-secure-add.1 as man1/0store-secure-add.1)
+  (0store.1            as man1/0store.1)
+  (0desktop.1          as man1/0desktop.1)
+  (0install.1          as man1/0install.1)
+ ))
