@@ -211,10 +211,15 @@ class ConsoleHandler(Handler):
 				except Exception as ex:
 					logger.info("Failed to initialise curses library: %s", ex)
 					self.screen_width = 80
-			self.show_progress()
 			self.original_print = print
 			builtins.print = self.print
-			self.update = tasks.get_loop().call_repeatedly(0.2, self.show_progress)
+			def cb():
+				self.show_progress()
+				if len(self.monitored_downloads) > 0:
+					self.update = tasks.get_loop().call_later(0.2, cb)
+				else:
+					self.update = None
+			cb()
 		elif len(self.monitored_downloads) == 0:
 			if self.update:
 				self.update.cancel()
