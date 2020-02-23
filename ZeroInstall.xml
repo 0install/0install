@@ -52,6 +52,6 @@ interfere with those provided by the distribution.
       <version not-before="2.0.2"/>
     </requires>
 
-    <implementation id="." released="2020-02-23" version="2.3.11"/>
+    <implementation id="." version="2.3.11-post"/>
   </group>
 </interface>
