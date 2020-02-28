@@ -15,11 +15,11 @@ depends: [
   "ounit" {with-test}
   "lwt"
   "lwt_react"
+  "obus" {os != "macos" & os-family != "windows"}
   "ocurl" {>= "0.7.9"}
   "sha" {>= "1.9"}
   "dune" {>= "1.11"}
 ]
-depopts: ["obus"]
 depexts: [
   ["gnupg" "unzip"] {os-family = "debian"}
   ["gnupg" "unzip"] {os-distribution = "alpine"}
