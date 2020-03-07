@@ -599,7 +599,9 @@ module Make(User : USER) =
       (*	return True	# Trivially true *)
 
       (* Ensure no duplicates *)
-      assert (List.length (remove_duplicates lits) = List.length lits);
+      if List.length (remove_duplicates lits) <> List.length lits then (
+        invalid_arg (Format.asprintf "at_most_one(%a): duplicates in list!" pp_lits lits)
+      );
 
       (* Ignore any literals already known to be False.
          If any are True then they're enqueued and we'll process them
