@@ -11,9 +11,10 @@
 
 (library
  (name        support)
- (c_names     utils)
  (libraries   lwt lwt.unix sha str xmlm yojson
-  (select windows_api.ml from
+ (select windows_api.ml from
    (zeroinstall_windows -> windows_api.enabled.ml)
-   (                    -> windows_api.disabled.ml))
- ))
+   (                    -> windows_api.disabled.ml)))
+ (foreign_stubs
+   (language c)
+   (names utils)))

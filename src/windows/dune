@@ -16,8 +16,10 @@ let dune = Printf.sprintf {|
  (name        zeroinstall_windows)
  (enabled_if  (or (= %%{os_type} "Win32")
                   (= %%{os_type} "Cygwin")))
- (c_flags     -lwindows -lshell32)
- (c_names     windows))
+ (foreign_stubs
+   (language c)
+   (flags     -lwindows -lshell32)
+   (names     windows)))
 
 (rule
  (targets 0install.exe.o)
