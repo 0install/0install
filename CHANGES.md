@@ -1,3 +1,45 @@
+## v2.15.2
+
+### Bug fixes
+
+- Don't try to update distribution caches in `--dry-run` mode.
+  If we needed to update a cache, the operation would fail with e.g.
+  `Bug: 'with_open_out' called in --dry-run mode`.
+
+### Opam package
+
+- Mark obus as required (except on Windows and macOS).
+  This is more explicit than just asking users to install it where it makes sense, and also means that the CI will test it.
+
+- Split GTK UI into a separate opam package.
+  This makes it easy to install it (using `opam install 0install-gtk`), and means that the CI will test it.
+
+- Update opam metadata to match opam-repository.
+
+### Code cleanups
+
+- Rename "ocaml" directory to "src". There are no other languages here now.
+
+- Make the solver return a `SOLVER_RESULT`.
+  The old API was a bit confusing. The user of the solver had to wrap the solver's return to provide a `SOLVER_RESULT` for the diagnostics.
+  Now, the user-required bits are in `SOLVER_INPUT` and the solver itself provides the rest.
+
+- Split the solver into its own library. Since the refactoring in 2014
+  (see [Simplifying the Solver With Functors](https://roscidus.com/blog/blog/2014/09/17/simplifying-the-solver-with-functors/)),
+  the solver isn't really tied to 0install at all, and could be useful for other package managers.
+
+- Generalise the solver's machine groups system.
+  This removes the one remaining dependency from the solver to the rest of 0install.
+
+- Rename option functions in solver to match OCaml 4.08.
+
+- Split `Feed_metadata` and `Feed_import` out into their own modules.
+
+- Rename `Feed.feed` to `Feed.t` and make the type abstract.
+
+- Skip rpm2cpio unit test if cpio isn't available. It seems that recent Fedora images provide rpm2cpio, but not cpio.
+
+
 ## v2.15.1
 
 ### Changes
