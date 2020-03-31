@@ -19,6 +19,8 @@ let create title sections =
         () in
       dialog <- Some box;
 
+      box#action_area#set_border_width 4;
+
       let swin = GBin.scrolled_window
         ~hpolicy:`AUTOMATIC
         ~vpolicy:`ALWAYS

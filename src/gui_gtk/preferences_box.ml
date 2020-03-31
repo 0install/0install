@@ -176,6 +176,7 @@ let make config trust_db ~recalculate =
     recalculate () in
 
   let dialog = GWindow.dialog ~title:"0install Preferences" () in
+  dialog#action_area#set_border_width 4;
   let vbox = GPack.vbox ~border_width:12 ~packing:(dialog#vbox#pack ~expand:true) () in
 
   let policy_settings = frame ~packing:(vbox#pack ~expand:false) ~title:"Policy settings" in

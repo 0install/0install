@@ -48,6 +48,8 @@ let create config ?run_test ?last_error ~role ~results =
     ~position:`CENTER
     () in
 
+  box#action_area#set_border_width 4;
+
   let vbox = GPack.vbox ~packing:(box#vbox#pack ~expand:true) ~border_width:10 ~spacing:4 () in
   let packing = vbox#pack ~expand:true in
 

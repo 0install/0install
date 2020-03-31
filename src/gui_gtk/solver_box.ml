@@ -76,8 +76,9 @@ type widgets = {
 
   swin : GBin.scrolled_window;
 
-  progress_area : GPack.box;
   progress_bar : GRange.progress_bar;
+  progress_area : GPack.box;
+  progress_info : GMisc.label;
   stop_button : GButton.button;
 
   ok_button : GButton.toggle_button;
@@ -105,19 +106,22 @@ let make_dialog opt_message mode ~systray =
     ~shadow_type:`IN
     () in
 
+  let progress_bar = GRange.progress_bar ~packing:(vbox#pack ~expand:false ~padding:0) () in
+
   (* The Refresh / Stop bar *)
   let refresh_bar = GPack.hbox ~packing:vbox#pack ~spacing:4 () in
   let refresh_button = Gtk_utils.mixed_button ~packing:refresh_bar#pack ~use_mnemonic:true ~stock:`REFRESH ~label:"Re_fresh all now" () in
   refresh_button#misc#set_tooltip_text "Check all the components for updates.";
 
   let progress_area = GPack.hbox ~packing:(refresh_bar#pack ~expand:true) ~show:false () in
-  let progress_bar = GRange.progress_bar ~packing:(progress_area#pack ~expand:true ~padding:4) () in
+  let progress_info = GMisc.label ~packing:(progress_area#pack ~expand:true) () in
   let stop_button = GButton.button ~packing:progress_area#pack ~stock:`STOP () in
 
   (* Dialog buttons *)
   dialog#add_button_stock `HELP `HELP;
   dialog#add_button_stock `PREFERENCES `PREFERENCES;
   let actions = dialog#action_area in
+  actions#set_border_width 4;
   actions#children |> List.iter (fun button -> actions#set_child_secondary button true);
 
   dialog#add_button_stock `CANCEL `CANCEL;
@@ -138,7 +142,7 @@ let make_dialog opt_message mode ~systray =
 
   let systray_icon = new Tray_icon.tray_icon systray in
 
-  {dialog; refresh_button; progress_area; stop_button; ok_button; swin; progress_bar; systray_icon}
+  {dialog; refresh_button; progress_area; progress_info; stop_button; ok_button; swin; progress_bar; systray_icon}
 
 let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false) mode reqs ~refresh watcher : solver_box =
   let config = tools#config in
@@ -342,11 +346,13 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
 
         let progress_text = Printf.sprintf "%s / %s" (U.format_size !total_so_far) (U.format_size !total_expected) in
         if !n_downloads = 1 then
-          widgets.progress_bar#set_text (Printf.sprintf "Downloading one file (%s)" progress_text)
+          widgets.progress_info#set_text (Printf.sprintf "Downloading one file (%s)" progress_text)
         else
-          widgets.progress_bar#set_text (Printf.sprintf "Downloading %d files (%s)" !n_downloads progress_text);
+          widgets.progress_info#set_text (Printf.sprintf "Downloading %d files (%s)" !n_downloads progress_text);
 
-        if !total_expected = 0L || (!n_downloads < 2 && not !any_known) then (
+        if downloads = [] then (
+          widgets.progress_bar#set_fraction 0.0;
+        ) else if !total_expected = 0L || (!n_downloads < 2 && not !any_known) then (
           widgets.progress_bar#pulse ()
         ) else (
           widgets.progress_bar#set_fraction (Int64.to_float !total_so_far /. Int64.to_float !total_expected)
