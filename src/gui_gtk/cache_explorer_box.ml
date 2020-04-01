@@ -95,6 +95,7 @@ let show_verification_box config ~parent paths =
     ~title:"Verify"
     ~message:"Verifying..."
     () in
+  box#set_use_markup true;
   box#show ();
 
   let swin = GBin.scrolled_window
@@ -105,7 +106,7 @@ let show_verification_box config ~parent paths =
     () in
 
   let report_text = GText.view ~packing:swin#add () in
-  report_text#misc#modify_font (GPango.font_description "mono");
+  report_text#misc#modify_font (GPango.font_description_from_string "mono");
   let n_good = ref 0 in
   let n_bad = ref 0 in
 
@@ -131,7 +132,7 @@ let show_verification_box config ~parent paths =
           Lwt.catch
             (fun () ->
                incr n;
-               box#set_markup (Printf.sprintf "Checking item %d of %d" !n n_items);
+               box#set_text (Printf.sprintf "Checking item %d of %d" !n n_items);
                let digest = Manifest.parse_digest (Filename.basename x) in
                Lwt_preemptive.detach (Manifest.verify config.system ~digest) x >|= fun () ->
                incr n_good
@@ -150,13 +151,13 @@ let show_verification_box config ~parent paths =
       | `Done ->
         Gdk.Window.set_cursor box#misc#window (Lazy.force Gtk_utils.default_cursor);
         if !n_bad = 1 && !n_good = 0 then
-          box#set_markup "<b>Verification failed!</b>"
+          box#set_text "<b>Verification failed!</b>"
         else if !n_bad > 0 then
-          box#set_markup (Printf.sprintf "<b>Verification failed</b>\nFound bad items (%d / %d)" !n_bad (!n_bad + !n_good))
+          box#set_text (Printf.sprintf "<b>Verification failed</b>\nFound bad items (%d / %d)" !n_bad (!n_bad + !n_good))
         else if !n_good = 1 then
-          box#set_markup "Verification successful!"
+          box#set_text "Verification successful!"
         else
-          box#set_markup (Printf.sprintf "Verification successful (%d items)" !n_good);
+          box#set_text (Printf.sprintf "Verification successful (%d items)" !n_good);
         Lwt.return ()
       | `Cancelled ->
         Lwt.return ()

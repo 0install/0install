@@ -28,9 +28,7 @@ class tray_icon systray =
      * If there is no icon, do nothing. *)
     method set_blinking message =
       icon |> if_some (fun icon ->
-        message |> if_some icon#set_tooltip;
-        icon#set_blinking true;
-
+        message |> if_some icon#set_tooltip_text;
         (* If the icon isn't embedded yet, give it a chance first... *)
         Gtk_utils.async (fun () ->
           begin if not icon#is_embedded then Lwt_unix.sleep 0.5 else Lwt.return () end >|= fun () ->
@@ -41,7 +39,7 @@ class tray_icon systray =
         )
       )
 
-    method set_tooltip msg = icon |> if_some (fun icon -> icon#set_tooltip msg)
+    method set_tooltip msg = icon |> if_some (fun icon -> icon#set_tooltip_text msg)
 
     initializer
       if systray then (

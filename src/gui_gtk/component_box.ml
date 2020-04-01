@@ -157,6 +157,7 @@ let add_remote_feed ~parent ~watcher ~recalculate tools iface () =
     ~title:"Add Remote Feed"
     ~message:"Enter the URL of the new source of implementations of this interface:"
     () in
+  box#action_area#set_border_width 4;
 
   let vbox = GPack.vbox ~packing:(box#vbox#pack ~expand:true ~fill:true) ~border_width:4 () in
   let entry = GEdit.entry ~packing:vbox#pack ~activates_default:true () in
@@ -262,7 +263,7 @@ let make_feeds_tab tools ~trust_db ~recalculate ~watcher window iface =
   selection#set_mode `BROWSE;
 
   (* Feed buttons *)
-  let button_box = GPack.button_box `VERTICAL ~packing:hbox#pack ~border_width:4 ~layout:`START () in
+  let button_box = GPack.button_box `VERTICAL ~packing:hbox#pack ~border_width:4 ~layout:`START ~spacing:4 () in
   let add_remote = GButton.button ~packing:button_box#pack ~label:"Add remote feed" () in
   let add_local = GButton.button ~packing:button_box#pack ~label:"Add local feed" () in
   let remove_feed = GButton.button ~packing:button_box#pack ~label:"Remove feed" () in
@@ -403,6 +404,7 @@ let show_explanation_box ~parent iface version reason =
       ~title
       () in
     box#add_button_stock `CLOSE `CLOSE;
+    box#action_area#set_border_width 4;
 
     let swin = GBin.scrolled_window
       ~packing:(box#vbox#pack ~expand:true)
@@ -428,6 +430,7 @@ let show_explanation_box ~parent iface version reason =
       ~buttons:GWindow.Buttons.close
       ~message_type:`INFO
       () in
+    box#action_area#set_border_width 4;
     box#connect#response ==> (function
       | `DELETE_EVENT | `CLOSE -> box#destroy ()
     );
@@ -629,6 +632,7 @@ let create tools ~trust_db reqs role ~recalculate ~select_versions_tab ~watcher 
   dialog#add_button_stock `HELP `HELP;
   (* Lablgtk uses the wrong response code for HELP, so we have to do this manually. *)
   let actions = dialog#action_area in
+  actions#set_border_width 4;
   actions#set_child_secondary (List.hd actions#children) true;
 
   dialog#add_button "Compile" `COMPILE;

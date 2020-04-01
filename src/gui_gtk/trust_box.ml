@@ -123,6 +123,8 @@ let confirm_unknown_keys ~parent to_trust valid_sigs =
       ~buttons:GWindow.Buttons.ok_cancel
       ~position:`CENTER
       () in
+    box#action_area#set_spacing 4;
+    box#action_area#set_border_width 4;
     box#connect#response ==> (function
       | `OK -> Lwt.wakeup set_result true; box#destroy ()
       | `DELETE_EVENT | `CANCEL -> Lwt.wakeup set_result false; box#destroy ()
@@ -154,9 +156,9 @@ let confirm_keys gpg trust_db ?parent feed_url valid_sigs =
   let dialog = GWindow.dialog
     ?parent
     ~title:"Confirm trust"
-    ~no_separator:true
     ~position:`CENTER
     () in
+  dialog#action_area#set_border_width 4;
 
   let vbox = GPack.vbox
     ~homogeneous:false
