@@ -1,3 +1,12 @@
+## v2.16
+
+- Update to GTK 3, because Debian is removing GTK 2 support now.
+  Note that the systray icon no longer blinks to indicate that action is
+  required, as GTK removed this feature. This also updates the static Docker
+  images to use Ubuntu 16.04, since 14.04's version of GTK 3 is too old.
+
+- Upgrade to dune 2.1.
+
 ## v2.15.2
 
 ### Bug fixes
