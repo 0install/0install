@@ -1,5 +1,5 @@
 # Build on a really old system to avoid glibc symbol version problems.
-FROM ocurrent/opam:ubuntu-16.04-ocaml-4.08
+FROM ocurrent/opam:debian-9-ocaml-4.08
 RUN sudo apt-get update && sudo apt-get -y install ca-certificates build-essential libglib2.0-dev libgtk-3-dev m4 pkg-config libexpat1-dev unzip gnupg wget --no-install-recommends
 WORKDIR /src
 RUN sudo chown opam /src
