@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  run:
+    name: Build
+    runs-on: ${{ matrix.operating-system }}
+    strategy:
+      matrix:
+        operating-system: [macos-latest]
+        ocaml-version: [ '4.09.0' ]
+    steps:
+    - uses: actions/checkout@master
+    - uses: avsm/setup-ocaml@master
+      with:
+        ocaml-version: ${{ matrix.ocaml-version }}
+    - run: opam pin add 0install.dev -n .
+    - run: opam pin add 0install-gtk.dev -n .
+    - run: opam depext -yt 0install-gtk
+    - run: opam install -t . --deps-only
+    - run: opam exec -- make
+    - uses: actions/upload-artifact@master
+      with:
+        name: 0install-${{ matrix.operating-system }}.zip
+        path: dist
