@@ -7,14 +7,12 @@ env:
   global:
     - POST_INSTALL_HOOK="bash .travis-test-compile.sh"
     - PINS="0install.dev:. 0install-gtk.dev:."
-    - PACKAGE="0install"
 jobs:
   include:
-    - env: OCAML_VERSION=4.05
+    - env: OCAML_VERSION=4.08 PACKAGE="0install"
       os: linux
-    - env: OCAML_VERSION=4.08
-      os: linux
-    - env: OCAML_VERSION=4.09
+
+    - env: OCAML_VERSION=4.08 PACKAGE="0install-gtk"
       os: linux
 
     - env: STATIC_DIST=true
@@ -22,7 +20,7 @@ jobs:
       services:
         - docker
 
-    - env: OCAML_VERSION=4.08
+    - env: OCAML_VERSION=4.09 PACKAGE="0install-gtk"
       os: osx
 addons:
   apt:
