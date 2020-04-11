@@ -6,7 +6,6 @@
 from zeroinstall import _, logger
 import os, subprocess
 import shutil
-import glob
 import traceback
 from tempfile import mkdtemp, mkstemp
 import re
@@ -379,8 +378,8 @@ def extract_dmg(stream, destdir, extract, start_offset = 0):
 	dmg_copy.close()
 
 	mountpoint = mkdtemp(prefix='archive')
-	subprocess.check_call(["hdiutil", "attach", "-quiet", "-mountpoint", mountpoint, "-nobrowse", dmg_copy_name])
-	subprocess.check_call(["cp", "-pR"] + glob.glob("%s/*" % mountpoint) + [destdir])
+	subprocess.check_call(["hdiutil", "attach", "-quiet", "-readonly", "-mountpoint", mountpoint, "-nobrowse", dmg_copy_name])
+	subprocess.check_call(["cp", "-pR"] + [os.path.join(mountpoint, item) for item in os.listdir(mountpoint) if item != '.Trashes'] + [destdir])
 	subprocess.check_call(["hdiutil", "detach", "-quiet", mountpoint])
 	os.rmdir(mountpoint)
 	os.unlink(dmg_copy_name)
