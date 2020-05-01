@@ -54,6 +54,76 @@ module Make (Results : S.SOLVER_RESULT) = struct
     | `MissingCommand command -> spf "No %s command" (command : Model.command_name :> string)
     | `DiagnosticsFailure msg -> spf "Reason for rejection unknown: %s" msg
 
+  (** Represents a single interface in the example (failed) selections produced by the solver.
+      It partitions the implementations into good and bad based (initially) on the split from the
+      impl_provider. As we explore the example selections, we further filter the candidates. *)
+  module Component = struct
+    type t = {
+      replacement : Model.Role.t option;
+      diagnostics : string Lazy.t;
+      selected_impl : Model.impl option;
+      selected_commands : Model.command_name list;
+      (* orig_good is all the implementations passed to the SAT solver (these are the
+         ones with a compatible OS, CPU, etc). They are sorted most desirable first. *)
+      orig_good : Model.impl list;
+      orig_bad : (Model.impl * Model.rejection) list;
+      mutable good : Model.impl list;
+      mutable bad : (Model.impl * rejection_reason) list;
+      mutable notes : note list;
+    }
+
+    (* Initialise a new component.
+       @param candidates is the result from the impl_provider.
+       @param impl is the selected implementation, or [None] if we chose [dummy_impl].
+       @param diagnostics can be used to produce diagnostics as a last resort. *)
+    let create
+        (candidates, orig_bad, feed_problems)
+        (diagnostics:string Lazy.t)
+        (selected_impl:Model.impl option)
+        (selected_commands:Model.command_name list) =
+      let {Model.impls; Model.replacement} = candidates in
+      let notes = List.map (fun x -> Feed_problem x) feed_problems in
+      {
+        replacement;
+        orig_good = impls;
+        orig_bad;
+        good = impls;
+        bad = List.map (fun (impl, reason) -> (impl, `Model_rejection reason)) orig_bad;
+        notes; diagnostics; selected_impl; selected_commands
+      }
+
+    let note t note = t.notes <- note :: t.notes
+    let notes t = List.rev t.notes
+
+    (* Call [get_problem impl] on each good impl. If a problem is returned, move [impl] to [bad_impls]. *)
+    let filter_impls t get_problem =
+      let old_good = List.rev t.good in
+      t.good <- [];
+      old_good |> List.iter (fun impl ->
+          match get_problem impl with
+          | None -> t.good <- impl :: t.good
+          | Some problem -> t.bad <- (impl, problem) :: t.bad
+        )
+
+    (* Remove from [good_impls] anything that fails to meet these restrictions.
+       Add removed items to [bad_impls], along with the cause. *)
+    let apply_restrictions t restrictions =
+      restrictions |> List.iter (fun r ->
+          filter_impls t (fun impl ->
+              if Model.meets_restriction impl r then None
+              else Some (`FailsRestriction r)
+            )
+        )
+
+    let reject_all t reason =
+      t.bad <- List.map (fun impl -> (impl, reason)) t.good @ t.bad;
+      t.good <- []
+
+    let replacement t = t.replacement
+    let selected_impl t = t.selected_impl
+    let selected_commands t = t.selected_commands
+  end
+
   (* Add a textual description of this component's report to [buf]. *)
   let format_report ~verbose f role component =
     let prefix = ref "- " in
@@ -62,7 +132,7 @@ module Make (Results : S.SOLVER_RESULT) = struct
 
     let name_impl impl = Model.id_of_impl impl in
 
-    let () = match component#impl with
+    let () = match Component.selected_impl component with
       | Some sel -> add "%a -> %a (%s)" format_role role format_version sel (name_impl sel)
       | None -> add "%a -> (problem)" format_role role in
 
@@ -83,7 +153,7 @@ module Make (Results : S.SOLVER_RESULT) = struct
         with Exit -> () in
       prefix := "\n    " in
 
-    ListLabels.iter component#notes ~f:(function
+    ListLabels.iter (Component.notes component) ~f:(function
       | UserRequested r -> add "User requested %s" (format_restrictions [r])
       | ReplacesConflict old -> add "Replaces (and therefore conflicts with) %a" format_role old
       | ReplacedByConflict replacement -> add "Replaced by (and therefore conflicts with) %a" format_role replacement
@@ -93,8 +163,8 @@ module Make (Results : S.SOLVER_RESULT) = struct
           add "%a %a requires '%s' command" format_role other_role format_version impl (command :> string)
       | Feed_problem msg -> add "%s" msg
       | NoCandidates ->
-          if component#original_good = [] then (
-            if component#original_bad = [] then (
+          if component.Component.orig_good = [] then (
+            if component.Component.orig_bad = [] then (
               add "No known implementations at all"
             ) else (
               add "No usable implementations:"
@@ -102,68 +172,8 @@ module Make (Results : S.SOLVER_RESULT) = struct
           ) else (
             add "Rejected candidates:"
           );
-          show_rejections (component#bad)
+          show_rejections (component.Component.bad)
     )
-
-  (** Represents a single interface in the example (failed) selections produced by the solver.
-      It partitions the implementations into good and bad based (initially) on the split from the
-      impl_provider. As we explore the example selections, we further filter the candidates.
-      [candidates] is the result from the impl_provider.
-      [impl] is the selected implementation, or [None] if we chose [dummy_impl].
-      [diagnostics] can be used to produce diagnostics as a last resort. *)
-  class component
-      (candidates, orig_bad, feed_problems)
-      (diagnostics:string Lazy.t)
-      (selected_impl:Model.impl option)
-      (selected_commands:Model.command_name list) =
-    let {Model.impls = orig_good; Model.replacement} = candidates in
-    let orig_bad : (Model.impl * rejection_reason) list =
-      List.map (fun (impl, reason) -> (impl, `Model_rejection reason)) orig_bad in
-    (* orig_good is all the implementations passed to the SAT solver (these are the
-       ones with a compatible OS, CPU, etc). They are sorted most desirable first. *)
-    object (self)
-      val mutable notes = List.map (fun x -> Feed_problem x) feed_problems
-      val mutable good = orig_good
-      val mutable bad = orig_bad
-
-      method note (note:note) = notes <- note :: notes
-
-      (* Call [get_problem impl] on each good impl. If a problem is returned, move [impl] to [bad_impls]. *)
-      method filter_impls get_problem =
-        let old_good = List.rev good in
-        good <- [];
-        old_good |> List.iter (fun impl ->
-          match get_problem impl with
-          | None -> good <- impl :: good
-          | Some problem -> bad <- (impl, problem) :: bad
-        )
-
-      (* Remove from [good_impls] anything that fails to meet these restrictions.
-         Add removed items to [bad_impls], along with the cause. *)
-      method apply_restrictions restrictions =
-        ListLabels.iter restrictions ~f:(fun r ->
-          self#filter_impls (fun impl ->
-            if Model.meets_restriction impl r then None
-            else Some (`FailsRestriction r)
-          )
-        )
-
-      method reject_all reason =
-        bad <- List.map (fun impl -> (impl, reason)) good @ bad;
-        good <- []
-
-      method diagnostics = diagnostics
-      method replacement = replacement
-      method impl = selected_impl
-      method commands = selected_commands
-      method notes = List.rev notes
-
-      method good = good
-      method bad = bad
-
-      method original_good = orig_good
-      method original_bad = orig_bad
-    end
 
   let find_component_ex role report =
     match RoleMap.find_opt role report with
@@ -184,7 +194,7 @@ module Make (Results : S.SOLVER_RESULT) = struct
       match RoleMap.find_opt dep_info.Model.dep_role report with
       | None -> None      (* Not in the selections => can't be part of a conflict *)
       | Some required_component ->
-          match required_component#impl with
+          match Component.selected_impl required_component with
           | None -> None  (* Dummy selection can't cause a conflict *)
           | Some dep_impl ->
               let check_restriction r =
@@ -210,15 +220,15 @@ module Make (Results : S.SOLVER_RESULT) = struct
         let dep_restrictions = Model.restrictions dep in
         if dep_restrictions <> [] then (
           (* Report the restriction *)
-          required_component#note (Restricts (requiring_role, requiring_impl, dep_restrictions));
+          Component.note required_component (Restricts (requiring_role, requiring_impl, dep_restrictions));
 
           (* Remove implementations incompatible with the other selections *)
-          required_component#apply_restrictions dep_restrictions
+          Component.apply_restrictions required_component dep_restrictions
         );
 
         dep_required_commands |> List.iter (fun command ->
-          required_component#note (RequiresCommand (requiring_role, requiring_impl, command));
-          required_component#filter_impls (fun impl ->
+          Component.note required_component (RequiresCommand (requiring_role, requiring_impl, command));
+          Component.filter_impls required_component (fun impl ->
             if Model.get_command impl command <> None then None
             else Some (`MissingCommand command)
           )
@@ -228,25 +238,25 @@ module Make (Results : S.SOLVER_RESULT) = struct
   let examine_selection report role component =
     (* Note any conflicts caused by <replaced-by> elements *)
     let () =
-      match component#replacement with
+      match Component.replacement component with
       | Some replacement when RoleMap.mem replacement report -> (
-          component#note (ReplacedByConflict replacement);
-          component#reject_all (`ConflictsRole replacement);
+          Component.note component (ReplacedByConflict replacement);
+          Component.reject_all component (`ConflictsRole replacement);
           match RoleMap.find_opt replacement report with
           | Some replacement_component ->
-              replacement_component#note (ReplacesConflict role);
-              replacement_component#reject_all (`ConflictsRole role)
+              Component.note replacement_component (ReplacesConflict role);
+              Component.reject_all replacement_component (`ConflictsRole role)
           | None -> ()
       )
       | _ -> () in
 
-    match component#impl with
+    match Component.selected_impl component with
     | Some our_impl ->
         (* For each dependency of our selected impl, explain why it rejected impls in the dependency's interface. *)
         let deps, _commands_needed = Model.requires role our_impl in
         (* We can ignore [commands_needed] here because we obviously were selected. *)
         List.iter (examine_dep role our_impl report) deps;
-        component#commands |> List.iter (fun name ->
+        Component.selected_commands component |> List.iter (fun name ->
             match Model.get_command our_impl name with
             | None -> failwith "BUG: missing command!"    (* Can't happen - it's a "selected" command *)
             | Some command ->
@@ -255,20 +265,20 @@ module Make (Results : S.SOLVER_RESULT) = struct
           )
     | None ->
         (* For each of our remaining unrejected impls, check whether a dependency prevented its selection. *)
-        component#filter_impls (get_dependency_problem role report)
+        Component.filter_impls component (get_dependency_problem role report)
 
   let reject_if_unselected _key component =
-    if component#impl = None then (
-      component#reject_all (`DiagnosticsFailure (Lazy.force component#diagnostics));
-      component#note NoCandidates;
+    if Component.selected_impl component = None then (
+      Component.reject_all component (`DiagnosticsFailure (Lazy.force component.Component.diagnostics));
+      Component.note component NoCandidates;
     )
 
   (* Check for user-supplied restrictions *)
   let examine_extra_restrictions report =
     report |> RoleMap.iter (fun role component ->
       Model.user_restrictions role |> Option.iter (fun restriction ->
-        component#note (UserRequested restriction);
-        component#apply_restrictions [restriction]
+        Component.note component (UserRequested restriction);
+        Component.apply_restrictions component [restriction]
       )
     )
 
@@ -276,7 +286,7 @@ module Make (Results : S.SOLVER_RESULT) = struct
   let process_root_req report = function
     | {Model.command = Some root_command; role = root_role} ->
         let component = find_component_ex root_role report in
-        component#filter_impls (fun impl ->
+        Component.filter_impls component (fun impl ->
           if Model.get_command impl root_command <> None then None
           else Some (`MissingCommand root_command)
         )
@@ -287,7 +297,7 @@ module Make (Results : S.SOLVER_RESULT) = struct
   exception Found of (Model.Role.t * Model.impl * Model.machine_group)
   let check_machine_groups report =
     let check role compoment =
-      match compoment#impl with
+      match Component.selected_impl compoment with
       | None -> ()
       | Some impl ->
           match Model.machine_group impl with
@@ -296,17 +306,16 @@ module Make (Results : S.SOLVER_RESULT) = struct
 
     try RoleMap.iter check report
     with Found (example_role, example_impl, example_group) ->
-      let filter _key component = component#filter_impls (fun impl ->
+      let filter _key component = Component.filter_impls component (fun impl ->
         match Model.machine_group impl with
         | Some group when group <> example_group -> Some (`MachineGroupConflict (example_role, example_impl))
         | _ -> None
       ) in
       RoleMap.iter filter report
 
-  let get_failure_report result : component RoleMap.t =
+  let get_failure_report result : Component.t RoleMap.t =
     let impls = Results.to_map result in
     let root_req = Results.requirements result in
-
     let report =
       let get_selected role sel =
         let impl = Results.unwrap sel in
@@ -315,9 +324,9 @@ module Make (Results : S.SOLVER_RESULT) = struct
         let impl_candidates = Model.implementations role in
         let rejects, feed_problems = Model.rejects role in
         let selected_commands = Results.selected_commands sel in
-        new component (impl_candidates, rejects, feed_problems) diagnostics impl selected_commands in
-      RoleMap.mapi get_selected impls in
-
+        Component.create (impl_candidates, rejects, feed_problems) diagnostics impl selected_commands in
+      RoleMap.mapi get_selected impls
+    in
     process_root_req report root_req;
     examine_extra_restrictions report;
     check_machine_groups report;
