@@ -29,6 +29,7 @@ module Diagnostics(Result : S.SOLVER_RESULT) : sig
       | `FailsRestriction of Result.Input.restriction
       | `DepFailsRestriction of Result.Input.dependency * Result.Input.restriction
       | `MachineGroupConflict of Result.Role.t * Result.Input.impl
+      | `ClassConflict of Result.Role.t * Result.Input.conflict_class
       | `ConflictsRole of Result.Role.t
       | `MissingCommand of Result.Input.command_name
       | `DiagnosticsFailure of string

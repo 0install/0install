@@ -24,6 +24,7 @@ module Make (Results : S.SOLVER_RESULT) = struct
       | `FailsRestriction of Model.restriction
       | `DepFailsRestriction of Model.dependency * Model.restriction
       | `MachineGroupConflict of Model.Role.t * Model.impl
+      | `ClassConflict of Model.Role.t * Model.conflict_class
       | `ConflictsRole of Model.Role.t
       | `MissingCommand of Model.command_name
       | `DiagnosticsFailure of string
@@ -43,7 +44,7 @@ module Make (Results : S.SOLVER_RESULT) = struct
 
     let format_restrictions r = String.concat ", " (List.map Model.string_of_restriction r)
 
-    let describe_problem impl f = function
+    let describe_problem impl f : rejection_reason -> unit = function
       | `Model_rejection r -> Format.pp_print_string f (Model.describe_problem impl r)
       | `FailsRestriction r -> pf f "Incompatible with restriction: %s" (Model.string_of_restriction r)
       | `DepFailsRestriction (dep, restriction) ->
@@ -54,6 +55,10 @@ module Make (Results : S.SOLVER_RESULT) = struct
             (Model.format_machine impl)
             format_role other_role
             (Model.format_machine other_impl)
+      | `ClassConflict (other_role, cl) ->
+          pf f "In same conflict class (%s) as %a"
+            (cl :> string)
+            format_role other_role
       | `ConflictsRole other_role -> pf f "Conflicts with %a" format_role other_role
       | `MissingCommand command -> pf f "No %s command" (command : Model.command_name :> string)
       | `DiagnosticsFailure msg -> pf f "Reason for rejection unknown: %s" msg
@@ -110,7 +115,7 @@ module Make (Results : S.SOLVER_RESULT) = struct
 
     (* Initialise a new component.
        @param candidates is the result from the impl_provider.
-       @param impl is the selected implementation, or [None] if we chose [dummy_impl].
+       @param selected_impl is the selected implementation, or [None] if we chose [dummy_impl].
        @param diagnostics can be used to produce diagnostics as a last resort. *)
     let create
         ~role
@@ -183,7 +188,7 @@ module Make (Results : S.SOLVER_RESULT) = struct
       | Some sel -> pf f "%a (%s)" format_version sel (Model.id_of_impl sel)
       | None -> Format.pp_print_string f "(problem)"
 
-    (* Add a textual description of this component's report to [buf]. *)
+    (* Format a textual description of this component's report. *)
     let pp ~verbose f t =
       pf f "@[<v2>%a -> %a%a@]"
         format_role t.role
@@ -325,6 +330,32 @@ module Make (Results : S.SOLVER_RESULT) = struct
       ) in
       RoleMap.iter filter report
 
+  module Classes = Map.Make(struct
+      type t = Model.conflict_class
+      let compare = compare
+    end)
+
+  (** For each selected implementation with a conflict class, reject all candidates
+      with the same class. *)
+  let check_conflict_classes report =
+    let classes =
+      RoleMap.fold (fun role component acc ->
+          match Component.selected_impl component with
+          | None -> acc
+          | Some impl -> Model.conflict_class impl |> List.fold_left (fun acc x -> Classes.add x role acc) acc
+        ) report Classes.empty
+    in
+    report |> RoleMap.iter @@ fun role component ->
+    Component.filter_impls component @@ fun impl ->
+    let rec aux = function
+      | [] -> None
+      | cl :: cls ->
+        match Classes.find_opt cl classes with
+        | Some other_role when Model.Role.compare role other_role <> 0 -> Some (`ClassConflict (other_role, cl))
+        | _ -> aux cls
+    in
+    aux (Model.conflict_class impl)
+
   let of_result result =
     let impls = Results.to_map result in
     let root_req = Results.requirements result in
@@ -342,6 +373,7 @@ module Make (Results : S.SOLVER_RESULT) = struct
     process_root_req report root_req;
     examine_extra_restrictions report;
     check_machine_groups report;
+    check_conflict_classes report;
     RoleMap.iter (examine_selection report) report;
     RoleMap.iter (fun _ c -> Component.finalise c) report;
     report
