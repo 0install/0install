@@ -19,6 +19,7 @@ jobs:
     - uses: avsm/setup-ocaml@master
       with:
         ocaml-version: ${{ matrix.ocaml-version }}
+    - run: opam pin add 0install-solver.dev -n .
     - run: opam pin add 0install.dev -n .
     - run: opam pin add 0install-gtk.dev -n .
     - run: opam depext -yt 0install-gtk

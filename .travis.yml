@@ -6,7 +6,7 @@ script: bash .travis-extra-deps.sh
 env:
   global:
     - POST_INSTALL_HOOK="bash .travis-test-compile.sh"
-    - PINS="0install.dev:. 0install-gtk.dev:."
+    - PINS="0install-solver.dev:. 0install.dev:. 0install-gtk.dev:."
 jobs:
   include:
     - env: OCAML_VERSION=4.08 PACKAGE="0install"
