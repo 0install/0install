@@ -108,6 +108,10 @@ module type SOLVER_INPUT = sig
 
   val machine_group : impl -> machine_group option
 
+  (** There can be only one implementation in each conflict class. *)
+  type conflict_class = private string
+  val conflict_class : impl -> conflict_class list
+
   (** {2 The following are used for diagnostics only} *)
 
   (** The reason why the model rejected an implementation before it got to the solver.

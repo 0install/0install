@@ -146,6 +146,9 @@ module Input = struct
     XString.Map.find_opt role.iface role.scope#extra_restrictions
 
   let format_version impl = Version.to_string impl.Impl.parsed_version
+
+  type conflict_class = private string
+  let conflict_class _ = []
 end
 
 include Zeroinstall_solver.Make(Input)
