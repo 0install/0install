@@ -1,0 +1,4 @@
+(test
+  (name test)
+  (package 0install-solver)
+  (libraries ounit2 0install-solver))
