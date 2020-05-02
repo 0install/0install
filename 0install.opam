@@ -10,6 +10,7 @@ build: [
 ]
 depends: [
   "ocaml" {>= "4.05.0"}
+  "0install-solver"
   "yojson"
   "xmlm"
   "ounit" {with-test}

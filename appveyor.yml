@@ -5,7 +5,7 @@ environment:
   FORK_USER: ocaml
   FORK_BRANCH: master
   CYG_ROOT: C:\cygwin64
-  PINS: 0install.dev:. 0install-gtk.dev:.
+  PINS: 0install.dev:. 0install-gtk.dev:. 0install-solver.dev:.
   PACKAGE: 0install
 
 install:

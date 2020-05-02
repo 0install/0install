@@ -313,6 +313,41 @@ module Make (Model : S.SOLVER_INPUT) = struct
       )
   end
 
+  module Conflict_classes = struct
+    module Map = Map.Make(struct type t = Model.conflict_class let compare = compare end)
+
+    type t = {
+      sat : S.t;
+      mutable groups : S.lit list ref Map.t;
+    }
+
+    let create sat = { sat; groups = Map.empty }
+
+    let var t name =
+      match Map.find_opt name t.groups with
+      | Some v -> v
+      | None ->
+        let v = ref [] in
+        t.groups <- Map.add name v t.groups;
+        v
+
+    (* Add [impl] to its conflict groups, if any. *)
+    let process t impl_var impl =
+      Model.conflict_class impl |> List.iter (fun name ->
+          let impls = var t name in
+          impls := impl_var :: !impls
+      )
+
+    (* Call this at the end to add the final clause with all discovered groups.
+       [t] must not be used after this. *)
+    let seal t =
+      t.groups |> Map.iter @@ fun _name impls ->
+      let impls = !impls in
+      if List.length impls > 1 then (
+        S.at_most_one t.sat impls |> ignore
+      )
+  end
+
   (** If this binding depends on a command (<executable-in-*>), add that to the problem.
    * @param user_var indicates when this binding is used
    * @param dep_iface the required interface this binding targets *)
@@ -422,6 +457,7 @@ module Make (Model : S.SOLVER_INPUT) = struct
     let command_cache = CommandCache.create () in
 
     let machine_groups = Machine_group.create sat in
+    let conflict_classes = Conflict_classes.create sat in
 
     (* Handle <replaced-by> conflicts after building the problem. *)
     let replacements = ref [] in
@@ -431,6 +467,7 @@ module Make (Model : S.SOLVER_INPUT) = struct
       (clause, fun () ->
         impls |> List.iter (fun (impl_var, impl) ->
           Machine_group.process machine_groups impl_var impl;
+          Conflict_classes.process conflict_classes impl_var impl;
           let deps, self_commands = Model.requires role impl in
           process_self_commands impl_var role self_commands;
           process_deps impl_var deps
@@ -453,6 +490,7 @@ module Make (Model : S.SOLVER_INPUT) = struct
     let impl_clauses, command_clauses = ImplCache.snapshot impl_cache, CommandCache.snapshot command_cache in
     add_replaced_by_conflicts sat impl_clauses !replacements;
     Machine_group.seal machine_groups;
+    Conflict_classes.seal conflict_classes;
     impl_clauses, command_clauses
 
   module Output = struct
