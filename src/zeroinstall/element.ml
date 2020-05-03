@@ -89,11 +89,11 @@ let rec filter_if_0install_version node =
   match node.Q.attrs |> AttrMap.get_no_ns FeedAttr.if_0install_version with
   | Some expr when not (Version.parse_expr expr About.parsed_version) -> None
   | Some _expr -> Some {
-    node with Q.child_nodes = Support.Utils.filter_map filter_if_0install_version node.Q.child_nodes;
+    node with Q.child_nodes = List.filter_map filter_if_0install_version node.Q.child_nodes;
     attrs = node.Q.attrs |> AttrMap.remove ("", FeedAttr.if_0install_version) 
   }
   | None -> Some {
-    node with Q.child_nodes = Support.Utils.filter_map filter_if_0install_version node.Q.child_nodes;
+    node with Q.child_nodes = List.filter_map filter_if_0install_version node.Q.child_nodes;
   }
 
 let parse_feed root =
@@ -194,7 +194,7 @@ let mode = ZI.get_attribute_opt "mode"
 let default = ZI.get_attribute_opt "default"
 
 let feed_metadata root =
-  root.Q.child_nodes |> Support.Utils.filter_map (fun node ->
+  root.Q.child_nodes |> List.filter_map (fun node ->
     match ZI.tag node with
     | Some "name" -> Some (`Name node)
     | Some "feed" -> Some (`Feed_import node)
@@ -208,7 +208,7 @@ let feed_metadata root =
   )
 
 let group_children group =
-  group.Q.child_nodes |> Support.Utils.filter_map (fun node ->
+  group.Q.child_nodes |> List.filter_map (fun node ->
     match ZI.tag node with
     | Some "group" -> Some (`Group node)
     | Some "implementation" -> Some (`Implementation node)
@@ -270,7 +270,7 @@ let recipe_steps elem =
     | Some "remove" -> Some (`Remove child)
     | Some _ -> raise Unknown_step
     | None -> None in
-  try Some (Support.Utils.filter_map parse_step elem.Q.child_nodes)
+  try Some (List.filter_map parse_step elem.Q.child_nodes)
   with Unknown_step -> None
 
 let importance dep =

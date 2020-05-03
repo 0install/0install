@@ -475,7 +475,7 @@ let fake_log =
       record
 
     method pop_warnings =
-      let warnings = record |> U.filter_map (function
+      let warnings = record |> List.filter_map (function
         | (_ex, Support.Logging.Warning, msg) -> Some msg
         | _ -> None) in
       record <- [];

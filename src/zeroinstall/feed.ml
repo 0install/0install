@@ -256,7 +256,7 @@ let parse system root feed_local_path =
   }
 
 let get_feed_targets feed =
-  Element.feed_metadata feed.root |> U.filter_map (function
+  Element.feed_metadata feed.root |> List.filter_map (function
     | `Feed_for f -> Some (Element.interface f)
     | _ -> None
   )
@@ -274,7 +274,7 @@ let needs_terminal feed =
   )
 
 let icons feed =
-  Element.feed_metadata feed.root |> U.filter_map (function
+  Element.feed_metadata feed.root |> List.filter_map (function
     | `Icon icon -> Some icon
     | _ -> None
   )

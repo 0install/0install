@@ -93,12 +93,12 @@ module Input = struct
   let make_deps role zi_deps self_bindings =
     let impl_provider = role.scope in
     let deps = zi_deps
-      |> U.filter_map (fun zi_dep ->
+      |> List.filter_map (fun zi_dep ->
         if impl_provider#is_dep_needed zi_dep then Some (role, zi_dep)
         else None
       ) in
     let self_commands = self_bindings
-      |> U.filter_map (fun binding ->
+      |> List.filter_map (fun binding ->
         Element.classify_binding binding |> Binding.parse_binding |> Binding.get_command
       ) in
     (deps, self_commands)

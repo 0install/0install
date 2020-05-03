@@ -261,7 +261,7 @@ class ['a,'b] two_arg arg1_type arg2_type (fn : string -> string -> 'a) =
 
 let pp_options format_type fmt opts =
   let display_options =
-    opts |> Utils.filter_map (fun (names, (nargs:int), help, p) ->
+    opts |> List.filter_map (fun (names, (nargs:int), help, p) ->
       match help with
       | "" -> None
       | help ->

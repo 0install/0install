@@ -47,7 +47,7 @@ module Make (Model : Sigs.SELECTIONS) = struct
                 );
 
                 let children =
-                  !deps |> U.filter_map (fun dep ->
+                  !deps |> List.filter_map (fun dep ->
                     let {Model.dep_role; dep_importance; dep_required_commands = _} = Model.dep_info dep in
                     if dep_importance <> `Restricts then
                       build_node dep_role ~essential:(dep_importance = `Essential)

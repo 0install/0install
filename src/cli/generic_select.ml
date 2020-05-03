@@ -243,7 +243,7 @@ let handle options flags arg ?test_callback for_op =
   } in
 
   let flags =
-    flags |> Support.Utils.filter_map (function
+    flags |> List.filter_map (function
       | `ShowHuman -> select_opts.output <- Output_human; None
       | `ShowXML -> select_opts.output <- Output_XML; None
       | `Refresh -> select_opts.refresh <- true; select_opts.must_select <- true; None

@@ -151,7 +151,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
 
     (* Start a download for each missing key *)
     let missing_keys =
-      sigs |> U.filter_map (function
+      sigs |> List.filter_map (function
         | G.ErrSig (G.UnknownKey key) -> Some (fetch key)
         | _ -> None
       ) in
@@ -243,7 +243,7 @@ class fetcher config (trust_db:Trust.trust_db) distro (download_pool:Downloader.
      trust_db, possibly after confirming with the user. *)
   let confirm_keys feed sigs messages =
     let `Remote_feed feed_url = feed in
-    let valid_sigs = sigs |> U.filter_map (function
+    let valid_sigs = sigs |> List.filter_map (function
       | G.ValidSig info -> Some info
       | G.BadSig _ | G.ErrSig _ -> None
     ) in

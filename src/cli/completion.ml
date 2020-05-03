@@ -291,7 +291,7 @@ let complete_version completer ~range ~maybe_app target pre =
             if starts_with vexpr pre then Some vexpr else None in
           let all_versions = Feed.zi_implementations feed
                              |> XString.Map.map_bindings (fun _k impl -> impl.Impl.parsed_version) in
-          let matching_versions = Support.Utils.filter_map check (List.sort compare all_versions) in
+          let matching_versions = List.filter_map check (List.sort compare all_versions) in
           List.iter (completer#add Add) matching_versions
 
 (* 0install --option=<Tab> *)

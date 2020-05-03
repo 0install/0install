@@ -431,7 +431,7 @@ let generate_feed_description config trust_db feed overrides =
     | Some description -> Str.split (Str.regexp_string "\n\n") description |> List.map format_para
     | None -> ["-"] in
 
-  let homepages = Feed.root feed |> Element.feed_metadata |> U.filter_map (function
+  let homepages = Feed.root feed |> Element.feed_metadata |> List.filter_map (function
     | `Homepage homepage -> Some (Element.simple_content homepage)
     | _ -> None
   ) in

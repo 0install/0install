@@ -19,7 +19,7 @@ let parse_restrictions options default_iface extra_restrictions =
   let not_before = ref None in
 
   (* Handle --before, --not-before and --version by converting to --version-for options *)
-  let options = options |> Support.Utils.filter_map (function
+  let options = options |> List.filter_map (function
     | `Before v -> before := Some v; None
     | `NotBefore v -> not_before := Some v; None
     | `RequireVersion v -> Some (`RequireVersionFor (default_iface, v))

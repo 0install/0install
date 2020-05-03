@@ -40,18 +40,12 @@ let handle_exceptions main args =
       Logging.dump_crash_log ~ex ();
       exit 1
 
+(* Replace with [List.find_map] once we require OCaml >= 4.10 *)
 let rec first_match f = function
   | [] -> None
   | (x::xs) -> match f x with
       | Some _ as result -> result
       | None -> first_match f xs
-
-let rec filter_map fn = function
-  | [] -> []
-  | (x::xs) ->
-      match fn x with
-      | None -> filter_map fn xs
-      | Some y -> y :: filter_map fn xs
 
 let filter_map_array fn arr =
   let result = ref [] in

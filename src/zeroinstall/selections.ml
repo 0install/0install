@@ -184,7 +184,7 @@ let collect_bindings t =
 (** Collect all the commands needed by this dependency. *)
 let get_required_commands dep =
   let commands =
-    Element.bindings dep |> U.filter_map  (fun node ->
+    Element.bindings dep |> List.filter_map  (fun node ->
       Binding.parse_binding node |> Binding.get_command
     ) in
   match Element.classify_dep dep with
@@ -193,7 +193,7 @@ let get_required_commands dep =
 
 let make_deps children =
   let self_commands = ref [] in
-  let deps = children |> U.filter_map (function
+  let deps = children |> List.filter_map (function
     | `Requires r -> Some (r :> dependency)
     | `Runner r -> Some (r :> dependency)
     | #Element.binding as b ->
@@ -216,7 +216,7 @@ let command_requires _role command = make_deps (Element.command_children command
 let get_command sel name = Element.get_command name sel
 
 let selected_commands sel =
-  Element.deps_and_bindings sel |> U.filter_map (function
+  Element.deps_and_bindings sel |> List.filter_map (function
       | `Command c -> Some (Element.command_name c)
       | _ -> None
     )

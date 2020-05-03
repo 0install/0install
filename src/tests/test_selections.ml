@@ -182,7 +182,7 @@ let suite = "selections">::: [
     let s3 = `String (0, output) |> Xmlm.make_input |> Q.parse_input None |> Selections.create in
 
     let runnable_impl = Selections.get_selected_ex (binary runnable) s3 in
-    Element.deps_and_bindings runnable_impl |> U.filter_map (function
+    Element.deps_and_bindings runnable_impl |> List.filter_map (function
       | `Command child -> Some (Element.command_name child)
       | _ -> None
     ) |> Fake_system.equal_str_lists ["foo"; "run"]

@@ -30,7 +30,7 @@ let suite = "feed">::: [
     let feed = F.parse system root (Some local_path) in
 
     let () =
-      let langs = Support.Locale.score_langs @@ U.filter_map Support.Locale.parse_lang ["en_US"; "en_GB"; "fr"] in
+      let langs = Support.Locale.score_langs @@ List.filter_map Support.Locale.parse_lang ["en_US"; "en_GB"; "fr"] in
       assert_equal 6 (Support.Locale.score_lang langs @@ Some "en_US");
       assert_equal 4 (Support.Locale.score_lang langs @@ Some "en_GB");
       assert_equal 3 (Support.Locale.score_lang langs @@ Some "en");
@@ -39,7 +39,7 @@ let suite = "feed">::: [
       assert_equal 3 (Support.Locale.score_lang langs @@ None) in
 
     let test ?description expected langs =
-      let langs = Support.Locale.score_langs @@ U.filter_map Support.Locale.parse_lang langs in
+      let langs = Support.Locale.score_langs @@ List.filter_map Support.Locale.parse_lang langs in
       Fake_system.assert_str_equal expected @@ Fake_system.expect @@ F.get_summary langs feed;
       description |> if_some (fun d ->
         Fake_system.assert_str_equal d @@ Fake_system.expect @@ F.get_description langs feed

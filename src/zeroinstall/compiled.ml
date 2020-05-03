@@ -70,7 +70,7 @@ let make_binary_element ~id ~host_arch ~version ~src_impl command =
 
   (* Source dependencies tagged with binary-include. *)
   let extra_binary_reqs =
-    Impl.(src_impl.props.requires) |> U.filter_map (fun req ->
+    Impl.(src_impl.props.requires) |> List.filter_map (fun req ->
       let elem = req.Impl.dep_qdom in
       if Element.compile_include_binary elem = Some true then (
         let elem = Element.as_xml elem in

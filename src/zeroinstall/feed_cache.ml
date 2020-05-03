@@ -158,7 +158,7 @@ let save_iface_config config uri iface_config =
     attrs := !attrs |> Q.AttrMap.add_no_ns IfaceConfigAttr.stability_policy (Stability.to_string policy)
   );
 
-  let child_nodes = iface_config.extra_feeds |> U.filter_map add_import_elem in
+  let child_nodes = iface_config.extra_feeds |> List.filter_map add_import_elem in
   let root = ZI.make ~attrs:!attrs ~child_nodes "interface-preferences" in
 
   config_file |> config.system#atomic_write [Open_wronly; Open_binary] ~mode:0o644 (fun ch ->

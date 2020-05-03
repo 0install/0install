@@ -4,6 +4,7 @@ platform:
 environment:
   FORK_USER: ocaml
   FORK_BRANCH: master
+  OPAM_SWITCH: 4.08.1+mingw64c
   CYG_ROOT: C:\cygwin64
   PINS: 0install.dev:. 0install-gtk.dev:. 0install-solver.dev:.
   PACKAGE: 0install

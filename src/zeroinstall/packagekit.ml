@@ -189,7 +189,7 @@ let resolve_query ~resolutions ~sizes (name, resolver) =
     | None ->
         log_info "No size returned for '%s'" packagekit_id;
         Some impl in
-  let results = U.filter_map add_size impls in
+  let results = List.filter_map add_size impls in
   Lwt.wakeup resolver {
     results;
     problems = !problems;

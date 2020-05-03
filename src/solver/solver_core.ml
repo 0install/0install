@@ -4,36 +4,14 @@
 
 (** Select a compatible set of components to run a program. *)
 
-module Option = struct
-  let iter f = function
-    | None -> ()
-    | Some x -> f x
-
-  let bind x f =
-    match x with
-    | None -> None
-    | Some x -> f x
-
-  let map f = function
-    | None -> None
-    | Some x -> Some (f x)
-end
-
 module List = struct
   include List
 
-  let rec filter_map fn = function
-    | [] -> []
-    | (x::xs) ->
-      match fn x with
-      | None -> filter_map fn xs
-      | Some y -> y :: filter_map fn xs
-
-  let rec first_match f = function
+  let rec find_map f = function
     | [] -> None
     | (x::xs) -> match f x with
       | Some _ as result -> result
-      | None -> first_match f xs
+      | None -> find_map f xs
 end
 
 type ('a, 'b) partition_result =
@@ -580,7 +558,7 @@ module Make (Model : S.SOLVER_INPUT) = struct
           | Selected (deps, self_commands) ->
               (* We've already selected a candidate for this component. Now check its dependencies. *)
               let check_self_command name = find_undecided {req with Model.command = Some name} in
-              match List.first_match check_self_command self_commands with
+              match List.find_map check_self_command self_commands with
               | Some _ as r -> r
               | None ->
               (* Self-commands already done; now try the dependencies *)
@@ -598,10 +576,10 @@ module Make (Model : S.SOLVER_INPUT) = struct
                   | None ->
                       (* Command dependencies next *)
                       let check_command_dep name = find_undecided {Model.command = Some name; role = dep_role} in
-                      List.first_match check_command_dep dep_required_commands
+                      List.find_map check_command_dep dep_required_commands
                 )
                 in
-              match List.first_match check_dep deps with
+              match List.find_map check_dep deps with
               | Some _ as r -> r
               | None ->
               (* All dependencies checked; now to the impl (if we're a <command>) *)

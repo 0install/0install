@@ -5,7 +5,6 @@
 (** Explaining why a solve failed or gave an unexpected answer. *)
 
 module List = Solver_core.List
-module Option = Solver_core.Option
 
 let pf = Format.fprintf
 
@@ -223,15 +222,15 @@ module Make (Results : S.SOLVER_RESULT) = struct
               let check_restriction r =
                 if Model.meets_restriction dep_impl r then None
                 else Some (`DepFailsRestriction (dep, r)) in
-              List.first_match check_restriction (Model.restrictions dep) in
+              List.find_map check_restriction (Model.restrictions dep) in
     let deps, commands_needed = Model.requires role impl in
-    commands_needed |> List.first_match (fun command ->
+    commands_needed |> List.find_map (fun command ->
       if Model.get_command impl command <> None then None
       else Some (`MissingCommand command : Note.rejection_reason)
     )
     |> function
     | Some _ as r -> r
-    | None -> List.first_match check_dep deps
+    | None -> List.find_map check_dep deps
 
   (** A selected component has [dep] as a dependency. Use this to explain why some implementations
       of the required interface were rejected. *)

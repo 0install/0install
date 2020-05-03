@@ -76,7 +76,7 @@ let handle_audit options flags args =
     | [] -> config.stores
     | dirs -> dirs in
 
-  let audit_ls = dirs |> U.filter_map (fun dir ->
+  let audit_ls = dirs |> List.filter_map (fun dir ->
     if U.is_dir system dir then Some (
       let items =
         match system#readdir dir with

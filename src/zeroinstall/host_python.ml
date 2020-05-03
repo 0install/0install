@@ -75,7 +75,7 @@ let info_of_json = function
 let make system =
   let (_host_os, host_machine) = Arch.platform system in
   let python_installations = lazy (
-    ["python"; "python2"; "python3"] |> Utils.filter_map (fun name ->
+    ["python"; "python2"; "python3"] |> List.filter_map (fun name ->
         Utils.find_in_path system name |> pipe_some (fun path ->
             try
               let json = [path; "-c"; python_test_code] |> Utils.check_output system Yojson.Basic.from_channel in
@@ -134,7 +134,7 @@ let get t = function
         (id, make_host_impl t ~package:"host-python" path version ~commands url id)
       )
   | `Remote_feed "http://repo.roscidus.com/python/python-gobject" as url ->
-      Lazy.force t.python_installations |> Utils.filter_map (fun installation ->
+      Lazy.force t.python_installations |> List.filter_map (fun installation ->
         match installation.python_gobject with
         | Some info ->
             let id = "package:host:python-gobject:" ^ info.version in
@@ -143,7 +143,7 @@ let get t = function
         | None -> None
       )
   | `Remote_feed "https://apps.0install.net/python/pygobject.xml" as url ->
-      Lazy.force t.python_installations |> Utils.filter_map (fun installation ->
+      Lazy.force t.python_installations |> List.filter_map (fun installation ->
         match installation.python_gobject with
         | Some info ->
             let id = "package:host:python-gobject:" ^ info.version in

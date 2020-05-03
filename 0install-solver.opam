@@ -9,7 +9,7 @@ build: [
   ["dune" "build" "-p" name "-j" jobs "@install" "@runtest" {with-test}]
 ]
 depends: [
-  "ocaml" {>= "4.05.0"}
+  "ocaml" {>= "4.08.0"}
   "dune" {>= "2.1"}
   "ounit2" {with-test}
 ]

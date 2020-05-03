@@ -352,7 +352,7 @@ let suite = "solver">::: [
     config.network_use <- Minimal_network;
 
     let scope_filter = { linux_multi_scope_filter with Scope_filter.
-      languages = Support.Locale.score_langs @@ U.filter_map Support.Locale.parse_lang ["es_ES"; "fr_FR"];
+      languages = Support.Locale.score_langs @@ List.filter_map Support.Locale.parse_lang ["es_ES"; "fr_FR"];
     } in
 
     let test_solve scope_filter =

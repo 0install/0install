@@ -258,7 +258,7 @@ let confirm_keys gpg trust_db ?parent feed_url valid_sigs =
 
   dialog#connect#response ==> (function
     | `OK ->
-        let to_trust = !trust_checkboxes |> U.filter_map (fun (fpr, box) ->
+        let to_trust = !trust_checkboxes |> List.filter_map (fun (fpr, box) ->
           if box#active then Some fpr else None
         ) in
         assert (to_trust <> []);

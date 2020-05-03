@@ -114,7 +114,7 @@ let get_exec_args config ?main sels args =
 
   (* Do <environment> bindings; collect executable bindings *)
   let exec_bindings =
-    bindings |> Support.Utils.filter_map (fun (role, binding) -> match Binding.parse_binding binding with
+    bindings |> List.filter_map (fun (role, binding) -> match Binding.parse_binding binding with
       | Binding.EnvironmentBinding b ->
           let sel = lazy (
             Selections.RoleMap.find_opt role impls

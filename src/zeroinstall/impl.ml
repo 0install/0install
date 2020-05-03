@@ -270,7 +270,7 @@ let get_langs impl =
     match AttrMap.get_no_ns "langs" impl.props.attrs with
     | Some langs -> Str.split XString.re_space langs
     | None -> ["en"] in
-  Support.Utils.filter_map Support.Locale.parse_lang langs
+  List.filter_map Support.Locale.parse_lang langs
 
 let is_retrievable_without_network cache_impl =
   let ok_without_network elem =
