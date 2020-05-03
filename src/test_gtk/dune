@@ -13,4 +13,4 @@
   (package 0install-gtk)
   (deps (alias ../../install)     ; Build the GTK plugin if possible
         0install%{ext_exe} 0install-runenv%{ext_exe})
-  (libraries oUnit zeroinstall support str))
+  (libraries ounit2 zeroinstall support str))

@@ -13,4 +13,4 @@
   (package 0install)
   (deps (source_tree data)
    0install%{ext_exe} 0install-runenv%{ext_exe})
-  (libraries oUnit zeroinstall zeroinstall_cli 0install-solver support lwt lwt.unix lwt_react xmlm yojson))
+  (libraries ounit2 zeroinstall zeroinstall_cli 0install-solver support lwt lwt.unix lwt_react xmlm yojson))

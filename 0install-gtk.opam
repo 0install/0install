@@ -11,7 +11,7 @@ build: [
 depends: [
   "ocaml" {>= "4.05.0"}
   "0install" {= version}
-  "ounit" {with-test}
+  "ounit2" {with-test}
   "dune" {>= "2.1"}
   "lablgtk3" {>= "3"}
   "lwt_glib"

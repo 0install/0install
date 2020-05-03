@@ -10,7 +10,7 @@ module Config = Zeroinstall.Config
 module U = Support.Utils
 
 let reset_env () =
-  (* Make oUnit 2 happy: we need to be able to reset these to their initial values after each test. *)
+  (* Make OUnit 2 happy: we need to be able to reset these to their initial values after each test. *)
   Unix.putenv "ZEROINSTALL_PORTABLE_BASE" "/PORTABLE_UNUSED";
   Unix.putenv "DISPLAY" "";
   Unix.putenv "DBUS_SESSION_BUS_ADDRESS" "DBUS_SESSION_UNUSED";

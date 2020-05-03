@@ -13,7 +13,7 @@ depends: [
   "0install-solver"
   "yojson"
   "xmlm"
-  "ounit" {with-test}
+  "ounit2" {with-test}
   "lwt"
   "lwt_react"
   "obus" {os != "macos" & os-family != "windows"}
