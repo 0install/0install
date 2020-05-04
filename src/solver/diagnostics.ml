@@ -13,7 +13,6 @@ module Make (Results : S.SOLVER_RESULT) = struct
   module RoleMap = Results.RoleMap
 
   let format_role = Model.Role.pp
-  let format_version f v = Format.pp_print_string f (Model.format_version v)
   let format_restrictions r = String.concat ", " (List.map Model.string_of_restriction r)
 
   module Note = struct
@@ -30,9 +29,9 @@ module Make (Results : S.SOLVER_RESULT) = struct
       | ReplacesConflict old -> pf f "Replaces (and therefore conflicts with) %a" format_role old
       | ReplacedByConflict replacement -> pf f "Replaced by (and therefore conflicts with) %a" format_role replacement
       | Restricts (other_role, impl, r) ->
-        pf f "%a %a requires %s" format_role other_role format_version impl (format_restrictions r)
+        pf f "%a %a requires %s" format_role other_role Model.pp_version impl (format_restrictions r)
       | RequiresCommand (other_role, impl, command) ->
-        pf f "%a %a requires '%s' command" format_role other_role format_version impl (command :> string)
+        pf f "%a %a requires '%s' command" format_role other_role Model.pp_version impl (command :> string)
       | Feed_problem msg -> pf f "%s" msg
   end
 
@@ -190,7 +189,7 @@ module Make (Results : S.SOLVER_RESULT) = struct
         | [] -> ()
         | _ when i = 5 && not verbose -> pf f "@,..."
         | (impl, problem) :: xs ->
-          pf f "@,%s (%a): %a" (Model.id_of_impl impl) format_version impl pp_reject (impl, problem);
+          pf f "@,%a: %a" Model.pp_impl_long impl pp_reject (impl, problem);
           aux (i + 1) xs
       in
       aux 0 rejected
@@ -218,7 +217,7 @@ module Make (Results : S.SOLVER_RESULT) = struct
 
     let pp_outcome f t =
       match t.selected_impl with
-      | Some sel -> pf f "%a (%s)" format_version sel (Model.id_of_impl sel)
+      | Some sel -> Model.pp_impl_long f sel
       | None -> Format.pp_print_string f "(problem)"
 
     (* Format a textual description of this component's report. *)

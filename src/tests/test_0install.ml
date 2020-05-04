@@ -162,7 +162,7 @@ let suite = "0install">::: [
           "- http://example.com:8000/Hello.xml -> (problem)\n" ^
           "    User requested version 2\n" ^
           "    No usable implementations:\n" ^
-          "      sha1=3ce644dc725f1d21cfcf02562c76f375944b266a (1): Excluded by user-provided restriction: version 2\n" ^
+          "      v1 (sha1=3ce644dc725f...): Excluded by user-provided restriction: version 2\n" ^
           "Note: 0install is in off-line mode") msg in
     ()
   );
@@ -395,7 +395,7 @@ let suite = "0install">::: [
         "- %s/Local.xml -> (problem)\n" ^^
         "    User requested version 10..\n" ^^
         "    No usable implementations:\n" ^^
-        "      sha1=256 (0.1): Excluded by user-provided restriction: version 10..") path)
+        "      v0.1 (sha1=256): Excluded by user-provided restriction: version 10..") path)
       (fun () -> run ["update"; "local-app"; "--version=10.."]);
 
     let out = run ["update"; "local-app"; "--version=0.1.."] in
