@@ -95,25 +95,61 @@ module Make (Results : S.SOLVER_RESULT) = struct
     let note t note = t.notes <- note :: t.notes
     let notes t = List.rev t.notes
 
-    (* Call [get_problem impl] on each good impl. If a problem is returned, move [impl] to [bad_impls]. *)
-    let filter_impls t get_problem =
+    (* Did rejecting [impl] make any difference?
+       If [t] selected a better version anyway then we don't need to report this rejection. *)
+    let affected_selection t impl =
+      match t.selected_impl with
+      | Some selected when Model.compare_version selected impl > 0 -> false
+      | _ -> true
+
+    (* Call [get_problem impl] on each good impl. If a problem is returned, move [impl] to [bad_impls].
+       If anything changes and [!note] is not None, report it and clear the pending note. *)
+    let filter_impls_ref ~note:n t get_problem =
       let old_good = List.rev t.good in
       t.good <- [];
       old_good |> List.iter (fun impl ->
           match get_problem impl with
           | None -> t.good <- impl :: t.good
-          | Some problem -> t.bad <- (impl, problem) :: t.bad
+          | Some problem ->
+            !n |> Option.iter (fun info ->
+                if affected_selection t impl then (
+                  note t info;
+                  n := None;
+                )
+              );
+            t.bad <- (impl, problem) :: t.bad
         )
+
+    let filter_impls ?note t get_problem =
+      let note = ref note in
+      filter_impls_ref ~note t get_problem
 
     (* Remove from [good_impls] anything that fails to meet these restrictions.
        Add removed items to [bad_impls], along with the cause. *)
-    let apply_restrictions t restrictions =
+    let apply_restrictions ~note t restrictions =
+      let note = ref (Some note) in
       restrictions |> List.iter (fun r ->
-          filter_impls t (fun impl ->
+          filter_impls_ref ~note t (fun impl ->
               if Model.meets_restriction impl r then None
               else Some (`FailsRestriction r)
             )
         )
+
+    let apply_user_restriction t r =
+      note t (UserRequested r);
+      (* User restrictions should be applied before reaching the solver, but just in case: *)
+      filter_impls t (fun impl ->
+          if Model.meets_restriction impl r then None
+          else Some (`FailsRestriction r)
+        );
+      (* Completely remove non-matching impls.
+         The user will only want to see the version they asked for. *)
+      let new_bad = t.bad |> List.filter (fun (impl, _) ->
+          if Model.meets_restriction impl r then true
+          else false
+        )
+      in
+      if new_bad <> [] || t.good <> [] then t.bad <- new_bad
 
     let reject_all t reason =
       t.bad <- List.map (fun impl -> (impl, reason)) t.good @ t.bad;
@@ -240,19 +276,17 @@ module Make (Results : S.SOLVER_RESULT) = struct
     | Some required_component ->
         let dep_restrictions = Model.restrictions dep in
         if dep_restrictions <> [] then (
-          (* Report the restriction *)
-          Component.note required_component (Restricts (requiring_role, requiring_impl, dep_restrictions));
-
           (* Remove implementations incompatible with the other selections *)
           Component.apply_restrictions required_component dep_restrictions
+            ~note:(Restricts (requiring_role, requiring_impl, dep_restrictions))
         );
 
         dep_required_commands |> List.iter (fun command ->
-          Component.note required_component (RequiresCommand (requiring_role, requiring_impl, command));
-          Component.filter_impls required_component (fun impl ->
-            if Model.get_command impl command <> None then None
-            else Some (`MissingCommand command)
-          )
+            let note = Note.RequiresCommand (requiring_role, requiring_impl, command) in
+            Component.filter_impls ~note required_component (fun impl ->
+                if Model.get_command impl command <> None then None
+                else Some (`MissingCommand command)
+              )
         )
 
   (* Find all restrictions that are in play and affect this interface *)
@@ -292,8 +326,7 @@ module Make (Results : S.SOLVER_RESULT) = struct
   let examine_extra_restrictions report =
     report |> RoleMap.iter (fun role component ->
       Model.user_restrictions role |> Option.iter (fun restriction ->
-        Component.note component (UserRequested restriction);
-        Component.apply_restrictions component [restriction]
+        Component.apply_user_restriction component restriction
       )
     )
 

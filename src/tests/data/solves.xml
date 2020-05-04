@@ -1174,7 +1174,6 @@ Can't find all required implementations:
     <problem>
 Can't find all required implementations:
 - http://localhost/diagnostics.xml -> (problem)
-    http://localhost/top.xml 1 requires version ..!6
     Rejected candidates:
       diag-5 (5): Can't use x86_64 with selection of http://localhost/top.xml (i486)
       diag-4 (4): Can't use x86_64 with selection of http://localhost/top.xml (i486)
@@ -1189,7 +1188,6 @@ Can't find all required implementations:
 There is no possible selection using http://localhost/diagnostics.xml 5.
 Can't find all required implementations:
 - http://localhost/diagnostics.xml -> (problem)
-    http://localhost/top.xml 1 requires version ..!6
     Rejected candidates:
       diag-5 (5): Can't use x86_64 with selection of http://localhost/top.xml (i486)
 - http://localhost/top.xml -> 1 (1)
@@ -1656,16 +1654,57 @@ Can't find all required implementations:
     <problem>
 Can't find all required implementations:
 - /root/0publish.xml -> 0.25-post (pub1)
-    /root/0test.xml 0.9-post requires 'run' command
 - /root/0test.xml -> 0.9-post (test1)
 - /root/python.xml -> (problem)
     /root/0publish.xml 0.25-post requires version ..!3
-    /root/0publish.xml 0.25-post requires 'run' command
     /root/0test.xml 0.9-post requires version 3..
-    /root/0test.xml 0.9-post requires 'run' command
     Rejected candidates:
       3 (3): Incompatible with restriction: version ..!3
       2 (2): Incompatible with restriction: version 3..
+    </problem>
+  </test>
+
+  <test name='uninteresting-reject'>
+    <interface local-path='python.xml'>
+      <name>Python</name>
+      <summary>Versions 2 and 3</summary>
+      <group>
+	<command name='run' path='python.exe'/>
+	<implementation id='2' local-path='.' version='2'/>
+	<implementation id='3' local-path='.' version='3'/>
+      </group>
+    </interface>
+
+    <interface local-path='0publish.xml'>
+      <name>0publish</name>
+      <summary>Impossible</summary>
+      <group>
+	<implementation id='pub1' local-path='.' version='0.25-post'/>
+      </group>
+    </interface>
+
+    <interface local-path='0test.xml'>
+      <name>0test</name>
+      <summary>Don't report rejection of Python 2</summary>
+      <group>
+	<command name='test'>
+	  <runner interface='/root/python.xml' version='3..'/>
+	  <requires interface='/root/0publish.xml' version='4..'/>
+	</command>
+	<implementation id='test1' local-path='.' version='0.9-post'/>
+      </group>
+    </interface>
+
+    <requirements fails='true' interface='./0test.xml' command='test'/>
+
+    <problem>
+Can't find all required implementations:
+- /root/0publish.xml -> (problem)
+    /root/0test.xml 0.9-post requires version 4..
+    Rejected candidates:
+      pub1 (0.25-post): Incompatible with restriction: version 4..
+- /root/0test.xml -> 0.9-post (test1)
+- /root/python.xml -> 3 (3)
     </problem>
   </test>
 
