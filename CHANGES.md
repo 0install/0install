@@ -1,3 +1,23 @@
+## v2.17
+
+Solver:
+
+- Add 0install-solver.opam. This makes the solver into a separate opam package.
+
+- Improve display of implementations in diagnostics. Instead of `sha1=3ce644dc725f1d21cfcf02562c76f375944b266a (1)`, show: `v1 (sha1=3ce644dc725f...)`.
+
+- Only report restrictions that affected the result. If a restriction didn't remove any candidates (either because it matched all of them or because another restriction already removed them) then don't bother reporting it. Also, don't bother reporting a restriction that only removed candidates worse than the selected one (if any). For user-provided restrictions, filter the rejects to show only the version the user asked for (unless that would remove all of them). Since we only show the first 5 rejects, this would often mean that the interesting candidates weren't even shown.
+
+- Expose more of the solver diagnostics API. This allows users to format the results in other ways (for example, as a list in a GUI). Also, use formatting boxes instead of manual indentation.
+
+- Add `conflict_class`. This isn't used by 0install, but the new opam backend that uses the 0install solver needs it.
+
+Build:
+
+- Update minimum OCaml version to 4.08. Remove our custom `Option` module and use the new stdlib one instead. Use the new `List.filter_map` from the stdlib instead of our one. Also, rename our `first_match` to `find_map`, to match the name in 4.10.
+
+- Depend on ounit2 for unit-tests. The old `oUnit` is just a transition package that depends on `ounit2` now.
+
 ## v2.16
 
 - Update to GTK 3, because Debian is removing GTK 2 support now.

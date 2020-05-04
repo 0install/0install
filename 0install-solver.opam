@@ -5,6 +5,7 @@ authors: "zero-install-devel@lists.sourceforge.net"
 homepage: "https://docs.0install.net/developers/solver/"
 bug-reports: "https://github.com/0install/0install/issues"
 dev-repo: "git+https://github.com/0install/0install.git"
+doc: "https://0install.github.io/0install/"
 build: [
   ["dune" "build" "-p" name "-j" jobs "@install" "@runtest" {with-test}]
 ]
