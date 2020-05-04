@@ -77,11 +77,11 @@ module Model = struct
   let rejects _role = [], []
 
   let compare_version a b = compare b.version a.version
-  let format_version impl = string_of_int impl.version
+  let pp_version f impl = Format.pp_print_int f impl.version
 
   let user_restrictions _role = None
 
-  let id_of_impl impl = string_of_int impl.version
+  let pp_impl_long = pp_version
   let format_machine _impl = "(any)"
   let string_of_restriction (`Not_before x) = Printf.sprintf ">= %d" x
   let describe_problem _impl x = x
@@ -109,11 +109,11 @@ module Opam_test = struct
 
   let expected = String.trim {|
 Can't find all required implementations:
-- app -> 1 (1)
+- app -> 1
 - beta-ocaml -> (problem)
     Rejected candidates:
-      409 (409): In same conflict class (compiler) as ocaml
-- ocaml -> 408 (408)
+      409: In same conflict class (compiler) as ocaml
+- ocaml -> 408
 |}
 
 end

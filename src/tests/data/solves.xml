@@ -729,11 +729,11 @@ Can't find all required implementations:
 - http://example.com/lib.xml -> (problem)
     http://example.com/prog.xml 3 requires version 2..!3
     Rejected candidates:
-      l3 (3): Incompatible with restriction: version 2..!3
-      l2 (2): Requires http://example.com/prog.xml version ..!3
-      l1 (1): Incompatible with restriction: version 2..!3
-      l0 (0): Not compatible with the requested OS type
-- http://example.com/prog.xml -> 3 (p3)
+      v3 (l3): Incompatible with restriction: version 2..!3
+      v2 (l2): Requires http://example.com/prog.xml version ..!3
+      v1 (l1): Incompatible with restriction: version 2..!3
+      v0 (l0): Not compatible with the requested OS type
+- http://example.com/prog.xml -> v3 (p3)
     </justification>
     <justification interface='http://example.com/prog.xml' id='p4'>
       Implementation to consider (http://example.com/prog.xml p4) does not exist!
@@ -778,9 +778,9 @@ Can't find all required implementations:
 - http://example.com/lib.xml -> (problem)
     http://example.com/prog.xml 2 requires version 1..!2
     Rejected candidates:
-      l2 (2): Incompatible with restriction: version 1..!2
-      l1 (1): Requires http://example.com/prog.xml version ..!2
-- http://example.com/prog.xml -> 2 (p2)
+      v2 (l2): Incompatible with restriction: version 1..!2
+      v1 (l1): Requires http://example.com/prog.xml version ..!2
+- http://example.com/prog.xml -> v2 (p2)
     </problem>
   </test>
 
@@ -901,7 +901,7 @@ Can't find all required implementations:
 Can't find all required implementations:
 - http://localhost/top.xml -> (problem)
     No usable implementations:
-      1 (1): No retrieval methods
+      v1 (1): No retrieval methods
    </problem>
  </test>
 
@@ -921,7 +921,7 @@ Can't find all required implementations:
 Can't find all required implementations:
 - http://localhost/top.xml -> (problem)
     Rejected candidates:
-      1 (1): No run command
+      v1 (1): No run command
     </problem>
   </test>
 
@@ -946,8 +946,8 @@ Can't find all required implementations:
 - http://localhost/diagnostics.xml -> (problem)
     http://localhost/top.xml 1 requires 'foo' command
     Rejected candidates:
-      diag-5 (5): No foo command
-- http://localhost/top.xml -> 1 (1)
+      v5 (diag-5): No foo command
+- http://localhost/top.xml -> v1 (1)
   </problem>
   </test>
 
@@ -970,8 +970,8 @@ Can't find all required implementations:
 - http://localhost/diagnostics.xml -> (problem)
     http://localhost/top.xml 1 requires distribution:foo
     Rejected candidates:
-      diag-5 (5): Incompatible with restriction: distribution:foo
-- http://localhost/top.xml -> 1 (1)
+      v5 (diag-5): Incompatible with restriction: distribution:foo
+- http://localhost/top.xml -> v1 (1)
   </problem>
   </test>
 
@@ -994,8 +994,8 @@ Can't find all required implementations:
 - http://localhost/diagnostics.xml -> (problem)
     http://localhost/top.xml 1 requires version 100..!200
     Rejected candidates:
-      diag-5 (5): Incompatible with restriction: version 100..!200
-- http://localhost/top.xml -> 1 (1)
+      v5 (diag-5): Incompatible with restriction: version 100..!200
+- http://localhost/top.xml -> v1 (1)
     </problem>
   </test>
 
@@ -1019,8 +1019,8 @@ Can't find all required implementations:
 Can't find all required implementations:
 - http://localhost/diagnostics.xml -> (problem)
     Rejected candidates:
-      diag-5 (5): Requires http://localhost/top.xml version 100..!200
-- http://localhost/top.xml -> 1 (1)
+      v5 (diag-5): Requires http://localhost/top.xml version 100..!200
+- http://localhost/top.xml -> v1 (1)
   </problem>
   </test>
 
@@ -1045,8 +1045,8 @@ Can't find all required implementations:
 - http://localhost/diagnostics.xml -> (problem)
     http://localhost/top.xml 1 requires &lt;impossible: Can't parse version restriction '100..200': End of range must be exclusive (use '..!200', not '..200')>
     Rejected candidates:
-      diag-5 (5): Incompatible with restriction: &lt;impossible: Can't parse version restriction '100..200': End of range must be exclusive (use '..!200', not '..200')>
-- http://localhost/top.xml -> 1 (1)
+      v5 (diag-5): Incompatible with restriction: &lt;impossible: Can't parse version restriction '100..200': End of range must be exclusive (use '..!200', not '..200')>
+- http://localhost/top.xml -> v1 (1)
     </problem>
   </test>
 
@@ -1071,8 +1071,8 @@ Can't find all required implementations:
 - http://localhost/diagnostics.xml -> (problem)
     http://localhost/top.xml 1 requires version 100..
     Rejected candidates:
-      diag-5 (5): Incompatible with restriction: version 100..
-- http://localhost/top.xml -> 1 (1)
+      v5 (diag-5): Incompatible with restriction: version 100..
+- http://localhost/top.xml -> v1 (1)
     </problem>
   </test>
 
@@ -1098,8 +1098,8 @@ Can't find all required implementations:
 Can't find all required implementations:
 - http://localhost/diagnostics.xml -> (problem)
     Rejected candidates:
-      diag-5 (5): Can't use x86_64 with selection of http://localhost/top.xml (i486)
-- http://localhost/top.xml -> 1 (1)
+      v5 (diag-5): Can't use x86_64 with selection of http://localhost/top.xml (i486)
+- http://localhost/top.xml -> v1 (1)
     </problem>
   </test>
 
@@ -1128,13 +1128,13 @@ Can't find all required implementations:
 Can't find all required implementations:
 - http://localhost/diagnostics.xml -> (problem)
     No usable implementations:
-      diag-6 (6): No retrieval methods
-      diag-5 (5): No retrieval methods
-      diag-4 (4): No retrieval methods
-      diag-3 (3): No retrieval methods
-      diag-2 (2): No retrieval methods
+      v6 (diag-6): No retrieval methods
+      v5 (diag-5): No retrieval methods
+      v4 (diag-4): No retrieval methods
+      v3 (diag-3): No retrieval methods
+      v2 (diag-2): No retrieval methods
       ...
-- http://localhost/top.xml -> 1 (1)
+- http://localhost/top.xml -> v1 (1)
     </problem>
   </test>
 
@@ -1174,25 +1174,23 @@ Can't find all required implementations:
     <problem>
 Can't find all required implementations:
 - http://localhost/diagnostics.xml -> (problem)
-    http://localhost/top.xml 1 requires version ..!6
     Rejected candidates:
-      diag-5 (5): Can't use x86_64 with selection of http://localhost/top.xml (i486)
-      diag-4 (4): Can't use x86_64 with selection of http://localhost/top.xml (i486)
-      diag-3 (3): Can't use x86_64 with selection of http://localhost/top.xml (i486)
-      diag-2 (2): Can't use x86_64 with selection of http://localhost/top.xml (i486)
-      diag-1 (1): Can't use x86_64 with selection of http://localhost/top.xml (i486)
+      v5 (diag-5): Can't use x86_64 with selection of http://localhost/top.xml (i486)
+      v4 (diag-4): Can't use x86_64 with selection of http://localhost/top.xml (i486)
+      v3 (diag-3): Can't use x86_64 with selection of http://localhost/top.xml (i486)
+      v2 (diag-2): Can't use x86_64 with selection of http://localhost/top.xml (i486)
+      v1 (diag-1): Can't use x86_64 with selection of http://localhost/top.xml (i486)
       ...
-- http://localhost/top.xml -> 1 (1)
+- http://localhost/top.xml -> v1 (1)
     </problem>
 
     <justification interface='http://localhost/diagnostics.xml' id='diag-5'>
 There is no possible selection using http://localhost/diagnostics.xml 5.
 Can't find all required implementations:
 - http://localhost/diagnostics.xml -> (problem)
-    http://localhost/top.xml 1 requires version ..!6
     Rejected candidates:
-      diag-5 (5): Can't use x86_64 with selection of http://localhost/top.xml (i486)
-- http://localhost/top.xml -> 1 (1)
+      v5 (diag-5): Can't use x86_64 with selection of http://localhost/top.xml (i486)
+- http://localhost/top.xml -> v1 (1)
     </justification>
   </test>
 
@@ -1223,10 +1221,10 @@ Can't find all required implementations:
 - http://localhost/diagnostics-old.xml -> (problem)
     Replaced by (and therefore conflicts with) http://localhost/diagnostics.xml
     Rejected candidates:
-      diag-5 (5): Conflicts with http://localhost/diagnostics.xml
-- http://localhost/diagnostics.xml -> 5 (diag-5)
+      v5 (diag-5): Conflicts with http://localhost/diagnostics.xml
+- http://localhost/diagnostics.xml -> v5 (diag-5)
     Replaces (and therefore conflicts with) http://localhost/diagnostics-old.xml
-- http://localhost/top.xml -> 1 (1)
+- http://localhost/top.xml -> v1 (1)
     </problem>
   </test>
 
@@ -1519,7 +1517,7 @@ Can't find all required implementations:
 Can't find all required implementations:
 - /root/prog.xml -> (problem)
     Rejected candidates:
-      . (1): No missing-2 command
+      v1 (.): No missing-2 command
     </problem>
   </test>
 
@@ -1655,17 +1653,58 @@ Can't find all required implementations:
 
     <problem>
 Can't find all required implementations:
-- /root/0publish.xml -> 0.25-post (pub1)
-    /root/0test.xml 0.9-post requires 'run' command
-- /root/0test.xml -> 0.9-post (test1)
+- /root/0publish.xml -> v0.25-post (pub1)
+- /root/0test.xml -> v0.9-post (test1)
 - /root/python.xml -> (problem)
     /root/0publish.xml 0.25-post requires version ..!3
-    /root/0publish.xml 0.25-post requires 'run' command
     /root/0test.xml 0.9-post requires version 3..
-    /root/0test.xml 0.9-post requires 'run' command
     Rejected candidates:
-      3 (3): Incompatible with restriction: version ..!3
-      2 (2): Incompatible with restriction: version 3..
+      v3 (3): Incompatible with restriction: version ..!3
+      v2 (2): Incompatible with restriction: version 3..
+    </problem>
+  </test>
+
+  <test name='uninteresting-reject'>
+    <interface local-path='python.xml'>
+      <name>Python</name>
+      <summary>Versions 2 and 3</summary>
+      <group>
+	<command name='run' path='python.exe'/>
+	<implementation id='2' local-path='.' version='2'/>
+	<implementation id='3' local-path='.' version='3'/>
+      </group>
+    </interface>
+
+    <interface local-path='0publish.xml'>
+      <name>0publish</name>
+      <summary>Impossible</summary>
+      <group>
+	<implementation id='pub1' local-path='.' version='0.25-post'/>
+      </group>
+    </interface>
+
+    <interface local-path='0test.xml'>
+      <name>0test</name>
+      <summary>Don't report rejection of Python 2</summary>
+      <group>
+	<command name='test'>
+	  <runner interface='/root/python.xml' version='3..'/>
+	  <requires interface='/root/0publish.xml' version='4..'/>
+	</command>
+	<implementation id='test1' local-path='.' version='0.9-post'/>
+      </group>
+    </interface>
+
+    <requirements fails='true' interface='./0test.xml' command='test'/>
+
+    <problem>
+Can't find all required implementations:
+- /root/0publish.xml -> (problem)
+    /root/0test.xml 0.9-post requires version 4..
+    Rejected candidates:
+      v0.25-post (pub1): Incompatible with restriction: version 4..
+- /root/0test.xml -> v0.9-post (test1)
+- /root/python.xml -> v3 (3)
     </problem>
   </test>
 

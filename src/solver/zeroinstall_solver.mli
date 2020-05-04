@@ -24,20 +24,6 @@ module Diagnostics(Result : S.SOLVER_RESULT) : sig
 
   (** An item of information to display for a component. *)
   module Note : sig
-    type rejection_reason = [
-      | `Model_rejection of Result.Input.rejection
-      | `FailsRestriction of Result.Input.restriction
-      | `DepFailsRestriction of Result.Input.dependency * Result.Input.restriction
-      | `MachineGroupConflict of Result.Role.t * Result.Input.impl
-      | `ClassConflict of Result.Role.t * Result.Input.conflict_class
-      | `ConflictsRole of Result.Role.t
-      | `MissingCommand of Result.Input.command_name
-      | `DiagnosticsFailure of string
-    ]
-    (** Why a particular implementation was rejected. This could be because the
-        input rejected it before it got to the solver, or because it conflicts
-        with something else in the example (partial) solution. *)
-
     type t =
       | UserRequested of Result.Input.restriction
       | ReplacesConflict of Result.Role.t
@@ -45,19 +31,31 @@ module Diagnostics(Result : S.SOLVER_RESULT) : sig
       | Restricts of Result.Role.t * Result.Input.impl * Result.Input.restriction list
       | RequiresCommand of Result.Role.t * Result.Input.impl * Result.Input.command_name
       | Feed_problem of string
-      | NoCandidates of {
-          reason : [`No_candidates | `No_usable_candidates | `Rejected_candidates];
-          rejects : (Result.Input.impl * rejection_reason) list;
-        }
 
-    val pp : verbose:bool -> Format.formatter -> t -> unit
-    (** [pp_note ~verbose] is a formatter for notes.
-        @param verbose If [false], limit the list of rejected candidates (if any) to five entries. *)
+    val pp : Format.formatter -> t -> unit
   end
 
   (** Information about a single role in the example (failed) selections produced by the solver. *)
   module Component : sig
     type t
+
+    type rejection_reason = [
+      | `Model_rejection of Result.Input.rejection      (** Rejected before getting to solver. *)
+      | `FailsRestriction of Result.Input.restriction   (** e.g. version too old for another component. *)
+      | `DepFailsRestriction of Result.Input.dependency * Result.Input.restriction (** Couldn't satisfy its dependencies. *)
+      | `MachineGroupConflict of Result.Role.t * Result.Input.impl (** A selected impl has a different machine type. *)
+      | `ClassConflict of Result.Role.t * Result.Input.conflict_class (** A selected impl has the same conflict class. *)
+      | `ConflictsRole of Result.Role.t                 (** A selected role conflicts with this (e.g. replaced-by). *)
+      | `MissingCommand of Result.Input.command_name    (** Doesn't have a command we need. *)
+      | `DiagnosticsFailure of string                   (** Unknown failure reason (gives raw error from SAT solver). *)
+    ]
+    (** Why a particular implementation was rejected. This could be because the
+        input rejected it before it got to the solver, or because it conflicts
+        with something else in the example (partial) solution. *)
+
+    type reject = Result.Input.impl * rejection_reason
+
+    val pp_reject : Format.formatter -> reject -> unit
 
     val selected_impl : t -> Result.Input.impl option
     (** [selected_impl t] is the implementation selected to fill [t]'s role, or
@@ -66,9 +64,18 @@ module Diagnostics(Result : S.SOLVER_RESULT) : sig
     val notes : t -> Note.t list
     (** Information discovered about this component. *)
 
+    val rejects : t -> reject list * [ `All_unusable | `No_candidates | `Conflicts ]
+    (** [rejects t] returns the rejected candidates (call this if [selected_impl t = None]).
+        [`No_candidates] means that there were no implementations given at all (e.g. bad role name).
+        [`All_unusable] means every candidate was rejected before reaching the solver (e.g. they were
+        all binaries for some other platform).
+        [`Conflicts] is the normal case, where some made it to the solver, but were rejected because
+        they conflicted with other selections. *)
+
     val pp : verbose:bool -> Format.formatter -> t -> unit
     (** [pp ~verbose] formats a message showing the status of this component,
-        including all of its notes. *)
+        including all of its notes and, if there was no selected impl, the rejects.
+        @param verbose If [false], limit the list of rejected candidates (if any) to five entries. *)
   end
 
   type t = Component.t Result.RoleMap.t

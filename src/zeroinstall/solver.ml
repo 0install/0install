@@ -64,6 +64,13 @@ module Input = struct
   let pp_command f command = Element.pp f command.Impl.command_qdom
   let describe_problem = Impl_provider.describe_problem
 
+  let pp_version f impl = Version.pp f impl.Impl.parsed_version
+
+  let pp_impl_long f impl =
+    let id = id_of_impl impl in
+    let id = if String.length id > 20 then String.sub id 0 17 ^ "..." else id in
+    Format.fprintf f "v%a (%s)" pp_version impl id
+
   let compare_version a b = compare a.Impl.parsed_version b.Impl.parsed_version
 
   let dummy_impl =
@@ -144,8 +151,6 @@ module Input = struct
 
   let user_restrictions role =
     XString.Map.find_opt role.iface role.scope#extra_restrictions
-
-  let format_version impl = Version.to_string impl.Impl.parsed_version
 
   type conflict_class = private string
   let conflict_class _ = []

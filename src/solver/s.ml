@@ -124,13 +124,16 @@ module type SOLVER_INPUT = sig
 
   (** Used to sort the results. *)
   val compare_version : impl -> impl -> int
-  val format_version : impl -> string
+  val pp_version : Format.formatter -> impl -> unit
 
   (** Get any user-specified restrictions affecting a role.
       These are used to filter out implementations before they get to the solver. *)
   val user_restrictions : Role.t -> restriction option
 
-  val id_of_impl : impl -> string
+  (** A detailed identifier for the implementation. In 0install, this is the version
+      number and part of the hash. *)
+  val pp_impl_long : Format.formatter -> impl -> unit
+
   val format_machine : impl -> string
   val string_of_restriction : restriction -> string
   val describe_problem : impl -> rejection -> string

@@ -13,11 +13,32 @@ module Make (Results : S.SOLVER_RESULT) = struct
   module RoleMap = Results.RoleMap
 
   let format_role = Model.Role.pp
-  let format_version f v = Format.pp_print_string f (Model.format_version v)
+  let format_restrictions r = String.concat ", " (List.map Model.string_of_restriction r)
 
   module Note = struct
-    (* Why a particular implementation was rejected. This could be because the model rejected it,
-       or because it conflicts with something else in the example (partial) solution. *)
+    type t =
+      | UserRequested of Model.restriction
+      | ReplacesConflict of Model.Role.t
+      | ReplacedByConflict of Model.Role.t
+      | Restricts of Model.Role.t * Model.impl * Model.restriction list
+      | RequiresCommand of Model.Role.t * Model.impl * Model.command_name
+      | Feed_problem of string
+
+    let pp f = function
+      | UserRequested r -> pf f "User requested %s" (format_restrictions [r])
+      | ReplacesConflict old -> pf f "Replaces (and therefore conflicts with) %a" format_role old
+      | ReplacedByConflict replacement -> pf f "Replaced by (and therefore conflicts with) %a" format_role replacement
+      | Restricts (other_role, impl, r) ->
+        pf f "%a %a requires %s" format_role other_role Model.pp_version impl (format_restrictions r)
+      | RequiresCommand (other_role, impl, command) ->
+        pf f "%a %a requires '%s' command" format_role other_role Model.pp_version impl (command :> string)
+      | Feed_problem msg -> pf f "%s" msg
+  end
+
+  (** Represents a single interface in the example (failed) selections produced by the solver.
+      It partitions the implementations into good and bad based (initially) on the split from the
+      impl_provider. As we explore the example selections, we further filter the candidates. *)
+  module Component = struct
     type rejection_reason = [
       | `Model_rejection of Model.rejection
       | `FailsRestriction of Model.restriction
@@ -28,75 +49,11 @@ module Make (Results : S.SOLVER_RESULT) = struct
       | `MissingCommand of Model.command_name
       | `DiagnosticsFailure of string
     ]
+    (* Why a particular implementation was rejected. This could be because the model rejected it,
+       or because it conflicts with something else in the example (partial) solution. *)
 
-    type t =
-      | UserRequested of Model.restriction
-      | ReplacesConflict of Model.Role.t
-      | ReplacedByConflict of Model.Role.t
-      | Restricts of Model.Role.t * Model.impl * Model.restriction list
-      | RequiresCommand of Model.Role.t * Model.impl * Model.command_name
-      | Feed_problem of string
-      | NoCandidates of {
-          reason : [`No_candidates | `No_usable_candidates | `Rejected_candidates];
-          rejects : (Model.impl * rejection_reason) list;
-        }
+    type reject = Model.impl * rejection_reason
 
-    let format_restrictions r = String.concat ", " (List.map Model.string_of_restriction r)
-
-    let describe_problem impl f : rejection_reason -> unit = function
-      | `Model_rejection r -> Format.pp_print_string f (Model.describe_problem impl r)
-      | `FailsRestriction r -> pf f "Incompatible with restriction: %s" (Model.string_of_restriction r)
-      | `DepFailsRestriction (dep, restriction) ->
-          let dep_info = Model.dep_info dep in
-          pf f "Requires %a %s" format_role dep_info.Model.dep_role (format_restrictions [restriction])
-      | `MachineGroupConflict (other_role, other_impl) ->
-          pf f "Can't use %s with selection of %a (%s)"
-            (Model.format_machine impl)
-            format_role other_role
-            (Model.format_machine other_impl)
-      | `ClassConflict (other_role, cl) ->
-          pf f "In same conflict class (%s) as %a"
-            (cl :> string)
-            format_role other_role
-      | `ConflictsRole other_role -> pf f "Conflicts with %a" format_role other_role
-      | `MissingCommand command -> pf f "No %s command" (command : Model.command_name :> string)
-      | `DiagnosticsFailure msg -> pf f "Reason for rejection unknown: %s" msg
-
-    let show_rejections ~verbose f rejected =
-      let by_version (a, _) (b, _) = Model.compare_version b a in
-      let rejected = List.sort by_version rejected in
-      let rec aux i = function
-        | [] -> ()
-        | _ when i = 5 && not verbose -> pf f "@,..."
-        | (impl, problem) :: xs ->
-          pf f "@,%s (%a): %a" (Model.id_of_impl impl) format_version impl (describe_problem impl) problem;
-          aux (i + 1) xs
-      in
-      aux 0 rejected
-
-    let pp ~verbose f = function
-      | UserRequested r -> pf f "User requested %s" (format_restrictions [r])
-      | ReplacesConflict old -> pf f "Replaces (and therefore conflicts with) %a" format_role old
-      | ReplacedByConflict replacement -> pf f "Replaced by (and therefore conflicts with) %a" format_role replacement
-      | Restricts (other_role, impl, r) ->
-        pf f "%a %a requires %s" format_role other_role format_version impl (format_restrictions r)
-      | RequiresCommand (other_role, impl, command) ->
-        pf f "%a %a requires '%s' command" format_role other_role format_version impl (command :> string)
-      | Feed_problem msg -> pf f "%s" msg
-      | NoCandidates { reason; rejects } ->
-        let msg =
-          match reason with
-          | `No_candidates -> "No known implementations at all"
-          | `No_usable_candidates -> "No usable implementations:"
-          | `Rejected_candidates -> "Rejected candidates:"
-        in
-        pf f "@[<v2>%s%a@]" msg (show_rejections ~verbose) rejects
-  end
-
-  (** Represents a single interface in the example (failed) selections produced by the solver.
-      It partitions the implementations into good and bad based (initially) on the split from the
-      impl_provider. As we explore the example selections, we further filter the candidates. *)
-  module Component = struct
     type t = {
       role : Model.Role.t;
       replacement : Model.Role.t option;
@@ -108,7 +65,7 @@ module Make (Results : S.SOLVER_RESULT) = struct
       orig_good : Model.impl list;
       orig_bad : (Model.impl * Model.rejection) list;
       mutable good : Model.impl list;
-      mutable bad : (Model.impl * Note.rejection_reason) list;
+      mutable bad : (Model.impl * rejection_reason) list;
       mutable notes : Note.t list;
     }
 
@@ -137,25 +94,61 @@ module Make (Results : S.SOLVER_RESULT) = struct
     let note t note = t.notes <- note :: t.notes
     let notes t = List.rev t.notes
 
-    (* Call [get_problem impl] on each good impl. If a problem is returned, move [impl] to [bad_impls]. *)
-    let filter_impls t get_problem =
+    (* Did rejecting [impl] make any difference?
+       If [t] selected a better version anyway then we don't need to report this rejection. *)
+    let affected_selection t impl =
+      match t.selected_impl with
+      | Some selected when Model.compare_version selected impl > 0 -> false
+      | _ -> true
+
+    (* Call [get_problem impl] on each good impl. If a problem is returned, move [impl] to [bad_impls].
+       If anything changes and [!note] is not None, report it and clear the pending note. *)
+    let filter_impls_ref ~note:n t get_problem =
       let old_good = List.rev t.good in
       t.good <- [];
       old_good |> List.iter (fun impl ->
           match get_problem impl with
           | None -> t.good <- impl :: t.good
-          | Some problem -> t.bad <- (impl, problem) :: t.bad
+          | Some problem ->
+            !n |> Option.iter (fun info ->
+                if affected_selection t impl then (
+                  note t info;
+                  n := None;
+                )
+              );
+            t.bad <- (impl, problem) :: t.bad
         )
+
+    let filter_impls ?note t get_problem =
+      let note = ref note in
+      filter_impls_ref ~note t get_problem
 
     (* Remove from [good_impls] anything that fails to meet these restrictions.
        Add removed items to [bad_impls], along with the cause. *)
-    let apply_restrictions t restrictions =
+    let apply_restrictions ~note t restrictions =
+      let note = ref (Some note) in
       restrictions |> List.iter (fun r ->
-          filter_impls t (fun impl ->
+          filter_impls_ref ~note t (fun impl ->
               if Model.meets_restriction impl r then None
               else Some (`FailsRestriction r)
             )
         )
+
+    let apply_user_restriction t r =
+      note t (UserRequested r);
+      (* User restrictions should be applied before reaching the solver, but just in case: *)
+      filter_impls t (fun impl ->
+          if Model.meets_restriction impl r then None
+          else Some (`FailsRestriction r)
+        );
+      (* Completely remove non-matching impls.
+         The user will only want to see the version they asked for. *)
+      let new_bad = t.bad |> List.filter (fun (impl, _) ->
+          if Model.meets_restriction impl r then true
+          else false
+        )
+      in
+      if new_bad <> [] || t.good <> [] then t.bad <- new_bad
 
     let reject_all t reason =
       t.bad <- List.map (fun impl -> (impl, reason)) t.good @ t.bad;
@@ -166,33 +159,74 @@ module Make (Results : S.SOLVER_RESULT) = struct
     let selected_commands t = t.selected_commands
 
     let finalise t =
+      if t.selected_impl = None then
+        reject_all t (`DiagnosticsFailure (Lazy.force t.diagnostics))
+
+    let pp_reject f ((impl, reason) : reject) =
+      match reason with
+      | `Model_rejection r -> Format.pp_print_string f (Model.describe_problem impl r)
+      | `FailsRestriction r -> pf f "Incompatible with restriction: %s" (Model.string_of_restriction r)
+      | `DepFailsRestriction (dep, restriction) ->
+          let dep_info = Model.dep_info dep in
+          pf f "Requires %a %s" format_role dep_info.Model.dep_role (format_restrictions [restriction])
+      | `MachineGroupConflict (other_role, other_impl) ->
+          pf f "Can't use %s with selection of %a (%s)"
+            (Model.format_machine impl)
+            format_role other_role
+            (Model.format_machine other_impl)
+      | `ClassConflict (other_role, cl) ->
+          pf f "In same conflict class (%s) as %a"
+            (cl :> string)
+            format_role other_role
+      | `ConflictsRole other_role -> pf f "Conflicts with %a" format_role other_role
+      | `MissingCommand command -> pf f "No %s command" (command : Model.command_name :> string)
+      | `DiagnosticsFailure msg -> pf f "Reason for rejection unknown: %s" msg
+
+    let show_rejections ~verbose f rejected =
+      let by_version (a, _) (b, _) = Model.compare_version b a in
+      let rejected = List.sort by_version rejected in
+      let rec aux i = function
+        | [] -> ()
+        | _ when i = 5 && not verbose -> pf f "@,..."
+        | (impl, problem) :: xs ->
+          pf f "@,%a: %a" Model.pp_impl_long impl pp_reject (impl, problem);
+          aux (i + 1) xs
+      in
+      aux 0 rejected
+
+    let rejects t =
+      let summary =
+        if t.orig_good = [] then (
+          if t.orig_bad = [] then `No_candidates
+          else `All_unusable
+        ) else `Conflicts
+      in t.bad, summary
+
+    let pp_candidates ~verbose f t =
       if t.selected_impl = None then (
-        reject_all t (`DiagnosticsFailure (Lazy.force t.diagnostics));
-        let reason =
-          if t.orig_good = [] then (
-            if t.orig_bad = [] then `No_candidates
-            else `No_usable_candidates
-          ) else `Rejected_candidates
-        in
-        note t @@ NoCandidates { reason; rejects = t.bad }
+        match rejects t with
+        | _, `No_candidates  -> pf f "@,No known implementations at all"
+        | bad, `All_unusable -> pf f "@,@[<v2>No usable implementations:%a@]" (show_rejections ~verbose) bad
+        | bad, `Conflicts    -> pf f "@,@[<v2>Rejected candidates:%a@]" (show_rejections ~verbose) bad
       )
 
-    let pp_notes ~verbose f t =
+    let pp_notes f t =
       match notes t with
       | [] -> ()
-      | notes -> pf f "@,%a" Format.(pp_print_list ~pp_sep:pp_print_cut (Note.pp ~verbose)) notes
+      | notes -> pf f "@,%a" Format.(pp_print_list ~pp_sep:pp_print_cut Note.pp) notes
 
     let pp_outcome f t =
       match t.selected_impl with
-      | Some sel -> pf f "%a (%s)" format_version sel (Model.id_of_impl sel)
+      | Some sel -> Model.pp_impl_long f sel
       | None -> Format.pp_print_string f "(problem)"
 
     (* Format a textual description of this component's report. *)
     let pp ~verbose f t =
-      pf f "@[<v2>%a -> %a%a@]"
+      pf f "@[<v2>%a -> %a%a%a@]"
         format_role t.role
         pp_outcome t
-        (pp_notes ~verbose) t
+        pp_notes t
+        (pp_candidates ~verbose) t
   end
 
   type t = Component.t RoleMap.t
@@ -226,7 +260,7 @@ module Make (Results : S.SOLVER_RESULT) = struct
     let deps, commands_needed = Model.requires role impl in
     commands_needed |> List.find_map (fun command ->
       if Model.get_command impl command <> None then None
-      else Some (`MissingCommand command : Note.rejection_reason)
+      else Some (`MissingCommand command : Component.rejection_reason)
     )
     |> function
     | Some _ as r -> r
@@ -241,19 +275,17 @@ module Make (Results : S.SOLVER_RESULT) = struct
     | Some required_component ->
         let dep_restrictions = Model.restrictions dep in
         if dep_restrictions <> [] then (
-          (* Report the restriction *)
-          Component.note required_component (Restricts (requiring_role, requiring_impl, dep_restrictions));
-
           (* Remove implementations incompatible with the other selections *)
           Component.apply_restrictions required_component dep_restrictions
+            ~note:(Restricts (requiring_role, requiring_impl, dep_restrictions))
         );
 
         dep_required_commands |> List.iter (fun command ->
-          Component.note required_component (RequiresCommand (requiring_role, requiring_impl, command));
-          Component.filter_impls required_component (fun impl ->
-            if Model.get_command impl command <> None then None
-            else Some (`MissingCommand command)
-          )
+            let note = Note.RequiresCommand (requiring_role, requiring_impl, command) in
+            Component.filter_impls ~note required_component (fun impl ->
+                if Model.get_command impl command <> None then None
+                else Some (`MissingCommand command)
+              )
         )
 
   (* Find all restrictions that are in play and affect this interface *)
@@ -293,8 +325,7 @@ module Make (Results : S.SOLVER_RESULT) = struct
   let examine_extra_restrictions report =
     report |> RoleMap.iter (fun role component ->
       Model.user_restrictions role |> Option.iter (fun restriction ->
-        Component.note component (UserRequested restriction);
-        Component.apply_restrictions component [restriction]
+        Component.apply_user_restriction component restriction
       )
     )
 

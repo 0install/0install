@@ -40,7 +40,7 @@
 
     <requirements command='run' interface='./local.xml' fails='true'/>
 
-    <problem>Can't find all required implementations\(.\|\)*/bin (1.0): No run command</problem>
+    <problem>Can't find all required implementations\(.\|\)*v1.0 (/bin): No run command</problem>
   </test>
 
   <test name='need-download'>
@@ -203,7 +203,7 @@ Can't find all required implementations:
       <implementation id='sha1=123' version='1.0' main='dummy'/>
     </interface>
     <requirements command='run' interface='http://foo/' dry-run='true'/>
-    <problem>\(.\|\)*sha1=123 (1.0): No retrieval methods</problem>
+    <problem>\(.\|\)*v1.0 (sha1=123): No retrieval methods</problem>
   </test>
 
   <test name='cycle'>

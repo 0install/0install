@@ -473,13 +473,13 @@ let suite = "solver">::: [
     justify
       ("There is no possible selection using http://foo/Binary.xml 3.\n" ^
       "Can't find all required implementations:\n" ^
-      "- http://foo/Binary.xml#source -> 3 (impossible)\n" ^
+      "- http://foo/Binary.xml#source -> v3 (impossible)\n" ^
       "- http://foo/Compiler.xml -> (problem)\n" ^
       "    http://foo/Binary.xml#source 3 requires version ..!1.0, version 1.0..\n" ^
       "    Rejected candidates:\n" ^
-      "      sha1=999 (5): Incompatible with restriction: version ..!1.0\n" ^
-      "      sha1=345 (1.0): Incompatible with restriction: version ..!1.0\n" ^
-      "      sha1=678 (0.1): Incompatible with restriction: version 1.0..")
+      "      v5 (sha1=999): Incompatible with restriction: version ..!1.0\n" ^
+      "      v1.0 (sha1=345): Incompatible with restriction: version ..!1.0\n" ^
+      "      v0.1 (sha1=678): Incompatible with restriction: version 1.0..")
       iface ~source:true (`Remote_feed "http://foo/Source.xml") "impossible";
     justify
       ("http://foo/Compiler.xml 5 is selectable, but using it would produce a less optimal solution overall.\n\n" ^
