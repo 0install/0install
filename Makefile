@@ -5,6 +5,9 @@ DISTDIR = $(abspath dist)
 # Using PROFILE=dev makes warnings fatal and makes the build faster by doing fewer optimisations
 PROFILE ?= release
 
+# Only build the 0install-gtk GUI package if lablgtk3 is available.
+PACKAGES = 0install,0install-solver$(shell ocamlfind query -format ,0install-gtk lablgtk3 2> /dev/null)
+
 # There are several things you might want to do:
 #
 # 1. a traditional install (e.g. under /usr/local or ~)
@@ -41,7 +44,7 @@ MACHINE = $(shell uname -m)
 VERSION = $(shell sed -n 's/let version = "\(.*\)"/\1/p' ${SRCDIR}/src/zeroinstall/about.ml)
 
 all:
-	dune build --root=. --profile=${PROFILE} @install
+	dune build --root=. --profile=${PROFILE} --only-packages=${PACKAGES} @install
 	install -d "${DISTDIR}"
 	install -d "${DISTDIR}/files"
 	install -d "${DISTDIR}/files/gui_gtk"
@@ -62,10 +65,10 @@ all:
 	[ -f "${DISTDIR}/0install/build-environment.xml" ] || sed 's/@ARCH@/${OS}-${MACHINE}/;s/@VERSION@/${VERSION}/' "${SRCDIR}/binary-feed.xml.in" > "${DISTDIR}/0install/feed.xml"
 
 test:
-	dune runtest --root=. --profile=${PROFILE}
+	dune runtest --root=. --profile=${PROFILE} --only-packages=${PACKAGES}
 
 doc:
-	dune build --root=. --profile=${PROFILE} @doc
+	dune build --root=. --profile=${PROFILE} --only-packages=${PACKAGES} @doc
 
 install: install_local
 

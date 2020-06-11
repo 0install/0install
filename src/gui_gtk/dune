@@ -1,25 +1,10 @@
-(* -*- tuareg -*- *)
+(executable
+  (name gui_gtk)
+  (modes plugin)
+  (libraries lablgtk3 lwt_glib zeroinstall support lwt lwt.unix lwt_react)
+  (embed_in_plugin_libraries lablgtk3 lwt_glib))
 
-let have_gtk =
-  try
-    ignore @@ Jbuild_plugin.V1.run_and_read_lines "ocamlfind query lablgtk3";
-    true
-  with _ ->
-    print_endline "(will skip building the GTK plugin)";
-    false
-
-let dune = {|
-  (executable
-    (name gui_gtk)
-    (modes plugin)
-    (libraries lablgtk3 lwt_glib zeroinstall support lwt lwt.unix lwt_react)
-    (embed_in_plugin_libraries lablgtk3 lwt_glib))
-
-  (install
-    (section lib)
-    (package 0install-gtk)
-    (files gui_gtk%{ext_plugin}))
-|}
-
-let () =
-  Jbuild_plugin.V1.send (if have_gtk then dune else "")
+(install
+  (section lib)
+  (package 0install-gtk)
+  (files gui_gtk%{ext_plugin}))
