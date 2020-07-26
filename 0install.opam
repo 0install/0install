@@ -20,7 +20,7 @@ depends: [
   "obus" {os != "macos" & os-family != "windows"}
   "ocurl" {>= "0.7.9"}
   "sha" {>= "1.9"}
-  "dune" {>= "2.1"}
+  "dune" {>= "2.5"}
 ]
 depexts: [
   ["gnupg" "unzip"] {os-family = "debian"}

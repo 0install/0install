@@ -1,50 +1,10 @@
-(* -*- tuareg -*- *)
+(executable
+  (name gui_gtk)
+  (modes plugin)
+  (libraries lablgtk3 lwt_glib zeroinstall support lwt lwt.unix lwt_react)
+  (embed_in_plugin_libraries lablgtk3 lwt_glib))
 
-let have_gtk =
-  try
-    ignore @@ Jbuild_plugin.V1.run_and_read_lines "ocamlfind query lablgtk3";
-    true
-  with _ ->
-    print_endline "(will skip building the GTK plugin)";
-    false
-
-let plugin_ext =
-  match List.assoc "natdynlink_supported" Jbuild_plugin.V1.ocamlc_config with
-  | "true" -> "cmxs"
-  | _ -> "cma"
-  | exception Not_found -> "cma"
-
-let dune = {|
-  (library
-   (name        gui_gtk_lib)
-   (libraries   lablgtk3 lwt_glib zeroinstall support lwt lwt.unix lwt_react))
-
-  (rule
-    (targets gui_gtk.cmxs)
-    (deps gui_gtk_lib.cmxa)
-    (action (run ocamlfind ocamlopt -shared -linkall -linkpkg
-			  -dontlink lwt,lwt.unix
-			  -thread
-			  -package lablgtk3,lwt_glib
-			  %{deps}
-			  -o %{targets}
-    )))
-
-  (rule
-    (targets gui_gtk.cma)
-    (deps gui_gtk_lib.cma)
-    (action (run ocamlfind ocamlc -linkall -linkpkg
-			  -dontlink lwt,lwt.unix
-			  -thread -a
-			  -package lablgtk3,lwt_glib
-			  %{deps}
-			  -o %{targets}
-    )))
-
-  (install
-    (section lib)
-    (package 0install-gtk)
-|} ^ Printf.sprintf "(files gui_gtk.%s))" plugin_ext
-
-let () =
-  Jbuild_plugin.V1.send (if have_gtk then dune else "")
+(install
+  (section lib)
+  (package 0install-gtk)
+  (files gui_gtk%{ext_plugin}))
