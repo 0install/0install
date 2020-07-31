@@ -4,7 +4,7 @@ set -eu
 cd `dirname $0`/files
 
 echo Testing binary...
-./0install --version | head -1
+./0install --version
 echo OK
 echo
 
