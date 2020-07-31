@@ -9,6 +9,15 @@ open Support
 open Support.Common
 module U = Support.Utils
 
+(* There's no reason to use SIGPIPE in a language with exceptions. This
+   means that the function with the problem will raise an exception, instead
+   of terminating the whole program. *)
+let () =
+  match Sys.os_type with
+  | "Unix" | "Cygwin" ->
+    let _ : Sys.signal_behavior = Sys.(signal sigpipe Signal_ignore) in ()
+  | _ -> ()
+
 let crash_handler system crash_dir entries =
   U.makedirs system crash_dir 0o700;
   let leaf =
