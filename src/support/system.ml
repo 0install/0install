@@ -60,6 +60,7 @@ let canonical_machines = List.fold_left (fun map (k, v) -> XString.Map.add k v m
   ("Power Macintosh", "ppc");
   ("armhf", "armv6l");  (* Not sure what version it should be, but unlikely apt-cache will report an incompatible arch anyway *)
   ("armv6h", "armv6l"); (* Arch Linux ARM for Raspberry Pi calls it armv6h, assumedly indicating hard-float *)
+  ("arm64", "aarch64")
 ]
 
 (** Return the canonical name for this CPU, or [s] if we don't know one. *)

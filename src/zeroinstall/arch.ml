@@ -73,6 +73,7 @@ let get_machine_ranks ~multiarch machine =
     | "x86_64" when multiarch -> [|"i686"; "i586"; "i486"; "i386"|]
     | "ppc64"  when multiarch -> [|"ppc"|]
     | "armv7l" -> [| "armv6l" |]
+    | "aarch64" when multiarch -> [|"armv7l"; "armv6l"|]
     | _ -> [||] in
 
   for i = 0 to Array.length compatible_machines - 1 do
