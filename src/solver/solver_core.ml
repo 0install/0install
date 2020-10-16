@@ -327,8 +327,8 @@ module Make (Model : S.SOLVER_INPUT) = struct
   end
 
   (** If this binding depends on a command (<executable-in-*>), add that to the problem.
-   * @param user_var indicates when this binding is used
-   * @param dep_iface the required interface this binding targets *)
+     @param user_var indicates when this binding is used
+     @param dep_iface the required interface this binding targets *)
   let process_self_command sat lookup_command user_var dep_role name =
     (* Note: we only call this for self-bindings, so we could be efficient by selecting the exact command here... *)
     let candidates = lookup_command (name, dep_role) in
