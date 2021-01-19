@@ -709,7 +709,7 @@ class Fetcher(object):
 		# Pipe XML into external process
 		import subprocess
 		process = subprocess.Popen(self.external_fetcher, stdin=subprocess.PIPE)
-		process.communicate(doc.toxml() + "\n")
+		process.communicate((doc.toxml() + "\n").encode('UTF-8'))
 
 		if process.returncode != 0:
 			raise SafeException(_("Download with external fetcher failed"))
