@@ -261,10 +261,14 @@ class Distribution(object):
 				impl.upstream_stability = model.packaged
 				impl.machine = host_machine	# (hopefully)
 
-				if gobject.__file__.startswith('<'):
-					_set_quick_test(impl, gobject.__path__)		# Python 3
-				else:
-					_set_quick_test(impl, gobject.__file__)		# Python 2
+				path = gobject.__file__
+				if path.startswith('<'):
+					# Python 3
+					path = gobject.__path__
+					if isinstance(path, list):
+						path = path[0]
+
+				_set_quick_test(impl, path)
 
 				# Requires our version of Python too
 				restriction_element = qdom.Element(namespaces.XMLNS_IFACE, 'restricts', {'interface': _PYTHON_URI, 'distribution': 'host'})
