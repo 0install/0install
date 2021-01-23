@@ -73,7 +73,7 @@ class TestDistro(BaseTest):
 
 		# Special case: we can always find a version of Python
 		master_feed = model.ZeroInstallFeed(None)
-		master_feed.url = 'http://repo.roscidus.com/python/python'
+		master_feed.url = 'https://apps.0install.net/python/python.xml'
 		feed = host.get_feed(master_feed)
 		self.assertEqual(1, len(feed.implementations))
 

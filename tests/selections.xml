@@ -3,5 +3,5 @@
   <selection id="sha1=3ce644dc725f1d21cfcf02562c76f375944b266a" interface="http://example.com:8000/Hello.xml" main="HelloWorld/main" version="1">
     <manifest-digest sha1="3ce644dc725f1d21cfcf02562c76f375944b266a"/>
   </selection>
-  <selection id="package:deb:make:3.81-7" interface="http://repo.roscidus.com/devel/make" main="/usr/bin/make" package="make" stability="testing" version="3.81-7"/>
+  <selection id="package:deb:make:3.81-7" interface="https://apps.0install.net/devel/make.xml" main="/usr/bin/make" package="make" stability="testing" version="3.81-7"/>
 </selections>

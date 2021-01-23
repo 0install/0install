@@ -126,7 +126,7 @@ To see where things have been stored:
       - URI: http://rox.sourceforge.net/2005/interfaces/ROX-Lib
         Version: 2.0.6
         Path: /home/tal/.cache/0install.net/implementations/sha256=ccefa7b187...16b6d0ad67c4df6d0c06243e
-      - URI: http://repo.roscidus.com/python/python
+      - URI: https://apps.0install.net/python/python.xml
         Version: 2.7.3-4
         Path: (package:deb:python2.7:2.7.3-4:x86_64)
 

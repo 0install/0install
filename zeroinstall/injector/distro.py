@@ -21,7 +21,7 @@ _zeroinstall_regexp = '(?:%s)(?:-(?:pre|rc|post|)(?:%s))*' % (_dotted_ints, _dot
 # (first matching group is for Java-style 6b17 or 7u9 syntax, or "major")
 _version_regexp = '(?:[a-z])?({ints}\.?[bu])?({zero})(-r{ints})?'.format(zero = _zeroinstall_regexp, ints = _dotted_ints)
 
-_PYTHON_URI = 'http://repo.roscidus.com/python/python'
+_PYTHON_URI = 'https://apps.0install.net/python/python.xml'
 
 def _set_quick_test(impl, path):
 	"""Set impl.quick_test_file and impl.quick_test_mtime from path."""
@@ -249,7 +249,7 @@ class Distribution(object):
 			_set_quick_test(impl, sys.executable)
 
 			feed.implementations[impl_id] = impl
-		elif master_feed.url == 'http://repo.roscidus.com/python/python-gobject' and os.name != "nt":
+		elif master_feed.url == 'https://apps.0install.net/python/pygobject.xml' and os.name != "nt":
 			gobject = get_loop().gobject
 			if gobject:
 				# Likewise, we know that there is a native python-gobject available for our Python
