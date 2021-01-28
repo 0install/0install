@@ -18,34 +18,25 @@ better, Unsupported architectures are not listed at all.
 # See the README file for details, or visit http://0install.net.
 
 from zeroinstall import _
-import os
-
-# TODO: "import platform"?
+import platform, os
 
 # os_ranks and mapping are mappings from names to how good they are.
 # 1 => Native (best)
 # Higher numbers are worse but usable.
-try:
+if platform.system() == 'Windows':
+	if platform.machine() == 'AMD64':
+		_uname = ('Windows', 'x86_64')
+	elif platform.machine() == 'ARM64':
+		_uname = ('Windows', 'aarch64')
+	else:
+		_uname = ('Windows', 'i486')
+else:
 	_uname = os.uname()
 	# On Darwin, machine is wrong.
 	if _uname[0] == 'Darwin' and _uname[-1] == 'i386':
 		_cpu64 = os.popen('sysctl -n hw.cpu64bit_capable 2>&1').next().strip()
 		if _cpu64 == '1':
 			_uname = tuple(list(_uname[:-1])+['x86_64'])
-except AttributeError:
-	# No uname. Probably Windows.
-	import sys
-	p = sys.platform
-	if p == 'win64':
-		_uname = ('Windows', 'x86_64')
-	elif p == 'win32':
-		from win32process import IsWow64Process
-		if IsWow64Process():
-			_uname = ('Windows', 'x86_64')
-		else:
-			_uname = ('Windows', 'i486')
-	else:
-		_uname = (p, 'i486')
 
 def canonicalize_os(os_):
 	"""@type os_: str
