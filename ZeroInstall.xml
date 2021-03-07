@@ -1,23 +1,15 @@
 <?xml version="1.0" ?>
 <?xml-stylesheet type='text/xsl' href='interface.xsl'?>
 <interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface" xmlns:compile="http://zero-install.sourceforge.net/2006/namespaces/0compile">
-  <name>0install</name>
-  <summary>decentralised installation system</summary>
-  <description>
-Zero Install is a decentralised cross-platform software installation
-system available under the LGPL. It allows software developers to publish
-programs directly from their own web-sites, while supporting features familiar
-from centralised distribution repositories such as shared libraries, automatic
-updates and digital signatures. It is intended to complement, rather than
-replace, the operating system's package management. 0install packages never
-interfere with those provided by the distribution.
-</description>
+  <name>Zero Install - OCaml version</name>
+  <summary>OCaml version of 0install, the decentralized installation system</summary>
+  <description>This is the OCaml version of Zero Install. Zero Install is a cross-platform, decentralized installation system. Instead of having a central repository in which all software is placed under a naming scheme managed by some central authority, programs and libraries in Zero Install are identified by URIs. Anyone who can create a web-page can publish software. Anyone can install software (not just administrators).</description>
 
   <homepage>https://0install.net/</homepage>
 
   <icon href="https://0install.net/feed_icons/ZeroInstall.png" type="image/png"/>
 
-  <feed-for interface="http://0install.net/tools/0install.xml"/>
+  <feed-for interface="https://apps.0install.net/0install/0install-ocaml.xml"/>
   <category>System</category>
 
   <release:management xmlns:release="http://zero-install.sourceforge.net/2007/namespaces/0release">
