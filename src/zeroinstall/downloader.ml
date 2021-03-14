@@ -114,11 +114,11 @@ let truncate_to_empty tmpfile ch =
   )
 
 (** A temporary file that will be deleted when the switch is turned off. *)
-let tmpfile_with_switch ?switch ~prefix ~suffix =
+let tmpfile_with_switch ~switch ~prefix ~suffix =
   let tmpfile, ch = Filename.open_temp_file ~mode:[Open_binary] prefix suffix in
   Unix.set_close_on_exec (Unix.descr_of_out_channel ch);
   let ch = ref ch in
-  Lwt_switch.add_hook switch (fun () ->
+  Lwt_switch.add_hook (Some switch) (fun () ->
     begin try
       close_out !ch;         (* For Windows: ensure file is closed before unlinking *)
       Unix.unlink tmpfile

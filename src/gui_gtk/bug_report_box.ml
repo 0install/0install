@@ -38,7 +38,7 @@ let text_area ?(mono=false) ?(text="") ~packing () =
 
   tv#buffer
 
-let create config ?run_test ?last_error ~role ~results =
+let create ?run_test ?last_error ~role ~results config =
   (* Collect information about system *)
   let details = Zeroinstall.Gui.get_bug_report_details config ~role results in
 
