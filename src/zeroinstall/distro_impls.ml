@@ -741,10 +741,17 @@ module Win = struct
             self#find_netfx "v3.5"       "3.5" query;
             self#find_netfx "v4\\Full"   "4.0" query;
             self#find_netfx_release "v4\\Full" 378389 "4.5" query;
-            self#find_netfx "v5" "5.0" query;
+            self#find_netfx_release "v4\\Full" 378675 "4.5.1" query;
+            self#find_netfx_release "v4\\Full" 379893 "4.5.2" query;
+            self#find_netfx_release "v4\\Full" 393295 "4.6" query;
+            self#find_netfx_release "v4\\Full" 394254 "4.6.1" query;
+            self#find_netfx_release "v4\\Full" 394802 "4.6.2" query;
+            self#find_netfx_release "v4\\Full" 460798 "4.7" query;
+            self#find_netfx_release "v4\\Full" 461308 "4.7.1" query;
+            self#find_netfx_release "v4\\Full" 461808 "4.7.2" query;
+            self#find_netfx_release "v4\\Full" 528040 "4.8" query;
         | "netfx-client" ->
             self#find_netfx "v4\\Client" "4.0" query;
-            self#find_netfx_release "v4\\Client" 378389 "4.5" query;
         | package_name ->
             Query.problem query "%s: Unknown Windows package" package_name
 
