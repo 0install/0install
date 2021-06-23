@@ -1708,4 +1708,24 @@ Can't find all required implementations:
     </problem>
   </test>
 
+  <test name='self-conflict'>
+    <interface local-path='foo.xml'>
+      <name>Foo</name>
+      <summary>Conflicts with itself!</summary>
+      <group>
+	<restricts interface='./foo.xml' version='0'/>
+	<implementation id='1' local-path='.' version='1'/>
+      </group>
+    </interface>
+
+    <requirements fails='true' interface='./foo.xml'/>
+
+    <problem>
+Can't find all required implementations:
+- /root/foo.xml -> (problem)
+    Rejected candidates:
+      v1 (1): Requires /root/foo.xml version 0
+    </problem>
+  </test>
+
 </test-cases>

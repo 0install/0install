@@ -158,9 +158,29 @@ module Make (Results : S.SOLVER_RESULT) = struct
     let selected_impl t = t.selected_impl
     let selected_commands t = t.selected_commands
 
+    (* When something conflicts with itself then our usual trick of selecting
+       the main implementation and failing the dependency doesn't work, so
+       special-case that here. *)
+    let reject_self_conflicts t =
+      filter_impls t (fun impl ->
+          let deps, _ = Model.requires t.role impl in
+          deps |> List.find_map (fun dep ->
+              let { Model.dep_role; _ } = Model.dep_info dep in
+              if Model.Role.compare dep_role t.role <> 0 then None else (
+                (* It depends on itself. *)
+                Model.restrictions dep |> List.find_map (fun r ->
+                    if Model.meets_restriction impl r then None
+                    else Some (`DepFailsRestriction (dep, r))
+                  )
+              )
+            )
+        )
+
     let finalise t =
-      if t.selected_impl = None then
+      if t.selected_impl = None then (
+        reject_self_conflicts t;
         reject_all t (`DiagnosticsFailure (Lazy.force t.diagnostics))
+      )
 
     let pp_reject f ((impl, reason) : reject) =
       match reason with

@@ -38,8 +38,6 @@ module Make (User : USER) : sig
       during setup vs problems discovered by the solver. *)
   val impossible : t -> unit -> unit
 
-  type added_result = AddedFact of bool | AddedClause of clause
-
   (** Add a clause requiring at least one literal to be [True]. e.g. [A or B or not(C)].
       [reason] is used in debug messages. *)
   val at_least_one : t -> ?reason:string -> lit list -> unit
@@ -51,7 +49,8 @@ module Make (User : USER) : sig
 
   type at_most_one_clause
 
-  (** Add a clause preventing more than one literal in the list from being [True]. *)
+  (** Add a clause preventing more than one literal in the list from being [True].
+      @raise Invalid_argument if the list contains duplicates. *)
   val at_most_one : t -> lit list -> at_most_one_clause
 
   (** [run_solver decider] tries to solve the SAT problem. It simplifies it as much as possible first. When it
