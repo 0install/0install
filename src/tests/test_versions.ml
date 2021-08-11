@@ -118,7 +118,7 @@ let suite = "versions">::: [
     assert (t v2);
 
     try
-      ignore @@ Version.parse_expr "1.1..2";
+      ignore (Version.parse_expr "1.1..2" : Version.version_expr);
       assert false
     with Safe_exn.T _ -> ()
   );
@@ -151,7 +151,7 @@ let suite = "versions">::: [
 
     let fail expr msg =
       Fake_system.assert_raises_safe msg (lazy (
-        ignore @@ Version.parse_expr expr
+        ignore (Version.parse_expr expr : Version.version_expr)
       )) in
 
     fail "1..2" "End of range must be exclusive (use '..!2', not '..2')";
