@@ -61,11 +61,11 @@ let start version : (unit -> unit) Lwt.t =
               D.OBus_signal.emit s_Package1 obj ("installing", "gnupg;2.0.22;x86_64;arch", "summary")
           end >>= fun () ->
           set_percentage (Int32.of_int 1);
-          Lwt_main.yield () >>= fun () ->
+          Lwt.pause () >>= fun () ->
           set_percentage (Int32.of_int 50);
-          Lwt_main.yield () >>= fun () ->
+          Lwt.pause () >>= fun () ->
           set_percentage (Int32.of_int 100);
-          Lwt_main.yield () >>= fun () ->
+          Lwt.pause () >>= fun () ->
           if version >= [| 0; 8; 1 |] then (
             D.OBus_signal.emit s_Package2 obj (Int32.of_int 18, "gnupg;2.0.22;x86_64;arch", "summary") >>= fun () ->
             D.OBus_signal.emit s_Finished2 obj (Int32.of_int 1, Int32.of_int 5)

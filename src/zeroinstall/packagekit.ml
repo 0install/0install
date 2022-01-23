@@ -315,7 +315,7 @@ let make lang_spec =
                 );
 
               (* Yield briefly, so that other packages can be added to the final batch. *)
-              Lwt_main.yield () >>= fun () ->
+              Lwt.pause () >>= fun () ->
               (* (note: next_batch might also have become empty, if someone else added our items to their batch) *)
               do_batch ();
 

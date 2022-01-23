@@ -54,7 +54,7 @@ let create config ~fetcher =
                 (* If the icon is now in the disk cache, load it into the memory cache and trigger a refresh.
                    If not, we'll be left with None in the cache so we don't try again. *)
                 let icon_path = Zeroinstall.Feed_cache.get_cached_icon_path config master_feed in
-                Lwt_unix.yield () >|= fun () -> (* Make sure we're not already inside update() *)
+                Lwt.pause () >|= fun () -> (* Make sure we're not already inside update() *)
                 icon_path |> if_some (fun path ->
                     load_icon path |> if_some (fun _ -> update ())
                   )

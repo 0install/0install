@@ -124,6 +124,27 @@ let parse_expr s =
  * We use a special-looking decimal number to make it more obvious what has happened. *)
 let version_limit = 9999999999999999L
 
+module Stream = struct
+  type t = { x : string; mutable pos : int }
+
+  let of_string x = { x; pos = 0 }
+
+  let junk_n t n =
+    let i' = t.pos + n in
+    assert (n >= 0 && i' <= String.length t.x);
+    t.pos <- i'
+
+  let junk t = junk_n t 1
+
+  let peek t =
+    if t.pos < String.length t.x then Some (t.x.[t.pos])
+    else None
+
+  let npeek n t =
+    let n = min n (String.length t.x - t.pos) in
+    List.init n (fun i -> t.x.[t.pos + i])
+end
+
 let try_cleanup_distro_version version =
   let result' = ref [] in
   let stream = Stream.of_string version in
