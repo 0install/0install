@@ -79,7 +79,10 @@ let do_exec_binding dry_run builder env impls (role, {Binding.exec_type; Binding
   let exec_dir = Filename.dirname exec_path in
   if not dry_run then (
     builder#add_launcher exec_path;
-    Unix.chmod exec_dir 0o500;
+    try
+      Unix.chmod exec_dir 0o500;
+    with ex ->
+      log_warning ~ex "chmod %S failed" exec_dir
   ) else (
     Dry_run.log "would create launcher %s" exec_path
   );
