@@ -20,5 +20,5 @@ type t = {
 val run : Sigs.iface_uri -> t
 (** [run iface] is a requirement to run [iface] with no restrictions. *)
 
-val of_json : Json.t -> t
-val to_json : t -> Json.t
+val of_json : Yojson.Basic.t -> t
+val to_json : t -> Yojson.Basic.t

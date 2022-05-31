@@ -19,7 +19,7 @@ let read_line ch =
 
 (* Read the next chunk from the channel.
    Returns [None] if the channel was closed. *)
-let read_chunk ch : Json.t option Lwt.t =
+let read_chunk ch : Yojson.Basic.t option Lwt.t =
   read_line ch >>= function
   | None -> Lwt.return None
   | Some size ->
@@ -40,7 +40,7 @@ let read_xml_chunk ch =
       let buf = Bytes.unsafe_to_string buf in
       Q.parse_input None (Xmlm.make_input (`String (0, buf)))
 
-type opt_xml = [Json.t | `WithXML of Json.t * Q.element ]
+type opt_xml = [Yojson.Basic.t | `WithXML of Yojson.Basic.t * Q.element ]
 
 type t = {
   from_peer : Lwt_io.input_channel;
@@ -49,7 +49,7 @@ type t = {
   mutable last_ticket : int64;
 }
 
-type 'a handler = (string * Json.t list) -> [opt_xml | `Bad_request] Lwt.t
+type 'a handler = (string * Yojson.Basic.t list) -> [opt_xml | `Bad_request] Lwt.t
 
 let send_json t ?xml request : unit Lwt.t =
   let data = J.to_string request in
@@ -78,7 +78,7 @@ let handle_invoke t ~handle_request ticket op args () =
   Lwt.catch
     (fun () ->
       handle_request (op, args) >|= function
-      | #Json.t as json ->
+      | #Yojson.Basic.t as json ->
           ([`String "ok"; json], None)
       | `WithXML (json, attached_xml) ->
           ([`String "ok+xml"; json], Some attached_xml)
@@ -159,4 +159,4 @@ let server ~api_version ~from_peer ~to_peer make_handler =
 
 let pp_opt_xml f = function
   | `WithXML (json, _) -> Format.fprintf f "%s+XML" (J.to_string json)
-  | #Json.t as json -> Format.pp_print_string f (J.to_string json)
+  | #Yojson.Basic.t as json -> Format.pp_print_string f (J.to_string json)

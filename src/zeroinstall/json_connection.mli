@@ -19,8 +19,8 @@ open Support
 
 type t
 
-type opt_xml = [Json.t | `WithXML of Json.t * Qdom.element ]
-type 'a handler = (string * Json.t list) -> [opt_xml | `Bad_request] Lwt.t
+type opt_xml = [Yojson.Basic.t | `WithXML of Yojson.Basic.t * Qdom.element ]
+type 'a handler = (string * Yojson.Basic.t list) -> [opt_xml | `Bad_request] Lwt.t
 
 val client :
   from_peer:Lwt_io.input_channel ->
@@ -40,7 +40,7 @@ val server :
   t * unit Lwt.t
 (** Like [client], except that the server starts by sending the version number rather than reading it. *)
 
-val invoke : t -> ?xml:Qdom.element -> string -> Json.t list -> opt_xml Lwt.t
-val notify : t -> ?xml:Qdom.element -> string -> Json.t list -> unit Lwt.t
+val invoke : t -> ?xml:Qdom.element -> string -> Yojson.Basic.t list -> opt_xml Lwt.t
+val notify : t -> ?xml:Qdom.element -> string -> Yojson.Basic.t list -> unit Lwt.t
 
 val pp_opt_xml : Format.formatter -> opt_xml -> unit

@@ -29,7 +29,7 @@ class launcher_builder config script =
 
     method setenv name command_argv env =
       let open Yojson.Basic in
-      let json : Json.t = `List (List.map (fun a -> `String a) command_argv) in
+      let json : Yojson.Basic.t = `List (List.map (fun a -> `String a) command_argv) in
       let envname = "zeroinstall_runenv_" ^ name in
       let value = to_string json in
       log_info "%s=%s" envname value;
