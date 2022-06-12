@@ -702,9 +702,12 @@ class Fetcher(object):
 		from zeroinstall.injector.qdom import Prefixes
 		doc = minidom.getDOMImplementation().createDocument(XMLNS_IFACE, "interface", None)
 		root = doc.documentElement
-		root.setAttributeNS(XMLNS_NAMESPACE, 'xmlns', XMLNS_IFACE)
+		prefixes = Prefixes(XMLNS_IFACE)
 		for impl in implementations:
-			root.appendChild(impl._toxml(doc, Prefixes(XMLNS_IFACE)))
+			root.appendChild(impl._toxml(doc, prefixes))
+		root.setAttributeNS(XMLNS_NAMESPACE, 'xmlns', XMLNS_IFACE)
+		for ns, prefix in prefixes.prefixes.items():
+			root.setAttributeNS(XMLNS_NAMESPACE, 'xmlns:' + prefix, ns)
 
 		# Pipe XML into external process
 		import subprocess
