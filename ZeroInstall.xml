@@ -21,16 +21,16 @@
   <group arch="*-src" compile:dup-src="true" license="OSI Approved :: GNU Lesser General Public License (LGPL)">
     <command name="compile">
       <runner interface="https://apps.0install.net/devel/make.xml">
-	<arg>SRCDIR=${SRCDIR}</arg>
-	<arg>DISTDIR=${DISTDIR}</arg>
+        <arg>SRCDIR=${SRCDIR}</arg>
+        <arg>DISTDIR=${DISTDIR}</arg>
       </runner>
 
       <compile:implementation main="files/0install">
-	<command name="run" path="files/0install"/>
+        <command name="run" path="files/0install"/>
 
-	<requires interface="https://apps.0install.net/utils/gnupg.xml">
-	  <executable-in-var name="ZEROINSTALL_GPG"/>
-	</requires>
+        <requires interface="https://apps.0install.net/utils/gnupg.xml">
+          <executable-in-var name="ZEROINSTALL_GPG"/>
+        </requires>
       </compile:implementation>
     </command>
 
