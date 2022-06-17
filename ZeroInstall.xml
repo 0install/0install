@@ -28,7 +28,7 @@
     </command>
     <command name="test" path="tests/testall.py">
       <runner interface="https://apps.0install.net/python/python.xml">
-	<arg>-tt</arg>
+        <arg>-tt</arg>
       </runner>
     </command>
 
@@ -40,9 +40,8 @@
     <requires interface="https://apps.0install.net/python/python.xml" os="Windows" version="3.4..!3.8"/>
     <requires interface="https://apps.0install.net/python/pywin32.xml" os="Windows"/>
 
-    <requires interface="http://0install.net/2012/interfaces/0install-runenv-cli.xml" os="Windows">
+    <requires interface="http://0install.net/2012/interfaces/0install-runenv-cli.xml" os="Windows" version="2.0.2..">
       <environment insert="runenv.cli.template" mode="replace" name="ZEROINSTALL_CLI_TEMPLATE"/>
-      <version not-before="2.0.2"/>
     </requires>
 
     <implementation id="." version="2.3.15-post"/>
