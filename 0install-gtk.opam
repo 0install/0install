@@ -1,6 +1,7 @@
 opam-version: "2.0"
 synopsis: "Decentralised installation system - GTK UI"
 maintainer: "talex5@gmail.com"
+license: "LGPL-2.1-or-later"
 authors: "zero-install-devel@lists.sourceforge.net"
 homepage: "https://0install.net/"
 bug-reports: "https://github.com/0install/0install/issues"
