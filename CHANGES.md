@@ -1,3 +1,37 @@
+## v2.18
+
+Changes:
+
+- Add support for ARM64 (Bastian Eicher).
+
+- Add `+` to list of allowed characters in "extract" (Bastian Eicher, #185).
+
+Bug fixes:
+
+- Don't abort if chmod of launcher directory fails.
+  We try to make the directory read-only, but this isn't very important.
+  It can sometimes fail if running inside a sandbox that prevents modifications to the filesystem.
+
+- Handle implementations that directly conflict with themselves (#180).
+
+- Improve SIGPIPE handling (#162).
+  Disable the SIGPIPE signal, so that we handle it as an exception instead, not by killing the process.
+
+Updates for upstream changes:
+
+- Make compatible with Yojson `json` type deprecation (Marek Kubica).
+  Yojson 2.0 removes the `json` type, so this code switches to using `t`.
+
+- Replace uses of deprecated `Stdlib.Stream` and `Lwt_unix.yield`.
+
+- Fix new compiler warnings from OCaml 4.12 and 4.13.
+
+- Update .NET Framework detection logic (Bastian Eicher, #178).
+
+- Simplify GUI build using dune's new plugin support (#161).
+
+- Move feed to apps.0install.net (Bastian Eicher).
+
 ## v2.17
 
 Solver:

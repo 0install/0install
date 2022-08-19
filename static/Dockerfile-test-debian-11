@@ -1,2 +1,2 @@
-FROM debian:10
+FROM debian:11
 RUN apt-get update && apt-get install -y unzip gpg gpg-agent ca-certificates libgtk-3-0 bzip2 python3 --no-install-recommends

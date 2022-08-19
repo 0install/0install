@@ -1,2 +1,2 @@
-FROM fedora:30
+FROM fedora:36
 RUN dnf install -y unzip gpg ca-certificates gtk3 findutils bzip2 python3

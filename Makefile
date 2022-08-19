@@ -95,4 +95,4 @@ static-test-%: static/Dockerfile-test-% static/dist.tgz
 	docker build -f $< ./static -t 0install-test
 	docker run --rm -it -v "${SRCDIR}/static:/mnt:ro" 0install-test /mnt/run-tests.sh
 
-static-test: static-test-debian-10 static-test-fedora-30
+static-test: static-test-debian-11 static-test-fedora-36
