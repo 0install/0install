@@ -7,4 +7,4 @@
 (install
   (section lib)
   (package 0install-gtk)
-  (files gui_gtk%{ext_plugin}))
+  (files gui_gtk.cmxs))

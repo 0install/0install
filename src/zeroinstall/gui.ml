@@ -324,7 +324,7 @@ let try_get_gui config ~use_gui =
           let bindir = Filename.dirname (U.realpath system config.abspath_0install) in
 
           let check_plugin_dir plugin_dir =
-            let plugin_path = plugin_dir +/ "gui_gtk.cma" |> Dynlink.adapt_filename in
+            let plugin_path = plugin_dir +/ "gui_gtk.cmxs" in
             log_info "Checking for GTK plugin at '%s'" plugin_path;
             if system#file_exists plugin_path then Some plugin_path else None in
 
