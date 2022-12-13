@@ -84,6 +84,7 @@ def type_from_url(url):
 	if url.endswith('.tar.gz'): return 'application/x-compressed-tar'
 	if url.endswith('.tar.lzma'): return 'application/x-lzma-compressed-tar'
 	if url.endswith('.tar.xz'): return 'application/x-xz-compressed-tar'
+	if url.endswith('.tar.zst'): return 'application/x-zstd-compressed-tar'
 	if url.endswith('.tbz'): return 'application/x-bzip-compressed-tar'
 	if url.endswith('.tgz'): return 'application/x-compressed-tar'
 	if url.endswith('.tlz'): return 'application/x-lzma-compressed-tar'
@@ -124,13 +125,8 @@ def check_type_ok(mime_type):
 		if not find_in_path('hdiutil'):
 			raise SafeException(_("This package looks like a Apple Disk Image, but you don't have the 'hdiutil' command "
 					"I need to extract it."))
-	elif mime_type == 'application/x-lzma-compressed-tar':
+	elif mime_type in ('application/x-lzma-compressed-tar', 'application/x-xz-compressed-tar', 'application/x-zstd-compressed-tar'):
 		pass	# We can get it through Zero Install
-	elif mime_type == 'application/x-xz-compressed-tar':
-		if not find_in_path('unxz'):
-			raise SafeException(_("This package looks like a xz-compressed package, but you don't have the 'unxz' command "
-					"I need to extract it. Install the package containing it (it's probably called 'xz-utils') "
-					"first."))
 	elif mime_type in ('application/x-compressed-tar', 'application/x-tar', 'application/x-ruby-gem'):
 		pass
 	else:
@@ -241,6 +237,8 @@ def unpack_archive(url, data, destdir, extract = None, type = None, start_offset
 		extract_tar(data, destdir, extract, 'lzma', start_offset)
 	elif type == 'application/x-xz-compressed-tar':
 		extract_tar(data, destdir, extract, 'xz', start_offset)
+	elif type == 'application/x-zstd-compressed-tar':
+		extract_tar(data, destdir, extract, 'zstd', start_offset)
 	elif type == 'application/x-compressed-tar':
 		extract_tar(data, destdir, extract, 'gzip', start_offset)
 	elif type == 'application/vnd.ms-cab-compressed':
@@ -421,7 +419,7 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 		if not re.match('^[a-zA-Z0-9][- _a-zA-Z0-9.]*$', extract):
 			raise SafeException(_('Illegal character in extract attribute'))
 
-	assert decompress in [None, 'bzip2', 'gzip', 'lzma', 'xz']
+	assert decompress in [None, 'bzip2', 'gzip', 'lzma', 'xz', 'zstd']
 
 	if _gnu_tar():
 		ext_cmd = ['tar']
@@ -440,6 +438,11 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 				if not unxz:
 					unxz = os.path.abspath(os.path.join(os.path.dirname(__file__), '_unxz'))
 				ext_cmd.append('--use-compress-program=' + unxz)
+			elif decompress == 'zstd':
+				unzstd = find_in_path('unzstd')
+				if not unzstd:
+					unzstd = os.path.abspath(os.path.join(os.path.dirname(__file__), '_unzstd'))
+				ext_cmd.append('--use-compress-program=' + unzstd)
 
 		if recent_gnu_tar():
 			ext_cmd.extend(('-x', '--no-same-owner', '--no-same-permissions'))
@@ -454,8 +457,8 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 		import tempfile
 
 		# Since we don't have GNU tar, use python's tarfile module. This will probably
-		# be a lot slower and we do not support lzma and xz; however, it is portable.
-		# (lzma and xz are handled by first uncompressing stream to a temporary file.
+		# be a lot slower and we do not support lzma, xz and zstd; however, it is portable.
+		# (lzma, xz and zstd are handled by first uncompressing stream to a temporary file.
 		# this is simple to do, but less efficient than piping through the program)
 		if decompress is None:
 			rmode = 'r|'
@@ -477,6 +480,14 @@ def extract_tar(stream, destdir, extract, decompress, start_offset = 0):
 				unxz = os.path.abspath(os.path.join(os.path.dirname(__file__), '_unxz'))
 			temp = tempfile.NamedTemporaryFile(suffix='.tar', mode='w+b')
 			subprocess.check_call([unxz], stdin=stream, stdout=temp)
+			rmode = 'r|'
+			stream = temp
+		elif decompress == 'zstd':
+			unzstd = find_in_path('unzstd')
+			if not unzstd:
+				unzstd = os.path.abspath(os.path.join(os.path.dirname(__file__), '_unzstd'))
+			temp = tempfile.NamedTemporaryFile(suffix='.tar', mode='w+b')
+			subprocess.check_call([unzstd], stdin=stream, stdout=temp)
 			rmode = 'r|'
 			stream = temp
 		else:
