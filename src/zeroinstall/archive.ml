@@ -19,6 +19,7 @@ let type_from_url url =
   | ".tar.gz"   -> "application/x-compressed-tar"
   | ".tar.lzma" -> "application/x-lzma-compressed-tar"
   | ".tar.xz"   -> "application/x-xz-compressed-tar"
+  | ".tar.zst"  -> "application/x-zstd-compressed-tar"
   | ".rpm" -> "application/x-rpm"
   | ".deb" -> "application/x-deb"
   | ".tbz" -> "application/x-bzip-compressed-tar"
@@ -53,15 +54,12 @@ let check_type_ok system =
     | "application/x-apple-diskimage" -> if missing "hdiutil" then
         Safe_exn.failf "This package looks like a Apple Disk Image, but you don't have the \"hdiutil\" command \
                     I need to extract it."
-    | "application/x-lzma-compressed-tar" -> () (* We can get it through Zero Install *)
-    | "application/x-xz-compressed-tar" -> if missing "unxz" then
-        Safe_exn.failf "This package looks like a xz-compressed package, but you don't have the \"unxz\" command \
-                    I need to extract it. Install the package containing it (it's probably called \"xz-utils\") first."
+    | "application/x-lzma-compressed-tar" | "application/x-xz-compressed-tar" | "application/x-zstd-compressed-tar" -> () (* We can get it through Zero Install *)
     | "application/x-compressed-tar" | "application/x-tar" | "application/x-ruby-gem" -> ()
     | mime_type ->
         Safe_exn.failf "Unsupported archive type \"%s\" (for 0install version %s)" mime_type About.version
 
-type compression = Bzip2 | Gzip | Lzma | Xz | Uncompressed
+type compression = Bzip2 | Gzip | Lzma | Xz | Zstd | Uncompressed
 
 let make_command = U.make_command
 
@@ -159,6 +157,10 @@ let extract_tar config ~dstdir ?extract ~compression archive =
         let unxz = U.find_in_path system "unxz" |? lazy (
           Lazy.force share_dir +/ "0install.net" +/ "unxz"
         ) in ["--use-compress-program=" ^ unxz]
+    | Zstd ->
+        let unzstd = U.find_in_path system "unzstd" |? lazy (
+          Lazy.force share_dir +/ "0install.net" +/ "unzstd"
+        ) in ["--use-compress-program=" ^ unzstd]
     | Uncompressed -> [] end @
 
     begin match extract with
@@ -219,6 +221,7 @@ let extract_deb config ~dstdir ?extract archive =
       | "data.tar.bz2" -> (name, Bzip2)
       | "data.tar.lzma" -> (name, Lzma)
       | "data.tar.xz" -> (name, Xz)
+      | "data.tar.zst" -> (name, Zstd)
       | _ -> get_type stream
     with Stream.Failure -> Safe_exn.failf "File is not a Debian package." in
   let data_tar, compression = get_type (U.stream_of_lines output) in
@@ -289,6 +292,7 @@ let unpack ?extract config tmpfile dstdir ~mime_type : unit Lwt.t =
   | "application/zip" ->                    tmpfile |> extract_zip config ~dstdir ?extract 
   | "application/x-lzma-compressed-tar" ->  tmpfile |> extract_tar config ~dstdir ?extract ~compression:Lzma
   | "application/x-xz-compressed-tar" ->    tmpfile |> extract_tar config ~dstdir ?extract ~compression:Xz
+  | "application/x-zstd-compressed-tar" ->  tmpfile |> extract_tar config ~dstdir ?extract ~compression:Zstd
   | _ -> Safe_exn.failf "Unknown MIME type '%s'" mime_type
 
 (** Move each item in [srcdir] into [dstdir]. Symlinks are copied as is. Does not follow any symlinks in [destdir]. *)

@@ -1,0 +1,2 @@
+#!/bin/sh
+exec 0install run --command=decompress https://apps.0install.net/utils/zstd.xml "$@"
