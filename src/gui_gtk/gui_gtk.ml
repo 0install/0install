@@ -41,11 +41,11 @@ let make_gtk_ui config =
 
     method show_preferences = Some (self#show_preferences_internal)
 
-    method run_solver tools ?test_callback ?systray mode reqs ~refresh =
+    method run_solver tools ?systray mode reqs ~refresh =
       let solver_promise, set_solver = Lwt.wait () in
       let watcher = Gui_progress.make_watcher solver_promise tools ~trust_db reqs in
       let show_preferences () = self#show_preferences_internal in
-      let box = Solver_box.run_solver ~show_preferences ~trust_db tools ?test_callback ?systray mode reqs ~refresh watcher in
+      let box = Solver_box.run_solver ~show_preferences ~trust_db tools ?systray mode reqs ~refresh watcher in
       Lwt.wakeup set_solver box;
       solver_boxes <- box :: solver_boxes;
       Lwt.finalize

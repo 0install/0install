@@ -110,10 +110,9 @@ class console_ui =
   object (self : #Ui.ui_handler as 'a)
     constraint 'a = #Progress.watcher
 
-    method run_solver tools ?test_callback ?systray mode reqs ~refresh =
+    method run_solver tools ?systray mode reqs ~refresh =
       with_autoclear begin fun () ->
         let config = tools#config in
-        ignore test_callback;
         ignore systray;
         let fetcher = tools#make_fetcher (self :> Progress.watcher) in
         Driver.solve_with_downloads config tools#distro fetcher reqs ~watcher:self ~force:refresh ~update_local:refresh >>= function

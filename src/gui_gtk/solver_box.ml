@@ -47,12 +47,6 @@ Alternatively, you can edit the policy of an individual component by clicking on
 button at the end of its line in the table and choosing \"Show Versions\" from the menu. \
 See that dialog's help text for more information.");
 
-("Reporting bugs",
-"To report a bug, right-click over the component which you think contains the problem \
-and choose 'Report a Bug...' from the menu. If you don't know which one is the cause, \
-choose the top one (i.e. the program itself). The program's author can reassign the \
-bug if necessary, or switch to using a different version of the library.");
-
 ("The cache",
 "Each version of a program that is downloaded is stored in the 0install cache. This \
 means that it won't need to be downloaded again each time you run the program. The \
@@ -144,16 +138,10 @@ let make_dialog opt_message mode ~systray =
 
   {dialog; refresh_button; progress_area; progress_info; stop_button; ok_button; swin; progress_bar; systray_icon}
 
-let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false) mode reqs ~refresh watcher : solver_box =
+let run_solver ~show_preferences ~trust_db tools ?(systray=false) mode reqs ~refresh watcher : solver_box =
   let config = tools#config in
   let refresh = ref refresh in
   let component_boxes = ref RoleMap.empty in
-
-  let report_bug role =
-    let run_test = test_callback |> pipe_some (fun test_callback ->
-      Some (fun () -> Zeroinstall.Gui.run_test config tools#distro test_callback watcher#results)
-    ) in
-    Bug_report_box.create ?run_test ?last_error:!Alert_box.last_error config ~role ~results:watcher#results in
 
   let need_recalculate = ref (Lwt.wait ()) in
   let recalculate ~force =
@@ -216,7 +204,7 @@ let run_solver ~show_preferences ~trust_db tools ?test_callback ?(systray=false)
         box#dialog#show () in
 
   let component_tree = Component_tree.build_tree_view config ~parent:dialog ~packing:widgets.swin#add
-    ~icon_cache ~show_component ~report_bug ~recalculate ~watcher in
+    ~icon_cache ~show_component ~recalculate ~watcher in
   component_tree#set_update_icons !refresh;
 
   (* Handling the Select/Download/Run toggle button *)

@@ -265,7 +265,6 @@ let suite =
   Test_packagekit.suite;
   Test_qdom.suite;
   Test_run.suite;
-  Test_bug_reporter.suite;
  "test_basedir">:: test_basedir;
  "test_portable_base">:: test_portable_base;
  "test_option_parsing">:: (fun () -> collect_logging test_option_parsing);

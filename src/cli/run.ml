@@ -5,7 +5,6 @@
 (** The "0install run" command *)
 
 open Support
-open Support.Common
 open Options
 open Zeroinstall.General
 
@@ -15,22 +14,6 @@ type run_options = {
   mutable wrapper : string option;
   mutable main : string option;
 }
-
-(** This is run when the user clicks the test button in the bug-report dialog box. *)
-let run_test options run_opts run_args sels =
-  let exec args ~env =
-    let command = (U.find_in_path_ex options.config.system (List.hd args), Array.of_list args) in
-    Lwt_process.pread ~env ~stderr:(`FD_copy Unix.stdout) command in
-  Lwt.catch
-    (fun () ->
-      match Zeroinstall.Exec.execute_selections ~exec options.config sels run_args ?main:run_opts.main ?wrapper:run_opts.wrapper with
-      | `Dry_run msg -> return msg
-      | `Ok x -> x
-    )
-    (fun ex ->
-      log_info ~ex "Error from test command";
-      Lwt.fail ex
-    )
 
 let handle options flags args =
   let run_opts = {
@@ -48,7 +31,7 @@ let handle options flags args =
 
   match args with
   | arg :: run_args -> (
-    let sels = Generic_select.handle options ~test_callback:(run_test options run_opts run_args) !select_opts arg `Select_for_run in
+    let sels = Generic_select.handle options !select_opts arg `Select_for_run in
 
     let exec args ~env =
       options.config.system#exec args ~env in

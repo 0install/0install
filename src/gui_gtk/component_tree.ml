@@ -64,7 +64,7 @@ let walk_tree (model:GTree.tree_store) ~start ~stop fn =
 
 module SolverTree = Tree.Make(Solver.Output)
 
-let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_bug ~recalculate ~watcher =
+let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~recalculate ~watcher =
   (* Model *)
   let columns = new GTree.column_list in
   let implementation = columns#add Gobject.Data.caml in
@@ -170,8 +170,6 @@ let build_tree_view config ~parent ~packing ~icon_cache ~show_component ~report_
     show_feeds#connect#activate ==> (fun () -> show_component role ~select_versions_tab:false);
     show_versions#connect#activate ==> (fun () -> show_component role ~select_versions_tab:true);
 
-    let report_a_bug = GMenu.menu_item ~packing ~label:"Report a Bug..." () in
-    report_a_bug#connect#activate ==> (fun () -> report_bug role);
     let compile_item = GMenu.menu_item ~packing ~label:"Compile" () in
 
     if have_source then (

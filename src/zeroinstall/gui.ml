@@ -248,48 +248,6 @@ let compile config feed_provider iface ~autocompile =
   feed_provider#forget_user_feeds iface;
   Lwt.return ()      (* The plugin should now recalculate *)
 
-let get_bug_report_details config ~role (ready, results) =
-  let system = config.system in
-  let sels = Solver.selections results in
-  let root_role = Solver.Output.((requirements results).role) in
-  let issue_file = "/etc/issue" in
-  let issue =
-    if system#file_exists issue_file then
-      U.read_file system issue_file |> String.trim
-    else
-      Printf.sprintf "(file '%s' not found)" issue_file in
-
-  let b = Buffer.create 1000 in
-  let add fmt =
-    let do_add msg = Buffer.add_string b msg in
-    Format.kasprintf do_add fmt in
-
-  add "Problem with %a\n" Solver.Output.Role.pp role;
-  if role <> root_role then
-    add "  (while attempting to run %a)\n" Solver.Output.Role.pp root_role;
-  add "\n";
-
-  add "0install version %s\n" About.version;
-
-  if ready then (
-    let f = Format.formatter_of_buffer b in
-    Tree.print config f sels;
-    Format.pp_print_newline f ()
-  ) else (
-    Buffer.add_string b @@ Solver.get_failure_reason config results
-  );
-
-  let platform = system#platform in
-  add "\n\
-       \nSystem:\
-       \n  %s %s %s\n\
-       \nIssue:\
-       \n  %s\n" platform.Platform.os platform.Platform.release platform.Platform.machine issue;
-
-  add "\n%s" @@ Support.Qdom.to_utf8 (Selections.as_xml sels);
-
-  Buffer.contents b
-
 let run_test config distro test_callback (ready, results) =
   Lwt.catch
     (fun () ->
@@ -362,15 +320,6 @@ let try_get_gui config ~use_gui =
             with ex ->
               log_warning ~ex "Failed to create GTK GUI";
               None
-
-let send_bug_report iface_uri message : string Lwt.t =
-  (* todo: Check the interface to decide where to send bug reports *)
-  let url = "http://api.0install.net/api/report-bug/" in
-  let data = Printf.sprintf "uri=%s&body=%s" (Http.escape iface_uri) (Http.escape message) in
-  Http.post ~data url >|= function
-  | Ok data -> data
-  | Error (msg, data) ->
-    Safe_exn.failf "Failed to submit bug report: %s\n%s" msg data
 
 let get_sigs config url =
   match Feed_cache.get_cached_feed_path config url with

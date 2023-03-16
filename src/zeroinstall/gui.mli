@@ -57,14 +57,6 @@ val list_impls : Solver.Output.t -> Solver.role ->
 (* Returns (fetch-size, fetch-tooltip) *)
 val get_fetch_info : General.config -> Impl.generic_implementation -> (string * string)
 
-(** Get the initial text for the bug report dialog box. *)
-val get_bug_report_details : General.config -> role:Solver.role -> (bool * Solver.Output.t) -> string
-
-(** Submit a bug report for this interface.
- * @return the response from the server (on success).
- * @raise Safe_exn.T on failure. *)
-val send_bug_report : Sigs.iface_uri -> string -> string Lwt.t
-
 val run_test : General.config -> Distro.t -> (Selections.t -> string Lwt.t) -> (bool * Solver.Output.t) -> string Lwt.t
 
 val generate_feed_description : General.config -> Trust.trust_db -> Feed.t -> Feed_metadata.t -> feed_description Lwt.t

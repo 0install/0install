@@ -13,12 +13,10 @@ type select_mode = [
 class type ui_handler =
   object
     (** Choose (and possibly download) a set of implementations.
-     * @param test_callback is used if the user clicks on the test button in the bug report dialog.
      * @param systray is used during background updates - just show an icon in the systray if possible
      *)
     method run_solver :
       < config : General.config; distro : Distro.t; make_fetcher : Progress.watcher -> Fetch.fetcher; .. > ->
-      ?test_callback:(Selections.t -> string Lwt.t) ->
       ?systray:bool ->
       select_mode ->
       Requirements.t ->
