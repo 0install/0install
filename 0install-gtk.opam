@@ -15,7 +15,7 @@ depends: [
   "0install" {= version}
   "ounit2" {with-test}
   "dune" {>= "2.5"}
-  "lablgtk3" {>= "3"}
+  "lablgtk3" {>= "3.1.0"}
   "lwt_glib"
 ]
 description: """
