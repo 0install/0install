@@ -1,0 +1,45 @@
+name: CI - Python version
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Prepare
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: gittools/actions/gitversion/setup@v0.10.2
+        with:
+          versionSpec: '5.12.x'
+      - uses: gittools/actions/gitversion/execute@v0.10.2
+        id: gitversion
+
+      # Build
+      - name: Inject version number
+        run: |
+          sed -i "s/^version = '.*'$/version = '${{steps.gitversion.outputs.legacySemVer}}'/" zeroinstall/__init__.py
+          sed -i "s/^version = '.*'$/version = '${{steps.gitversion.outputs.legacySemVer}}'/" zeroinstall/0launch-gui/gui.py
+      - name: make translations
+        run: |
+          sudo apt-get -qq install gettext
+          make translations
+      - name: 0template
+        run: ./0install.sh run https://apps.0install.net/0install/0template.xml 0install-python.xml.template version=${{steps.gitversion.outputs.legacySemVer}}
+      - name: 0test
+        run: ./0install.sh run https://apps.0install.net/0install/0test.xml 0install-python-${{steps.gitversion.outputs.legacySemVer}}.xml
+
+      # Release
+      - name: Create GitHub Release
+        if: steps.gitversion.outputs.preReleaseLabel == ''
+        uses: softprops/action-gh-release@v1
+        with:
+          files: 0install-${{steps.gitversion.outputs.legacySemVer}}.*
+      - name: Publish feed
+        if: steps.gitversion.outputs.preReleaseLabel == ''
+        env:
+          GH_TOKEN: ${{secrets.PERSONAL_TOKEN}}
+        run: >
+          gh workflow run --repo=0install/apps Incoming
+          -f feed_url=https://github.com/${{github.repository}}/releases/download/${{steps.gitversion.outputs.legacySemVer}}/0install-${{steps.gitversion.outputs.legacySemVer}}.xml
+          -f archive_url=https://github.com/${{github.repository}}/releases/download/${{steps.gitversion.outputs.legacySemVer}}/0install-${{steps.gitversion.outputs.legacySemVer}}.tar.bz2
