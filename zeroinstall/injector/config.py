@@ -20,7 +20,7 @@ from zeroinstall.injector.namespaces import config_site, config_prog
 from zeroinstall.support import basedir
 
 DEFAULT_MIRROR = "http://roscidus.com/0mirror"
-DEFAULT_KEY_LOOKUP_SERVER = 'https://keylookup.appspot.com'
+DEFAULT_KEY_LOOKUP_SERVER = 'https://keylookup.0install.net'
 
 class Config(object):
 	"""
