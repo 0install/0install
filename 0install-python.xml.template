@@ -1,0 +1,45 @@
+<?xml version="1.0" ?>
+<?xml-stylesheet type='text/xsl' href='interface.xsl'?>
+<interface xmlns="http://zero-install.sourceforge.net/2004/injector/interface">
+  <name>Zero Install - Python version</name>
+  <summary>Python version of 0install, the decentralized installation system</summary>
+  <description>This is the Python version of Zero Install. Zero Install is a cross-platform, decentralized installation system. Instead of having a central repository in which all software is placed under a naming scheme managed by some central authority, programs and libraries in Zero Install are identified by URIs. Anyone who can create a web-page can publish software. Anyone can install software (not just administrators).</description>
+
+  <homepage>http://0install.net/</homepage>
+
+  <icon href="http://0install.net/feed_icons/ZeroInstall.png" type="image/png"/>
+
+  <feed-for interface="https://apps.0install.net/0install/0install-python.xml"/>
+  <category>System</category>
+
+  <group license="OSI Approved :: GNU Lesser General Public License (LGPL)" main="0launch">
+    <command name="run" path="0launch">
+      <runner interface="https://apps.0install.net/python/python.xml"/>
+    </command>
+    <command name="0install" path="0install">
+      <runner interface="https://apps.0install.net/python/python.xml"/>
+    </command>
+    <command name="test" path="tests/testall.py">
+      <runner interface="https://apps.0install.net/python/python.xml">
+        <arg>-tt</arg>
+      </runner>
+    </command>
+
+    <requires interface="https://apps.0install.net/utils/gnupg.xml">
+      <executable-in-var name="ZEROINSTALL_GPG"/>
+    </requires>
+
+    <requires interface="https://apps.0install.net/python/python.xml" version="3.4.."/>
+    <requires interface="https://apps.0install.net/python/python.xml" os="Windows" version="3.4..!3.8"/>
+    <requires interface="https://apps.0install.net/python/pywin32.xml" os="Windows"/>
+
+    <requires interface="http://0install.net/2012/interfaces/0install-runenv-cli.xml" os="Windows" version="2.0.2..">
+      <environment insert="runenv.cli.template" mode="replace" name="ZEROINSTALL_CLI_TEMPLATE"/>
+    </requires>
+
+    <implementation version="{version}" local-path=".">
+      <manifest-digest/>
+      <archive href="0install-python-{version}.tar.bz2"/>
+    </implementation>
+  </group>
+</interface>

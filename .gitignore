@@ -6,3 +6,5 @@ share/locale/zero-install.pot
 /tests/TEST*.xml
 /tests/coverage.xml
 /ocaml/_build
+/0install-python-*.xml
+/0install-python-*.tar.bz2
