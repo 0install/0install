@@ -11,7 +11,7 @@ function __fish_0launch_complete
 					begin
 						# echo needed to prevent empty list
 						set arg (echo (commandline --tokenize --current-token))
-						ls -1 (dirname {$arg}_) ^/dev/null
+						ls -1 (dirname {$arg}_) 2>/dev/null
 					end;
 				case '*'        ; echo >&2 Bad reply $item
 			end
