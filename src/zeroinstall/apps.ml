@@ -310,7 +310,7 @@ let export (system:system) name value =
 
 let find_bin_dir_in ~warn_about_path config paths =
   let system = config.system in
-  let home_bin = system#getenv "HOME" |> pipe_some (fun home -> Some (home +/ "bin")) in
+  let home_bin = Basedir.get_user_bin system in
   let best =
     match home_bin with
     | Some home_bin when List.mem home_bin paths ->
@@ -334,11 +334,13 @@ let find_bin_dir_in ~warn_about_path config paths =
     match best with
     | Some path -> path
     | None ->
-        let path = U.getenv_ex system "HOME" +/ "bin" in
+      match home_bin with
+      | Some path ->
         if warn_about_path then
           log_warning "%s is not in $PATH. Add it with:\n%s" path (export system "PATH" @@ path ^ ":$PATH");
         U.makedirs system path 0o755;
-	path
+        path
+      | None -> Safe_exn.failf "Environment variable 'HOME' not set"
 
 (** Find the first writable path in the list (default $PATH),
     skipping /bin, /sbin and everything under /usr except /usr/local/bin *)

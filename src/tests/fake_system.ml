@@ -576,7 +576,7 @@ let get_fake_config ?portable_base tmpdir =
     system#add_file "c:\\bin\\0launch.exe" (tests_dir +/ "0install.exe");
     system#add_file "c:\\bin\\0alias.exe" (tests_dir +/ "0install.exe");
   ) else (
-    system#putenv "PATH" @@ (home +/ "bin") ^ ":" ^ (Sys.getenv "PATH");
+    system#putenv "PATH" @@ (home +/ ".local/bin") ^ ":" ^ (Sys.getenv "PATH");
     system#add_file test_0install (tests_dir +/ "0install");
     system#add_file "/usr/bin/0install" (tests_dir +/ "0install");
     system#add_file "/usr/bin/0launch" (tests_dir +/ "0install");

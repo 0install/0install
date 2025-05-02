@@ -352,7 +352,7 @@ let suite = "0install">::: [
     assert_contains "[dry-run] would write selections to " out;
     assert_contains "[dry-run] would write launcher script " out;
 
-    let bin_dir = (tmpdir +/ "bin") in
+    let bin_dir = (tmpdir +/ ".local/bin") in
     assert (not (fake_system#file_exists bin_dir));
 
     let out = run ["add"; "local-app-make-bin"; local_feed] in
@@ -952,7 +952,8 @@ let suite = "0install">::: [
   "update-alias">:: Fake_system.with_fake_config (fun (_config, fake_system) ->
     skip_if on_windows "Aliases don't work on Windows";
     let local_feed = Fake_system.test_data "Local.xml" in
-    let bindir = fake_system#tmpdir +/ "bin" in
+    let bindir = fake_system#tmpdir +/ ".local/bin" in
+    fake_system#mkdir (fake_system#tmpdir +/ ".local") 0o700;
     fake_system#mkdir bindir 0o700;
     let launcher_script = bindir +/ "my-test-alias" in
     write_script fake_system launcher_script local_feed;
@@ -972,7 +973,8 @@ let suite = "0install">::: [
     check_man fake_system [] ["man"];
 
     let local_feed = Fake_system.test_data "Local.xml" in
-    let bindir = fake_system#tmpdir +/ "bin" in
+    let bindir = fake_system#tmpdir +/ ".local/bin" in
+    fake_system#mkdir (fake_system#tmpdir +/ ".local") 0o700;
     fake_system#mkdir bindir 0o700;
     let launcher_script = bindir +/ "my-test-alias" in
     write_script fake_system launcher_script local_feed;

@@ -27,3 +27,6 @@ val save_path : #filesystem -> filepath -> filepath list -> filepath
 (** Get the home directory (normally [$HOME]). If we're running as root and $HOME isn't owned by root
  * (e.g. under sudo) then return root's real home directory instead. *)
 val get_unix_home : system -> filepath
+
+(** Get the default home bin directory. *)
+val get_user_bin : system -> filepath option
