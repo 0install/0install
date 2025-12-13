@@ -13,9 +13,20 @@
   <category>System</category>
 
   <group license="OSI Approved :: GNU Lesser General Public License (LGPL)" main="0launch">
-    <command name="run" path="0launch">
-      <runner interface="https://apps.0install.net/python/python.xml"/>
-    </command>
+    <requires interface="https://apps.0install.net/python/python.xml" version="3.4.."/>
+    <requires interface="https://apps.0install.net/python/python.xml" os="Windows" version="3.4..!3.7"/>
+    <requires interface="https://apps.0install.net/python/pywin32.xml" os="Windows"/>
+
+    <requires interface="https://apps.0install.net/0install/0install-runenv-cli.xml" os="Windows" version="2.0.2..">
+      <environment insert="runenv.cli.template" mode="replace" name="ZEROINSTALL_CLI_TEMPLATE"/>
+    </requires>
+
+    <requires interface="https://apps.0install.net/utils/gnupg.xml" os="Linux"/>
+    <requires interface="https://apps.0install.net/utils/gnupg.xml" os="Windows"/>
+    <requires interface="https://apps.0install.net/utils/gnupg.xml" importance="recommended">
+      <executable-in-var name="ZEROINSTALL_GPG"/>
+    </requires>
+
     <command name="0install" path="0install">
       <runner interface="https://apps.0install.net/python/python.xml"/>
     </command>
@@ -24,18 +35,9 @@
         <arg>-tt</arg>
       </runner>
     </command>
-
-    <requires interface="https://apps.0install.net/utils/gnupg.xml">
-      <executable-in-var name="ZEROINSTALL_GPG"/>
-    </requires>
-
-    <requires interface="https://apps.0install.net/python/python.xml" version="3.4.."/>
-    <requires interface="https://apps.0install.net/python/python.xml" os="Windows" version="3.4..!3.8"/>
-    <requires interface="https://apps.0install.net/python/pywin32.xml" os="Windows"/>
-
-    <requires interface="http://0install.net/2012/interfaces/0install-runenv-cli.xml" os="Windows" version="2.0.2..">
-      <environment insert="runenv.cli.template" mode="replace" name="ZEROINSTALL_CLI_TEMPLATE"/>
-    </requires>
+    <command name="run" path="0launch">
+      <runner interface="https://apps.0install.net/python/python.xml"/>
+    </command>
 
     <!-- Use very high version number to treat local build as newer than any public version. -->
     <implementation id="local" version="100-pre" stability="developer" local-path="."/>
