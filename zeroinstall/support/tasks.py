@@ -141,7 +141,13 @@ def get_loop():
 					raise Exception("No mainloop available: install python3-gi or Python >= 3.7")
 			asyncio = loop = Fail()
 		else:
-			loop = asyncio.get_event_loop()
+			try:
+				loop = asyncio.get_event_loop()
+			except RuntimeError:
+				# Python 3.14+ raises a RuntimeError if there is no current event loop
+				loop = asyncio.new_event_loop()
+				asyncio.set_event_loop(loop)
+
 			loop.glib = None
 
 	_loop = loop
