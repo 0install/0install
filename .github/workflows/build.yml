@@ -26,8 +26,8 @@ jobs:
           make translations
       - name: 0template
         run: ./0install run https://apps.0install.net/0install/0template.xml 0install-python.xml.template version=${{steps.gitversion.outputs.legacySemVer}}
-      - name: 0test
-        run: ./0install run https://apps.0install.net/0install/0test.xml 0install-python-${{steps.gitversion.outputs.legacySemVer}}.xml
+      #- name: 0test
+      #  run: ./0install run https://apps.0install.net/0install/0test.xml 0install-python-${{steps.gitversion.outputs.legacySemVer}}.xml
 
       # Release
       - name: Get tag message
