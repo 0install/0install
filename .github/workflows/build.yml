@@ -30,13 +30,29 @@ jobs:
         run: ./0install run https://apps.0install.net/0install/0test.xml 0install-python-${{steps.gitversion.outputs.legacySemVer}}.xml
 
       # Release
+      - name: Get tag message
+        if: github.ref_type == 'tag'
+        id: tag_message
+        run: |
+          {
+            echo "message<<EOF"
+            git fetch -f origin tag ${{github.ref_name}}
+            git tag -l ${{github.ref_name}} --format="%(contents)"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
       - name: Create GitHub Release
         if: github.ref_type == 'tag'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
+          body: |
+            This version is mainly intended for use as a library dependency in Python-based 0install tools.
+            ## Changes
+            ${{steps.tag_message.outputs.message}}
           files: |
             0install-${{steps.gitversion.outputs.legacySemVer}}.xml
             0install-${{steps.gitversion.outputs.legacySemVer}}.tar.bz2
+
+      # Publish
       - name: Publish feed
         if: github.ref_type == 'tag'
         env:
