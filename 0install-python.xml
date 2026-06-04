@@ -12,7 +12,7 @@
   <feed-for interface="https://apps.0install.net/0install/0install-python.xml"/>
   <category>System</category>
 
-  <group license="OSI Approved :: GNU Lesser General Public License (LGPL)" main="0launch">
+  <group license="LGPL-2.1-or-later" main="0launch">
     <requires interface="https://apps.0install.net/python/python.xml" version="3.4.."/>
     <requires interface="https://apps.0install.net/python/python.xml" os="Windows" version="3.4..!3.7"/>
     <requires interface="https://apps.0install.net/python/pywin32.xml" os="Windows"/>
