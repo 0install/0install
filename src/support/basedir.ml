@@ -43,6 +43,11 @@ let get_unix_home (system:#system) =
       log_warning "Running as root, but $HOME (%S) is not owned by root. Using %S instead." home root_home;
       root_home
 
+let get_user_bin (system:#system) =
+  match system#platform.os with
+    | "Linux" -> system#getenv "HOME" |> pipe_some (fun home -> Some (home +/ ".local/bin"))
+    | _ -> system#getenv "HOME" |> pipe_some (fun home -> Some (home +/ "bin"))
+
 let get_default_config (system:#system) =
   let get = get_path system in
   if on_windows then (
