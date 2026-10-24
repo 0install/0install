@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Prepare
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: gittools/actions/gitversion/setup@v0.10.2
@@ -24,10 +24,14 @@ jobs:
         run: |
           sudo apt-get -qq install gettext
           make translations
-      - name: 0template
-        run: ./0install run https://apps.0install.net/0install/0template.xml 0install-python.xml.template version=${{steps.gitversion.outputs.legacySemVer}}
+      - uses: 0install/github-actions/0template@v1
+        id: feed
+        with:
+          template: 0install-python.xml.template
+          version: ${{steps.gitversion.outputs.legacySemVer}}
+          github-release: ${{github.ref_type == 'tag'}}
       #- name: 0test
-      #  run: ./0install run https://apps.0install.net/0install/0test.xml 0install-python-${{steps.gitversion.outputs.legacySemVer}}.xml
+      #  run: 0install run https://apps.0install.net/0install/0test.xml 0install-python-${{steps.gitversion.outputs.legacySemVer}}.xml
 
       # Release
       - name: Get tag message
@@ -49,15 +53,13 @@ jobs:
             ## Changes
             ${{steps.tag_message.outputs.message}}
           files: |
-            0install-python-${{steps.gitversion.outputs.legacySemVer}}.xml
-            0install-python-${{steps.gitversion.outputs.legacySemVer}}.tar.bz2
+            ${{steps.feed.outputs.feed}}
+            ${{steps.feed.outputs.archive}}
 
       # Publish
-      - name: Publish feed
+      - uses: 0install/github-actions/0repo-submit@v1
         if: github.ref_type == 'tag'
-        env:
-          GH_TOKEN: ${{secrets.PERSONAL_TOKEN}}
-        run: >
-          gh workflow run --repo=0install/apps Incoming
-          -f feed_url=https://github.com/${{github.repository}}/releases/download/${{github.ref_name}}/0install-python-${{steps.gitversion.outputs.legacySemVer}}.xml
-          -f archive_url=https://github.com/${{github.repository}}/releases/download/${{github.ref_name}}/0install-python-${{steps.gitversion.outputs.legacySemVer}}.tar.bz2
+        with:
+          repository: 0install/apps
+          feed-url: ${{steps.feed.outputs.feed}}
+          token: ${{secrets.PERSONAL_TOKEN}}
