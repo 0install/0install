@@ -1,3 +1,7 @@
+**The Python version of 0install has moved to
+[0install-python](https://github.com/0install/0install-python).
+This branch is no longer maintained and is only kept for historical reference.**
+
 0install
 ========
 
